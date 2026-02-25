@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>審判入力 (2画面比較) - Trampoline Scoring System</title>
+    <style>
+        :root { --primary: #37474f; --accent: #1a73e8; --bg: #eceff1; --card: #ffffff; --ok-green: #2e7d32; --warn-orange: #f57c00; --gray: #78909c; --danger: #d32f2f; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { width: 350px; background: #fff; border-right: 1px solid #cfd8dc; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 25px; background: var(--primary); color: white; }
+        .sidebar-list { flex-grow: 1; overflow-y: auto; padding-bottom: 50px; }
+        
+        .cat-group { background: #cfd8dc; padding: 10px 15px; font-size: 0.85em; font-weight: bold; color: #37474f; border-bottom: 1px solid #b0bec5; }
+        .gender-group { background: #f1f3f4; padding: 6px 20px; font-size: 0.75em; font-weight: bold; color: #78909c; border-bottom: 1px solid #eee; }
+
+        .athlete-row { padding: 10px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .athlete-row.active-athlete { background: #f0f7ff; }
+        .ath-name-text { font-size: 0.85em; font-weight: bold; color: #333; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ath-order { font-size: 0.85em; color: var(--accent); margin-right: 5px; font-family: monospace; }
+        
+        .round-box { display: flex; gap: 6px; }
+        .r-dot { 
+            width: 42px; height: 28px; border-radius: 4px; font-size: 0.75em; 
+            display: flex; align-items: center; justify-content: center; 
+            background: #eee; color: #999; text-decoration: none; border: 2px solid transparent; font-weight: bold; transition: 0.2s;
+        }
+        .r-dot.has-sub { background: #e3f2fd; color: #1a73e8; border: 1px solid #bbdefb; } 
+        .r-dot.has-res { background: #e8f5e9; color: var(--ok-green); border: 1px solid #c8e6c9; } 
+        .r-dot.current { border: 2px solid #000; transform: scale(1.15); z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .r-dot.current:not(.has-res) { background: #fff; color: var(--accent); }
+        .r-dot.has-res.current { background: var(--ok-green); color: #fff; border-color: #000; }
+
+        /* 【重要】申告相違があるラウンドの文字を赤くする */
+        .r-dot.diff-dot { color: var(--danger) !important; font-weight: 900; }
+
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 30px; display: flex; justify-content: center; align-items: flex-start; }
+        .score-card { background: white; width: 100%; max-width: 1100px; padding: 35px; border-radius: 20px; box-shadow: 0 4px 25px rgba(0,0,0,0.08); margin-top: 5px; }
+        
+        .header-info { border-bottom: 2px solid #eee; padding-bottom: 25px; margin-bottom: 25px; }
+        .header-info h2 { margin: 5px 0 10px 0; font-size: 1.8em; font-weight: 900; display: flex; align-items: baseline; gap: 10px; }
+
+        .comparison-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .comparison-table th, .comparison-table td { padding: 12px 5px; border-bottom: 1px solid #f0f0f0; text-align: center; font-size: 1.05em; transition: 0.3s; }
+        .col-num { width: 45px; color: #999; font-size: 0.85em; }
+        .col-sub { width: 22%; background: #f9f9f9; color: #555; font-weight: bold; } 
+        .col-sub-dd { width: 65px; background: #f9f9f9; color: #999; font-family: monospace; }
+        
+        select { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 1em; background: #fff; cursor: pointer; }
+        select:disabled { background: #f5f5f5; color: #777; cursor: default; border-color: #eee; }
+
+        /* 重複ハイライト & 無効行 & 申告相違赤字 */
+        .duplicate-row td { background-color: #fff176 !important; }
+        .invalid-row td { background-color: #f5f5f5 !important; color: #bbb !important; }
+        .diff-skill { color: var(--danger) !important; font-weight: 900; }
+        .dd-zero { color: var(--danger) !important; font-weight: 900; }
+
+        .valid-count-area { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: flex-end; gap: 15px; border: 1px solid #eee; }
+        .footer-stats { display: flex; justify-content: flex-end; gap: 50px; margin-top: 20px; padding-top: 20px; border-top: 2px solid #eee; }
+        .total-official { font-size: 3em; font-weight: 900; color: var(--ok-green); }
+        .total-official.diff-skill { color: var(--danger); }
+
+        .action-area { margin-top: 30px; }
+        .btn { width: 100%; padding: 22px; border: none; border-radius: 14px; font-size: 1.3em; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-submit { background: var(--ok-green); color: white; box-shadow: 0 8px 20px rgba(46, 125, 50, 0.2); }
+        .btn-modify { background: white; color: var(--warn-orange); border: 3px solid var(--warn-orange); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div style="font-size: 0.8em; opacity: 0.8;">JUDGE CONSOLE</div>
+        <div id="event-name" style="font-weight: 900; font-size: 1.2em; margin-top: 5px;">Loading...</div>
+        <a href="#" id="menu-back" style="color: white; font-size: 0.75em; text-decoration: none; display: block; margin-top: 15px; opacity: 0.7;">← 管理メニューに戻る</a>
+    </div>
+    <div id="sidebar-list" class="sidebar-list"></div>
+</div>
+
+<div class="main-content" id="main-content">
+    <div style="margin-top: 150px; text-align: center; color: #90a4ae;">
+        <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
+        <div style="font-size: 1.2em;">左のリストからラウンドを選択してください</div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+    
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
+
+    let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
+
+    async function init() {
+        if (!eventId) return;
+        document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
+
+        try {
+            const res = await fetch('data/skills.tsv');
+            const text = await res.text();
+            skillMaster = text.trim().split(/\r?\n/).slice(1).map((line, index) => {
+                const c = line.split('\t');
+                return { id: String(index), symbol: c[0].trim(), dd: parseFloat(c[1]), isTriple: c[2]?.trim().toLowerCase() === 'true', direction: c[3].trim() };
+            });
+
+            const [tourSnap, athSnap, subSnap, resSnap] = await Promise.all([
+                getDoc(doc(db, "tournaments", eventId)),
+                getDocs(collection(db, "tournaments", eventId, "athletes")),
+                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+                getDocs(query(collection(db, "results"), where("eventId", "==", eventId)))
+            ]);
+
+            currentTour = tourSnap.data();
+            document.getElementById('event-name').innerText = currentTour.name;
+            athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            submissions = {}; subSnap.forEach(d => { submissions[d.id] = d.data(); });
+            results = {}; resSnap.forEach(d => { results[d.id] = d.data(); });
+
+            renderSidebar();
+            if (athleteId) renderScoringArea();
+        } catch (e) { console.error("Init Error:", e); }
+    }
+
+    function checkHasDiff(aid, rid) {
+        const subId = `${eventId}_${aid}_${rid}`;
+        const sub = submissions[subId], res = results[subId];
+        if (!sub || !res) return false;
+        const validLimit = res.validCount !== undefined ? res.validCount : 10;
+        for (let i = 0; i < validLimit; i++) {
+            const skill = skillMaster[res.officialSkills[i]];
+            const subRaw = sub.skills[i] || "";
+            const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+            if (skill && subSkill && skill.symbol !== subSkill.symbol) return true;
+        }
+        return false;
+    }
+
+    function renderSidebar() {
+        if (!currentTour) return;
+        const listEl = document.getElementById('sidebar-list');
+        listEl.innerHTML = "";
+        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
+
+        let lastCat = "", lastGender = "";
+        athletes.forEach(ath => {
+            if (ath.category !== lastCat) { listEl.innerHTML += `<div class="cat-group">${ath.category}</div>`; lastCat = ath.category; lastGender = ""; }
+            if (ath.gender !== lastGender) { listEl.innerHTML += `<div class="gender-group">${ath.gender}</div>`; lastGender = ath.gender; }
+
+            let dotsHtml = "";
+            const numPre = currentTour.qualifyingRoutines || 1;
+            for(let i=1; i<=numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
+            if(currentTour.hasFinal) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+
+            listEl.innerHTML += `<div class="athlete-row ${ath.id === athleteId ? 'active-athlete' : ''}">
+                <div class="ath-name-text"><span class="ath-order">${ath.order}.</span>${ath.name1}</div>
+                <div class="round-box">${dotsHtml}</div></div>`;
+        });
+    }
+
+    function getDotHtml(aid, rid, label) {
+        const id = `${eventId}_${aid}_${rid}`;
+        const cls = (results[id] ? 'has-res' : (submissions[id] ? 'has-sub' : '')) + 
+                    (aid === athleteId && rid === round ? ' current' : '') +
+                    (checkHasDiff(aid, rid) ? ' diff-dot' : '');
+        return `<a href="judges_entry.html?event=${eventId}&athlete=${aid}&round=${rid}" class="r-dot ${cls}">${label}</a>`;
+    }
+
+    function renderScoringArea() {
+        const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId], resData = results[subId], ath = athletes.find(a => a.id === athleteId);
+        if (!sub) {
+            document.getElementById('main-content').innerHTML = `<div style="margin-top:150px; text-align:center;"><b style="font-size:1.5em;">No.${ath?.order || ''} ${ath?.name1 || ''}</b><br><div style="color:var(--warn-orange); font-weight:bold; margin-top:10px;">${round.toUpperCase()} 未提出</div></div>`;
+            return;
+        }
+
+        const isLocked = !!resData;
+        const initialData = isLocked ? resData.officialSkills : sub.skills;
+        const validCount = (isLocked && resData.validCount !== undefined) ? resData.validCount : 10;
+
+        const initialIds = initialData.map(s => {
+            if (s !== "" && !isNaN(s) && skillMaster[s]) return String(s);
+            const found = skillMaster.find(m => m.symbol === s);
+            return found ? found.id : "";
+        });
+
+        document.getElementById('main-content').innerHTML = `
+            <div class="score-card">
+                <div class="header-info">
+                    <div style="display:flex; justify-content:space-between;">
+                        <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
+                        ${isLocked ? '<span class="status-badge badge-locked">✓ 公式スコア確定済</span>' : ''}
+                    </div>
+                    <h2>No.${ath.order} ${ath.name1} <span style="font-size:0.5em; color:#666;">(${ath.kana1 || ""})</span></h2>
+                </div>
+                <table class="comparison-table">
+                    <thead><tr><th class="col-num">#</th><th class="col-sub">選手申告</th><th class="col-sub-dd">DD</th><th>系統</th><th>記号</th><th class="col-dd">DD</th></tr></thead>
+                    <tbody id="skill-rows"></tbody>
+                </table>
+                <div class="valid-count-area">
+                    <label style="font-weight:bold;">有効本数:</label>
+                    <select id="valid-count" style="width:100px;" onchange="calcTotal()" ${isLocked ? 'disabled' : ''}>
+                        ${[...Array(11).keys()].map(n => `<option value="${n}" ${n===validCount?'selected':''}>${n}本</option>`).join('')}
+                    </select>
+                </div>
+                <div class="footer-stats"><span id="total-dd" class="total-official">0.0</span></div>
+                <div class="action-area" id="action-area">
+                    <button id="btn-save" class="btn ${isLocked?'btn-modify':'btn-submit'}" onclick="${isLocked?'enableEditing()':'saveOfficialScore()'}">${isLocked?'修正する':'確定・保存'}</button>
+                </div>
+            </div>`;
+
+        const tbody = document.getElementById('skill-rows');
+        for (let i = 1; i <= 10; i++) {
+            const currentId = initialIds[i-1] || "";
+            const skill = skillMaster[currentId] || {};
+            const subRaw = sub.skills[i-1] || "";
+            const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+
+            const tr = document.createElement('tr'); tr.id = `row-${i}`;
+            tr.innerHTML = `<td class="col-num">${i}</td><td class="col-sub">${subSkill?.symbol || "-"}</td><td class="col-sub-dd">${subSkill?.dd.toFixed(1) || '0.0'}</td>
+                <td><select id="dir-${i}" onchange="updateOptions(${i})" ${isLocked ? 'disabled' : ''}>
+                    <option value="">--</option><option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
+                    <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option><option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option>
+                </select></td>
+                <td><select id="skill-${i}" onchange="calcTotal()" ${isLocked ? 'disabled' : ''}></select></td>
+                <td><span id="dd-${i}">0.0</span></td>`;
+            tbody.appendChild(tr);
+            updateOptions(i, currentId, false);
+        }
+        calcTotal();
+    }
+
+    window.updateOptions = (idx, selectedId = "", doCalc = true) => {
+        const dir = document.getElementById(`dir-${idx}`).value;
+        const sel = document.getElementById(`skill-${idx}`);
+        if(!sel) return;
+        sel.innerHTML = '<option value="">選択</option>';
+        if (dir) skillMaster.filter(s => s.direction === dir).forEach(s => {
+            const opt = document.createElement('option'); opt.value = s.id; opt.innerText = s.symbol;
+            if (s.id === selectedId) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        if (doCalc) calcTotal();
+    };
+
+    window.calcTotal = () => {
+        const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId];
+        const validCountEl = document.getElementById('valid-count'), totalDDContainer = document.getElementById('total-dd');
+        if (!validCountEl || !sub) return;
+
+        const validLimit = parseInt(validCountEl.value);
+        let baseDD = 0, tripleCount = 0, hasAnyDiff = false;
+        const seenIds = new Set(), idCounts = {};
+
+        for(let i=1; i<=validLimit; i++) {
+            const id = document.getElementById(`skill-${i}`)?.value;
+            if(id) idCounts[id] = (idCounts[id] || 0) + 1;
+        }
+
+        for (let i = 1; i <= 10; i++) {
+            const id = document.getElementById(`skill-${i}`)?.value, row = document.getElementById(`row-${i}`), ddSpan = document.getElementById(`dd-${i}`), selSkill = document.getElementById(`skill-${i}`), selDir = document.getElementById(`dir-${i}`);
+            const subRaw = sub.skills[i-1] || "", subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+
+            if (i > validLimit) { row.classList.add('invalid-row'); ddSpan.innerText = "0.0"; continue; }
+            row.classList.remove('invalid-row');
+
+            if (!id) { ddSpan.innerText = "0.0"; row.classList.remove('duplicate-row'); selSkill.classList.remove('diff-skill'); selDir.classList.remove('diff-skill'); ddSpan.classList.remove('diff-skill'); continue; }
+
+            const skill = skillMaster[id];
+            if (idCounts[id] > 1) row.classList.add('duplicate-row'); else row.classList.remove('duplicate-row');
+            
+            if (subSkill && skill.symbol !== subSkill.symbol) {
+                selSkill.classList.add('diff-skill'); selDir.classList.add('diff-skill'); ddSpan.classList.add('diff-skill'); hasAnyDiff = true;
+            } else {
+                selSkill.classList.remove('diff-skill'); selDir.classList.remove('diff-skill'); ddSpan.classList.remove('diff-skill');
+            }
+
+            if (seenIds.has(id)) { ddSpan.innerText = "0.0"; ddSpan.classList.add('dd-zero'); }
+            else { baseDD += skill.dd; ddSpan.innerText = skill.dd.toFixed(1); ddSpan.classList.remove('dd-zero'); if (skill.isTriple) tripleCount++; seenIds.add(id); }
+        }
+
+        const ath = athletes.find(a => a.id === athleteId);
+        let bonus = 0;
+        if (ath?.gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+        else if (ath?.gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+
+        if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
+        totalDDContainer.innerHTML = `${(baseDD + bonus).toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>`;
+    };
+
+    window.enableEditing = () => {
+        document.querySelectorAll('select').forEach(s => s.disabled = false);
+        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">修正を保存</button>`;
+    };
+
+    window.saveOfficialScore = async () => {
+        const btn = document.getElementById('btn-save'); if (!btn) return;
+        btn.disabled = true;
+        try {
+            const skills = []; for (let i = 1; i <= 10; i++) skills.push(document.getElementById(`skill-${i}`).value);
+            const validCount = parseInt(document.getElementById('valid-count').value);
+            const totalVal = parseFloat(document.getElementById('total-dd').innerText.split(' ')[0]);
+            await setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, verifiedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
+            init(); 
+        } catch (e) { console.error(e); btn.disabled = false; }
+    };
+    init();
+</script>
+</body>
+</html>

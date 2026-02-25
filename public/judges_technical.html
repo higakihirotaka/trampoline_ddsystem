@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Technical Console - Trampoline System</title>
+    <style>
+        :root {
+            --bg: #0b0e11; --card-bg: #1e2227; --accent: #1a73e8;
+            --success: #00e676; --danger: #ff1744; --text: #ffffff; --text-dim: #90a4ae;
+            --sidebar-bg: #ffffff; --primary: #37474f;
+        }
+        body, html { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; display: flex; overflow: hidden; }
+        
+        /* サイドバー */
+        .sidebar { width: 320px; background: var(--sidebar-bg); border-right: 1px solid #333; display: flex; flex-direction: column; flex-shrink: 0; color: #333; }
+        .sidebar-header { padding: 20px; background: var(--primary); color: white; }
+        .sidebar-list { flex-grow: 1; overflow-y: auto; padding-bottom: 50px; }
+        
+        .cat-group { background: #cfd8dc; padding: 8px 15px; font-size: 0.8rem; font-weight: bold; color: #37474f; border-bottom: 1px solid #b0bec5; }
+        .gender-group { background: #f1f3f4; padding: 5px 20px; font-size: 0.7rem; font-weight: bold; color: #78909c; }
+        .athlete-row { padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .active-athlete { background: #e3f2fd; }
+        .ath-name-text { font-size: 0.85rem; font-weight: bold; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ath-order { color: var(--accent); margin-right: 5px; font-family: monospace; }
+        
+        .round-box { display: flex; gap: 4px; }
+        .r-dot { 
+            width: 32px; height: 24px; border-radius: 4px; font-size: 0.65rem; 
+            display: flex; align-items: center; justify-content: center; 
+            background: #eee; color: #999; text-decoration: none; font-weight: bold; border: 1px solid transparent;
+        }
+        .r-dot.has-sub { background: #e3f2fd; color: #1a73e8; } 
+        .r-dot.has-res { background: #e8f5e9; color: #2e7d32; } 
+        .r-dot.current { border: 2px solid #000; background: #fff; color: var(--accent); }
+
+        /* メインコンソール */
+        .console-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .top-bar { background: #000; padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        .btn-exit { color: var(--danger); text-decoration: none; border: 1px solid var(--danger); padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+
+        .athlete-banner { background: var(--card-bg); padding: 15px 25px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #333; }
+        .main-content { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+
+        /* テーブル */
+        .monitor-table { width: 100%; border-collapse: separate; border-spacing: 2px; }
+        .monitor-table th, .monitor-table td { padding: 10px; text-align: center; border-radius: 4px; background: rgba(255,255,255,0.03); }
+        .monitor-table th { background: #2a2e35; font-size: 0.65rem; color: var(--text-dim); }
+        .skill-header { color: var(--accent) !important; font-weight: bold; }
+        .val-filled { color: var(--success); font-weight: bold; }
+
+        /* 入力エリア */
+        .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .input-card { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid #333; }
+        .input-card label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 8px; font-weight: bold; }
+        .input-card input, .input-card select { width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 10px; font-size: 1.2rem; border-radius: 6px; box-sizing: border-box; }
+
+        /* スコア集計 */
+        .score-summary { background: #000; padding: 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 2px solid var(--accent); }
+        .score-box { text-align: center; }
+        .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 5px; }
+        .score-box div { font-size: 2.2rem; font-weight: 900; font-family: monospace; }
+        
+        .btn-confirm { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 1.1rem; font-weight: 900; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div style="font-size: 0.7rem; opacity: 0.8;">OFFICIAL CONSOLE</div>
+        <div id="event-name-sidebar" style="font-weight: 900; font-size: 1.1rem; margin-top: 5px;">Loading...</div>
+        <a href="#" id="menu-back" style="color: white; font-size: 0.7rem; text-decoration: none; display: block; margin-top: 10px; opacity: 0.7;">← ポータルに戻る</a>
+    </div>
+    <div id="sidebar-list" class="sidebar-list"></div>
+</div>
+
+<div class="console-wrapper">
+    <div class="top-bar">
+        <div id="panel-role-label" style="font-size: 0.8rem; font-weight: bold; color: var(--accent);">PANEL - | ROLE -</div>
+        <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
+    </div>
+
+    <div class="athlete-banner">
+        <div style="font-size: 1.6rem; font-weight: 900;" id="ath-name">選手を選択してください</div>
+        <div id="ath-meta" style="color: var(--text-dim); font-size: 0.9rem;">- / -</div>
+        <div style="margin-left: auto; text-align: right;">
+            <div id="dd-label" style="font-size: 1.2rem; font-weight: 900; color: var(--accent);">DD: 0.0</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <table class="monitor-table">
+            <thead>
+                <tr id="skill-symbols-row">
+                    <th style="width:70px;">Skill</th>
+                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
+                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
+                    <th>Ln</th><th>SUM</th>
+                </tr>
+                <tr>
+                    <th>Judge</th>
+                    <th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th>
+                    <th>S6</th><th>S7</th><th>S8</th><th>S9</th><th>S10</th>
+                    <th>Ln</th><th>Total</th>
+                </tr>
+            </thead>
+            <tbody id="judge-rows"></tbody>
+        </table>
+
+        <div class="input-grid">
+            <div class="input-card">
+                <label>VALID SKILLS</label>
+                <select id="valid-count" onchange="updateValid(this.value)">
+                    <option value="10">10本</option>
+                    <option value="9">9本</option><option value="8">8本</option><option value="7">7本</option><option value="6">6本</option><option value="5">5本</option>
+                    <option value="4">4本</option><option value="3">3本</option><option value="2">2本</option><option value="1">1本</option><option value="0">0本</option>
+                </select>
+            </div>
+            <div class="input-card"><label>ToF (T)</label><input type="number" id="tof" step="0.001" onchange="calc()"></div>
+            <div class="input-card"><label>HD</label><input type="number" id="hd" step="0.1" onchange="calc()"></div>
+            <div class="input-card"><label>PENALTY (P)</label><input type="number" id="pen" step="0.1" value="0.0" onchange="calc()"></div>
+        </div>
+
+        <div class="score-summary">
+            <div class="score-box"><label>Difficulty</label><div id="res-d">0.0</div></div>
+            <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
+            <div class="score-box"><label>T + HD</label><div id="res-th">0.000</div></div>
+            <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
+        </div>
+
+        <button class="btn-confirm" onclick="publish()">公式スコアを確定してモニターへ送信</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, getDoc, getDocs, collection, query, where, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const db = getFirestore(initializeApp(firebaseConfig));
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
+    const athleteId = params.get('athlete'), round = params.get('round') || "pre1";
+
+    let athletes = [], submissions = {}, results = {}, currentTour = null;
+
+    async function init() {
+        if (!eventId) return;
+        document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
+        document.getElementById('exit-link').href = `judge_role_select.html?event=${eventId}`;
+        document.getElementById('panel-role-label').innerText = `PANEL ${panel} | ROLE ${role}`;
+
+        const [tourSnap, athSnap, subSnap, resSnap] = await Promise.all([
+            getDoc(doc(db, "tournaments", eventId)),
+            getDocs(collection(db, "tournaments", eventId, "athletes")),
+            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+            getDocs(query(collection(db, "results"), where("eventId", "==", eventId)))
+        ]);
+
+        currentTour = tourSnap.data();
+        document.getElementById('event-name-sidebar').innerText = currentTour.name;
+        athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        subSnap.forEach(d => submissions[d.id] = d.data());
+        resSnap.forEach(d => results[d.id] = d.data());
+
+        renderSidebar();
+
+        if (athleteId) {
+            const ath = athletes.find(a => a.id === athleteId);
+            if (ath) {
+                document.getElementById('ath-name').innerText = `No.${ath.order} ${ath.name1}`;
+                document.getElementById('ath-meta').innerText = `${ath.category} / ${round.toUpperCase()}`;
+            }
+            watchScores();
+        }
+    }
+
+    function renderSidebar() {
+        const listEl = document.getElementById('sidebar-list');
+        listEl.innerHTML = "";
+        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
+
+        let lastCat = "", lastGender = "";
+        athletes.forEach(ath => {
+            if (ath.category !== lastCat) { listEl.innerHTML += `<div class="cat-group">${ath.category}</div>`; lastCat = ath.category; lastGender = ""; }
+            if (ath.gender !== lastGender) { listEl.innerHTML += `<div class="gender-group">${ath.gender}</div>`; lastGender = ath.gender; }
+
+            let dotsHtml = "";
+            const numPre = currentTour.qualifyingRoutines || 1;
+            for(let i=1; i<=numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
+            if(currentTour.hasFinal) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+
+            const isActive = ath.id === athleteId;
+            listEl.innerHTML += `
+                <div class="athlete-row ${isActive ? 'active-athlete' : ''}">
+                    <div class="ath-name-text"><span class="ath-order">${ath.order}.</span>${ath.name1}</div>
+                    <div class="round-box">${dotsHtml}</div>
+                </div>`;
+        });
+    }
+
+    function getDotHtml(aid, rid, label) {
+        const id = `${eventId}_${aid}_${rid}`;
+        const cls = (results[id] ? 'has-res' : (submissions[id] ? 'has-sub' : '')) + 
+                    (aid === athleteId && rid === round ? ' current' : '');
+        return `<a href="judges_technical.html?event=${eventId}&panel=${panel}&role=${role}&athlete=${aid}&round=${rid}" class="r-dot ${cls}">${label}</a>`;
+    }
+
+    function watchScores() {
+        const resId = `${eventId}_${athleteId}_${round}`;
+        onSnapshot(doc(db, "results", resId), (snap) => {
+            if (snap.exists()) renderScores(snap.data());
+        });
+    }
+
+    function renderScores(data) {
+        document.getElementById('valid-count').value = data.validCount ?? 10;
+        document.getElementById('res-d').innerText = data.officialTotalDD?.toFixed(1) || "0.0";
+        document.getElementById('dd-label').innerText = `DD: ${data.officialTotalDD?.toFixed(1) || "0.0"}`;
+        
+        const skills = data.officialSkills || [];
+        const skillCells = document.querySelectorAll('.skill-header');
+        skillCells.forEach((el, i) => el.innerText = skills[i] || "-");
+
+        const tbody = document.getElementById('judge-rows');
+        tbody.innerHTML = "";
+        const judges = data.execution?.judges || {};
+        const vLimit = data.validCount ?? 10;
+        const numE = currentTour.numExecJudges || 6;
+
+        for (let i = 1; i <= numE; i++) {
+            const jKey = `E${i}`;
+            const jData = judges[jKey] || { deductions: Array(10).fill(null), landing: null };
+            let row = `<tr><td>E${i}</td>`;
+            jData.deductions.forEach((v, idx) => {
+                row += `<td class="${v!==null?'val-filled':''}" style="${idx>=vLimit?'opacity:0.1':''}">${v!==null?v.toFixed(1):'-'}</td>`;
+            });
+            row += `<td class="${jData.landing!==null?'val-filled':''}" style="${vLimit<10?'opacity:0.1':''}">${jData.landing!==null?jData.landing.toFixed(1):'-'}</td>`;
+            row += `<td style="background:rgba(255,255,255,0.05)">${(jData.totalDeduction || 0).toFixed(1)}</td></tr>`;
+            tbody.innerHTML += row;
+        }
+        
+        document.getElementById('tof').value = data.tof || "";
+        document.getElementById('hd').value = data.hd?.total || "";
+        document.getElementById('pen').value = data.penalty || 0;
+        calc(data);
+    }
+
+    window.updateValid = async (val) => {
+        const resId = `${eventId}_${athleteId}_${round}`;
+        await setDoc(doc(db, "results", resId), { validCount: parseInt(val) }, { merge: true });
+    };
+
+    window.calc = function(data) {
+        const d = parseFloat(document.getElementById('res-d').innerText) || 0;
+        const e = 18.2; // ここに中間値計算ロジックを入れる
+        const t = parseFloat(document.getElementById('tof').value) || 0;
+        const h = parseFloat(document.getElementById('hd').value) || 0;
+        const p = parseFloat(document.getElementById('pen').value) || 0;
+        
+        document.getElementById('res-e').innerText = e.toFixed(1);
+        document.getElementById('res-th').innerText = (t + h).toFixed(3);
+        document.getElementById('res-total').innerText = (d + e + t + h - p).toFixed(3);
+    };
+
+    window.publish = () => { alert("公式スコアを送信しました。"); };
+
+    init();
+</script>
+</body>
+</html>

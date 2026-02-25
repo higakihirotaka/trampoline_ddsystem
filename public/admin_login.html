@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者ログイン</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; text-align: center; background-color: #f0f2f5; }
+        .login-card { background-color: white; padding: 40px 50px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; width: 90%; }
+        h1 { font-size: 1.8rem; color: #1c1e21; margin-bottom: 10px; }
+        p { color: #606770; margin-bottom: 25px; }
+        #error-message { color: #d93025; margin-bottom: 15px; font-weight: bold; min-height: 20px; }
+        .google-login-btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border: 1px solid #dadce0; border-radius: 8px; background-color: white; cursor: pointer; font-size: 1rem; font-weight: 500; color: #3c4043; transition: background-color .3s, box-shadow .3s; width: 100%; box-sizing: border-box; }
+        .google-login-btn:hover { background-color: #f8f9fa; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .google-icon { width: 24px; height: 24px; margin-right: 15px; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>管理者アカウント</h1>
+        <p>Googleアカウントで続行</p>
+        <div id="error-message"></div>
+        <button id="login-btn" class="google-login-btn">
+            <img class="google-icon" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google icon"/>
+            <span>Googleでログイン</span>
+        </button>
+    </div>
+
+    <script type="module">
+        // All Firebase logic is now handled in auth.js
+        import { loginWithGoogle, handleLoginRedirect } from './auth.js';
+
+        document.getElementById('login-btn').addEventListener('click', loginWithGoogle);
+        handleLoginRedirect();
+    </script>
+</body>
+</html>

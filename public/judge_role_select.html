@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role Selection - Trampoline System</title>
+    <style>
+        :root { --bg: #0b0e11; --card: #1e2227; --panel-a: #1a73e8; --panel-b: #9c27b0; --text: #fff; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+        .header { padding: 20px; text-align: center; background: #000; border-bottom: 2px solid #333; }
+        .panels { display: flex; gap: 2px; background: #333; min-height: calc(100vh - 120px); }
+        .panel { flex: 1; background: var(--bg); padding: 20px; }
+        .label-a { color: var(--panel-a); border: 2px solid var(--panel-a); padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; margin-bottom: 20px; }
+        .label-b { color: var(--panel-b); border: 2px solid var(--panel-b); padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 30px; }
+        .btn { background: var(--card); padding: 20px 10px; border-radius: 12px; text-decoration: none; color: white; text-align: center; border-bottom: 4px solid #444; transition: 0.2s; }
+        .btn:active { transform: translateY(2px); border-bottom: none; }
+        .btn-cjp { border-color: #ff1744; }
+        .btn-tech { border-color: #546e7a; }
+        .btn-exec { border-color: #00e676; }
+        .section-title { font-size: 0.7rem; color: #777; margin-bottom: 10px; text-transform: uppercase; }
+        @media (max-width: 800px) { .panels { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <div class="header"><h1 id="event-name" style="margin:0; font-size:1.2rem;">Loading...</h1></div>
+    <div class="panels">
+        <div class="panel">
+            <div class="label-a">PANEL A</div>
+            <div class="section-title">Superior & Technical</div>
+            <div class="grid">
+                <a href="#" class="btn btn-cjp" onclick="go('A','CJP')">CJP</a>
+                <a href="#" class="btn btn-tech" onclick="go('A','D')">D</a>
+                <a href="#" class="btn btn-tech" onclick="go('A','HD')">HD</a>
+                <a href="#" class="btn btn-tech" onclick="go('A','T')">T</a>
+            </div>
+            <div class="section-title">Execution</div>
+            <div class="grid" id="exec-a"></div>
+        </div>
+        <div class="panel">
+            <div class="label-b">PANEL B</div>
+            <div class="section-title">Superior & Technical</div>
+            <div class="grid">
+                <a href="#" class="btn btn-cjp" onclick="go('B','CJP')">CJP</a>
+                <a href="#" class="btn btn-tech" onclick="go('B','D')">D</a>
+                <a href="#" class="btn btn-tech" onclick="go('B','HD')">HD</a>
+                <a href="#" class="btn btn-tech" onclick="go('B','T')">T</a>
+            </div>
+            <div class="section-title">Execution</div>
+            <div class="grid" id="exec-b"></div>
+        </div>
+    </div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const db = getFirestore(initializeApp(firebaseConfig));
+    const params = new URLSearchParams(location.search), eventId = params.get('event');
+
+    async function init() {
+        if (!eventId) { document.body.innerHTML = '<h1>エラー: 大会IDが見つかりません。</h1><a href="admin_index.html">大会選択に戻る</a>'; return; }
+        const tDoc = await getDoc(doc(db, "tournaments", eventId));
+        if (tDoc.exists()) {
+            const data = tDoc.data();
+            document.getElementById('event-name').innerText = data.name;
+            const numE = data.numExecJudges || 6;
+            ['a', 'b'].forEach(p => {
+                const container = document.getElementById(`exec-${p}`);
+                for (let i = 1; i <= numE; i++) {
+                    const a = document.createElement('a');
+                    a.className = "btn btn-exec"; a.innerText = `E${i}`;
+                    a.onclick = () => go(p.toUpperCase(), `E${i}`);
+                    container.appendChild(a);
+                }
+            });
+        }
+    }
+    window.go = (p, r) => {
+        let url = r.startsWith('E') ? "judges_execution.html" : (r === 'D' ? "judges_entry.html" : "judges_technical.html");
+        location.href = `${url}?event=${eventId}&panel=${p}&role=${r}`;
+    };
+    init();
+</script>
+</body>
+</html>

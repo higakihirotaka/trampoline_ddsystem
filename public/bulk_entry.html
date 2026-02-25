@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>演技構成一括登録 - Trampoline Scoring System</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Provided styles to ensure correct display */
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --danger: #d32f2f; --warn: #f29900; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 500px; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 20px; background: #37474f; color: white; }
+        .list-area { flex-grow: 1; overflow-y: auto; }
+        .list-header { position: sticky; top: 0; background: #eee; z-index: 10; display: flex; align-items: center; padding: 10px 15px; font-size: 0.75em; font-weight: bold; border-bottom: 2px solid #ddd; }
+        .cat-group { background: #f1f3f4; padding: 8px 15px; font-size: 0.8em; font-weight: bold; color: #555; border-bottom: 1px solid #ddd; }
+        .ath-row { display: flex; align-items: center; padding: 8px 15px; border-bottom: 1px solid #f0f0f0; gap: 5px; font-size: 0.85em; }
+        .col-name { flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: baseline; gap: 5px; }
+        .col-round { width: 50px; text-align: center; }
+        .ath-order { color: var(--primary); font-weight: bold; font-family: monospace; font-size: 0.9em; width: 25px; }
+        .main-content { flex-grow: 1; padding: 40px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        .form-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; max-width: 500px; }
+        .skills-table { width: 100%; border-collapse: collapse; margin: 20px 0; table-layout: fixed; }
+        .skills-table th, .skills-table td { padding: 8px 4px; border-bottom: 1px solid #eee; text-align: center; }
+        select { width: 100%; padding: 10px 5px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95em; background: #fff; }
+        .btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 30px; }
+        .btn { padding: 18px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1em; }
+        .btn-save { background: var(--primary); color: white; }
+        .btn-clear { background: #fff; color: var(--danger); border: 2px solid var(--danger); }
+        .header-btn { padding: 2px 5px; font-size: 0.8em; cursor: pointer; background: white; border: 1px solid #ccc; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2 style="margin:0; font-size:1.1em;">一括登録対象の選択</h2>
+        <div id="event-name" style="font-size:0.8em; opacity:0.8; margin-top:5px;">Loading...</div>
+    </div>
+    <div class="list-header">
+        <div class="col-name">選手名</div>
+        <div class="col-round">R1<br><button class="header-btn" data-round-name="pre1">全</button></div>
+        <div class="col-round">R2<br><button class="header-btn" data-round-name="pre2">全</button></div>
+        <div class="col-round">Final<br><button class="header-btn" data-round-name="final">全</button></div>
+    </div>
+    <div class="list-area" id="athlete-list"></div>
+</div>
+<div class="main-content">
+    <div class="form-card">
+        <h3 style="margin-top:0;">一括適用する演技構成</h3>
+        <table class="skills-table">
+            <thead><tr><th style="width:35px;">#</th><th>系統</th><th>Symbol</th></tr></thead>
+            <tbody id="skill-rows"></tbody>
+        </table>
+        <div class="btn-group">
+            <button id="save-btn" class="btn btn-save">選択した項目に一括保存</button>
+            <button id="clear-btn" class="btn btn-clear">選択した項目のデータを全消去</button>
+        </div>
+        <a href="#" id="back-link" style="display:block; text-align:center; margin-top:25px; color:#666; text-decoration:none; font-size:0.9em;">← 管理メニューに戻る</a>
+    </div>
+</div>
+
+<script type="module">
+    import { ensureAdmin, getTournamentDetails, getAthletes, getSkills, bulkSaveSubmissions, bulkClearSubmissions } from './auth.js';
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event')?.trim();
+    let skillMaster = [], athletes = [], currentTour = null;
+
+    ensureAdmin(user => init());
+
+    async function init() {
+        if (!eventId) {
+            document.body.innerHTML = `<h1>大会IDが指定されていません。</h1><a href='admin_index.html'>大会選択に戻る</a>`;
+            return;
+        }
+        document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+
+        try {
+            [currentTour, athletes, skillMaster] = await Promise.all([
+                getTournamentDetails(eventId),
+                getAthletes(eventId),
+                getSkills()
+            ]);
+
+            if (!currentTour) throw new Error("大会情報が見つかりません。");
+            
+            document.getElementById('event-name').innerText = currentTour.name;
+            renderAthleteList(); 
+            renderForm();
+            attachEventListeners();
+        } catch (error) {
+            console.error("Initialization failed:", error);
+            document.body.innerHTML = `<h1>ページの読み込みに失敗しました: ${error.message}</h1>`;
+        }
+    }
+
+    function renderAthleteList() {
+        const container = document.getElementById('athlete-list');
+        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
+        
+        let html = "", lastGrp = "";
+        athletes.forEach(ath => {
+            const grp = ath.category + " " + ath.gender;
+            if (grp !== lastGrp) {
+                html += `<div class="cat-group">${grp}</div>`;
+                lastGrp = grp;
+            }
+            const numPre = currentTour.qualifyingRoutines || 1;
+            html += `<div class="ath-row">
+                <div class="col-name"><span class="ath-order">${ath.order}.</span><span>${ath.name1}</span></div>
+                <div class="col-round"><input type="checkbox" class="chk-item chk-pre1" data-aid="${ath.id}" data-rid="pre1"></div>
+                <div class="col-round">${numPre >= 2 ? `<input type="checkbox" class="chk-item chk-pre2" data-aid="${ath.id}" data-rid="pre2">` : '-' }</div>
+                <div class="col-round">${currentTour.hasFinal ? `<input type="checkbox" class="chk-item chk-final" data-aid="${ath.id}" data-rid="final">` : '-' }</div>
+            </div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    function renderForm() {
+        let rows = "";
+        for (let i = 1; i <= 10; i++) {
+            rows += `<tr><td>${i}</td><td><select id="dir-${i}" data-idx="${i}"><option value="">--</option><option value="前方系">前方</option><option value="後方系">後方</option><option value="基礎技">基礎</option></select></td><td><select id="skill-${i}"></select></td></tr>`;
+        }
+        document.getElementById('skill-rows').innerHTML = rows;
+    }
+    
+    function updateOptions(idx) {
+        const dir = document.getElementById(`dir-${idx}`).value;
+        const sel = document.getElementById(`skill-${idx}`);
+        sel.innerHTML = '<option value="">選択</option>';
+        if (dir) {
+            skillMaster.filter(s => s.direction === dir).forEach(s => { 
+                sel.innerHTML += `<option value="${s.id}">${s.symbol}</option>`; 
+            });
+        }
+    }
+
+    function attachEventListeners() {
+        document.getElementById('skill-rows').addEventListener('change', e => {
+            if (e.target.tagName === 'SELECT' && e.target.id.startsWith('dir-')) {
+                updateOptions(e.target.dataset.idx);
+            }
+        });
+
+        document.querySelectorAll('.list-header .header-btn').forEach(btn => {
+            btn.addEventListener('click', () => toggleColumn(btn.dataset.roundName));
+        });
+        
+        document.getElementById('save-btn').addEventListener('click', bulkSave);
+        document.getElementById('clear-btn').addEventListener('click', bulkClear);
+    }
+    
+    function toggleColumn(rid) {
+        const checks = document.querySelectorAll(`.chk-${rid}`);
+        if (checks.length === 0) return;
+        const allChecked = Array.from(checks).every(c => c.checked);
+        checks.forEach(c => c.checked = !allChecked);
+    };
+
+    async function bulkSave() {
+        const selected = Array.from(document.querySelectorAll('.chk-item:checked')).map(chk => ({ athleteId: chk.dataset.aid, round: chk.dataset.rid }));
+        if (selected.length === 0) return alert("対象を選択してください。");
+
+        const skillIds = [];
+        for (let i = 1; i <= 10; i++) {
+            const val = document.getElementById(`skill-${i}`).value;
+            if (!val) return alert("10本すべての技を選択してください。");
+            skillIds.push(val);
+        }
+
+        if (!confirm(`${selected.length}件の演技構成を一括登録します。よろしいですか？`)) return;
+        
+        const btn = document.getElementById('save-btn');
+        btn.disabled = true; btn.textContent = '登録中...';
+        
+        const result = await bulkSaveSubmissions(eventId, selected, skillIds);
+        alert(result.message);
+        
+        btn.disabled = false; btn.textContent = '選択した項目に一括保存';
+        if(result.success) location.reload();
+    }
+
+    async function bulkClear() {
+        const selected = Array.from(document.querySelectorAll('.chk-item:checked')).map(chk => ({ athleteId: chk.dataset.aid, round: chk.dataset.rid }));
+        if (selected.length === 0) return alert("削除する対象を選択してください。");
+
+        if (!confirm(`選択された${selected.length}件の演技構成データを完全に削除します。この操作は元に戻せません。よろしいですか？`)) return;
+
+        const btn = document.getElementById('clear-btn');
+        btn.disabled = true; btn.textContent = '削除中...';
+
+        const result = await bulkClearSubmissions(eventId, selected);
+        alert(result.message);
+
+        btn.disabled = false; btn.textContent = '選択した項目のデータを全消去';
+        if(result.success) location.reload();
+    }
+</script>
+</body>
+</html>

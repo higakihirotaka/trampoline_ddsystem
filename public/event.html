@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>選手一覧 - トランポリン大会システム</title>
+    <style>
+        :root { --primary-blue: #1a73e8; --bg-gray: #f0f2f5; --text-dark: #202124; --text-gray: #5f6368; --success-green: #1e8e3e; --warning-orange: #f57c00; --indiv-purple: #5e35b1; --sync-teal: #00897b; }
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; padding: 20px; background: var(--bg-gray); margin: 0; }
+        .list-container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .header-section { text-align: center; margin-bottom: 20px; }
+        .countdown-container { display: none; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; justify-content: center; }
+        .timer-card { flex: 1; min-width: 150px; max-width: 250px; background: #fff; padding: 12px; border-radius: 12px; border-left: 4px solid var(--primary-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; }
+        .timer-label { font-size: 0.65em; font-weight: bold; color: #90a4ae; margin-bottom: 5px; }
+        .timer-clock { font-family: monospace; font-size: 1.1em; font-weight: 900; }
+        .timer-clock.urgent { color: var(--success-green); }
+        .timer-clock.expired { color: #d32f2f; }
+
+        .section-header { font-size: 1.8em; font-weight: 900; margin: 50px 0 20px 0; padding-bottom: 10px; border-bottom: 4px solid; }
+        .indiv-header { border-color: var(--indiv-purple); color: var(--indiv-purple); }
+        .sync-header { border-color: var(--sync-teal); color: var(--sync-teal); }
+
+        .class-header { font-size: 1.3em; font-weight: 900; margin: 30px 0 15px 0; padding: 12px 20px; border-radius: 10px; color: white; }
+        .indiv-class-header { background: var(--indiv-purple); }
+        .sync-class-header { background: var(--sync-teal); }
+
+        .category-row { background: #f8f9fa; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; table-layout: fixed; }
+        th, td { padding: 12px 8px; border-bottom: 1px solid #eee; text-align: center; word-break: break-word; }
+        th { color: var(--text-gray); font-size: 0.75em; text-transform: uppercase; }
+        .status-link { text-decoration: none; padding: 10px 14px; border-radius: 8px; font-size: 0.75em; font-weight: bold; display: inline-block; min-width: 70px; border: 1px solid transparent; transition: 0.2s; }
+        .status-none { background: #fff; color: var(--primary-blue); border-color: var(--primary-blue); }
+        .status-done { background: #e8f0fe; color: var(--primary-blue); border-color: transparent; }
+        .status-warning { background: #f9a825; color: white; border-color: transparent; animation: blinker 1.5s linear infinite; }
+        .withdrawn-row { background-color: #f5f5f5; color: #999; }
+        .withdrawn-row td { text-decoration: line-through; }
+        @keyframes blinker { 50% { opacity: 0.6; } }
+    </style>
+</head>
+<body>
+<div class="list-container">
+    <div class="header-section">
+        <h1 id="event-title" style="font-size:2em; margin-bottom:5px;">読み込み中...</h1>
+        <div id="event-date" style="font-size: 1em; color: #888;"></div>
+    </div>
+    <div id="countdown-area" class="countdown-container"></div>
+    <div id="indiv-list"></div>
+    <div id="sync-list"></div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function init() {
+        const params = new URLSearchParams(location.search);
+        const eventId = params.get('event');
+        if (!eventId) return;
+
+        const tourSnap = await getDoc(doc(db, "tournaments", eventId));
+        if (!tourSnap.exists()) return;
+        const tour = tourSnap.data();
+        document.getElementById('event-title').innerText = tour.name;
+        document.getElementById('event-date').innerText = `${tour.startDate} ～ ${tour.endDate}`;
+        
+        startGlobalTimers(tour);
+
+        const [subSnap, athSnap] = await Promise.all([
+            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+            getDocs(collection(db, "tournaments", eventId, "athletes"))
+        ]);
+
+        const subDataMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
+        const allAthletes = athSnap.docs.map(d => ({...d.data(), id: d.id }));
+        
+        const indivAthletes = allAthletes.filter(a => a.type !== 'synchro');
+        const syncAthletes = allAthletes.filter(a => a.type === 'synchro');
+
+        const classRules = tour.classRules || { individual: {}, synchro: {} };
+        
+        const indivContainer = document.getElementById('indiv-list');
+        if (indivAthletes.length > 0) {
+            indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' + renderAthleteTables(indivAthletes, classRules.individual, subDataMap, eventId, 'individual');
+        }
+
+        const syncContainer = document.getElementById('sync-list');
+        if (syncAthletes.length > 0) {
+            syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' + renderAthleteTables(syncAthletes, classRules.synchro, subDataMap, eventId, 'synchro');
+        }
+    }
+
+    function renderAthleteTables(athletes, rulesByType, subDataMap, eventId, type) {
+        const athletesByClass = athletes.reduce((acc, ath) => {
+            const className = ath.class || 'N/A';
+            if (!acc[className]) acc[className] = [];
+            acc[className].push(ath);
+            return acc;
+        }, {});
+
+        const sortedClasses = Object.keys(athletesByClass).sort();
+        let finalHtml = '';
+
+        for (const className of sortedClasses) {
+            const classAthletes = athletesByClass[className];
+            const rules = rulesByType[className] || { qualifyingRoutines: 1, hasFinal: false };
+
+            classAthletes.sort((a,b) => `${a.gender || ''}-${String(a.flightGroup || '').padStart(3,'0')}-${String(a.order || '').padStart(3,'0')}`.localeCompare(`${b.gender || ''}-${String(b.flightGroup || '').padStart(3,'0')}-${String(b.order || '').padStart(3,'0')}`));
+            
+            finalHtml += `<div class="class-header ${type === 'synchro' ? 'sync-class-header' : 'indiv-class-header'}">${className}</div>`;
+            let currentGender = "";
+
+            classAthletes.forEach(ath => {
+                if (currentGender !== ath.gender) {
+                    if (currentGender !== "") finalHtml += '</tbody></table>';
+                    currentGender = ath.gender;
+
+                    const routineHeaders = Array.from({length: rules.qualifyingRoutines}, (_, i) => `<th>予選${i+1}</th>`).join('');
+                    const finalHeader = rules.hasFinal ? '<th>決勝</th>' : '';
+                    const totalCols = 3 + rules.qualifyingRoutines + (rules.hasFinal ? 1 : 0);
+
+                    finalHtml += `
+                        <table>
+                            <thead>
+                                <tr class="category-row"><td colspan="${totalCols}" style="text-align:left;">${currentGender}</td></tr>
+                                <tr>
+                                    <th style="width:40px;">Gr</th>
+                                    <th style="width:40px;">順</th>
+                                    <th style="width:30%;">選手</th>
+                                    ${routineHeaders}
+                                    ${finalHeader}
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                }
+
+                const playerHtml = type === 'synchro' ? 
+                    `<span style="font-weight:bold;">${ath.name1 || ''} / ${ath.name2 || ''}</span><br><small style="color:#888;">${ath.club1 || ''} / ${ath.club2 || ''}</small>` :
+                    `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${ath.club1}</small>`;
+
+                finalHtml += `<tr class="${ath.isWithdrawn ? 'withdrawn-row' : ''}"><td>${ath.flightGroup || '-'}</td><td>${ath.order || '-'}</td><td style="text-align:left;">${playerHtml}</td>`;
+
+                for (let i = 1; i <= rules.qualifyingRoutines; i++) finalHtml += `<td>${getStatusButton(ath, `pre${i}`, subDataMap, eventId)}</td>`;
+                if (rules.hasFinal) finalHtml += `<td>${getStatusButton(ath, 'final', subDataMap, eventId)}</td>`;
+                finalHtml += '</tr>';
+            });
+            if (classAthletes.length > 0) finalHtml += '</tbody></table>';
+        }
+        return finalHtml;
+    }
+
+    function getStatusButton(ath, round, subDataMap, eventId) {
+        if (ath.isWithdrawn) return "<span style='font-size:0.8em; color: #d32f2f;'>棄権</span>";
+        const subId = `${eventId}_${ath.id}_${round}`;
+        const sub = subDataMap.get(subId);
+        let btnClass = "status-none", btnText = "入力";
+        if (sub) { btnClass = sub.checkStatus === 1 ? "status-warning" : "status-done"; btnText = sub.checkStatus === 1 ? "要修正" : "提出済"; }
+        return `<a href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${btnClass}">${btnText}</a>`;
+    }
+    
+    function startGlobalTimers(tour) {
+        const area = document.getElementById('countdown-area');
+        const deadlines = [{ label: '提出締切', time: tour.submissionDeadline }, { label: '修正締切', time: tour.revisionDeadline }, { label: '決勝締切', time: tour.finalSubmissionDeadline }].filter(d => d.time);
+        if (deadlines.length === 0) return;
+        area.style.display = 'flex';
+        const timerId = setInterval(() => {
+            const now = new Date().getTime();
+            area.innerHTML = deadlines.map(d => {
+                const diff = new Date(d.time).getTime() - now;
+                const h = Math.floor(diff / (1000 * 60 * 60)), m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)), s = Math.floor((diff % (1000 * 60)) / 1000);
+                const expired = diff <= 0;
+                if(expired && deadlines.every(d => new Date(d.time).getTime() - now <=0)) clearInterval(timerId);
+                return `<div class="timer-card"><div class="timer-label">${d.label}</div><div class="timer-clock ${expired ? 'expired' : 'urgent'}">${expired ? '終了' : h + 'h ' + m + 'm ' + s + 's'}</div></div>`;
+            }).join('');
+        }, 1000);
+    }
+
+    init();
+</script>
+</body>
+</html>

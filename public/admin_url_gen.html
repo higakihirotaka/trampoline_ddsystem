@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL生成・共有 - Trampoline Scoring System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        :root { --primary: #37474f; --accent: #1a73e8; --bg: #eceff1; --card: #ffffff; --success: #2e7d32; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; min-height: 100vh; color: #263238; }
+        
+        .header { text-align: center; max-width: 600px; margin: 0 auto 30px auto; }
+        .event-label { font-size: 0.75em; font-weight: bold; color: #90a4ae; text-transform: uppercase; letter-spacing: 1px; }
+        .event-name { font-size: 1.5em; font-weight: 900; color: var(--primary); margin: 5px 0; }
+
+        .gen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; max-width: 1200px; margin: 0 auto; }
+        
+        .url-card { background: var(--card); padding: 30px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); text-align: center; border-top: 8px solid var(--primary); display: flex; flex-direction: column; align-items: center; }
+        .url-card.judge { border-top-color: #f57c00; } /* オレンジ */
+        .url-card.check { border-top-color: var(--success); } /* 緑 */
+
+        .card-title { font-size: 1.1em; font-weight: 900; margin-bottom: 20px; color: #333; }
+
+        .qr-area { background: #f8f9fa; padding: 15px; border-radius: 15px; margin-bottom: 20px; }
+        canvas { display: block; }
+
+        .url-box { background: #f1f3f4; padding: 12px; border-radius: 10px; font-family: monospace; font-size: 0.8em; word-break: break-all; color: #546e7a; margin-bottom: 15px; border: 1px solid #e1e4e8; width: 100%; box-sizing: border-box; min-height: 45px; }
+        
+        .btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 0.9em; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .btn-copy { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2); }
+        .btn-copy:active { transform: scale(0.97); }
+        
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #323232; color: white; padding: 12px 30px; border-radius: 50px; font-size: 0.9em; display: none; z-index: 100; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+
+        .footer { text-align: center; margin-top: 40px; padding-bottom: 40px; }
+        .back-link { text-decoration: none; color: #90a4ae; font-size: 0.9em; font-weight: bold; }
+        .back-link:hover { color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="event-label">Target Event</div>
+    <div id="display-event-name" class="event-name">Loading...</div>
+</div>
+
+<div class="gen-grid">
+    <div class="url-card">
+        <div class="card-title">📱 選手用一覧画面</div>
+        <div class="qr-area"><canvas id="qr-public"></canvas></div>
+        <div class="event-label" style="margin-bottom:8px;">Public Entry URL</div>
+        <div id="url-public" class="url-box">生成中...</div>
+        <button class="btn btn-copy" onclick="copy('url-public')">URLをコピー</button>
+    </div>
+
+    <div class="url-card judge">
+        <div class="card-title">⚖️ 審判入力画面</div>
+        <div class="qr-area"><canvas id="qr-judge"></canvas></div>
+        <div class="event-label" style="margin-bottom:8px;">Judge Entry URL</div>
+        <div id="url-judge" class="url-box">生成中...</div>
+        <button class="btn btn-copy" onclick="copy('url-judge')">URLをコピー</button>
+    </div>
+
+    <div class="url-card check">
+        <div class="card-title">✅ 競技カードチェック</div>
+        <div class="qr-area"><canvas id="qr-check"></canvas></div>
+        <div class="event-label" style="margin-bottom:8px;">Card Check URL</div>
+        <div id="url-check" class="url-box">生成中...</div>
+        <button class="btn btn-copy" onclick="copy('url-check')">URLをコピー</button>
+    </div>
+</div>
+
+<div class="footer">
+    <a href="#" id="link-back" class="back-link">← 管理メニューへ戻る</a>
+</div>
+
+<div id="toast" class="toast">クリップボードにコピーしました！</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+
+    async function init() {
+        if (!eventId) { location.href = 'admin_index.html'; return; }
+        document.getElementById('link-back').href = `admin_menu.html?event=${eventId}`;
+
+        // 大会名の取得
+        const docSnap = await getDoc(doc(db, "tournaments", eventId));
+        if (docSnap.exists()) {
+            document.getElementById('display-event-name').innerText = docSnap.data().name;
+        }
+
+        // 基本URLの作成
+        const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
+
+        // 1. 公開用
+        setupLink('qr-public', 'url-public', `${baseUrl}/event.html?event=${eventId}`);
+        // 2. 審判用
+        setupLink('qr-judge', 'url-judge', `${baseUrl}/judges_entry.html?event=${eventId}`);
+        // 3. チェック用
+        setupLink('qr-check', 'url-check', `${baseUrl}/admin_card_check.html?event=${eventId}`);
+    }
+
+    function setupLink(canvasId, boxId, finalUrl) {
+        document.getElementById(boxId).innerText = finalUrl;
+        new QRious({
+            element: document.getElementById(canvasId),
+            value: finalUrl,
+            size: 180,
+            level: 'H'
+        });
+    }
+
+    window.copy = (elementId) => {
+        const urlText = document.getElementById(elementId).innerText;
+        navigator.clipboard.writeText(urlText).then(() => {
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        });
+    };
+
+    init();
+</script>
+</body>
+</html>

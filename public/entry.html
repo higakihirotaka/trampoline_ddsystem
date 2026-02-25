@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>競技カード入力 - Trampoline Scoring System</title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --warn: #f29900; --danger: #d32f2f; --gray: #70757a; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); padding: 15px; margin: 0; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .info-card { background: #f1f3f4; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px 20px; }
+        .info-item { display: flex; flex-direction: column; gap: 5px; }
+        .label { font-size: 0.75em; color: #666; font-weight: bold; }
+        .display-text { font-weight: 900; font-size: 1.1em; color: #333; }
+        .kana-input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1em; background: #fff; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+        th, td { padding: 12px 5px; border-bottom: 1px solid #eee; text-align: center; transition: 0.3s; }
+        select { width: 100%; padding: 12px 5px; border-radius: 8px; border: 1px solid #ddd; font-size: 1em; background: #fff; }
+        .total-display { text-align: right; margin-top: 20px; color: var(--primary); }
+        .total-val { font-size: 2.2em; font-weight: 900; }
+        .btn-group { display: flex; gap: 15px; margin-top: 30px; }
+        .btn { flex: 1; padding: 18px; border-radius: 12px; font-size: 1.0em; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: center; text-decoration: none; border: 2px solid transparent; }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-secondary { background: #fff; color: var(--primary); border-color: var(--primary); }
+        .btn-danger { width: 100%; margin-top: 20px; background: #fff; color: var(--danger); border-color: var(--danger); display: none; }
+        #modify-btn { display: none; }
+        .duplicate-row td { background-color: #fff176 !important; }
+        .dd-zero { color: var(--danger) !important; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="info-card">
+        <div class="info-item"><span class="label">選手名</span><span id="ath-name" class="display-text">読み込み中...</span></div>
+        <div class="info-item"><span class="label">クラス</span><span id="ath-class" class="display-text">-</span></div>
+        <div class="info-item"><span class="label">ふりがな</span><input type="text" id="ath-kana" class="kana-input" placeholder="せい めい"></div>
+        <div class="info-item"><span class="label">試技グループ</span><span id="ath-flight-group" class="display-text">-</span></div>
+        <div class="info-item"><span class="label">所属</span><span id="ath-club" class="display-text">読み込み中...</span></div>
+        <div class="info-item"><span class="label">実施ラウンド</span><span id="round-display" class="display-text">-</span></div>
+        <div class="info-item"><span class="label">所属(ふりがな)</span><input type="text" id="ath-club-kana" class="kana-input" placeholder="くらぶめい"></div>
+    </div>
+    <input type="hidden" id="ath-gender">
+    <table id="skill-table">
+        <thead><tr><th style="width:40px;">#</th><th style="width:30%;">系統</th><th>Symbol</th><th style="width:65px;">DD</th></tr></thead>
+        <tbody id="skill-rows"></tbody>
+    </table>
+    <div class="total-display">
+        <span style="font-size:0.8em; color:#999;" id="dd-detail">Base: 0.0 + Bonus: 0.0</span><br>
+        DD: <span id="total-dd" class="total-val">0.0</span>
+    </div>
+    <div class="btn-group">
+        <a id="back-link" class="btn btn-secondary" href="#">一覧に戻る</a>
+        <button id="submit-btn" class="btn btn-primary" onclick="submitRoutine()">この内容で提出する</button>
+        <button id="modify-btn" class="btn btn-primary" onclick="enableEditing()">内容を修正する</button>
+    </div>
+    <button id="admin-clear-btn" class="btn btn-danger" onclick="clearEntry()">登録を初期化する (管理者専用)</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round');
+    const isAdmin = params.get('admin') === '1';
+
+    let skillMaster = [];
+    let currentAthlete = null;
+
+    async function init() {
+        if (!eventId || !athleteId || !round) return;
+        document.getElementById('back-link').href = `event.html?event=${eventId}`;
+        if (isAdmin) document.getElementById('admin-clear-btn').style.display = "block";
+        
+        const roundMap = {'pre1': '予選1', 'pre2': '予選2', 'final': '決勝'};
+        document.getElementById('round-display').textContent = roundMap[round] || round;
+
+        const res = await fetch('data/skills.tsv');
+        const text = await res.text();
+        skillMaster = text.trim().split(/\r?\n/).slice(1).map((l, index) => {
+            const c = l.split('\t'); 
+            return { id: String(index), symbol: c[0].trim(), dd: parseFloat(c[1]), isTriple: c[2]?.trim().toLowerCase()==='true', direction: c[3].trim() };
+        });
+
+        const [athDoc, subDoc] = await Promise.all([
+            getDoc(doc(db, "tournaments", eventId, "athletes", athleteId)),
+            getDoc(doc(db, "submissions", `${eventId}_${athleteId}_${round}`))
+        ]);
+
+        if (athDoc.exists()) {
+            currentAthlete = athDoc.data();
+            const athName = currentAthlete.type === 'synchro' ? `${currentAthlete.name1} / ${currentAthlete.name2}` : currentAthlete.name1;
+            const athClub = currentAthlete.type === 'synchro' ? `${currentAthlete.club1} / ${currentAthlete.club2}` : currentAthlete.club1;
+
+            document.getElementById('ath-name').innerText = athName;
+            document.getElementById('ath-club').innerText = athClub;
+            document.getElementById('ath-kana').value = currentAthlete.kana1 || "";
+            document.getElementById('ath-club-kana').value = currentAthlete.clubKana1 || "";
+            document.getElementById('ath-gender').value = currentAthlete.gender || "男子";
+            document.getElementById('ath-class').textContent = currentAthlete.class || '-';
+            document.getElementById('ath-flight-group').textContent = currentAthlete.flightGroup ? `G${currentAthlete.flightGroup}` : '-';
+        }
+
+        const skillsData = subDoc.exists() ? subDoc.data().skills : [];
+        const savedSkillIds = skillsData.map(s => {
+             const found = skillMaster.find(m => m.symbol === s.skill);
+             return found ? found.id : "";
+        });
+
+        let rows = "";
+        for (let i = 1; i <= 10; i++) {
+            const skillId = savedSkillIds[i-1] || "";
+            const skill = skillMaster.find(s => s.id === skillId) || {};
+            rows += `<tr id="row-${i}"><td>${i}</td>
+                <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
+                    <option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
+                    <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option>
+                    <option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option></select></td>
+                <td><select id="skill-${i}" onchange="calcTotal()"></select></td>
+                <td><span id="dd-${i}">0.0</span></td></tr>`;
+        }
+        document.getElementById('skill-rows').innerHTML = rows;
+        for (let i = 1; i <= 10; i++) {
+             updateOptions(i, savedSkillIds[i-1], false)
+        };
+        calcTotal();
+
+        if (subDoc.exists()) {
+            lockInputs(true);
+            document.getElementById('submit-btn').style.display = "none";
+            document.getElementById('modify-btn').style.display = "block";
+        }
+    }
+
+    window.updateOptions = (idx, selectedId = "", doCalc = true) => {
+        const dir = document.getElementById(`dir-${idx}`).value;
+        const sel = document.getElementById(`skill-${idx}`);
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="">選択してください</option>';
+        if (dir) {
+            skillMaster.filter(s => s.direction === dir).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.symbol;
+                if (s.id === selectedId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+        if(!selectedId && currentVal) sel.value = currentVal;
+        if (doCalc) calcTotal();
+    };
+
+    window.calcTotal = () => {
+        let baseDD = 0, tripleCount = 0;
+        const seenIds = new Set(), idCounts = {};
+        for(let i=1; i<=10; i++) {
+            const id = document.getElementById(`skill-${i}`).value;
+            if(id) idCounts[id] = (idCounts[id] || 0) + 1;
+        }
+
+        for (let i = 1; i <= 10; i++) {
+            const id = document.getElementById(`skill-${i}`).value;
+            const row = document.getElementById(`row-${i}`);
+            const ddSpan = document.getElementById(`dd-${i}`);
+            if (!id) { ddSpan.textContent = "0.0"; row.classList.remove('duplicate-row'); continue; }
+            
+            const skill = skillMaster.find(s => s.id === id);
+            row.classList.toggle('duplicate-row', idCounts[id] > 1);
+
+            if (seenIds.has(id)) {
+                ddSpan.textContent = "0.0"; ddSpan.classList.add('dd-zero');
+            } else {
+                baseDD += skill.dd;
+                ddSpan.textContent = skill.dd.toFixed(3); ddSpan.classList.remove('dd-zero');
+                if (skill.isTriple) tripleCount++;
+                seenIds.add(id);
+            }
+        }
+
+        const gender = document.getElementById('ath-gender').value;
+        let bonus = 0;
+        if (gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+        if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+
+        document.getElementById('dd-detail').textContent = `基礎点: ${baseDD.toFixed(3)} + ボーナス点: ${bonus.toFixed(3)}`;
+        document.getElementById('total-dd').textContent = (baseDD + bonus).toFixed(3);
+    };
+
+    function lockInputs(v) {
+        for (let i = 1; i <= 10; i++) {
+            document.getElementById(`dir-${i}`).disabled = v;
+            document.getElementById(`skill-${i}`).disabled = v;
+        }
+        document.getElementById('ath-kana').disabled = v;
+        document.getElementById('ath-club-kana').disabled = v;
+    }
+
+    window.enableEditing = () => {
+        lockInputs(false);
+        document.getElementById('modify-btn').style.display = "none";
+        document.getElementById('submit-btn').style.display = "block";
+    };
+
+    window.clearEntry = async () => {
+        if (!confirm("本当にこのラウンドの登録をクリアしますか？")) return;
+        try {
+            await deleteDoc(doc(db, "submissions", `${eventId}_${athleteId}_${round}`));
+            await updateDoc(doc(db, "tournaments", eventId, "athletes", athleteId), {
+                [`submissions.${round}`]: deleteField()
+            });
+            alert("登録をクリアしました。");
+            location.reload();
+        } catch (e) {
+            console.error(e);
+            alert("クリア中にエラーが発生しました。");
+        }
+    };
+
+    window.submitRoutine = async () => {
+        const skills = [];
+        for (let i = 1; i <= 10; i++) {
+            const skillId = document.getElementById(`skill-${i}`).value;
+            if (!skillId) {
+                alert(`技 ${i} が選択されていません。`);
+                return;
+            }
+            const skill = skillMaster.find(s => s.id === skillId);
+            skills.push({ skill: skill.symbol, dd: skill.dd });
+        }
+        const kana = document.getElementById('ath-kana').value.trim();
+        const clubKana = document.getElementById('ath-club-kana').value.trim();
+        if (currentAthlete.type !== 'synchro' && (!kana || !clubKana)) {
+            alert("選手と所属のふりがなを入力してください。");
+            return;
+        }
+
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = '送信中...';
+
+        try {
+            const subId = `${eventId}_${athleteId}_${round}`;
+            const totalDD = parseFloat(document.getElementById('total-dd').textContent);
+
+            // 1. Update the detailed submission document
+            await setDoc(doc(db, "submissions", subId), {
+                eventId, athleteId, round, skills, totalDD,
+                checkStatus: 0, // 0: Submitted, not yet checked
+                updatedAt: serverTimestamp(),
+                revisionCount: increment(1)
+            }, { merge: true });
+
+            // 2. Update the athlete document with a summary
+            const athleteUpdateData = {
+                [`submissions.${round}`]: 0 // 0: Submitted
+            };
+            if (currentAthlete.type !== 'synchro') {
+                athleteUpdateData.kana1 = kana;
+                athleteUpdateData.clubKana1 = clubKana;
+            }
+            await updateDoc(doc(db, "tournaments", eventId, "athletes", athleteId), athleteUpdateData);
+
+            alert("競技カードを提出しました。");
+            location.href = `event.html?event=${eventId}`;
+        } catch (e) {
+            console.error(e);
+            alert("エラーが発生しました: " + e.message);
+            btn.disabled = false;
+            btn.textContent = 'この内容で提出する';
+        }
+    };
+
+    init();
+</script>
+</body>
+</html>

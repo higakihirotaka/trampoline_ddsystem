@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>トランポリン競技カード管理システム</title>
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-sub: #888888;
+            --border-color: #eeeeee;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            background: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--text-main);
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 50px;
+            border-radius: 28px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+            text-align: center;
+            width: 440px;
+            border-bottom: 8px solid var(--primary-color);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            font-size: 1.8em;
+            letter-spacing: 1px;
+            font-weight: 900;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            color: var(--text-sub);
+            margin-bottom: 40px;
+            font-size: 0.85em;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.75em;
+            color: #aaaaaa;
+            margin-bottom: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        select {
+            width: 100%;
+            padding: 18px;
+            border-radius: 14px;
+            border: 2px solid var(--border-color);
+            font-size: 1em;
+            cursor: pointer;
+            background: #fafafa;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23ccc%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 15px;
+        }
+
+        select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(26,115,232,0.1);
+        }
+
+        .btn-enter {
+            width: 100%;
+            padding: 22px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(26,115,232,0.2);
+            letter-spacing: 1px;
+        }
+
+        .btn-enter:hover {
+            background: #1557b0;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(26,115,232,0.3);
+        }
+
+        .footer-section {
+            margin-top: 40px; 
+            font-size: 0.8em; 
+            color: #aaa;
+        }
+
+        .footer-section a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .credit {
+            margin-top: 15px;
+            font-size: 0.65rem;
+            color: #bbbbbb;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .credit b {
+            color: #888888;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Trampoline Competition<br>Card System</h1>
+    <p class="subtitle">トランポリン競技カード管理システム</p>
+    
+    <div class="form-group">
+        <label>大会を選択してください</label>
+        <select id="tour-select">
+            <option value="">読み込み中...</option>
+        </select>
+    </div>
+
+    <button class="btn-enter" onclick="enter()">システムを開始する</button>
+    
+    <div class="footer-section">
+        <a href="admin_index.html">管理者用ページ</a>
+        <div class="credit">System Architecture by <b>Hirotaka.HIGAKI</b></div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4",
+        authDomain: "trampoline-dd-test.firebaseapp.com",
+        projectId: "trampoline-dd-test",
+        storageBucket: "trampoline-dd-test.appspot.com",
+        messagingSenderId: "722487617244",
+        appId: "1:722487617244:web:9ae10218c36c82763af619"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadTournaments() {
+        try {
+            const q = query(collection(db, "tournaments"), orderBy("startDate", "desc"));
+            const querySnapshot = await getDocs(q);
+            const select = document.getElementById('tour-select');
+            select.innerHTML = '';
+
+            if (querySnapshot.empty) {
+                select.innerHTML = '<option value="">開催中の大会はありません</option>';
+            } else {
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    const dateInfo = data.startDate || '未設定';
+                    option.text = `[${dateInfo}] ${data.name || doc.id}`;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error(error);
+            document.getElementById('tour-select').innerHTML = '<option value="">エラーが発生しました</option>';
+        }
+    }
+
+    window.enter = () => {
+        const tournamentId = document.getElementById('tour-select').value;
+        if (tournamentId) {
+            location.href = `event.html?event=${tournamentId}`;
+        } else {
+            alert("大会を選択してください。");
+        }
+    };
+
+    loadTournaments();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>進捗管理 - Trampoline Scoring System</title>
+    <style>
+        :root {
+            --primary: #37474f; --accent: #1a73e8; --bg: #eceff1; --card: #ffffff;
+            --status-none: #90a4ae; --status-sub: #0288d1; --status-warn: #f57c00; --status-ok: #388e3c;
+        }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .dashboard-container { max-width: 1200px; margin: auto; background: var(--card); padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); border-top: 8px solid var(--primary); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 15px; border-bottom: 1px solid #eee; text-align: center; }
+        .cat-row { background: #f8f9fa; font-weight: bold; text-align: left; }
+        .status-badge { padding: 6px 12px; border-radius: 6px; font-size: 0.75em; font-weight: bold; text-decoration: none; color: white; display: inline-block; min-width: 80px; }
+        .bg-none { background: var(--status-none); }
+        .bg-sub { background: var(--status-sub); }
+        .bg-warn { background: var(--status-warn); }
+        .bg-ok { background: var(--status-ok); }
+    </style>
+</head>
+<body>
+<div class="dashboard-container">
+    <div class="header">
+        <div><h1 id="event-name" style="margin:0;">Loading...</h1><div style="color:#888;">進捗・ステータス管理</div></div>
+        <a href="admin_menu.html" id="menu-back" style="text-decoration:none; color:var(--accent); font-weight:bold;">← 管理メニューに戻る</a>
+    </div>
+    <div id="main-list"></div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+    const params = new URLSearchParams(location.search); const eventId = params.get('event');
+
+    async function init() {
+        if (!eventId) { document.body.innerHTML = '<h1>エラー: 大会IDが見つかりません。</h1><a href="admin_index.html">大会選択に戻る</a>'; return; }
+        document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
+        const [tourSnap, athSnap, subSnap, resSnap] = await Promise.all([
+            getDoc(doc(db, "tournaments", eventId)),
+            getDocs(collection(db, "tournaments", eventId, "athletes")),
+            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+            getDocs(query(collection(db, "results"), where("eventId", "==", eventId)))
+        ]);
+        const tour = tourSnap.data(); document.getElementById('event-name').innerText = tour.name;
+        const subMap = {}; subSnap.forEach(d => { subMap[d.id] = d.data(); });
+        const resMap = {}; resSnap.forEach(d => { resMap[d.id] = d.data(); });
+        renderDashboard(tour, athSnap.docs.map(d => d.data()), subMap, resMap);
+    }
+
+    function renderDashboard(tour, athletes, subMap, resMap) {
+        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
+        let html = ""; let currentGrp = ""; const numPre = tour.qualifyingRoutines || 1;
+        athletes.forEach(ath => {
+            const grp = `${ath.category} - ${ath.gender}`;
+            if (currentGrp !== grp) {
+                if (currentGrp !== "") html += "</tbody></table>";
+                currentGrp = grp;
+                html += `<table><thead><tr class="cat-row"><td colspan="${2 + numPre + (tour.hasFinal?1:0)}">${grp}</td></tr><tr><th>順</th><th style="text-align:left;">選手名</th>${Array.from({length:numPre}, (_,i)=>`<th>予選${i+1}</th>`).join('')}${tour.hasFinal ? '<th>決勝</th>' : ''}</tr></thead><tbody>`;
+            }
+            html += `<tr><td>${ath.order}</td><td style="text-align:left;"><b>${ath.name2 ? ath.name1+' / '+ath.name2 : ath.name1}</b></td>`;
+            for(let i=1; i<=numPre; i++) html += `<td>${getStatusBadge(ath, `pre${i}`, subMap, resMap)}</td>`;
+            if(tour.hasFinal) html += `<td>${getStatusBadge(ath, 'final', subMap, resMap)}</td>`;
+            html += `</tr>`;
+        });
+        document.getElementById('main-list').innerHTML = html + "</tbody></table>";
+    }
+
+    function getStatusBadge(ath, rid, subMap, resMap) {
+        const subId = `${eventId}_${ath.id}_${rid}`;
+        const sub = subMap[subId]; const isOfficial = resMap[subId];
+        const editUrl = `entry.html?event=${eventId}&athlete=${ath.id}&round=${rid}&admin=1`;
+        if (isOfficial) return `<a href="${editUrl}" class="status-badge bg-ok">Official OK</a>`;
+        if (sub) return `<a href="${editUrl}" class="status-badge ${sub.checkStatus===1?'bg-warn':'bg-sub'}">${sub.checkStatus===1?'要修正！':'提出済'}</a>`;
+        return `<a href="${editUrl}" class="status-badge bg-none">未提出</a>`;
+    }
+    init();
+</script>
+</body>
+</html>

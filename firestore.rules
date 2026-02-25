@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // WARNING: This rule is insecure. It allows anyone to read, write, and
+    // delete your data. It is highly recommended to implement authentication
+    // and restrictive rules before making your app public.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

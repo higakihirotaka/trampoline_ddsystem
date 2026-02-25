@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trampoline Card System - Venue Monitor</title>
+    <style>
+        :root { --bg: #000000; --accent: #2979ff; --danger: #ff1744; --success: #00e676; --text-main: #ffffff; --text-dim: #b0bec5; }
+        body, html { margin: 0; padding: 0; background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; height: 100vh; width: 100vw; overflow: hidden; }
+        
+        .dashboard { display: flex; flex-direction: column; height: 100vh; padding: 0; box-sizing: border-box; }
+
+        /* ヘッダー：画面上端に固定 */
+        .header { flex-shrink: 0; height: 6vh; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); padding: 0 2vw; background: #0a0a0a; }
+        .header-title { font-size: 1.3vw; font-weight: 900; color: var(--accent); }
+        #event-name { font-size: 1.1vw; font-weight: bold; }
+        #clock { font-family: monospace; font-size: 1.3vw; }
+
+        .result-container { flex: 1; display: flex; flex-direction: column; padding: 0 2vw; justify-content: space-between; }
+
+        /* 選手情報 */
+        .athlete-info { flex-shrink: 0; border-left: 12px solid var(--accent); padding-left: 1.5vw; margin: 1.2vh 0; }
+        .athlete-info h1 { margin: 0; font-size: 2.2vw; font-weight: 900; line-height: 1; }
+        .athlete-info p { margin: 0 0 4px 0; font-size: 1.4vw; color: var(--accent); font-weight: bold; }
+
+        /* テーブルエリア：残りのスペースをすべて埋める (flex-grow: 2) */
+        .table-container { flex-grow: 2; display: flex; flex-direction: column; min-height: 0; }
+        .score-table { width: 100%; height: 100%; border-collapse: collapse; }
+        .score-table tr { height: calc(100% / 11); }
+        .score-table th { color: var(--accent); border-bottom: 3px solid #333; font-size: 1vw; text-transform: uppercase; letter-spacing: 2px; }
+        .score-table td { text-align: center; border-bottom: 1px solid #1a1a1a; color: #ffffff; font-size: 4.2vh; padding: 0; }
+
+        /* 本数(#1)を極太・純白で強調 */
+        .col-idx { font-weight: 900; font-size: 0.8em; color: #ffffff !important; }
+        .col-sub { font-family: monospace; font-weight: 400; opacity: 0.9; }
+        .col-off { font-weight: 900; font-size: 1.2em; }
+        
+        .diff-alert { color: var(--danger) !important; text-shadow: 0 0 15px rgba(255, 23, 68, 0.7); }
+        .zero-alert { color: var(--danger) !important; font-weight: 900; }
+
+        /* 合計表示：画面下部にフィット */
+        .total-display { flex-shrink: 0; height: 16vh; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.08); border-radius: 12px; margin: 0.8vh 0; padding: 0 4vw; }
+        .stat-box { text-align: center; display: flex; align-items: baseline; gap: 15px; }
+        .stat-box label { color: var(--text-dim); font-size: 1.1vw; font-weight: bold; }
+        .stat-box span { font-size: 3.8vw; font-weight: 900; font-family: monospace; }
+        
+        .grand-total { font-size: 7.2vw !important; color: var(--success); line-height: 1; }
+        .grand-total.diff-alert { color: var(--danger); text-shadow: 0 0 25px rgba(255, 23, 68, 0.5); }
+
+        /* 権利者情報：黒背景・白文字 */
+        .footer-credits { flex-shrink: 0; background: #000000; color: #ffffff; text-align: center; padding: 0.6vh 0; border-top: 1px solid #333; }
+        .dev-info { font-size: 0.7vw; letter-spacing: 5px; text-transform: uppercase; opacity: 0.6; }
+        .dev-name { font-weight: 900; opacity: 0.8; }
+
+        .content-wrap { animation: fadeIn 0.4s ease-out; height: 100%; display: flex; flex-direction: column; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <header class="header">
+        <div class="header-title">Trampoline Competition Card System</div>
+        <div id="event-name">Loading...</div>
+        <div id="clock">00:00:00</div>
+    </header>
+
+    <main class="result-container" id="focus-area">
+        <div style="text-align:center; color:var(--text-dim); margin-top: 35vh;">
+            <h2 style="font-size:2vw; letter-spacing: 6px;">WAITING FOR JUDGE CONFIRMATION</h2>
+        </div>
+    </main>
+
+    <footer class="footer-credits">
+        <div class="dev-info">System Design & Development by <span class="dev-name">HIROTAKA.HIGAKI</span></div>
+    </footer>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event')?.trim();
+    let skillMaster = [], athleteMap = {};
+
+    function getRoundLabel(rid) {
+        const labels = { 'pre1': 'Routine 1', 'pre2': 'Routine 2', 'final': 'Final Routine' };
+        return labels[rid] || rid.toUpperCase();
+    }
+
+    async function init() {
+        if (!eventId) return;
+        try {
+            const res = await fetch('data/skills.tsv');
+            const text = await res.text();
+            skillMaster = text.trim().split(/\r?\n/).slice(1).map((line, index) => {
+                const c = line.split('\t');
+                return { id: String(index), symbol: c[0].trim(), dd: parseFloat(c[1]), isTriple: c[2]?.trim().toLowerCase() === 'true' };
+            });
+
+            const athSnap = await getDocs(collection(db, "tournaments", eventId, "athletes"));
+            athSnap.forEach(d => athleteMap[d.id] = d.data());
+
+            const tourSnap = await getDoc(doc(db, "tournaments", eventId));
+            if (tourSnap.exists()) document.getElementById('event-name').innerText = tourSnap.data().name;
+
+            const q = query(collection(db, "results"), where("eventId", "==", eventId), orderBy("verifiedAt", "desc"), limit(1));
+            onSnapshot(q, (snap) => { if (!snap.empty) renderFocusResult(snap.docs[0]); });
+        } catch (e) { console.error(e); }
+    }
+
+    async function renderFocusResult(resultDoc) {
+        const resData = resultDoc.data();
+        const ath = athleteMap[resData.athleteId];
+        const subId = `${eventId}_${resData.athleteId}_${resData.round}`;
+        const subSnap = await getDoc(doc(db, "submissions", subId));
+        const sub = subSnap.exists() ? subSnap.data() : { skills: [] };
+
+        let rowsHtml = "", baseDD = 0, tripleCount = 0, hasAnyDiff = false;
+        const seenIds = new Set();
+        const vLimit = resData.validCount !== undefined ? resData.validCount : 10;
+
+        for (let i = 0; i < 10; i++) {
+            if (i < vLimit) {
+                const offId = resData.officialSkills[i];
+                const skill = skillMaster[offId];
+                const subRaw = sub.skills[i] || "";
+                const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+                const isDiff = skill && subSkill && skill.symbol !== subSkill.symbol;
+                if (isDiff) hasAnyDiff = true;
+
+                let displayDD = 0, isZero = false;
+                if (skill) {
+                    if (seenIds.has(offId)) { displayDD = 0; isZero = true; } 
+                    else { displayDD = skill.dd; baseDD += skill.dd; if (skill.isTriple) tripleCount++; seenIds.add(offId); }
+                }
+                const scoreClass = isZero ? 'zero-alert' : (isDiff ? 'diff-alert' : '');
+
+                rowsHtml += `<tr>
+                    <td class="col-idx">#${i+1}</td>
+                    <td class="col-sub ${isDiff ? 'diff-alert' : ''}">${subSkill ? subSkill.symbol : '-'}</td>
+                    <td class="col-off ${isDiff ? 'diff-alert' : ''}">${skill ? skill.symbol : '-'}</td>
+                    <td class="${scoreClass}" style="font-family:monospace; font-weight:bold;">${displayDD.toFixed(1)}</td>
+                </tr>`;
+            } else {
+                rowsHtml += `<tr><td class="col-idx" style="opacity:0.3;">#${i+1}</td><td>-</td><td>-</td><td>-</td></tr>`;
+            }
+        }
+
+        let bonus = 0;
+        if (ath?.gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+        else if (ath?.gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+
+        document.getElementById('focus-area').innerHTML = `
+            <div class="content-wrap">
+                <div class="athlete-info">
+                    <p>${ath?.category} ${ath?.gender} / ${getRoundLabel(resData.round)}</p>
+                    <h1>No.${ath?.order} ${ath?.name1}</h1>
+                    <div style="font-size:1.2vw; opacity:0.8; color:var(--accent); font-weight:bold;">${ath?.club1 || ''}</div>
+                </div>
+                <div class="table-container">
+                    <table class="score-table">
+                        <thead><tr><th style="width:8%"></th><th style="width:32%">Declaration</th><th style="width:45%">Confirmed</th><th style="width:15%">DD</th></tr></thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </div>
+                <div class="total-display">
+                    <div class="stat-box"><label>SKILLS</label><span>${vLimit}</span></div>
+                    <div class="stat-box"><label>BASE DD</label><span>${baseDD.toFixed(1)}</span></div>
+                    <div class="stat-box"><label>BONUS</label><span style="color:var(--accent)">+${bonus.toFixed(1)}</span></div>
+                    <div class="stat-box"><label>FINAL DD</label>
+                        <span class="grand-total ${hasAnyDiff ? 'diff-alert' : ''}">${(baseDD + bonus).toFixed(1)}</span>
+                    </div>
+                </div>
+            </div>`;
+    }
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+    init();
+</script>
+</body>
+</html>
