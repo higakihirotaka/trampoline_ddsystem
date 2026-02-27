@@ -96,24 +96,32 @@
 
     function renderAthleteList() {
         const container = document.getElementById('athlete-list');
-        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
-        
+        const classRules = currentTour.classRules || {};
+
+        athletes.sort((a,b) => {
+            const ka = (a.class || '') + (a.gender || '') + String(a.flightGroup || '').padStart(3,'0') + String(a.order || '').padStart(3,'0');
+            const kb = (b.class || '') + (b.gender || '') + String(b.flightGroup || '').padStart(3,'0') + String(b.order || '').padStart(3,'0');
+            return ka.localeCompare(kb);
+        });
+
         let html = "", lastGrp = "";
         athletes.forEach(ath => {
-            const grp = ath.category + " " + ath.gender;
+            const grp = (ath.class || '未分類') + " " + (ath.gender || '');
             if (grp !== lastGrp) {
                 html += `<div class="cat-group">${grp}</div>`;
                 lastGrp = grp;
             }
-            const numPre = currentTour.qualifyingRoutines || 1;
+            const athType = ath.type === 'synchro' ? 'synchro' : 'individual';
+            const athRules = (classRules[athType] && classRules[athType][ath.class]) || { qualifyingRoutines: 1, hasFinal: false };
+            const numPre = athRules.qualifyingRoutines || 1;
             html += `<div class="ath-row">
-                <div class="col-name"><span class="ath-order">${ath.order}.</span><span>${ath.name1}</span></div>
+                <div class="col-name"><span class="ath-order">${ath.order || '-'}.</span><span>${ath.name1 || ''}</span></div>
                 <div class="col-round"><input type="checkbox" class="chk-item chk-pre1" data-aid="${ath.id}" data-rid="pre1"></div>
                 <div class="col-round">${numPre >= 2 ? `<input type="checkbox" class="chk-item chk-pre2" data-aid="${ath.id}" data-rid="pre2">` : '-' }</div>
-                <div class="col-round">${currentTour.hasFinal ? `<input type="checkbox" class="chk-item chk-final" data-aid="${ath.id}" data-rid="final">` : '-' }</div>
+                <div class="col-round">${athRules.hasFinal ? `<input type="checkbox" class="chk-item chk-final" data-aid="${ath.id}" data-rid="final">` : '-' }</div>
             </div>`;
         });
-        container.innerHTML = html;
+        container.innerHTML = html || '<div style="padding:20px; color:#999;">選手データがありません</div>';
     }
 
     function renderForm() {

@@ -3,72 +3,363 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クラス別ルール設定 - トランポリン大会システム</title>
+    <title>クラス別設定 - Trampoline System</title>
     <style>
-        /* The extensive CSS from the original file is preserved here for brevity */
-        :root { --primary: #263238; --accent: #1a73e8; --bg: #f4f7f9; --card: #ffffff; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--primary); }
-        .container { max-width: 1100px; margin: auto; }
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        h1 { margin:0; font-size:1.6rem; }
-        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        :root { --primary: #263238; --accent: #1a73e8; --bg: #f0f2f5; --card: #ffffff; --text-main: #263238; --text-sub: #546e7a; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text-main); }
+        .container { max-width: 860px; margin: 0 auto; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
         .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
-        .auth-info span { font-weight: bold; }
+        .auth-info span { font-weight: bold; color: var(--text-main); }
         .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--accent); cursor: pointer; font-size: 0.9em; margin-left: 12px; padding: 3px 8px; }
-        /* etc. */
+
+        /* クラスカード */
+        .class-card { background: var(--card); border-radius: 16px; padding: 28px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .class-card-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid #f0f2f5; padding-bottom: 14px; }
+        .class-badge { background: var(--accent); color: white; font-weight: 900; font-size: 1.1rem; padding: 4px 16px; border-radius: 20px; }
+        .class-card-header h2 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-sub); }
+
+        /* 設定行 */
+        .rule-row { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 20px; }
+        .rule-label { width: 160px; flex-shrink: 0; font-size: 0.82rem; font-weight: bold; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.4px; padding-top: 2px; }
+        .rule-controls { flex: 1; }
+
+        /* ラジオ・チェックボックス */
+        .radio-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .radio-btn { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .radio-btn input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+        .radio-btn span { font-size: 0.95rem; }
+
+        /* 数値入力 */
+        .num-input-wrap { display: flex; align-items: center; gap: 8px; }
+        input[type="number"] { width: 80px; padding: 8px 12px; border: 1px solid #d0d7de; border-radius: 8px; font-size: 1rem; background: #f8fbff; text-align: center; }
+        input[type="number"]:focus { border-color: var(--accent); outline: none; background: #fff; }
+        .num-unit { font-size: 0.9rem; color: var(--text-sub); }
+
+        /* 条件付き表示 */
+        .conditional { transition: opacity 0.2s; }
+        .conditional.hidden { opacity: 0.3; pointer-events: none; }
+
+        /* 制約メッセージ */
+        .constraint-msg { font-size: 0.8rem; color: #e65100; margin-top: 4px; display: none; }
+        .constraint-msg.show { display: block; }
+
+        /* 保存ボタン */
+        .save-bar { position: sticky; bottom: 0; background: var(--bg); padding: 16px 0; }
+        .btn-save-all { background: var(--accent); color: white; display: block; width: 100%; padding: 14px; font-size: 1rem; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 12px rgba(26,115,232,0.3); }
+        .btn-save-all:hover { background: #1557b0; }
+        .btn-save-all:disabled { background: #b0bec5; cursor: not-allowed; box-shadow: none; }
+
+        /* 空状態 */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-sub); }
+        .empty-state a { color: var(--accent); }
+
+        /* トースト */
+        .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #263238; color: white; padding: 12px 28px; border-radius: 30px; font-size: 0.95rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; white-space: nowrap; }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #d32f2f; }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header-bar">
-        <div class="page-header">
-            <h1>クラス別ルール設定</h1>
-            <a href="admin_menu.html" id="back-link" style="color: #90a4ae; text-decoration: none; font-weight: bold; margin-left: 20px;">← 管理者メニューに戻る</a>
-        </div>
+        <a href="#" id="back-link" class="btn-back">← 管理メニューに戻る</a>
         <div id="auth-info" class="auth-info">
             <span id="user-name"></span>としてログイン中
             <button id="logout-btn" class="logout-btn">ログアウト</button>
         </div>
     </div>
 
-    <!-- The rest of the original HTML structure (tabs, rules sections, save button) is preserved -->
-    <div class="tabs">...</div>
-    <div id="rules-individual" class="rules-section active"></div>
-    <div id="rules-synchro" class="rules-section"></div>
-    <button class="btn btn-save" onclick="window.saveClassRules()">すべてのクラスルールを保存</button>
+    <div id="class-cards"></div>
+
+    <div class="save-bar">
+        <button class="btn-save-all" id="btn-save-all" onclick="saveAll()">すべてのクラスを保存</button>
+    </div>
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, getDocs, collection, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
 
+    const db = getFirestore(getApp());
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
-    ensureAdmin(user => {
-        const authInfo = document.getElementById('auth-info');
-        const userName = document.getElementById('user-name');
-        userName.textContent = user.displayName || user.email;
-        authInfo.style.display = 'flex';
-        document.getElementById('logout-btn').onclick = logout;
+    // { individual: [{name,display_order}], synchro: [...] }
+    let classData = { individual: [], synchro: [] };
 
+    ensureAdmin(user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
         initPage();
     });
 
-    const db = getFirestore(initializeApp({ apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" }));
-
-    // Renamed 'init' to 'initPage'
     async function initPage() {
-        if (!eventId) { document.body.innerHTML = '<h1>エラー: 大会IDが見つかりません。</h1><a href="admin_index.html">大会選択に戻る</a>'; return; }
+        if (!eventId) { location.href = 'admin_index.html'; return; }
         document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
 
-        // ... rest of the init function is the same ...
+        const tDoc = await getDoc(doc(db, 'tournaments', eventId));
+        if (!tDoc.exists()) { showToast('大会データが見つかりません', true); return; }
+
+        const d = tDoc.data();
+        const rawRules = d.classRules || {};
+        // 古いフラット形式（{ "クラス名": {...} }）を新形式（{ individual: {...}, synchro: {...} }）に変換
+        const isOldFormat = !('individual' in rawRules) && !('synchro' in rawRules) && Object.keys(rawRules).length > 0;
+        const existingRules = isOldFormat ? { individual: rawRules, synchro: {} } : rawRules;
+
+        // クラス一覧を取得
+        const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+
+        const rulesKeys = obj => Object.keys(obj || {}).map((name, i) => ({ name, display_order: i }));
+
+        if (d.classes && !Array.isArray(d.classes) && (d.classes.individual || d.classes.synchro)) {
+            // 新形式
+            classData.individual = sortByOrder(d.classes.individual);
+            classData.synchro    = sortByOrder(d.classes.synchro);
+            // シンクロが未保存でも classRules にデータがあれば補完
+            if (classData.synchro.length === 0 && existingRules.synchro) {
+                classData.synchro = rulesKeys(existingRules.synchro);
+            }
+        } else if (Array.isArray(d.classes) && d.classes.length > 0) {
+            // 旧フラット配列: すべて個人扱い、classRules からシンクロを補完
+            classData.individual = sortByOrder(d.classes);
+            classData.synchro    = existingRules.synchro ? rulesKeys(existingRules.synchro) : [];
+        } else {
+            // classRules のキーから抽出
+            classData.individual = rulesKeys(existingRules.individual);
+            classData.synchro    = rulesKeys(existingRules.synchro);
+        }
+
+        const container = document.getElementById('class-cards');
+        const total = classData.individual.length + classData.synchro.length;
+
+        if (total === 0) {
+            container.innerHTML = `<div class="empty-state">
+                <p>クラスが登録されていません。</p>
+                <p><a href="settings.html?event=${eventId}">大会設定</a>でクラスを追加してください。</p>
+            </div>`;
+            document.getElementById('btn-save-all').disabled = true;
+            return;
+        }
+
+        // 個人セクション
+        if (classData.individual.length > 0) {
+            container.appendChild(createSectionHeader('個人クラス', 'individual'));
+            classData.individual.forEach(({ name }) => {
+                // 新形式 → フラット形式 の順でフォールバック検索
+                const rule = (existingRules.individual || {})[name] || rawRules[name] || {};
+                container.appendChild(createClassCard(name, 'individual', rule));
+            });
+        }
+
+        // シンクロセクション
+        if (classData.synchro.length > 0) {
+            container.appendChild(createSectionHeader('シンクロクラス', 'synchro'));
+            classData.synchro.forEach(({ name }) => {
+                // 新形式 → フラット形式 の順でフォールバック検索
+                const rule = (existingRules.synchro || {})[name] || rawRules[name] || {};
+                container.appendChild(createClassCard(name, 'synchro', rule));
+            });
+        }
     }
 
-    // All other functions (renderRules, createClassCard, saveClassRules, etc.) are preserved.
-    // ...
+    function createSectionHeader(label, type) {
+        const div = document.createElement('div');
+        div.style.cssText = 'font-size:1rem;font-weight:900;margin:28px 0 12px 4px;display:flex;align-items:center;gap:10px;';
+        const badge = document.createElement('span');
+        badge.style.cssText = `display:inline-block;padding:3px 14px;border-radius:12px;font-size:0.8rem;font-weight:900;letter-spacing:.5px;background:${type==='individual'?'#e3f2fd':'#e8f5e9'};color:${type==='individual'?'#1565c0':'#2e7d32'};`;
+        badge.textContent = label;
+        div.appendChild(badge);
+        return div;
+    }
 
+    function createClassCard(className, type, rule) {
+        const qualRoutes = rule.qualifyingRoutines ?? 2;
+        const scoreMode  = rule.scoreMode ?? 'best';
+        const semifinal  = rule.semifinalEnabled ?? false;
+        const finalCount = rule.finalCount ?? 8;
+        const eJudge     = rule.eJudgeCount ?? 4;
+
+        const card = document.createElement('div');
+        card.className = 'class-card';
+        card.dataset.class = className;
+        card.dataset.type = type;
+        card.innerHTML = `
+            <div class="class-card-header">
+                <span class="class-badge">${escHtml(className)}</span>
+                <h2>クラスルール設定</h2>
+            </div>
+
+            <!-- 予選本数 -->
+            <div class="rule-row">
+                <div class="rule-label">予選本数</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="qual-${className}" value="1" ${qualRoutes === 1 ? 'checked' : ''}>
+                            <span>1本</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="qual-${className}" value="2" ${qualRoutes === 2 ? 'checked' : ''}>
+                            <span>2本</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 順位決定方式（2本時のみ） -->
+            <div class="rule-row conditional ${qualRoutes === 1 ? 'hidden' : ''}" id="score-mode-row-${className}">
+                <div class="rule-label">順位決定方式</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="score-${className}" value="best" ${scoreMode === 'best' ? 'checked' : ''}>
+                            <span>ベストスコア</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="score-${className}" value="total" ${scoreMode === 'total' ? 'checked' : ''}>
+                            <span>合計スコア</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 準決勝 -->
+            <div class="rule-row">
+                <div class="rule-label">準決勝</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="semi-${className}" value="false" ${!semifinal ? 'checked' : ''}>
+                            <span>なし</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="semi-${className}" value="true" ${semifinal ? 'checked' : ''}>
+                            <span>あり</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 決勝人数 -->
+            <div class="rule-row">
+                <div class="rule-label">決勝人数</div>
+                <div class="rule-controls">
+                    <div class="num-input-wrap">
+                        <input type="number" id="final-count-${className}" value="${finalCount}" min="0" max="99">
+                        <span class="num-unit">名</span>
+                    </div>
+                    <div class="constraint-msg" id="constraint-${className}">
+                        準決勝ありの場合、決勝人数は1以上にしてください
+                    </div>
+                </div>
+            </div>
+
+            <!-- E審判人数 -->
+            <div class="rule-row">
+                <div class="rule-label">E審判人数</div>
+                <div class="rule-controls">
+                    <div class="num-input-wrap">
+                        <input type="number" id="e-judge-${className}" value="${eJudge}" min="1" max="10">
+                        <span class="num-unit">名</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 予選本数の変更で順位決定方式を表示切替
+        card.querySelectorAll(`input[name="qual-${className}"]`).forEach(radio => {
+            radio.addEventListener('change', () => {
+                const row = document.getElementById(`score-mode-row-${className}`);
+                row.classList.toggle('hidden', radio.value === '1');
+            });
+        });
+
+        // 準決勝の変更で決勝人数の制約チェック
+        card.querySelectorAll(`input[name="semi-${className}"]`).forEach(radio => {
+            radio.addEventListener('change', () => validateFinal(className));
+        });
+        card.querySelector(`#final-count-${className}`).addEventListener('input', () => validateFinal(className));
+
+        return card;
+    }
+
+    function validateFinal(className) {
+        const semiVal = document.querySelector(`input[name="semi-${className}"]:checked`)?.value === 'true';
+        const finalCount = parseInt(document.getElementById(`final-count-${className}`).value) || 0;
+        const msg = document.getElementById(`constraint-${className}`);
+        const invalid = semiVal && finalCount < 1;
+        msg.classList.toggle('show', invalid);
+        return !invalid;
+    }
+
+    window.saveAll = async () => {
+        // バリデーション
+        let valid = true;
+        document.querySelectorAll('.class-card').forEach(card => {
+            if (!validateFinal(card.dataset.class)) valid = false;
+        });
+        if (!valid) { showToast('入力内容を確認してください', true); return; }
+
+        const btn = document.getElementById('btn-save-all');
+        btn.disabled = true;
+        btn.textContent = '保存中…';
+
+        try {
+            const individual = {}, synchro = {};
+
+            // type 属性で個人/シンクロを識別して別々に保存
+            document.querySelectorAll('.class-card').forEach(card => {
+                const name = card.dataset.class;
+                const type = card.dataset.type;
+                const qualRoutes = parseInt(card.querySelector(`input[name="qual-${name}"]:checked`)?.value) || 2;
+                const scoreMode  = card.querySelector(`input[name="score-${name}"]:checked`)?.value || 'best';
+                const semifinal  = card.querySelector(`input[name="semi-${name}"]:checked`)?.value === 'true';
+                const finalCount = parseInt(card.querySelector(`#final-count-${name}`).value) || 0;
+                const eJudge     = parseInt(card.querySelector(`#e-judge-${name}`).value) || 1;
+
+                const ruleObj = {
+                    qualifyingRoutines: qualRoutes,
+                    scoreMode,
+                    semifinalEnabled: semifinal,
+                    finalCount,
+                    eJudgeCount: eJudge,
+                    hasFinal: finalCount > 0
+                };
+                if (type === 'synchro') synchro[name] = ruleObj;
+                else individual[name] = ruleObj;
+            });
+
+            await setDoc(doc(db, 'tournaments', eventId), {
+                classRules: { individual, synchro },
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            location.href = `admin_menu.html?event=${eventId}`;
+        } catch (e) {
+            showToast('保存に失敗しました: ' + e.message, true);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'すべてのクラスを保存';
+        }
+    };
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast' + (isError ? ' error' : '');
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
 </script>
 </body>
 </html>

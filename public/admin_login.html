@@ -29,10 +29,9 @@
 
     <script type="module">
         // All Firebase logic is now handled in auth.js
-        import { loginWithGoogle, handleLoginRedirect } from './auth.js';
+        import { loginWithGoogle } from './auth.js';
 
         document.getElementById('login-btn').addEventListener('click', loginWithGoogle);
-        handleLoginRedirect();
     </script>
 </body>
 </html>

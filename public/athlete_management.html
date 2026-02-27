@@ -3,101 +3,489 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>選手名簿管理 - トランポリン大会システム</title>
+    <title>選手管理 - Trampoline System</title>
     <style>
-        /* The extensive CSS from the original file is preserved here for brevity */
-        :root { --primary: #263238; --accent: #1a73e8; --danger: #d32f2f; --bg: #f4f7f9; --card: #ffffff; }
+        :root {
+            --primary: #263238; --accent: #1a73e8; --danger: #d32f2f;
+            --bg: #f0f2f5; --card: #ffffff; --text-sub: #546e7a; --border: #e0e7ef;
+        }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--primary); }
-        .container { max-width: 1600px; margin: auto; background: var(--card); padding: 35px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+        .container { max-width: 1400px; margin: 0 auto; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
         .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
-        .auth-info span { font-weight: bold; color: var(--text-main); }
+        .auth-info span { font-weight: bold; color: var(--primary); }
         .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--accent); cursor: pointer; font-size: 0.9em; margin-left: 12px; padding: 3px 8px; }
-        h1, h2 { margin-top: 0; }
-        .tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 25px; }
-        .tab-link { padding: 12px 25px; cursor: pointer; border: none; background: none; font-size: 1.1rem; font-weight: bold; color: #90a4ae; border-bottom: 3px solid transparent; }
-        .tab-link.active { color: var(--accent); border-bottom-color: var(--accent); }
-        .table-area { overflow-x: auto; margin-top: 20px; border-radius: 12px; border: 1px solid #eee; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th, td { padding: 8px; border-top: 1px solid #f1f1f1; text-align: center; vertical-align: middle; }
-        th { background: #f8f9fb; padding: 15px 8px; color: #78909c; font-size: 0.75rem; white-space: nowrap; }
-        .roster-section { display: none; } .roster-section.active { display: block; }
-        /* etc. */
+        h1 { margin: 0 0 20px; font-size: 1.5rem; }
+
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+        .tab-btn { padding: 10px 28px; cursor: pointer; border: none; background: none; font-size: 1rem; font-weight: bold; color: var(--text-sub); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-btn:hover:not(.active) { color: var(--primary); background: #f5f7f9; }
+
+        /* Action bar */
+        .action-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+        .btn { padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: bold; cursor: pointer; border: none; transition: background 0.15s; white-space: nowrap; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-outline { background: white; color: var(--accent); border: 1.5px solid var(--accent); }
+        .btn-outline:hover { background: #f0f7ff; }
+        .btn-ghost { background: white; color: var(--text-sub); border: 1.5px solid #d0d7de; }
+        .btn-ghost:hover { background: #f5f7f9; }
+        .spacer { flex: 1; }
+        .athlete-count { font-size: 0.85rem; color: var(--text-sub); }
+
+        /* Table */
+        .table-wrap { background: var(--card); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th { background: #f8f9fb; padding: 11px 8px; color: #78909c; font-size: 0.75rem; white-space: nowrap; border-bottom: 1px solid var(--border); font-weight: 700; text-align: left; }
+        td { padding: 3px 5px; border-bottom: 1px solid #f3f3f3; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafcff; }
+        td input[type="text"], td input[type="number"], td select {
+            width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px;
+            font-size: 0.88rem; background: transparent; box-sizing: border-box;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        td input:focus, td select:focus { border-color: var(--accent); background: white; outline: none; box-shadow: 0 0 0 2px rgba(26,115,232,0.1); }
+        td input:hover:not(:focus), td select:hover:not(:focus) { border-color: #c0c8d0; background: #fafcff; }
+        .col-order { width: 60px; }
+        .col-order input { text-align: center; }
+        .col-del { width: 36px; text-align: center; }
+        .btn-del { background: none; border: none; cursor: pointer; color: #cfd8dc; font-size: 1rem; padding: 3px 6px; border-radius: 4px; transition: all 0.15s; }
+        .btn-del:hover { color: var(--danger); background: #ffebee; }
+        .empty-row td { text-align: center; padding: 48px; color: var(--text-sub); }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: white; border-radius: 16px; padding: 28px; max-width: 580px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .modal h3 { margin: 0 0 8px; font-size: 1.1rem; }
+        .modal-desc { color: var(--text-sub); font-size: 0.88rem; margin: 0 0 14px; }
+        .modal-format { background: #f4f6f8; border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; font-family: monospace; margin-bottom: 12px; color: #455a64; }
+        .modal pre { background: #f9fafb; border-radius: 8px; padding: 12px 14px; font-size: 0.78rem; overflow-x: auto; max-height: 180px; overflow-y: auto; border: 1px solid var(--border); margin: 0 0 14px; }
+        .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+
+        /* Sticky save bar */
+        .save-bar { position: sticky; bottom: 0; background: var(--bg); padding: 14px 0 4px; display: flex; align-items: center; gap: 14px; }
+        .btn-save { background: var(--accent); color: white; padding: 12px 36px; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; border: none; box-shadow: 0 4px 12px rgba(26,115,232,0.25); transition: background 0.15s; }
+        .btn-save:hover { background: #1557b0; }
+        .btn-save:disabled { background: #b0bec5; box-shadow: none; cursor: not-allowed; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 11px 26px; border-radius: 30px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; white-space: nowrap; }
+        .toast.show { opacity: 1; }
+        .toast.error { background: var(--danger); }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header-bar">
-        <a href="admin_menu.html" id="back-link" style="color: #90a4ae; text-decoration: none; font-weight: bold;">← 管理者メニューに戻る</a>
+        <a href="#" id="back-link" class="btn-back">← 管理メニューに戻る</a>
         <div id="auth-info" class="auth-info">
             <span id="user-name"></span>としてログイン中
             <button id="logout-btn" class="logout-btn">ログアウト</button>
         </div>
     </div>
-    <h1>選手名簿管理</h1>
+    <h1>選手管理</h1>
 
-    <!-- The rest of the original HTML structure (tabs, buttons, tables) is preserved -->
-    <div class="tabs">...</div>
-    <div style="display: flex; ...">...</div>
-    <div id="roster-individual" class="roster-section active">...</div>
-    <div id="roster-synchro" class="roster-section">...</div>
-    <button class="btn btn-save" onclick="window.saveAthletes()">すべての変更を保存</button>
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-individual" onclick="switchTab('individual')">個人</button>
+        <button class="tab-btn" id="tab-synchro" onclick="switchTab('synchro')">シンクロ</button>
+    </div>
+
+    <div class="action-bar">
+        <button class="btn btn-primary" onclick="addRow()">＋ 選手を追加</button>
+        <button class="btn btn-outline" onclick="document.getElementById('csv-file-input').click()">↑ CSVインポート</button>
+        <button class="btn btn-ghost" onclick="downloadTemplate()">↓ CSVテンプレート</button>
+        <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" onchange="handleCSV(this)">
+        <div class="spacer"></div>
+        <span class="athlete-count" id="athlete-count"></span>
+    </div>
+
+    <div class="table-wrap">
+        <table id="athlete-table">
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+
+    <div class="save-bar">
+        <button class="btn-save" id="btn-save" onclick="saveAll()">すべての変更を保存</button>
+    </div>
 </div>
-<div id="confirm-modal" class="modal-overlay">...</div>
+
+<!-- CSV確認モーダル -->
+<div class="modal-overlay" id="csv-modal">
+    <div class="modal">
+        <h3>CSVインポート確認</h3>
+        <p class="modal-desc" id="csv-summary"></p>
+        <div class="modal-format" id="csv-format-hint"></div>
+        <pre id="csv-preview"></pre>
+        <div class="modal-btns">
+            <button class="btn btn-ghost" onclick="closeCsvModal()">キャンセル</button>
+            <button class="btn btn-primary" onclick="confirmCsvImport()">インポートする</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDocs, collection, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, getDocs, collection, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
 
+    const db = getFirestore(getApp());
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
-    // Main entry point for the page
-    ensureAdmin(user => {
-        const authInfo = document.getElementById('auth-info');
-        const userName = document.getElementById('user-name');
-        userName.textContent = user.displayName || user.email;
-        authInfo.style.display = 'flex';
-        document.getElementById('logout-btn').onclick = logout;
+    let individualAthletes = [];
+    let synchroAthletes    = [];
+    let idsToDelete        = new Set();
+    let currentTab         = 'individual';
+    let individualClasses  = [];
+    let synchroClasses     = [];
+    let _keySeq            = 0;
+    let pendingCsvRows     = [];
 
+    const newKey = () => String(++_keySeq);
+
+    ensureAdmin(user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
         initPage();
     });
 
-    const db = getFirestore(initializeApp({ apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" }));
-    let athletes = [];
-    let idsToDeleteOnSave = new Set();
-    let currentTab = 'individual';
-
-    // All the window.* functions (saveAthletes, addRow, handleImport, etc.) are preserved here
-    // ...
-
     async function initPage() {
-        if (!eventId) { 
-            document.body.innerHTML = '<h1>エラー: 大会IDが見つかりません。</h1><a href="admin_index.html">大会選択に戻る</a>'; 
-            return; 
-        }
+        if (!eventId) { location.href = 'admin_index.html'; return; }
         document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
-        
+
         try {
-            const athSnap = await getDocs(collection(db, "tournaments", eventId, "athletes"));
-            athletes = athSnap.docs.map(d => ({id: d.id, ...d.data()}));
-            renderRosters();
-            setupEventListeners();
-        } catch(e) {
-            console.error("Failed to load athletes:", e);
-            alert("選手データの読み込みに失敗しました。");
+            const [tDoc, athSnap] = await Promise.all([
+                getDoc(doc(db, 'tournaments', eventId)),
+                getDocs(collection(db, 'tournaments', eventId, 'athletes'))
+            ]);
+
+            // クラス一覧を読み込む
+            if (tDoc.exists()) {
+                const d = tDoc.data();
+                const byOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+                const ruleKeys = obj => Object.keys(obj || {});
+
+                if (d.classes && !Array.isArray(d.classes)) {
+                    individualClasses = byOrder(d.classes.individual).map(c => c.name);
+                    synchroClasses    = byOrder(d.classes.synchro).map(c => c.name);
+                    // classes にない場合は classRules から補完
+                    if (synchroClasses.length === 0 && d.classRules?.synchro) {
+                        synchroClasses = ruleKeys(d.classRules.synchro);
+                    }
+                } else if (d.classRules) {
+                    individualClasses = ruleKeys(d.classRules.individual || {});
+                    synchroClasses    = ruleKeys(d.classRules.synchro    || {});
+                }
+            }
+
+            // 選手を読み込む
+            const all = athSnap.docs.map(d => ({ _key: newKey(), id: d.id, ...d.data() }));
+            individualAthletes = all.filter(a => (a.type || 'individual') === 'individual')
+                .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+            synchroAthletes = all.filter(a => a.type === 'synchro')
+                .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+
+            renderTable();
+        } catch (e) {
+            console.error(e);
+            showToast('データの読み込みに失敗しました: ' + e.message, true);
         }
     }
 
-    function setupEventListeners() { /* Preserved */ }
-    function renderIndividualTable(list) { /* Preserved */ }
-    function renderSynchroTable(list) { /* Preserved */ }
-    function updateAth(id, key, value) { /* Preserved */ }
-    window.switchTab = (tabName) => { /* Preserved */ };
-    window.addRow = () => { /* Preserved */ };
-    window.saveAthletes = async () => { /* Preserved */ };
-    // etc. for all helper functions
+    // ---- 現在タブの配列・クラス ----
+    function currentList()    { return currentTab === 'individual' ? individualAthletes : synchroAthletes; }
+    function currentClasses() { return currentTab === 'individual' ? individualClasses  : synchroClasses; }
+
+    // ---- テーブル描画 ----
+    function renderTable() {
+        const list    = currentList();
+        const classes = currentClasses();
+        const isIndiv = currentTab === 'individual';
+        const cols    = isIndiv ? 9 : 8;
+
+        // ヘッダー
+        const head = document.getElementById('table-head');
+        if (isIndiv) {
+            head.innerHTML = `<tr>
+                <th style="min-width:90px">クラス</th>
+                <th style="width:76px">性別</th>
+                <th style="width:65px">グループ</th>
+                <th class="col-order">試技順</th>
+                <th style="min-width:100px">氏名</th>
+                <th style="min-width:100px">氏名ふりがな</th>
+                <th style="min-width:100px">所属</th>
+                <th style="min-width:100px">所属よみ</th>
+                <th class="col-del"></th>
+            </tr>`;
+        } else {
+            head.innerHTML = `<tr>
+                <th style="min-width:90px">クラス</th>
+                <th style="width:65px">グループ</th>
+                <th class="col-order">試技順</th>
+                <th style="min-width:100px">選手1</th>
+                <th style="min-width:100px">選手2</th>
+                <th style="min-width:100px">所属1</th>
+                <th style="min-width:100px">所属2</th>
+                <th class="col-del"></th>
+            </tr>`;
+        }
+
+        // ボディ
+        const body = document.getElementById('table-body');
+        if (list.length === 0) {
+            body.innerHTML = `<tr class="empty-row"><td colspan="${cols}">選手が登録されていません。「＋ 選手を追加」またはCSVインポートで追加してください。</td></tr>`;
+        } else {
+            body.innerHTML = list.map(a => buildRow(a, classes, isIndiv)).join('');
+        }
+
+        // カウント表示
+        document.getElementById('athlete-count').textContent = `${list.length}名`;
+
+        // タブのアクティブ切替
+        document.getElementById('tab-individual').classList.toggle('active', currentTab === 'individual');
+        document.getElementById('tab-synchro').classList.toggle('active',    currentTab === 'synchro');
+    }
+
+    function classOpts(classes, selected) {
+        // 現在の値がリストにない場合も表示できるよう追加
+        const all = (selected && !classes.includes(selected)) ? [...classes, selected] : classes;
+        return `<option value="">-- クラス --</option>` +
+            all.map(c => `<option value="${esc(c)}"${c === selected ? ' selected' : ''}>${esc(c)}</option>`).join('');
+    }
+
+    function buildRow(ath, classes, isIndiv) {
+        const k  = ath._key;
+        const ev = `window._set('${k}',`;
+
+        const inp  = (f, v, ph) => `<td><input type="text"   value="${esc(v??'')}" placeholder="${ph}" oninput="${ev}'${f}',this.value)"></td>`;
+        const num  = (f, v, ph) => `<td class="col-order"><input type="number" value="${v??''}" placeholder="${ph}" oninput="${ev}'${f}',this.valueAsNumber)"></td>`;
+        const sel  = (f, v)     => `<td><select onchange="${ev}'${f}',this.value)">${classOpts(classes, v)}</select></td>`;
+        const del  = () => `<td class="col-del"><button class="btn-del" onclick="window._del('${k}')" title="削除">✕</button></td>`;
+
+        if (isIndiv) {
+            const genderOpts = ['男子','女子'].map(g =>
+                `<option value="${g}"${(ath.gender||'男子')===g?' selected':''}>${g}</option>`).join('');
+            return `<tr data-key="${k}">
+                ${sel('class', ath.class)}
+                <td><select onchange="${ev}'gender',this.value)">${genderOpts}</select></td>
+                ${num('flightGroup', ath.flightGroup, 'G')}
+                ${num('order', ath.order, '#')}
+                ${inp('name1',    ath.name1,    '氏名')}
+                ${inp('kana1',    ath.kana1,    'ふりがな')}
+                ${inp('club1',    ath.club1,    '所属')}
+                ${inp('clubKana1',ath.clubKana1,'所属よみ')}
+                ${del()}
+            </tr>`;
+        } else {
+            return `<tr data-key="${k}">
+                ${sel('class', ath.class)}
+                ${num('flightGroup', ath.flightGroup, 'G')}
+                ${num('order', ath.order, '#')}
+                ${inp('name1', ath.name1, '選手1')}
+                ${inp('name2', ath.name2, '選手2')}
+                ${inp('club1', ath.club1, '所属1')}
+                ${inp('club2', ath.club2, '所属2')}
+                ${del()}
+            </tr>`;
+        }
+    }
+
+    // ---- グローバル操作関数 ----
+    window._set = (key, field, value) => {
+        const ath = currentList().find(a => a._key === key);
+        if (!ath) return;
+        ath[field] = (field === 'order' || field === 'flightGroup')
+            ? (isNaN(value) ? undefined : value)
+            : value;
+    };
+
+    window._del = (key) => {
+        const list = currentList();
+        const idx  = list.findIndex(a => a._key === key);
+        if (idx === -1) return;
+        const ath  = list[idx];
+        const name = ath.name1 || '（名前なし）';
+        if (!confirm(`「${name}」を削除しますか？`)) return;
+        if (ath.id) idsToDelete.add(ath.id);
+        list.splice(idx, 1);
+        renderTable();
+    };
+
+    window.switchTab = (tab) => {
+        currentTab = tab;
+        renderTable();
+    };
+
+    window.addRow = () => {
+        const list     = currentList();
+        const maxOrder = list.reduce((m, a) => Math.max(m, a.order ?? 0), 0);
+        const ath      = { _key: newKey(), _new: true, type: currentTab, order: maxOrder + 1 };
+        if (currentTab === 'individual') ath.gender = '男子';
+        list.push(ath);
+        renderTable();
+        const rows = document.querySelectorAll('#table-body tr');
+        if (rows.length) {
+            const last = rows[rows.length - 1];
+            (last.querySelector('input, select') || {}).focus?.();
+        }
+    };
+
+    // ---- CSV ----
+    const COLS_INDIV   = ['class','gender','flightGroup','order','name1','kana1','club1','clubKana1'];
+    const COLS_SYNCHRO = ['class','flightGroup','order','name1','name2','club1','club2'];
+
+    window.handleCSV = (input) => {
+        const file = input.files[0];
+        if (!file) return;
+        input.value = '';
+        const reader = new FileReader();
+        reader.onload = e => {
+            const text = e.target.result.replace(/^\uFEFF/, ''); // BOM除去
+            const rows = parseCsv(text);
+            if (rows.length < 2) { showToast('CSVにデータ行がありません', true); return; }
+            const cols    = currentTab === 'individual' ? COLS_INDIV : COLS_SYNCHRO;
+            const isIndiv = currentTab === 'individual';
+
+            pendingCsvRows = rows.slice(1)
+                .filter(r => r.some(c => c.trim()))
+                .map(row => {
+                    const ath = { _key: newKey(), _new: true, type: currentTab };
+                    if (isIndiv) ath.gender = '男子';
+                    cols.forEach((col, i) => {
+                        const v = (row[i] ?? '').trim();
+                        if (!v) return;
+                        if (col === 'order' || col === 'flightGroup') {
+                            const n = parseInt(v);
+                            if (!isNaN(n)) ath[col] = n;
+                        } else {
+                            ath[col] = v;
+                        }
+                    });
+                    return ath;
+                });
+
+            if (pendingCsvRows.length === 0) { showToast('有効なデータ行がありません', true); return; }
+
+            const preview = pendingCsvRows.slice(0, 6).map(a =>
+                isIndiv
+                    ? `${String(a.order??'').padStart(3)} │ ${a.name1||'-'} / ${a.club1||'-'} / ${a.class||'-'}`
+                    : `${String(a.order??'').padStart(3)} │ ${a.name1||'-'}・${a.name2||'-'} / ${a.class||'-'}`
+            ).join('\n') + (pendingCsvRows.length > 6 ? `\n    …他 ${pendingCsvRows.length - 6} 件` : '');
+
+            document.getElementById('csv-summary').textContent =
+                `${isIndiv ? '個人' : 'シンクロ'}選手 ${pendingCsvRows.length}件 を追加します`;
+            document.getElementById('csv-format-hint').textContent =
+                '列順: ' + cols.join(', ');
+            document.getElementById('csv-preview').textContent = preview;
+            document.getElementById('csv-modal').classList.add('open');
+        };
+        reader.readAsText(file, 'UTF-8');
+    };
+
+    window.closeCsvModal = () => {
+        document.getElementById('csv-modal').classList.remove('open');
+        pendingCsvRows = [];
+    };
+
+    window.confirmCsvImport = () => {
+        const list = currentTab === 'individual' ? individualAthletes : synchroAthletes;
+        list.push(...pendingCsvRows);
+        pendingCsvRows = [];
+        document.getElementById('csv-modal').classList.remove('open');
+        renderTable();
+        showToast(`${list.length}件追加しました`);
+    };
+
+    window.downloadTemplate = () => {
+        const isIndiv = currentTab === 'individual';
+        const header  = isIndiv
+            ? 'クラス,性別,グループ,試技順,氏名,氏名ふりがな,所属,所属よみ'
+            : 'クラス,グループ,試技順,選手1,選手2,所属1,所属2';
+        const example = isIndiv
+            ? 'Aクラス,男子,1,1,山田太郎,やまだたろう,○○体育館,まるまるたいいくかん'
+            : 'シンクロAクラス,1,1,山田太郎,鈴木花子,○○体育館,△△スポーツ';
+        const blob = new Blob(['\uFEFF' + header + '\n' + example], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `template_${isIndiv ? 'individual' : 'synchro'}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    function parseCsv(text) {
+        return text.trim().split(/\r?\n/).map(line => {
+            const row = [];
+            let cur = '', inQ = false;
+            for (let i = 0; i < line.length; i++) {
+                if (line[i] === '"') { inQ = !inQ; }
+                else if (line[i] === ',' && !inQ) { row.push(cur); cur = ''; }
+                else { cur += line[i]; }
+            }
+            row.push(cur);
+            return row;
+        });
+    }
+
+    // ---- 保存 ----
+    window.saveAll = async () => {
+        const btn = document.getElementById('btn-save');
+        btn.disabled = true;
+        btn.textContent = '保存中…';
+
+        try {
+            const batch = writeBatch(db);
+            const col   = collection(db, 'tournaments', eventId, 'athletes');
+
+            // 削除
+            for (const id of idsToDelete) batch.delete(doc(col, id));
+
+            const saveList = (list, type) => {
+                for (const ath of list) {
+                    const { _key, _new, ...data } = ath;
+                    data.type      = type;
+                    data.updatedAt = serverTimestamp();
+                    const ref = ath.id ? doc(col, ath.id) : doc(col);
+                    if (!ath.id) ath.id = ref.id;
+                    batch.set(ref, data, { merge: true });
+                }
+            };
+            saveList(individualAthletes, 'individual');
+            saveList(synchroAthletes,    'synchro');
+
+            await batch.commit();
+            idsToDelete.clear();
+            showToast('保存しました');
+        } catch (e) {
+            console.error(e);
+            showToast('保存に失敗しました: ' + e.message, true);
+        } finally {
+            btn.disabled    = false;
+            btn.textContent = 'すべての変更を保存';
+        }
+    };
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className   = 'toast' + (isError ? ' error' : '');
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function esc(s) {
+        return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
 </script>
 </body>
 </html>
