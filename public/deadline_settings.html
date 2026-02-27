@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>締め切り時間設定 - Trampoline System</title>
+    <style>
+        :root { --primary: #263238; --accent: #1a73e8; --bg: #f0f2f5; --card: #ffffff; --text-main: #263238; --text-sub: #546e7a; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text-main); }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
+        .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
+        .auth-info span { font-weight: bold; color: var(--text-main); }
+        .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--accent); cursor: pointer; font-size: 0.9em; margin-left: 12px; padding: 3px 8px; }
+        .card { background: var(--card); border-radius: 16px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        h2 { font-size: 1.1rem; font-weight: 900; margin: 0 0 24px; border-left: 5px solid var(--accent); padding-left: 14px; }
+        .form-group { margin-bottom: 24px; }
+        label { display: block; font-size: 0.78rem; font-weight: bold; color: var(--text-sub); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .label-desc { font-size: 0.8rem; font-weight: normal; color: #90a4ae; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+        input[type="datetime-local"] { width: 100%; padding: 10px 14px; border: 1px solid #d0d7de; border-radius: 8px; font-size: 1rem; box-sizing: border-box; background: #f8fbff; transition: border-color 0.2s; }
+        input[type="datetime-local"]:focus { border-color: var(--accent); outline: none; background: #fff; }
+        .clear-btn { background: none; border: none; color: #90a4ae; font-size: 0.8rem; cursor: pointer; padding: 4px 0; margin-top: 4px; display: block; }
+        .clear-btn:hover { color: var(--accent); }
+        .btn-save { background: var(--accent); color: white; display: block; width: 100%; padding: 14px; font-size: 1rem; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 8px; }
+        .btn-save:hover { background: #1557b0; }
+        .btn-save:disabled { background: #b0bec5; cursor: not-allowed; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #263238; color: white; padding: 12px 28px; border-radius: 30px; font-size: 0.95rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; white-space: nowrap; }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #d32f2f; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-bar">
+        <a href="#" id="back-link" class="btn-back">← 管理メニューに戻る</a>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>競技カード締め切り時間設定</h2>
+
+        <div class="form-group">
+            <label>提出締切 <span class="label-desc">選手による初回入力の締め切り</span></label>
+            <input type="datetime-local" id="submissionDeadline">
+            <button class="clear-btn" onclick="clearField('submissionDeadline')">クリア</button>
+        </div>
+
+        <div class="form-group">
+            <label>修正締切 <span class="label-desc">提出後の修正ができる期限</span></label>
+            <input type="datetime-local" id="revisionDeadline">
+            <button class="clear-btn" onclick="clearField('revisionDeadline')">クリア</button>
+        </div>
+
+        <div class="form-group">
+            <label>決勝締切 <span class="label-desc">決勝用カードの提出期限</span></label>
+            <input type="datetime-local" id="finalSubmissionDeadline">
+            <button class="clear-btn" onclick="clearField('finalSubmissionDeadline')">クリア</button>
+        </div>
+
+        <button class="btn-save" id="btn-save" onclick="save()">保存してメニューに戻る</button>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+    import { getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from './auth.js';
+
+    const db = getFirestore(getApp());
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+
+    ensureAdmin(user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+        initPage();
+    });
+
+    async function initPage() {
+        if (!eventId) { location.href = 'admin_index.html'; return; }
+        document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+
+        const tDoc = await getDoc(doc(db, 'tournaments', eventId));
+        if (!tDoc.exists()) { showToast('大会データが見つかりません', true); return; }
+
+        const d = tDoc.data();
+        ['submissionDeadline', 'revisionDeadline', 'finalSubmissionDeadline'].forEach(key => {
+            if (d[key]) {
+                // Firestore の値は "YYYY-MM-DDTHH:mm" 形式を想定
+                document.getElementById(key).value = d[key].slice(0, 16);
+            }
+        });
+    }
+
+    window.clearField = (id) => { document.getElementById(id).value = ''; };
+
+    window.save = async () => {
+        const btn = document.getElementById('btn-save');
+        btn.disabled = true;
+        btn.textContent = '保存中…';
+        try {
+            const toVal = id => document.getElementById(id).value || null;
+            await setDoc(doc(db, 'tournaments', eventId), {
+                submissionDeadline:      toVal('submissionDeadline'),
+                revisionDeadline:        toVal('revisionDeadline'),
+                finalSubmissionDeadline: toVal('finalSubmissionDeadline'),
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+            location.href = `admin_menu.html?event=${eventId}`;
+        } catch (e) {
+            showToast('保存に失敗しました: ' + e.message, true);
+            btn.disabled = false;
+            btn.textContent = '保存してメニューに戻る';
+        }
+    };
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast' + (isError ? ' error' : '');
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+</script>
+</body>
+</html>

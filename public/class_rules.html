@@ -107,7 +107,10 @@
         if (!tDoc.exists()) { showToast('大会データが見つかりません', true); return; }
 
         const d = tDoc.data();
-        const existingRules = d.classRules || {};
+        const rawRules = d.classRules || {};
+        // 古いフラット形式（{ "クラス名": {...} }）を新形式（{ individual: {...}, synchro: {...} }）に変換
+        const isOldFormat = !('individual' in rawRules) && !('synchro' in rawRules) && Object.keys(rawRules).length > 0;
+        const existingRules = isOldFormat ? { individual: rawRules, synchro: {} } : rawRules;
 
         // クラス一覧を取得
         const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
@@ -148,7 +151,8 @@
         if (classData.individual.length > 0) {
             container.appendChild(createSectionHeader('個人クラス', 'individual'));
             classData.individual.forEach(({ name }) => {
-                const rule = (existingRules.individual || {})[name] || {};
+                // 新形式 → フラット形式 の順でフォールバック検索
+                const rule = (existingRules.individual || {})[name] || rawRules[name] || {};
                 container.appendChild(createClassCard(name, 'individual', rule));
             });
         }
@@ -157,7 +161,8 @@
         if (classData.synchro.length > 0) {
             container.appendChild(createSectionHeader('シンクロクラス', 'synchro'));
             classData.synchro.forEach(({ name }) => {
-                const rule = (existingRules.synchro || {})[name] || {};
+                // 新形式 → フラット形式 の順でフォールバック検索
+                const rule = (existingRules.synchro || {})[name] || rawRules[name] || {};
                 container.appendChild(createClassCard(name, 'synchro', rule));
             });
         }
@@ -312,7 +317,7 @@
             document.querySelectorAll('.class-card').forEach(card => {
                 const name = card.dataset.class;
                 const type = card.dataset.type;
-                const qualRoutes = parseInt(card.querySelector(`input[name="qual-${name}"]:checked`)?.value) || 1;
+                const qualRoutes = parseInt(card.querySelector(`input[name="qual-${name}"]:checked`)?.value) || 2;
                 const scoreMode  = card.querySelector(`input[name="score-${name}"]:checked`)?.value || 'best';
                 const semifinal  = card.querySelector(`input[name="semi-${name}"]:checked`)?.value === 'true';
                 const finalCount = parseInt(card.querySelector(`#final-count-${name}`).value) || 0;

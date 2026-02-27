@@ -275,7 +275,11 @@
 
             // 既存のclassRulesを取得し、新しいクラスにデフォルトを設定
             const tDoc = await getDoc(doc(db, 'tournaments', eventId));
-            const existingRules = tDoc.data()?.classRules || { individual: {}, synchro: {} };
+            const rawRules = tDoc.data()?.classRules || {};
+            const rulesHasNewFormat = 'individual' in rawRules || 'synchro' in rawRules;
+            const existingRules = rulesHasNewFormat ? rawRules :
+                                  Object.keys(rawRules).length > 0 ? { individual: rawRules, synchro: {} } :
+                                  { individual: {}, synchro: {} };
             const defaultRule = {
                 qualifyingRoutines: 2,
                 scoreMode: 'best',
