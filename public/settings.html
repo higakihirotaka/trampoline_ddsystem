@@ -272,7 +272,27 @@
         try {
             const toPayload = arr => arr.map((c, i) => ({ name: c.name.trim(), display_order: i }));
             const payload = { individual: toPayload(individual), synchro: toPayload(synchro) };
-            await setDoc(doc(db, 'tournaments', eventId), { classes: payload }, { merge: true });
+
+            // 既存のclassRulesを取得し、新しいクラスにデフォルトを設定
+            const tDoc = await getDoc(doc(db, 'tournaments', eventId));
+            const existingRules = tDoc.data()?.classRules || { individual: {}, synchro: {} };
+            const defaultRule = {
+                qualifyingRoutines: 2,
+                scoreMode: 'best',
+                semifinalEnabled: false,
+                finalCount: 8,
+                eJudgeCount: 4,
+                hasFinal: true
+            };
+            const mergedIndividual = { ...existingRules.individual };
+            const mergedSynchro    = { ...existingRules.synchro };
+            payload.individual.forEach(c => { if (!mergedIndividual[c.name]) mergedIndividual[c.name] = defaultRule; });
+            payload.synchro.forEach(c =>    { if (!mergedSynchro[c.name])    mergedSynchro[c.name]    = defaultRule; });
+
+            await setDoc(doc(db, 'tournaments', eventId), {
+                classes: payload,
+                classRules: { individual: mergedIndividual, synchro: mergedSynchro }
+            }, { merge: true });
             individual = payload.individual;
             synchro    = payload.synchro;
             showToast('クラスを保存しました');

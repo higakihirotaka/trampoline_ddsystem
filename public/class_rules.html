@@ -174,7 +174,7 @@
     }
 
     function createClassCard(className, type, rule) {
-        const qualRoutes = rule.qualifyingRoutines ?? 1;
+        const qualRoutes = rule.qualifyingRoutines ?? 2;
         const scoreMode  = rule.scoreMode ?? 'best';
         const semifinal  = rule.semifinalEnabled ?? false;
         const finalCount = rule.finalCount ?? 8;
@@ -335,7 +335,7 @@
                 updatedAt: serverTimestamp()
             }, { merge: true });
 
-            showToast('クラス設定を保存しました');
+            location.href = `admin_menu.html?event=${eventId}`;
         } catch (e) {
             showToast('保存に失敗しました: ' + e.message, true);
         } finally {
