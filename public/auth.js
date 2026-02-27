@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, query, orderBy, getDocs, writeBatch, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, getDocs, writeBatch, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Centralized Firebase Initialization
 const firebaseConfig = {
@@ -43,6 +43,10 @@ export function logout() {
     signOut(auth).then(() => { window.location.href = 'admin_login.html'; });
 }
 
+export function handleLoginRedirect() {
+    // No-op: signInWithPopup is used, no redirect handling needed
+}
+
 export function ensureAdmin(callback) {
     onAuthStateChanged(auth, async (user) => {
         if (user && await checkAdminStatus(user)) {
@@ -69,7 +73,7 @@ export async function getTournamentDetails(tournamentId) {
 
 export async function getAthletes(eventId) {
     if (!eventId) return [];
-    const snap = await getDocs(query(collection(db, `tournaments/${eventId}/athletes`), orderBy("number")));
+    const snap = await getDocs(collection(db, `tournaments/${eventId}/athletes`));
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
