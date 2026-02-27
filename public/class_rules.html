@@ -179,11 +179,12 @@
     }
 
     function createClassCard(className, type, rule) {
-        const qualRoutes = rule.qualifyingRoutines ?? 2;
-        const scoreMode  = rule.scoreMode ?? 'best';
-        const semifinal  = rule.semifinalEnabled ?? false;
-        const finalCount = rule.finalCount ?? 8;
-        const eJudge     = rule.eJudgeCount ?? 4;
+        // 型が不明なデータでも必ず有効値になるよう正規化（文字列・0・NaN対策）
+        const qualRoutes = (parseInt(rule.qualifyingRoutines) === 1) ? 1 : 2;
+        const scoreMode  = (rule.scoreMode === 'total') ? 'total' : 'best';
+        const semifinal  = (rule.semifinalEnabled === true || rule.semifinalEnabled === 'true' || Number(rule.semifinalEnabled) === 1);
+        const finalCount = isNaN(parseInt(rule.finalCount)) ? 8 : Math.max(0, parseInt(rule.finalCount));
+        const eJudge     = isNaN(parseInt(rule.eJudgeCount)) ? 4 : Math.max(1, parseInt(rule.eJudgeCount));
 
         const card = document.createElement('div');
         card.className = 'class-card';
