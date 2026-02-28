@@ -9,8 +9,13 @@
         
         .sidebar { width: 350px; background: #fff; border-right: 1px solid #cfd8dc; display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { padding: 25px; background: var(--primary); color: white; }
+        .sidebar-filters { background: #eceff1; border-bottom: 2px solid #cfd8dc; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+        .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+        .filter-label { font-size: 0.58rem; color: #90a4ae; font-weight: bold; text-transform: uppercase; min-width: 24px; }
+        .tab-btn { padding: 4px 10px; border-radius: 20px; border: 1px solid #b0bec5; background: white; color: #546e7a; font-size: 0.72rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
         .sidebar-list { flex-grow: 1; overflow-y: auto; padding-bottom: 50px; }
-        
+
         .cat-group { background: #cfd8dc; padding: 10px 15px; font-size: 0.85em; font-weight: bold; color: #37474f; border-bottom: 1px solid #b0bec5; }
         .gender-group { background: #f1f3f4; padding: 6px 20px; font-size: 0.75em; font-weight: bold; color: #78909c; border-bottom: 1px solid #eee; }
 
@@ -75,6 +80,7 @@
         <div id="event-name" style="font-weight: 900; font-size: 1.2em; margin-top: 5px;">Loading...</div>
         <a href="#" id="menu-back" style="color: white; font-size: 0.75em; text-decoration: none; display: block; margin-top: 15px; opacity: 0.7;">← 管理メニューに戻る</a>
     </div>
+    <div id="sidebar-filters" class="sidebar-filters"></div>
     <div id="sidebar-list" class="sidebar-list"></div>
 </div>
 
@@ -96,6 +102,7 @@
     const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
+    let fType = 'individual', fClass = '', fGender = '';
 
     async function init() {
         if (!eventId) return;
@@ -130,7 +137,7 @@
     function checkHasDiff(aid, rid) {
         const subId = `${eventId}_${aid}_${rid}`;
         const sub = submissions[subId], res = results[subId];
-        if (!sub || !res) return false;
+        if (!sub || !res || !res.officialSkills) return false;
         const validLimit = res.validCount !== undefined ? res.validCount : 10;
         for (let i = 0; i < validLimit; i++) {
             const skill = skillMaster[res.officialSkills[i]];
@@ -143,29 +150,105 @@
 
     function renderSidebar() {
         if (!currentTour) return;
+        const isSynchro = fType === 'synchro';
+
+        // 種目でまず分ける
+        const byType = athletes.filter(a => (a.type || 'individual') === fType);
+
+        // クラス一覧
+        const classes = [...new Set(byType.map(a => a.class || a.category || ''))];
+
+        // 性別一覧
+        const genders = [...new Set(byType.map(a => a.gender || ''))].filter(Boolean);
+
+        // フィルタータブ描画
+        const hasType = athletes.some(a => (a.type || 'individual') === 'synchro');
+        const filterEl = document.getElementById('sidebar-filters');
+        let filHtml = '';
+
+        if (hasType) {
+            filHtml += `<div class="filter-row">
+                <span class="filter-label">種目</span>
+                <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
+                <button class="tab-btn ${fType==='synchro'?'active':''}" onclick="setFilter('type','synchro')">シンクロ</button>
+            </div>`;
+        }
+
+        if (classes.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">クラス</span>
+                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">全て</button>
+                ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c}')">${c}</button>`).join('')}
+            </div>`;
+        }
+
+        if (genders.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">性別</span>
+                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">全て</button>
+                ${genders.map(g => `<button class="tab-btn ${fGender===g?'active':''}" onclick="setFilter('gender','${g}')">${g}</button>`).join('')}
+            </div>`;
+        }
+
+        filterEl.style.display = filHtml ? '' : 'none';
+        filterEl.innerHTML = filHtml;
+
+        // 絞り込み＆ソート
+        const filtered = byType
+            .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+            .filter(a => !fGender || (a.gender || '') === fGender)
+            .sort((a, b) => {
+                const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                if (ca !== cb) return ca.localeCompare(cb);
+                const ga = a.gender || '', gb = b.gender || '';
+                if (ga !== gb) return ga.localeCompare(gb);
+                return (a.order ?? 999) - (b.order ?? 999);
+            });
+
         const listEl = document.getElementById('sidebar-list');
         listEl.innerHTML = "";
-        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
-
         let lastCat = "", lastGender = "";
-        athletes.forEach(ath => {
-            if (ath.category !== lastCat) { listEl.innerHTML += `<div class="cat-group">${ath.category}</div>`; lastCat = ath.category; lastGender = ""; }
-            if (ath.gender !== lastGender) { listEl.innerHTML += `<div class="gender-group">${ath.gender}</div>`; lastGender = ath.gender; }
+
+        filtered.forEach(ath => {
+            const cls = ath.class || ath.category || '';
+            if (cls !== lastCat) {
+                listEl.innerHTML += `<div class="cat-group">${cls}</div>`;
+                lastCat = cls; lastGender = "";
+            }
+            if ((ath.gender || '') !== lastGender) {
+                listEl.innerHTML += `<div class="gender-group">${ath.gender || ''}</div>`;
+                lastGender = ath.gender || '';
+            }
+
+            // クラスごとの予選本数を classRules から取得
+            const athType = ath.type || 'individual';
+            const classRule = currentTour.classRules?.[athType]?.[cls] || {};
+            const numPre = classRule.qualifyingRoutines ?? currentTour.qualifyingRoutines ?? 1;
 
             let dotsHtml = "";
-            const numPre = currentTour.qualifyingRoutines || 1;
-            for(let i=1; i<=numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
-            if(currentTour.hasFinal) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+            for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
+            if (currentTour.hasFinal) dotsHtml += getDotHtml(ath.id, 'final', 'F');
 
-            listEl.innerHTML += `<div class="athlete-row ${ath.id === athleteId ? 'active-athlete' : ''}">
-                <div class="ath-name-text"><span class="ath-order">${ath.order}.</span>${ath.name1}</div>
-                <div class="round-box">${dotsHtml}</div></div>`;
+            const nameHtml = isSynchro
+                ? `<span class="ath-order">${ath.order}.</span>${ath.name1} / ${ath.name2 || ''}`
+                : `<span class="ath-order">${ath.order}.</span>${ath.name1}`;
+
+            listEl.innerHTML += `
+                <div class="athlete-row ${ath.id === athleteId ? 'active-athlete' : ''}">
+                    <div class="ath-name-text">${nameHtml}</div>
+                    <div class="round-box">${dotsHtml}</div>
+                </div>`;
         });
     }
 
+    window.setFilter = (key, val) => {
+        if (key === 'type')   { fType = val; fClass = ''; fGender = ''; }
+        if (key === 'class')  fClass  = val;
+        if (key === 'gender') fGender = val;
+        renderSidebar();
+    };
+
     function getDotHtml(aid, rid, label) {
         const id = `${eventId}_${aid}_${rid}`;
-        const cls = (results[id] ? 'has-res' : (submissions[id] ? 'has-sub' : '')) + 
+        const cls = (results[id] ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
                     (aid === athleteId && rid === round ? ' current' : '') +
                     (checkHasDiff(aid, rid) ? ' diff-dot' : '');
         return `<a href="judges_entry.html?event=${eventId}&athlete=${aid}&round=${rid}" class="r-dot ${cls}">${label}</a>`;

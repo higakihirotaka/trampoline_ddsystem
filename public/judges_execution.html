@@ -5,108 +5,314 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>E-Judge - Trampoline</title>
     <style>
-        :root { --bg: #0b0e11; --accent: #00e676; --text: #fff; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
-        .steps { display: grid; grid-template-columns: repeat(11, 1fr); gap: 2px; padding: 10px; background: #000; }
-        .step { height: 35px; background: #222; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; border-radius: 4px; }
-        .step.active { background: var(--accent); color: #000; font-weight: bold; transform: scale(1.1); }
-        .step.filled { background: #444; }
-        .display { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .val { font-size: 5rem; font-weight: 900; font-family: monospace; }
-        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px; background: #15181c; }
-        .key { background: #2c313a; border: none; color: white; padding: 25px 0; border-radius: 12px; font-size: 1.8rem; font-weight: bold; border-bottom: 4px solid #000; }
+        :root { --bg: #0b0e11; --accent: #00e676; --danger: #ff1744; --text: #fff; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; background: var(--bg); color: var(--text);
+            font-family: sans-serif; height: 100dvh;
+            display: flex; flex-direction: column; overflow: hidden; user-select: none;
+        }
+
+        /* ヘッダー */
+        .header {
+            background: #000; padding: 8px 14px;
+            border-bottom: 1px solid #222;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0; gap: 8px;
+        }
+        .header-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+        .header-role    { font-size: clamp(0.6rem, 1vw, 0.9rem); color: #555; font-weight: bold; letter-spacing: 1px; white-space: nowrap; }
+        .header-athlete { font-size: clamp(1.2rem, 2.5vw, 2.2rem); font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .header-round   { font-size: clamp(0.7rem, 1.2vw, 1.1rem); color: var(--accent); font-weight: bold; white-space: nowrap; }
+        .btn-exit {
+            color: var(--danger); text-decoration: none;
+            border: 1px solid var(--danger); padding: 5px 12px;
+            border-radius: 4px; font-size: 0.75rem; font-weight: bold; flex-shrink: 0;
+        }
+
+        /* 待機画面 */
+        .waiting {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: #333; gap: 16px;
+        }
+        .waiting-icon { font-size: 3.5rem; }
+        .waiting-text { font-size: 1rem; color: #555; }
+
+        /* 審判UI */
+        .judge-ui { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+        /* ステップバー（1行 11列固定） */
+        .steps {
+            display: grid; grid-template-columns: repeat(11, 1fr);
+            gap: 3px; padding: 6px; background: #000; flex-shrink: 0;
+        }
+        .step {
+            aspect-ratio: 1; min-height: 44px;
+            background: #1a1a1a; border-radius: 5px;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 2px; border: 2px solid transparent;
+        }
+        .step-lbl { font-size: clamp(0.4rem, 0.7vw, 0.75rem); color: #444; font-weight: bold; }
+        .step-val { font-size: clamp(1rem, 1.8vw, 2.5rem); font-weight: 900; color: #444; min-height: 1em; }
+
+        .step.filled { background: #162b16; cursor: pointer; }
+        .step.filled .step-lbl { color: #3a6a3a; }
+        .step.filled .step-val { color: var(--accent); }
+
+        .step.active { background: #0f2a0f; border-color: var(--accent); }
+        .step.active .step-lbl { color: var(--accent); }
+        .step.active .step-val { color: var(--accent); opacity: 0.7; }
+
+        /* キーパッド（1行レイアウト） */
+        .keypad {
+            margin-top: auto; flex: 0 0 30dvh;
+            display: grid; grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: 1fr 50px;
+            gap: 6px; padding: 8px 8px 12px; background: #0f1217;
+        }
+        .key {
+            background: #1e2530; border: none; color: white;
+            border-radius: 10px; font-size: 1.5rem; font-weight: bold;
+            border-bottom: 4px solid #000; cursor: pointer; transition: transform 0.05s;
+            display: flex; align-items: center; justify-content: center; min-height: 0;
+        }
         .key:active { transform: translateY(2px); border-bottom: none; }
-        .key-undo { grid-column: span 3; font-size: 1rem; padding: 15px; background: #444; }
-        .landing-keys { grid-template-columns: repeat(5, 1fr); }
+        .key-zero { color: #555; }
+        .key-undo {
+            grid-column: span 6; font-size: 1rem;
+            background: #2a2020; color: #ff8a65; border-color: #111;
+        }
     </style>
 </head>
 <body>
-    <div class="steps" id="steps"></div>
-    <div class="display">
-        <div id="label" style="color:#777">SKILL #1</div>
-        <div id="val" class="val">--</div>
+
+<div class="header">
+    <div class="header-info">
+        <span class="header-role" id="header-role">PANEL - | -</span>
+        <span class="header-athlete" id="header-athlete">待機中...</span>
+        <span class="header-round" id="header-round">-</span>
     </div>
+    <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
+</div>
+
+<div class="waiting" id="waiting-view">
+    <div class="waiting-icon">⏳</div>
+    <div class="waiting-text">技術審判の操作を待っています</div>
+</div>
+
+<div class="judge-ui" id="judge-ui" style="display:none;">
+    <div class="steps" id="steps"></div>
     <div class="keypad" id="keypad"></div>
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp }
+        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
     const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
     const db = getFirestore(initializeApp(firebaseConfig));
-    const params = new URLSearchParams(location.search), eventId = params.get('event'), role = params.get('role');
-    let athleteId = "athlete_001", round = "pre1", currentIndex = 0, vLimit = 10;
-    let deductions = Array(10).fill(null), landing = null;
 
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    const panel   = params.get('panel') || '-';
+    const role    = params.get('role')  || '-';
+
+    let athleteId = null, round = null;
+    let currentIndex = 0, vLimit = 10;
+    let deductions = Array(10).fill(null), landing = null;
+    let unsubResult = null;
+
+    const headerRole    = document.getElementById('header-role');
+    const headerAthlete = document.getElementById('header-athlete');
+    const headerRound   = document.getElementById('header-round');
+    const exitLink      = document.getElementById('exit-link');
+    const waitingView   = document.getElementById('waiting-view');
+    const judgeUi       = document.getElementById('judge-ui');
+
+    headerRole.textContent = `PANEL ${panel} | ${role}`;
+    exitLink.href = `judge_role_select.html?event=${eventId}`;
+
+    // ---- 初期化 ----
     function init() {
-        const resId = `${eventId}_${athleteId}_${round}`;
-        onSnapshot(doc(db, "results", resId), (snap) => {
+        if (!eventId) { headerAthlete.textContent = 'エラー: 大会IDがありません'; return; }
+
+        onSnapshot(doc(db, 'tournaments', eventId), (snap) => {
             if (!snap.exists()) return;
+            const state = snap.data()?.liveState?.[panel];  // パネルごとに分離
+            if (!state?.athleteId) { showWaiting(); return; }
+            if (state.athleteId !== athleteId || state.round !== round) switchAthlete(state);
+        });
+    }
+
+    // ---- 待機画面 ----
+    function showWaiting() {
+        athleteId = null; round = null;
+        if (unsubResult) { unsubResult(); unsubResult = null; }
+        headerAthlete.textContent = '待機中...';
+        headerRound.textContent   = '-';
+        waitingView.style.display = '';
+        judgeUi.style.display     = 'none';
+    }
+
+    // ---- 選手切り替え ----
+    function switchAthlete(state) {
+        if (unsubResult) { unsubResult(); unsubResult = null; }
+
+        athleteId    = state.athleteId;
+        round        = state.round || 'pre1';
+        deductions   = Array(10).fill(null);
+        landing      = null;
+        currentIndex = 0;
+        vLimit       = 10;
+
+        headerAthlete.textContent = state.athleteName || athleteId;
+        headerRound.textContent   = round.toUpperCase();
+        waitingView.style.display = 'none';
+        judgeUi.style.display     = '';
+        refresh();
+
+        const resId = `${eventId}_${athleteId}_${round}`;
+        let firstLoad = true;
+
+        unsubResult = onSnapshot(doc(db, 'results', resId), (snap) => {
+            if (!snap.exists()) { vLimit = 10; refresh(); return; }
             const data = snap.data();
+
+            const prevVLimit = vLimit;
             vLimit = data.validCount ?? 10;
-            const j = data.execution?.judges?.[role] || { deductions: Array(10).fill(null) };
-            deductions = j.deductions; landing = j.landing;
-            const filled = deductions.filter(v => v !== null).length;
-            
-            if (vLimit < 10) {
-                currentIndex = Math.min(filled, vLimit); // 中断時は着地なし
-            } else {
-                currentIndex = (filled < 10) ? filled : 10; // 10本なら着地へ
+
+            const j = data.execution?.judges?.[`${panel}_${role}`] || {};  // パネル付きキー
+            deductions = [...(j.deductions || Array(10).fill(null))];
+            landing    = j.landing ?? null;
+
+            if (firstLoad) {
+                // 初回のみ：currentIndex を入力済み本数から決める
+                firstLoad = false;
+                const filled = deductions.slice(0, vLimit).filter(v => v !== null).length;
+                currentIndex = (vLimit < 10) ? Math.min(filled, vLimit) : Math.min(filled, 10);
+            } else if (vLimit !== prevVLimit) {
+                // CJP が有効本数を変えたときだけ位置を調整
+                if (currentIndex > vLimit) currentIndex = vLimit;
             }
+            // 通常の書き込み反映時は currentIndex をいじらない
+
             refresh();
         });
     }
 
+    // ---- UI更新 ----
     function refresh() {
-        const stepContainer = document.getElementById('steps'); stepContainer.innerHTML = "";
+        const stepsEl = document.getElementById('steps');
+        stepsEl.innerHTML = '';
+
+        // 常に S1-S10 + L の 11 セルを描画（レイアウト固定）
         for (let i = 0; i <= 10; i++) {
-            const s = document.createElement('div'); s.className = 'step';
-            if (i < 10) {
-                s.innerText = i + 1;
-                if (i >= vLimit) s.style.opacity = "0.1";
-                else if (i === currentIndex) s.classList.add('active');
-                else if (deductions[i] !== null) s.classList.add('filled');
+            const isLanding = (i === 10);
+            const s   = document.createElement('div');
+            s.className = 'step';
+            const lbl = isLanding ? 'L' : `S${i + 1}`;
+            const val = isLanding ? landing : deductions[i];
+
+            // 有効範囲外は非表示（スペースは保持）
+            const outOfRange = isLanding ? vLimit < 10 : i >= vLimit;
+            if (outOfRange) { s.style.visibility = 'hidden'; stepsEl.appendChild(s); continue; }
+
+            if (i === currentIndex) {
+                s.classList.add('active');
+                const dispVal = val !== null ? Math.round(val * 10) : '--';
+                s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val">${dispVal}</span>`;
+            } else if (val !== null) {
+                s.classList.add('filled');
+                s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val">${Math.round(val * 10)}</span>`;
+                s.onclick = () => jumpTo(i);
             } else {
-                s.innerText = "L"; s.style.display = (vLimit === 10) ? "flex" : "none";
-                if (i === currentIndex) s.classList.add('active');
-                else if (landing !== null) s.classList.add('filled');
+                s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val"></span>`;
             }
-            stepContainer.appendChild(s);
+
+            stepsEl.appendChild(s);
         }
 
+        // キーパッド
         const isInterrupted = (vLimit < 10 && currentIndex >= vLimit);
-        document.getElementById('label').innerText = isInterrupted ? "COMPLETE (INTERRUPTED)" : (currentIndex < 10 ? `SKILL #${currentIndex+1}` : "LANDING");
-        document.getElementById('val').innerText = isInterrupted ? "OK" : (currentIndex < 10 ? (deductions[currentIndex]?.toFixed(1) || "--") : (landing?.toFixed(1) || "--"));
-        
         const keypad = document.getElementById('keypad');
+
         if (isInterrupted) {
+            keypad.className = 'keypad';
             keypad.innerHTML = `<button class="key key-undo" onclick="undo()">UNDO / EDIT</button>`;
         } else if (currentIndex < 10) {
-            keypad.className = "keypad";
-            keypad.innerHTML = [0,0.1,0.2,0.3,0.4,0.5].map(v => `<button class="key" onclick="tap(${v})">${v.toFixed(1)}</button>`).join('') + `<button class="key key-undo" onclick="undo()">UNDO</button>`;
+            keypad.className = 'keypad';
+            keypad.innerHTML =
+                [0, 0.1, 0.2, 0.3, 0.4, 0.5].map(v =>
+                    `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v})">${Math.round(v * 10)}</button>`
+                ).join('') +
+                `<button class="key key-undo" onclick="undo()">UNDO</button>`;
         } else {
-            keypad.className = "keypad landing-keys";
-            keypad.innerHTML = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,1.0].map(v => `<button class="key" onclick="tap(${v})">${v.toFixed(1)}</button>`).join('') + `<button class="key key-undo" onclick="undo()">UNDO</button>`;
+            keypad.className = 'keypad';
+            keypad.innerHTML =
+                [0, 1, 2, 3, 5, 10].map(v =>
+                    `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v / 10})">${v}</button>`
+                ).join('') +
+                `<button class="key key-undo" onclick="undo()">UNDO</button>`;
         }
     }
 
+    // ---- ステップ移動（打ち直し） ----
+    window.jumpTo = (i) => {
+        if (!athleteId || !round) return;
+        if (i === 10) { if (vLimit < 10) return; }
+        else { if (i >= vLimit) return; }
+        currentIndex = i;
+        refresh();
+    };
+
+    // ---- 採点書き込み ----
     window.tap = async (v) => {
+        if (!athleteId || !round) return;
+
+        if (currentIndex < 10) {
+            deductions[currentIndex] = v;
+            currentIndex = currentIndex + 1;
+        } else {
+            landing = v;
+        }
+        refresh();
+
+        const sum   = deductions.reduce((a, b) => a + (b ?? 0), 0) + (landing ?? 0);
         const resId = `${eventId}_${athleteId}_${round}`;
-        if (currentIndex < 10) deductions[currentIndex] = v;
-        else landing = v;
-        const sum = deductions.reduce((a, b) => a + (b || 0), 0) + (landing || 0);
-        await updateDoc(doc(db, "results", resId), {
-            [`execution.judges.${role}.deductions`]: deductions,
-            [`execution.judges.${role}.landing`]: landing,
-            [`execution.judges.${role}.totalDeduction`]: sum,
-            [`execution.judges.${role}.updatedAt`]: serverTimestamp()
-        });
+        await setDoc(doc(db, 'results', resId), {
+            eventId, athleteId, round,
+            execution: {
+                judges: {
+                    [`${panel}_${role}`]: { deductions, landing, totalDeduction: sum, updatedAt: serverTimestamp() }
+                }
+            }
+        }, { merge: true });
     };
 
     window.undo = async () => {
+        if (!athleteId || !round) return;
+
+        const isInterrupted = (vLimit < 10 && currentIndex >= vLimit);
+        if (isInterrupted) {
+            const idx = vLimit - 1;
+            deductions[idx] = null;
+            currentIndex = idx;
+        } else if (currentIndex === 10) {
+            if (landing !== null) { landing = null; }
+            else { deductions[9] = null; currentIndex = 9; }
+        } else if (currentIndex > 0) {
+            deductions[currentIndex - 1] = null;
+            currentIndex = currentIndex - 1;
+        } else {
+            return;
+        }
+        refresh();
+
         const resId = `${eventId}_${athleteId}_${round}`;
-        let idx = (vLimit < 10 && currentIndex >= vLimit) ? vLimit - 1 : (currentIndex === 10 ? 9 : currentIndex - 1);
-        if (idx < 0) return;
-        if (currentIndex === 10 && landing !== null) { landing = null; } else { deductions[idx] = null; }
-        await updateDoc(doc(db, "results", resId), { [`execution.judges.${role}.deductions`]: deductions, [`execution.judges.${role}.landing`]: landing });
+        await setDoc(doc(db, 'results', resId), {
+            execution: { judges: { [`${panel}_${role}`]: { deductions, landing } } }
+        }, { merge: true });
     };
 
     init();

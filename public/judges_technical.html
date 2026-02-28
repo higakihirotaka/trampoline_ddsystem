@@ -13,24 +13,30 @@
         
         /* サイドバー */
         .sidebar { width: 320px; background: var(--sidebar-bg); border-right: 1px solid #333; display: flex; flex-direction: column; flex-shrink: 0; color: #333; }
-        .sidebar-header { padding: 20px; background: var(--primary); color: white; }
+        .sidebar-header { padding: 16px 20px; background: var(--primary); color: white; flex-shrink: 0; }
+        .sidebar-filters { background: #eceff1; border-bottom: 2px solid #cfd8dc; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+        .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+        .filter-label { font-size: 0.58rem; color: #90a4ae; font-weight: bold; text-transform: uppercase; min-width: 24px; }
+        .tab-btn { padding: 4px 10px; border-radius: 20px; border: 1px solid #b0bec5; background: white; color: #546e7a; font-size: 0.72rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
         .sidebar-list { flex-grow: 1; overflow-y: auto; padding-bottom: 50px; }
-        
+
         .cat-group { background: #cfd8dc; padding: 8px 15px; font-size: 0.8rem; font-weight: bold; color: #37474f; border-bottom: 1px solid #b0bec5; }
         .gender-group { background: #f1f3f4; padding: 5px 20px; font-size: 0.7rem; font-weight: bold; color: #78909c; }
         .athlete-row { padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .active-athlete { background: #e3f2fd; }
         .ath-name-text { font-size: 0.85rem; font-weight: bold; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ath-order { color: var(--accent); margin-right: 5px; font-family: monospace; }
-        
+        .ath-pair { font-size: 0.72rem; color: #78909c; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
         .round-box { display: flex; gap: 4px; }
-        .r-dot { 
-            width: 32px; height: 24px; border-radius: 4px; font-size: 0.65rem; 
-            display: flex; align-items: center; justify-content: center; 
+        .r-dot {
+            width: 32px; height: 24px; border-radius: 4px; font-size: 0.65rem;
+            display: flex; align-items: center; justify-content: center;
             background: #eee; color: #999; text-decoration: none; font-weight: bold; border: 1px solid transparent;
         }
-        .r-dot.has-sub { background: #e3f2fd; color: #1a73e8; } 
-        .r-dot.has-res { background: #e8f5e9; color: #2e7d32; } 
+        .r-dot.has-sub { background: #e3f2fd; color: #1a73e8; }
+        .r-dot.has-res { background: #e8f5e9; color: #2e7d32; }
         .r-dot.current { border: 2px solid #000; background: #fff; color: var(--accent); }
 
         /* メインコンソール */
@@ -47,6 +53,10 @@
         .monitor-table th { background: #2a2e35; font-size: 0.65rem; color: var(--text-dim); }
         .skill-header { color: var(--accent) !important; font-weight: bold; }
         .val-filled { color: var(--success); font-weight: bold; }
+        /* 中間2名ハイライト */
+        .middle-cell { background: rgba(0,230,118,0.18) !important; color: #fff !important; font-weight: 900; outline: 1px solid rgba(0,230,118,0.5); }
+        .middle-row td { background: rgba(0,230,118,0.07) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(0,230,118,0.3); }
+        .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
 
         /* 入力エリア */
         .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
@@ -71,6 +81,7 @@
         <div id="event-name-sidebar" style="font-weight: 900; font-size: 1.1rem; margin-top: 5px;">Loading...</div>
         <a href="#" id="menu-back" style="color: white; font-size: 0.7rem; text-decoration: none; display: block; margin-top: 10px; opacity: 0.7;">← ポータルに戻る</a>
     </div>
+    <div id="sidebar-filters" class="sidebar-filters"></div>
     <div id="sidebar-list" class="sidebar-list"></div>
 </div>
 
@@ -89,6 +100,7 @@
     </div>
 
     <div class="main-content">
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
         <table class="monitor-table">
             <thead>
                 <tr id="skill-symbols-row">
@@ -106,6 +118,7 @@
             </thead>
             <tbody id="judge-rows"></tbody>
         </table>
+        </div>
 
         <div class="input-grid">
             <div class="input-card">
@@ -144,6 +157,7 @@
     const athleteId = params.get('athlete'), round = params.get('round') || "pre1";
 
     let athletes = [], submissions = {}, results = {}, currentTour = null;
+    let fType = 'individual', fClass = '', fGender = '';
 
     async function init() {
         if (!eventId) return;
@@ -165,40 +179,127 @@
         resSnap.forEach(d => results[d.id] = d.data());
 
         renderSidebar();
+        renderScores({}); // 審判行を常に表示（numExecJudges 人分の空行）
 
         if (athleteId) {
             const ath = athletes.find(a => a.id === athleteId);
             if (ath) {
                 document.getElementById('ath-name').innerText = `No.${ath.order} ${ath.name1}`;
-                document.getElementById('ath-meta').innerText = `${ath.category} / ${round.toUpperCase()}`;
+                document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${round.toUpperCase()}`;
+
+                // E審判が自動追従するために liveState を更新（パネルごとに分離）
+                await setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: {
+                        [panel]: {
+                            athleteId,
+                            athleteName: `No.${ath.order} ${ath.name1}`,
+                            athleteClass: ath.class || ath.category || '',
+                            round,
+                            updatedAt: serverTimestamp()
+                        }
+                    }
+                }, { merge: true });
             }
             watchScores();
         }
     }
 
     function renderSidebar() {
+        const isSynchro = fType === 'synchro';
+
+        // 種目でまず分ける
+        const byType = athletes.filter(a => (a.type || 'individual') === fType);
+
+        // クラス一覧（表示順を維持）
+        const classes = [...new Set(byType.map(a => a.class || a.category || ''))];
+
+        // 性別一覧（個人・シンクロ共通）
+        const genders = [...new Set(byType.map(a => a.gender || ''))].filter(Boolean);
+
+        // タブ描画
+        const hasType = athletes.some(a => (a.type || 'individual') === 'synchro'); // シンクロ選手が存在するか
+        const filterEl = document.getElementById('sidebar-filters');
+        let filHtml = '';
+
+        if (hasType) {
+            filHtml += `<div class="filter-row">
+                <span class="filter-label">種目</span>
+                <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
+                <button class="tab-btn ${fType==='synchro'?'active':''}" onclick="setFilter('type','synchro')">シンクロ</button>
+            </div>`;
+        }
+
+        if (classes.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">クラス</span>
+                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">全て</button>
+                ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c}')">${c}</button>`).join('')}
+            </div>`;
+        }
+
+        if (genders.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">性別</span>
+                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">全て</button>
+                ${genders.map(g => `<button class="tab-btn ${fGender===g?'active':''}" onclick="setFilter('gender','${g}')">${g}</button>`).join('')}
+            </div>`;
+        }
+
+        filterEl.style.display = filHtml ? '' : 'none';
+        filterEl.innerHTML = filHtml;
+
+        // 絞り込み＆ソート
+        const filtered = byType
+            .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+            .filter(a => !fGender || (a.gender || '') === fGender)
+            .sort((a, b) => {
+                const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                if (ca !== cb) return ca.localeCompare(cb);
+                const ga = a.gender || '', gb = b.gender || '';
+                if (ga !== gb) return ga.localeCompare(gb);
+                return (a.order ?? 999) - (b.order ?? 999);
+            });
+
         const listEl = document.getElementById('sidebar-list');
         listEl.innerHTML = "";
-        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
-
         let lastCat = "", lastGender = "";
-        athletes.forEach(ath => {
-            if (ath.category !== lastCat) { listEl.innerHTML += `<div class="cat-group">${ath.category}</div>`; lastCat = ath.category; lastGender = ""; }
-            if (ath.gender !== lastGender) { listEl.innerHTML += `<div class="gender-group">${ath.gender}</div>`; lastGender = ath.gender; }
+
+        filtered.forEach(ath => {
+            const cls = ath.class || ath.category || '';
+            if (cls !== lastCat) {
+                listEl.innerHTML += `<div class="cat-group">${cls}</div>`;
+                lastCat = cls; lastGender = "";
+            }
+            if ((ath.gender || '') !== lastGender) {
+                listEl.innerHTML += `<div class="gender-group">${ath.gender || ''}</div>`;
+                lastGender = ath.gender || '';
+            }
+
+            // クラスごとの予選本数を classRules から取得（なければトップレベル値にフォールバック）
+            const athType = ath.type || 'individual';
+            const classRule = currentTour.classRules?.[athType]?.[cls] || {};
+            const numPre = classRule.qualifyingRoutines ?? currentTour.qualifyingRoutines ?? 1;
 
             let dotsHtml = "";
-            const numPre = currentTour.qualifyingRoutines || 1;
-            for(let i=1; i<=numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
-            if(currentTour.hasFinal) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+            for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
 
             const isActive = ath.id === athleteId;
+            const nameHtml = isSynchro
+                ? `<span class="ath-order">${ath.order}.</span>${ath.name1} / ${ath.name2 || ''}`
+                : `<span class="ath-order">${ath.order}.</span>${ath.name1}`;
+
             listEl.innerHTML += `
                 <div class="athlete-row ${isActive ? 'active-athlete' : ''}">
-                    <div class="ath-name-text"><span class="ath-order">${ath.order}.</span>${ath.name1}</div>
+                    <div class="ath-name-text">${nameHtml}</div>
                     <div class="round-box">${dotsHtml}</div>
                 </div>`;
         });
     }
+
+    window.setFilter = (key, val) => {
+        if (key === 'type')   { fType = val; fClass = ''; fGender = ''; }
+        if (key === 'class')  fClass  = val;
+        if (key === 'gender') fGender = val;
+        renderSidebar();
+    };
 
     function getDotHtml(aid, rid, label) {
         const id = `${eventId}_${aid}_${rid}`;
@@ -210,41 +311,113 @@
     function watchScores() {
         const resId = `${eventId}_${athleteId}_${round}`;
         onSnapshot(doc(db, "results", resId), (snap) => {
-            if (snap.exists()) renderScores(snap.data());
+            renderScores(snap.exists() ? snap.data() : {});
         });
     }
 
+    // ---- 中間2名ルール ----
+    // values: 各E審判の減点値（null=未入力）
+    // 返り値: { sum: 中間2名の和, indices: 中間2名のインデックスSet }
+    function middle2(values) {
+        const filled = values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
+        if (filled.length < 2) return { sum: 0, indices: new Set() };
+        const sorted = [...filled].sort((a, b) => a.v - b.v);
+        const n = sorted.length;
+        // n=4: index 1,2 / n=6: index 2,3 / 汎用: floor((n-2)/2), floor((n-2)/2)+1
+        const mid = Math.floor((n - 2) / 2);
+        return {
+            sum:     sorted[mid].v + sorted[mid + 1].v,
+            indices: new Set([sorted[mid].i, sorted[mid + 1].i])
+        };
+    }
+
+    // ---- 演技点計算 ----
+    function calcExecution(data) {
+        // パネルプレフィックスでフィルタリングし、表示用にプレフィックスを除去
+        const allJudges   = data?.execution?.judges || {};
+        const panelPrefix = `${panel}_`;
+        const judges      = Object.fromEntries(
+            Object.entries(allJudges)
+                .filter(([k]) => k.startsWith(panelPrefix))
+                .map(([k, v]) => [k.slice(panelPrefix.length), v])
+        );
+        const vLimit = data?.validCount ?? 10;
+        const numE   = currentTour?.numExecJudges || 6;
+        const jKeys  = Array.from({ length: numE }, (_, i) => `E${i + 1}`);
+
+        // 各技の中間2名
+        const skillResults = Array.from({ length: 10 }, (_, si) => {
+            const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
+            return middle2(vals);
+        });
+
+        // 着地の中間2名（有効本数=10のときのみ）
+        const landingResult = vLimit === 10
+            ? middle2(jKeys.map(k => judges[k]?.landing ?? null))
+            : { sum: 0, indices: new Set() };
+
+        // 合計減点 = 有効本数分の各技減点合計 + 着地減点
+        const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
+                        + landingResult.sum;
+        const execution = (vLimit * 2.0) - totalDed;
+
+        return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges };
+    }
+
+    // ---- スコア表示 ----
     function renderScores(data) {
         document.getElementById('valid-count').value = data.validCount ?? 10;
-        document.getElementById('res-d').innerText = data.officialTotalDD?.toFixed(1) || "0.0";
+        document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
         document.getElementById('dd-label').innerText = `DD: ${data.officialTotalDD?.toFixed(1) || "0.0"}`;
-        
+
         const skills = data.officialSkills || [];
-        const skillCells = document.querySelectorAll('.skill-header');
-        skillCells.forEach((el, i) => el.innerText = skills[i] || "-");
+        document.querySelectorAll('.skill-header').forEach((el, i) => el.innerText = skills[i] || "-");
+
+        const ec = calcExecution(data);
+        const { skillResults, landingResult, totalDed, vLimit, numE, jKeys, judges } = ec;
 
         const tbody = document.getElementById('judge-rows');
         tbody.innerHTML = "";
-        const judges = data.execution?.judges || {};
-        const vLimit = data.validCount ?? 10;
-        const numE = currentTour.numExecJudges || 6;
 
-        for (let i = 1; i <= numE; i++) {
-            const jKey = `E${i}`;
+        // 各E審判の行
+        jKeys.forEach((jKey, jIdx) => {
             const jData = judges[jKey] || { deductions: Array(10).fill(null), landing: null };
-            let row = `<tr><td>E${i}</td>`;
-            jData.deductions.forEach((v, idx) => {
-                row += `<td class="${v!==null?'val-filled':''}" style="${idx>=vLimit?'opacity:0.1':''}">${v!==null?v.toFixed(1):'-'}</td>`;
-            });
-            row += `<td class="${jData.landing!==null?'val-filled':''}" style="${vLimit<10?'opacity:0.1':''}">${jData.landing!==null?jData.landing.toFixed(1):'-'}</td>`;
+            let row = `<tr><td>${jKey}</td>`;
+            for (let i = 0; i < 10; i++) {
+                const v        = jData.deductions?.[i] ?? null;
+                const isMiddle = i < vLimit && skillResults[i].indices.has(jIdx);
+                const dimStyle = i >= vLimit ? 'opacity:0.15;' : '';
+                const cls      = [v !== null ? 'val-filled' : '', isMiddle ? 'middle-cell' : ''].join(' ');
+                row += `<td class="${cls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
+            }
+            // 着地
+            const lv        = jData.landing ?? null;
+            const isLandMid = vLimit === 10 && landingResult.indices.has(jIdx);
+            const lnCls     = [lv !== null ? 'val-filled' : '', isLandMid ? 'middle-cell' : ''].join(' ');
+            row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
+            // 個人合計
             row += `<td style="background:rgba(255,255,255,0.05)">${(jData.totalDeduction || 0).toFixed(1)}</td></tr>`;
             tbody.innerHTML += row;
+        });
+
+        // 中間2名合計行（データがない技は "-"）
+        const hasJudgeData = Object.keys(judges).length > 0;
+        let m2Row = `<tr class="middle-row"><td>中間2合計</td>`;
+        for (let i = 0; i < 10; i++) {
+            const hasVal = hasJudgeData && skillResults[i].indices.size > 0;
+            m2Row += i < vLimit
+                ? `<td>${hasVal ? Math.round(skillResults[i].sum * 10) : '-'}</td>`
+                : `<td style="opacity:0.15">-</td>`;
         }
-        
+        const hasLanding = hasJudgeData && landingResult.indices.size > 0;
+        m2Row += `<td>${vLimit === 10 && hasLanding ? Math.round(landingResult.sum * 10) : '-'}</td>`;
+        m2Row += `<td class="ded-total">${hasJudgeData ? totalDed.toFixed(1) : '-'}</td></tr>`;
+        tbody.innerHTML += m2Row;
+
         document.getElementById('tof').value = data.tof || "";
-        document.getElementById('hd').value = data.hd?.total || "";
+        document.getElementById('hd').value  = data.hd?.total || "";
         document.getElementById('pen').value = data.penalty || 0;
-        calc(data);
+        updateScoreSummary(ec, hasJudgeData);
     }
 
     window.updateValid = async (val) => {
@@ -252,17 +425,19 @@
         await setDoc(doc(db, "results", resId), { validCount: parseInt(val) }, { merge: true });
     };
 
-    window.calc = function(data) {
+    window.calc = function(data) { updateScoreSummary(data ? calcExecution(data) : null); };
+
+    function updateScoreSummary(ec, hasJudgeData = true) {
         const d = parseFloat(document.getElementById('res-d').innerText) || 0;
-        const e = 18.2; // ここに中間値計算ロジックを入れる
+        const e = (ec && hasJudgeData) ? ec.execution : 0;
         const t = parseFloat(document.getElementById('tof').value) || 0;
         const h = parseFloat(document.getElementById('hd').value) || 0;
         const p = parseFloat(document.getElementById('pen').value) || 0;
-        
-        document.getElementById('res-e').innerText = e.toFixed(1);
-        document.getElementById('res-th').innerText = (t + h).toFixed(3);
-        document.getElementById('res-total').innerText = (d + e + t + h - p).toFixed(3);
-    };
+
+        document.getElementById('res-e').innerText     = e.toFixed(1);
+        document.getElementById('res-th').innerText    = (t + h).toFixed(3);
+        document.getElementById('res-total').innerText = Math.max(0, d + e + t + h - p).toFixed(3);
+    }
 
     window.publish = () => { alert("公式スコアを送信しました。"); };
 
