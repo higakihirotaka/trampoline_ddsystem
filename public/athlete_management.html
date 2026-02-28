@@ -169,22 +169,31 @@
                 getDocs(collection(db, 'tournaments', eventId, 'athletes'))
             ]);
 
-            // クラス一覧を読み込む
+            // クラス一覧を読み込む（settings.html と同じロジック）
             if (tDoc.exists()) {
                 const d = tDoc.data();
-                const byOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-                const ruleKeys = obj => Object.keys(obj || {});
+                // display_order ?? i を使うことで settings.html と同じ順番を保証
+                const normalize = arr => (arr || [])
+                    .map((c, i) => ({ name: (typeof c === 'string' ? c : (c.name || '')), display_order: c.display_order ?? i }))
+                    .sort((a, b) => a.display_order - b.display_order);
+                const ruleKeys = obj => Object.keys(obj || {}).map((name, i) => ({ name, display_order: i }));
+                const toNames = arr => arr.map(c => c.name);
 
-                if (d.classes && !Array.isArray(d.classes)) {
-                    individualClasses = byOrder(d.classes.individual).map(c => c.name);
-                    synchroClasses    = byOrder(d.classes.synchro).map(c => c.name);
-                    // classes にない場合は classRules から補完
+                if (d.classes && !Array.isArray(d.classes) && (d.classes.individual || d.classes.synchro)) {
+                    // 新形式: { individual: [...], synchro: [...] }
+                    individualClasses = toNames(normalize(d.classes.individual));
+                    synchroClasses    = toNames(normalize(d.classes.synchro));
                     if (synchroClasses.length === 0 && d.classRules?.synchro) {
-                        synchroClasses = ruleKeys(d.classRules.synchro);
+                        synchroClasses = toNames(ruleKeys(d.classRules.synchro));
                     }
+                } else if (Array.isArray(d.classes) && d.classes.length > 0) {
+                    // 旧フラット配列形式
+                    individualClasses = toNames(normalize(d.classes));
+                    synchroClasses    = d.classRules?.synchro ? toNames(ruleKeys(d.classRules.synchro)) : [];
                 } else if (d.classRules) {
-                    individualClasses = ruleKeys(d.classRules.individual || {});
-                    synchroClasses    = ruleKeys(d.classRules.synchro    || {});
+                    // 最旧形式: classRules のキーから抽出
+                    individualClasses = toNames(ruleKeys(d.classRules.individual || {}));
+                    synchroClasses    = toNames(ruleKeys(d.classRules.synchro    || {}));
                 }
             }
 
@@ -208,10 +217,22 @@
 
     // ---- テーブル描画 ----
     function renderTable() {
-        const list    = currentList();
         const classes = currentClasses();
         const isIndiv = currentTab === 'individual';
-        const cols    = isIndiv ? 9 : 8;
+        const cols    = 9;  // 個人・シンクロともに9列（性別あり）
+
+        // クラス設定の display_order 順 → 男女順 → グループ → 試技順 でソートして表示
+        const classIdx  = name => { const i = classes.indexOf(name ?? ''); return i === -1 ? 9999 : i; };
+        const genderIdx = g => g === '男子' ? 0 : g === '女子' ? 1 : 2;
+        const list = currentList().slice().sort((a, b) => {
+            const cd = classIdx(a.class) - classIdx(b.class);
+            if (cd !== 0) return cd;
+            const gend = genderIdx(a.gender) - genderIdx(b.gender);
+            if (gend !== 0) return gend;
+            const gd = (a.flightGroup ?? 999) - (b.flightGroup ?? 999);
+            if (gd !== 0) return gd;
+            return (a.order ?? 999) - (b.order ?? 999);
+        });
 
         // ヘッダー
         const head = document.getElementById('table-head');
@@ -230,6 +251,7 @@
         } else {
             head.innerHTML = `<tr>
                 <th style="min-width:90px">クラス</th>
+                <th style="width:76px">性別</th>
                 <th style="width:65px">グループ</th>
                 <th class="col-order">試技順</th>
                 <th style="min-width:100px">選手1</th>
@@ -287,8 +309,11 @@
                 ${del()}
             </tr>`;
         } else {
+            const genderOpts = ['男子','女子'].map(g =>
+                `<option value="${g}"${(ath.gender||'男子')===g?' selected':''}>${g}</option>`).join('');
             return `<tr data-key="${k}">
                 ${sel('class', ath.class)}
+                <td><select onchange="${ev}'gender',this.value)">${genderOpts}</select></td>
                 ${num('flightGroup', ath.flightGroup, 'G')}
                 ${num('order', ath.order, '#')}
                 ${inp('name1', ath.name1, '選手1')}
@@ -330,7 +355,7 @@
         const list     = currentList();
         const maxOrder = list.reduce((m, a) => Math.max(m, a.order ?? 0), 0);
         const ath      = { _key: newKey(), _new: true, type: currentTab, order: maxOrder + 1 };
-        if (currentTab === 'individual') ath.gender = '男子';
+        ath.gender = '男子';
         list.push(ath);
         renderTable();
         const rows = document.querySelectorAll('#table-body tr');
@@ -342,7 +367,7 @@
 
     // ---- CSV ----
     const COLS_INDIV   = ['class','gender','flightGroup','order','name1','kana1','club1','clubKana1'];
-    const COLS_SYNCHRO = ['class','flightGroup','order','name1','name2','club1','club2'];
+    const COLS_SYNCHRO = ['class','gender','flightGroup','order','name1','name2','club1','club2'];
 
     window.handleCSV = (input) => {
         const file = input.files[0];
@@ -360,7 +385,7 @@
                 .filter(r => r.some(c => c.trim()))
                 .map(row => {
                     const ath = { _key: newKey(), _new: true, type: currentTab };
-                    if (isIndiv) ath.gender = '男子';
+                    ath.gender = '男子';
                     cols.forEach((col, i) => {
                         const v = (row[i] ?? '').trim();
                         if (!v) return;
@@ -410,10 +435,10 @@
         const isIndiv = currentTab === 'individual';
         const header  = isIndiv
             ? 'クラス,性別,グループ,試技順,氏名,氏名ふりがな,所属,所属よみ'
-            : 'クラス,グループ,試技順,選手1,選手2,所属1,所属2';
+            : 'クラス,性別,グループ,試技順,選手1,選手2,所属1,所属2';
         const example = isIndiv
             ? 'Aクラス,男子,1,1,山田太郎,やまだたろう,○○体育館,まるまるたいいくかん'
-            : 'シンクロAクラス,1,1,山田太郎,鈴木花子,○○体育館,△△スポーツ';
+            : 'シンクロAクラス,男子,1,1,山田太郎,鈴木花子,○○体育館,△△スポーツ';
         const blob = new Blob(['\uFEFF' + header + '\n' + example], { type: 'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
