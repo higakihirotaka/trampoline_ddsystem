@@ -16,14 +16,36 @@
         .athlete-item { padding: 10px 18px 10px 25px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; }
         .athlete-name { flex-grow: 1; }
         .round-box { display: flex; gap: 5px; flex-shrink: 0; margin-left: 10px; }
-        .r-dot { width: 28px; height: 28px; border-radius: 6px; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; background: var(--status-none); color: #546e7a; border: 2px solid transparent; cursor: pointer; font-weight: bold; }
-        .r-dot.submitted { background: var(--status-submitted); color: white; }
-        .r-dot.needs-correction { background: var(--status-warning); color: white; }
-        .r-dot.approved { background: var(--status-ok); color: white; }
+        .r-dot { width: 28px; height: 28px; border-radius: 6px; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; background: var(--status-none); color: #90a4ae; border: 2px solid transparent; cursor: pointer; font-weight: bold; }
+        .r-dot.pre-check { background: #cfd8dc; color: #37474f; border: 2px solid #90a4ae; }
+        .r-dot.in-check  { background: var(--status-submitted); color: white; }
+        .r-dot.approved  { background: var(--status-ok); color: white; }
         .r-dot.active { border-color: #000; transform: scale(1.1); box-shadow: 0 0 10px rgba(0,0,0,0.3); }
         .main-viewer { flex-grow: 1; overflow-y: auto; padding: 30px; }
         .card-preview { background: white; width: 100%; max-width: 700px; margin: 0 auto; padding: 35px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
         #viewer-placeholder { margin-top: 120px; text-align: center; color: #90a4ae; font-size: 1.2rem; }
+        .skill-table { width: 100%; border-collapse: collapse; margin: 20px 0; table-layout: fixed; }
+        .skill-table th, .skill-table td { padding: 9px 8px; border-bottom: 1px solid #eee; text-align: center; font-size: 0.9rem; }
+        .skill-table th { color: #78909c; font-size: 0.75rem; text-transform: uppercase; background: #fafafa; }
+        .skill-num { width: 40px; color: #90a4ae; font-weight: bold; }
+        .skill-dir { width: 70px; color: #5f6368; font-size: 0.85rem; }
+        .skill-sym { text-align: left; font-family: monospace; }
+        .skill-dd  { width: 55px; }
+        .dd-summary { margin-top: 16px; background: #e8f0fe; border: 2px solid var(--accent); border-radius: 12px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .dd-sub { font-size: 0.95rem; color: #5f6368; line-height: 1.8; white-space: nowrap; }
+        .dd-sub strong { font-weight: 900; color: #202124; font-size: 1.1rem; }
+        .dd-total-wrap { text-align: right; }
+        .dd-total-label { font-size: 0.65rem; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+        .dd-total-val { font-size: 2.4rem; font-weight: 900; color: var(--accent); line-height: 1; }
+        .actions-section { margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
+        .btn-group { display: flex; gap: 10px; }
+        .btn-status { flex: 1; padding: 12px 8px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; border: 2px solid transparent; background: #f5f5f5; color: #999; }
+        .btn-status:hover { filter: brightness(0.95); }
+        .btn-status.active-0 { background: #cfd8dc; color: #37474f; border-color: #90a4ae; }
+        .btn-status.active-1 { background: var(--status-submitted); color: white; border-color: var(--status-submitted); }
+        .btn-status.active-2 { background: var(--status-ok); color: white; border-color: var(--status-ok); }
+        .btn-next { width: 100%; margin-top: 10px; padding: 14px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-next:hover { background: #1558b0; }
     </style>
 </head>
 <body>
@@ -50,18 +72,22 @@
     const eventIdParam = params.get('event');
     const eventId = eventIdParam ? eventIdParam.trim() : null;
 
-    let athletes = [], submissions = new Map(), classRules = { individual: {}, synchro: {} };
+    let athletes = [], submissions = new Map(), classRules = { individual: {}, synchro: {} }, skillMaster = [];
     let currentSelection = { athleteId: null, round: null };
 
     async function init() {
         if (!eventId) { document.body.innerHTML = "<h1>大会IDが見つかりません</h1><a href=\"admin_index.html\">大会選択に戻る</a>"; return; }
         document.getElementById('menu-back').href = 'admin_menu.html?event=' + eventId;
 
-        const [tourSnap, athSnap, subSnap] = await Promise.all([
+        const [tourSnap, athSnap, subSnap, skillSnap] = await Promise.all([
             getDoc(doc(db, "tournaments", eventId)),
             getDocs(collection(db, "tournaments", eventId, "athletes")),
-            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId)))
+            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+            getDocs(collection(db, 'skillMaster'))
         ]);
+        skillMaster = skillSnap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => Number(a.id) - Number(b.id));
 
         if (tourSnap.exists()) {
             const tourData = tourSnap.data();
@@ -124,8 +150,8 @@
                 const rules = (classRules[athType] && classRules[athType][ath.class]) ? classRules[athType][ath.class] : { qualifyingRoutines: 1, hasFinal: false };
                 
                 let dots = '';
-                for(let i = 1; i <= rules.qualifyingRoutines; i++) dots += createDot(ath.id, 'pre' + i, '予' + i);
-                if(rules.hasFinal) dots += createDot(ath.id, 'final', '決');
+                for(let i = 1; i <= rules.qualifyingRoutines; i++) dots += createDot(ath.id, 'pre' + i, 'R' + i);
+                if(rules.hasFinal) dots += createDot(ath.id, 'final', 'F');
                 
                 const athName = ath.type === 'synchro' ? ath.name1 + ' / ' + ath.name2 : ath.name1;
                 const clubName = ath.type === 'synchro' ? ath.club1 : '(' + ath.club1 + ')';
@@ -147,9 +173,10 @@
         let statusClass = '';
         if (sub) {
             switch(sub.checkStatus) {
-                case 1: statusClass = 'needs-correction'; break;
-                case 2: statusClass = 'approved'; break;
-                default: statusClass = 'submitted'; break;
+                case 0: statusClass = 'pre-check'; break;  // 確認前: グレー
+                case 1: statusClass = 'in-check'; break;   // 確認中: 青
+                case 2: statusClass = 'approved'; break;   // 確認済: 緑
+                default: statusClass = 'pre-check'; break;
             }
         }
         const activeClass = currentSelection.athleteId === athleteId && currentSelection.round === round ? 'active' : '';
@@ -173,32 +200,65 @@
         const athName = athlete.type === 'synchro' ? athlete.name1 + ' / ' + athlete.name2 : athlete.name1;
         const athClub = athlete.type === 'synchro' ? athlete.club1 + ' / ' + athlete.club2 : athlete.club1;
 
-        let tableRows = '';
-        for (let i = 0; i < 5; i++) {
-            const s1 = submission.skills[i] || {}; const s2 = submission.skills[i+5] || {};
-            tableRows += '<tr>' +
-                '<td class="skill-num">' + (i + 1) + '</td><td>' + (s1.skill || '-') + '</td><td>' + (s1.dd ? s1.dd.toFixed(3) : '-') + '</td>' +
-                '<td class="skill-num">' + (i + 6) + '</td><td>' + (s2.skill || '-') + '</td><td>' + (s2.dd ? s2.dd.toFixed(3) : '-') + '</td>' +
-            '</tr>';
+        function resolveSkill(raw) {
+            if (!raw && raw !== 0) return { symbol: '-', dd: null, direction: '', isTriple: false };
+            if (typeof raw === 'object' && raw !== null) {
+                const found = skillMaster.find(m => m.symbol === raw.skill);
+                return { symbol: raw.skill || '-', dd: raw.dd ?? null, direction: found?.direction || '', isTriple: found?.isTriple || false };
+            }
+            const found = skillMaster.find(m => m.id === String(raw));
+            return found ? { symbol: found.symbol || '-', dd: found.dd ?? null, direction: found.direction || '', isTriple: found.isTriple || false }
+                         : { symbol: '-', dd: null, direction: '', isTriple: false };
         }
 
-        viewer.innerHTML = 
+        const dirLabel = { '前方系': '前方', '後方系': '後方', '基礎技': '基礎' };
+
+        let tableRows = '';
+        let baseDD = 0, tripleCount = 0;
+        for (let i = 0; i < 10; i++) {
+            const s = resolveSkill((submission.skills || [])[i]);
+            if (s.dd != null) baseDD += s.dd;
+            if (s.isTriple) tripleCount++;
+            tableRows += '<tr>' +
+                '<td class="skill-num">' + (i + 1) + '</td>' +
+                '<td class="skill-dir">' + (dirLabel[s.direction] || '-') + '</td>' +
+                '<td class="skill-sym">' + s.symbol + '</td>' +
+                '<td class="skill-dd">' + (s.dd != null ? s.dd.toFixed(1) : '-') + '</td>' +
+            '</tr>';
+        }
+        const gender = athlete.gender || '';
+        let bonus = 0;
+        if (gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+        if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+        const totalDD = baseDD + bonus;
+        const currentStatus = submission.checkStatus ?? 0;
+
+        viewer.innerHTML =
             '<div class="card-preview">' +
                 '<div style="font-size:0.9em; color:#5f6368;">' + athlete.class + ' / ' + round.replace('pre','予選').replace('final','決勝') + '</div>' +
                 '<h2 style="margin:5px 0 10px 0;">' + athName + '</h2>' +
                 '<div style="font-weight:bold; margin-bottom:20px;">' + (athClub || '') + '</div>' +
                 '<table class="skill-table">' +
-                    '<thead><tr><th>#</th><th>技</th><th>DD</th><th>#</th><th>技</th><th>DD</th></tr></thead>' +
+                    '<thead><tr><th class="skill-num">#</th><th class="skill-dir">系統</th><th class="skill-sym" style="text-align:left;">Symbol</th><th class="skill-dd">DD</th></tr></thead>' +
                     '<tbody>' + tableRows + '</tbody>' +
                 '</table>' +
-                '<div style="text-align:right; font-size:1.2rem; font-weight:bold; margin-top:15px;">' +
-                    '申告難度点: <span style="color: var(--primary)">' + (submission.totalDD ? submission.totalDD.toFixed(3) : '0.0') + '</span>' +
+                '<div class="dd-summary">' +
+                    '<div class="dd-sub">' +
+                        '基礎点：<strong>' + baseDD.toFixed(1) + '</strong><br>' +
+                        'ボーナス点：<strong>' + bonus.toFixed(1) + '</strong>' +
+                    '</div>' +
+                    '<div class="dd-total-wrap">' +
+                        '<div class="dd-total-label">Total DD</div>' +
+                        '<div class="dd-total-val">' + totalDD.toFixed(1) + '</div>' +
+                    '</div>' +
                 '</div>' +
                 '<div class="actions-section">' +
                     '<div class="btn-group">' +
-                        '<button id="btn-reject" class="btn btn-reject" onclick="window.updateStatus(1)">要修正で差し戻す</button>' +
-                        '<button id="btn-approve" class="btn btn-approve" onclick="window.updateStatus(2)">承認する</button>' +
+                        '<button class="btn-status ' + (currentStatus === 0 ? 'active-0' : '') + '" onclick="window.updateStatus(0)">確認前</button>' +
+                        '<button class="btn-status ' + (currentStatus === 1 ? 'active-1' : '') + '" onclick="window.updateStatus(1)">確認中</button>' +
+                        '<button class="btn-status ' + (currentStatus === 2 ? 'active-2' : '') + '" onclick="window.updateStatus(2)">確認済</button>' +
                     '</div>' +
+                    '<button class="btn-next" onclick="window.goNext()">次の選手へ →</button>' +
                 '</div>' +
             '</div>';
     };
@@ -208,28 +268,18 @@
         const { athleteId, round } = currentSelection;
         const subId = eventId + '_' + athleteId + '_' + round;
 
-        const approveBtn = document.getElementById('btn-approve');
-        const rejectBtn = document.getElementById('btn-reject');
-        if(approveBtn) approveBtn.disabled = true;
-        if(rejectBtn) rejectBtn.disabled = true;
+        document.querySelectorAll('.btn-status').forEach(b => b.disabled = true);
 
         try {
-            await updateDoc(doc(db, "submissions", subId), { 
-                checkStatus: status, 
+            await updateDoc(doc(db, "submissions", subId), {
+                checkStatus: status,
                 checkedAt: serverTimestamp()
             });
-            
+
             const sub = submissions.get(subId);
             if(sub) sub.checkStatus = status;
-            
-            const nextTarget = findNextTarget();
-            if (nextTarget) {
-                showDetail(nextTarget.athleteId, nextTarget.round);
-            } else {
-                currentSelection = { athleteId: null, round: null };
-                document.getElementById('main-viewer').innerHTML = '<div id="viewer-placeholder">全てのカードの確認が完了しました！</div>';
-                renderSidebar();
-            }
+
+            showDetail(athleteId, round);
         } catch (e) {
             console.error("Update error: ", e);
             alert("更新に失敗しました。");
@@ -238,6 +288,17 @@
         }
     };
     
+    window.goNext = function() {
+        const nextTarget = findNextTarget();
+        if (nextTarget) {
+            showDetail(nextTarget.athleteId, nextTarget.round);
+        } else {
+            currentSelection = { athleteId: null, round: null };
+            document.getElementById('main-viewer').innerHTML = '<div id="viewer-placeholder">全てのカードの確認が完了しました！</div>';
+            renderSidebar();
+        }
+    };
+
     function findNextTarget() {
         const sortedAthletes = [...athletes].sort(function(a, b) {
             const keyA = (a.class || '') + '-' + (a.gender || '') + '-' + String(a.order || '999').padStart(4, '0');
@@ -261,7 +322,7 @@
 
                 const subId = eventId + '_' + ath.id + '_' + r;
                 const sub = submissions.get(subId);
-                if (sub && (sub.checkStatus === 0 || sub.checkStatus === 1 || sub.checkStatus === undefined)) {
+                if (sub && sub.checkStatus !== 2) {
                     return { athleteId: ath.id, round: r };
                 }
             }

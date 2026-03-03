@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技マスター - Trampoline Scoring System</title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --gray: #70757a; --ok: #388e3c; --warn: #f57c00; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .header h1 { margin: 0; font-size: 1.6rem; flex: 1; }
+        .back-link { color: var(--gray); text-decoration: none; font-size: 0.9rem; border: 1px solid #ccc; padding: 6px 14px; border-radius: 8px; white-space: nowrap; }
+        .back-link:hover { background: #eee; }
+        .btn-add { padding: 8px 18px; border-radius: 8px; border: 2px solid var(--primary); background: var(--primary); color: white; font-size: 0.9rem; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.15s; }
+        .btn-add:hover { background: #1558b0; border-color: #1558b0; }
+
+        /* 新規追加フォーム */
+        .add-panel { background: white; border: 2px solid var(--primary); border-radius: 14px; padding: 20px 24px; margin-bottom: 20px; }
+        .add-panel h3 { margin: 0 0 16px 0; font-size: 1rem; color: var(--primary); }
+        .add-fields { display: grid; grid-template-columns: 1fr 1fr 90px auto 110px 1fr; gap: 10px; align-items: end; }
+        .add-field-wrap { display: flex; flex-direction: column; gap: 4px; }
+        .add-field-label { font-size: 0.73rem; color: var(--gray); font-weight: bold; }
+        .add-input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box; }
+        .add-input:focus { border-color: var(--primary); outline: none; }
+        .add-triple-wrap { display: flex; flex-direction: column; gap: 4px; align-items: center; padding-bottom: 6px; }
+        .add-triple-wrap input { width: 20px; height: 20px; }
+        .add-actions { display: flex; gap: 10px; margin-top: 16px; }
+        .btn-confirm { padding: 10px 24px; border-radius: 8px; border: none; background: var(--ok); color: white; font-size: 0.95rem; font-weight: bold; cursor: pointer; }
+        .btn-confirm:hover { background: #2e7d32; }
+        .btn-cancel-add { padding: 10px 18px; border-radius: 8px; border: 1px solid #ccc; background: white; color: #555; font-size: 0.9rem; cursor: pointer; }
+        .btn-cancel-add:hover { background: #f5f5f5; }
+
+        /* フィルタ */
+        .controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+        .search-box { flex: 1; min-width: 160px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; }
+        .filter-btn { padding: 8px 16px; border-radius: 20px; border: 2px solid #ddd; background: white; color: #555; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.15s; }
+        .filter-btn.active { border-color: var(--primary); background: var(--primary); color: white; }
+        .count-label { font-size: 0.85rem; color: var(--gray); margin-left: auto; }
+
+        /* テーブル */
+        .skill-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .skill-table thead tr { background: #37474f; color: white; }
+        .skill-table th { padding: 11px 10px; text-align: left; font-size: 0.73rem; font-weight: bold; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+        .skill-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; vertical-align: middle; }
+        .skill-table tbody tr:last-child td { border-bottom: none; }
+        .skill-table tbody tr:hover:not(.editing-row) { background: #fafafa; }
+        .editing-row { background: #e8f0fe !important; }
+        .editing-row td { padding-top: 6px; padding-bottom: 6px; }
+
+        .col-id      { width: 40px; text-align: center; color: #aaa; font-size: 0.78rem; }
+        .col-sym     { width: 110px; font-family: monospace; font-size: 0.95rem; font-weight: bold; color: #202124; }
+        .col-display { width: 150px; color: #555; }
+        .col-dd      { width: 60px; text-align: center; }
+        .col-triple  { width: 52px; text-align: center; }
+        .col-dir     { width: 70px; }
+        .col-note    { min-width: 140px; color: #777; font-size: 0.85rem; }
+        .col-act     { width: 110px; text-align: right; white-space: nowrap; }
+
+        /* 表示モードのテキスト */
+        .display-text { color: #555; }
+        .display-empty { color: #bbb; font-style: italic; }
+        .triple-check { color: var(--primary); font-size: 1rem; }
+
+        /* 編集モードのinput */
+        .edit-input { width: 100%; padding: 5px 7px; border: 1px solid #90caf9; border-radius: 6px; font-size: 0.88rem; box-sizing: border-box; background: white; }
+        .edit-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(26,115,232,0.15); }
+        input[type="number"].edit-input { text-align: center; }
+        input[type="checkbox"].edit-triple-cb { width: 18px; height: 18px; cursor: pointer; }
+        select.edit-input { padding: 5px 4px; }
+
+        /* ボタン */
+        .btn-edit { padding: 4px 12px; border-radius: 6px; border: 1px solid #ccc; background: white; color: #555; font-size: 0.8rem; cursor: pointer; transition: 0.15s; }
+        .btn-edit:hover { background: #f0f0f0; border-color: #aaa; }
+        .btn-save-row { padding: 4px 12px; border-radius: 6px; border: none; background: var(--primary); color: white; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+        .btn-save-row:hover { background: #1558b0; }
+        .btn-save-row:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-cancel-row { padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; background: white; color: #777; font-size: 0.8rem; cursor: pointer; margin-left: 4px; }
+        .btn-cancel-row:hover { background: #f5f5f5; }
+        .save-ok { color: var(--ok); font-size: 0.78rem; font-weight: bold; }
+
+        .empty { text-align: center; padding: 60px; color: var(--gray); }
+        .loading { text-align: center; padding: 60px; color: var(--gray); font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <a href="javascript:history.back()" class="back-link">← 戻る</a>
+        <h1>📖 技マスター</h1>
+        <button class="btn-add" onclick="toggleAddPanel()">＋ 技を追加</button>
+    </div>
+
+    <!-- 新規追加パネル -->
+    <div class="add-panel" id="add-panel" style="display:none;">
+        <h3>新規技を追加</h3>
+        <div class="add-fields">
+            <div class="add-field-wrap">
+                <div class="add-field-label">Symbol <span style="color:red">*</span></div>
+                <input type="text" class="add-input" id="new-symbol" placeholder="例: o, 841<">
+            </div>
+            <div class="add-field-wrap">
+                <div class="add-field-label">得点表示用Symbol</div>
+                <input type="text" class="add-input" id="new-display-symbol" placeholder="例: ○, 8回ひねり">
+            </div>
+            <div class="add-field-wrap">
+                <div class="add-field-label">DD</div>
+                <input type="number" class="add-input" id="new-dd" step="0.1" min="0" max="9.9" value="0.0">
+            </div>
+            <div class="add-triple-wrap">
+                <div class="add-field-label">3回転</div>
+                <input type="checkbox" id="new-triple">
+            </div>
+            <div class="add-field-wrap">
+                <div class="add-field-label">系統</div>
+                <select class="add-input" id="new-dir">
+                    <option value="">-- 選択 --</option>
+                    <option value="前方系">前方系</option>
+                    <option value="後方系">後方系</option>
+                    <option value="基礎技">基礎技</option>
+                </select>
+            </div>
+            <div class="add-field-wrap">
+                <div class="add-field-label">注釈</div>
+                <input type="text" class="add-input" id="new-note" placeholder="メモ...">
+            </div>
+        </div>
+        <div class="add-actions">
+            <button class="btn-confirm" onclick="addSkill()">追加する</button>
+            <button class="btn-cancel-add" onclick="toggleAddPanel()">キャンセル</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <input type="text" class="search-box" id="search" placeholder="Symbolで検索..." oninput="render()">
+        <button class="filter-btn active" data-dir="" onclick="setDir(this)">すべて</button>
+        <button class="filter-btn" data-dir="前方系" onclick="setDir(this)">前方系</button>
+        <button class="filter-btn" data-dir="後方系" onclick="setDir(this)">後方系</button>
+        <button class="filter-btn" data-dir="基礎技" onclick="setDir(this)">基礎技</button>
+        <button class="filter-btn" id="triple-btn" onclick="setTriple(this)">3回転のみ</button>
+        <span class="count-label" id="count-label"></span>
+    </div>
+
+    <div id="loading" class="loading">読み込み中...</div>
+    <table class="skill-table" id="skill-table" style="display:none;">
+        <thead>
+            <tr>
+                <th class="col-id">#</th>
+                <th class="col-sym">Symbol</th>
+                <th class="col-display">得点表示用Symbol</th>
+                <th class="col-dd">DD</th>
+                <th class="col-triple">3回転</th>
+                <th class="col-dir">系統</th>
+                <th class="col-note">注釈</th>
+                <th class="col-act"></th>
+            </tr>
+        </thead>
+        <tbody id="skill-body"></tbody>
+    </table>
+    <div id="empty-msg" class="empty" style="display:none;">該当する技がありません</div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let skills = [];
+    let editingId = null;   // 現在編集中の行ID
+    let currentDir = '';
+    let tripleOnly = false;
+
+    async function init() {
+        const snap = await getDocs(collection(db, 'skillMaster'));
+        skills = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => Number(a.id) - Number(b.id));
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('skill-table').style.display = '';
+        render();
+    }
+
+    window.toggleAddPanel = function() {
+        const panel = document.getElementById('add-panel');
+        const visible = panel.style.display !== 'none';
+        panel.style.display = visible ? 'none' : '';
+        if (!visible) {
+            document.getElementById('new-symbol').value = '';
+            document.getElementById('new-display-symbol').value = '';
+            document.getElementById('new-dd').value = '0.0';
+            document.getElementById('new-triple').checked = false;
+            document.getElementById('new-dir').value = '';
+            document.getElementById('new-note').value = '';
+            document.getElementById('new-symbol').focus();
+        }
+    };
+
+    window.addSkill = async function() {
+        const symbol = document.getElementById('new-symbol').value.trim();
+        if (!symbol) {
+            alert('Symbolは必須です。');
+            document.getElementById('new-symbol').focus();
+            return;
+        }
+
+        const nextId = String(skills.length > 0 ? Math.max(...skills.map(s => Number(s.id))) + 1 : 0);
+        const data = {
+            symbol,
+            displaySymbol: document.getElementById('new-display-symbol').value.trim(),
+            dd: parseFloat(document.getElementById('new-dd').value) || 0,
+            isTriple: document.getElementById('new-triple').checked,
+            direction: document.getElementById('new-dir').value,
+            note: document.getElementById('new-note').value.trim(),
+            updatedAt: serverTimestamp()
+        };
+
+        try {
+            await setDoc(doc(db, 'skillMaster', nextId), data);
+            skills.push({ id: nextId, ...data });
+            skills.sort((a, b) => Number(a.id) - Number(b.id));
+            document.getElementById('add-panel').style.display = 'none';
+            render();
+            setTimeout(() => {
+                const row = document.getElementById(`row-${nextId}`);
+                if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        } catch (e) {
+            console.error('Add error:', e);
+            alert('追加に失敗しました: ' + e.message);
+        }
+    };
+
+    window.setDir = function(btn) {
+        document.querySelectorAll('[data-dir]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentDir = btn.dataset.dir;
+        render();
+    };
+
+    window.setTriple = function(btn) {
+        tripleOnly = !tripleOnly;
+        btn.classList.toggle('active', tripleOnly);
+        render();
+    };
+
+    window.startEdit = function(id) {
+        editingId = id;
+        render();
+        setTimeout(() => {
+            const el = document.querySelector(`input.edit-input[data-id="${id}"]`);
+            if (el) el.focus();
+        }, 30);
+    };
+
+    window.cancelEdit = function() {
+        editingId = null;
+        render();
+    };
+
+    window.render = function() {
+        const q = document.getElementById('search').value.trim().toLowerCase();
+        const filtered = skills.filter(s => {
+            if (currentDir && s.direction !== currentDir) return false;
+            if (tripleOnly && !s.isTriple) return false;
+            if (q && !s.symbol.toLowerCase().includes(q) && !(s.displaySymbol || '').toLowerCase().includes(q)) return false;
+            return true;
+        });
+
+        const dirLabel = { '前方系': '前方', '後方系': '後方', '基礎技': '基礎' };
+
+        const tbody = document.getElementById('skill-body');
+        if (filtered.length === 0) {
+            tbody.innerHTML = '';
+            document.getElementById('empty-msg').style.display = '';
+        } else {
+            document.getElementById('empty-msg').style.display = 'none';
+            tbody.innerHTML = filtered.map(s => {
+                if (editingId === s.id) {
+                    // 編集モード行
+                    return `<tr id="row-${s.id}" class="editing-row">
+                        <td class="col-id">${s.id}</td>
+                        <td class="col-sym">${s.symbol}</td>
+                        <td class="col-display">
+                            <input type="text" class="edit-input" data-id="${s.id}" data-field="displaySymbol"
+                                value="${(s.displaySymbol || '').replace(/"/g, '&quot;')}" placeholder="表示用...">
+                        </td>
+                        <td class="col-dd">
+                            <input type="number" class="edit-input" data-id="${s.id}" data-field="dd"
+                                step="0.1" min="0" max="9.9" value="${Number(s.dd).toFixed(1)}" style="width:58px;">
+                        </td>
+                        <td class="col-triple">
+                            <input type="checkbox" class="edit-triple-cb" data-id="${s.id}" data-field="isTriple"
+                                ${s.isTriple ? 'checked' : ''}>
+                        </td>
+                        <td class="col-dir">
+                            <select class="edit-input" data-id="${s.id}" data-field="direction" style="width:80px;">
+                                <option value="前方系" ${s.direction === '前方系' ? 'selected' : ''}>前方</option>
+                                <option value="後方系" ${s.direction === '後方系' ? 'selected' : ''}>後方</option>
+                                <option value="基礎技" ${s.direction === '基礎技' ? 'selected' : ''}>基礎</option>
+                            </select>
+                        </td>
+                        <td class="col-note">
+                            <input type="text" class="edit-input" data-id="${s.id}" data-field="note"
+                                value="${(s.note || '').replace(/"/g, '&quot;')}" placeholder="メモ...">
+                        </td>
+                        <td class="col-act">
+                            <button class="btn-save-row" id="save-${s.id}" onclick="saveRow('${s.id}')">保存</button>
+                            <button class="btn-cancel-row" onclick="cancelEdit()">✕</button>
+                        </td>
+                    </tr>`;
+                } else {
+                    // 表示モード行
+                    const displaySym = s.displaySymbol
+                        ? `<span class="display-text">${s.displaySymbol}</span>`
+                        : `<span class="display-empty">-</span>`;
+                    const noteText = s.note
+                        ? s.note
+                        : `<span class="display-empty">-</span>`;
+                    return `<tr id="row-${s.id}">
+                        <td class="col-id">${s.id}</td>
+                        <td class="col-sym">${s.symbol}</td>
+                        <td class="col-display">${displaySym}</td>
+                        <td class="col-dd" style="text-align:center;">${Number(s.dd).toFixed(1)}</td>
+                        <td class="col-triple">${s.isTriple ? '<span class="triple-check">✓</span>' : ''}</td>
+                        <td class="col-dir">${dirLabel[s.direction] || s.direction || ''}</td>
+                        <td class="col-note">${noteText}</td>
+                        <td class="col-act">
+                            <button class="btn-edit" onclick="startEdit('${s.id}')">編集</button>
+                        </td>
+                    </tr>`;
+                }
+            }).join('');
+        }
+        document.getElementById('count-label').textContent = `${filtered.length} / ${skills.length} 件`;
+    };
+
+    window.saveRow = async function(id) {
+        const skill = skills.find(s => s.id === id);
+        if (!skill) return;
+
+        const saveBtn = document.getElementById(`save-${id}`);
+        if (saveBtn) saveBtn.disabled = true;
+
+        const displayEl = document.querySelector(`input.edit-input[data-id="${id}"][data-field="displaySymbol"]`);
+        const ddEl      = document.querySelector(`input.edit-input[data-id="${id}"][data-field="dd"]`);
+        const tripleEl  = document.querySelector(`input.edit-triple-cb[data-id="${id}"]`);
+        const dirEl     = document.querySelector(`select.edit-input[data-id="${id}"][data-field="direction"]`);
+        const noteEl    = document.querySelector(`input.edit-input[data-id="${id}"][data-field="note"]`);
+
+        const newDisplaySymbol = displayEl?.value.trim() || '';
+        const newDd            = parseFloat(ddEl?.value) || 0;
+        const newIsTriple      = tripleEl?.checked || false;
+        const newDirection     = dirEl?.value || skill.direction;
+        const newNote          = noteEl?.value.trim() || '';
+
+        const data = {
+            symbol: skill.symbol,
+            displaySymbol: newDisplaySymbol,
+            dd: newDd,
+            isTriple: newIsTriple,
+            direction: newDirection,
+            note: newNote,
+            updatedAt: serverTimestamp()
+        };
+
+        try {
+            await setDoc(doc(db, 'skillMaster', id), data, { merge: true });
+
+            const idx = skills.findIndex(s => s.id === id);
+            if (idx >= 0) {
+                skills[idx] = { ...skills[idx], displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, direction: newDirection, note: newNote };
+            }
+            editingId = null;
+            render();
+        } catch (e) {
+            console.error('Save error:', e);
+            alert('保存に失敗しました。');
+            if (saveBtn) saveBtn.disabled = false;
+        }
+    };
+
+    init();
+</script>
+</body>
+</html>

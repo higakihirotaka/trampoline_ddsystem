@@ -79,13 +79,10 @@ export async function getAthletes(eventId) {
 
 export async function getSkills() {
     try {
-        const res = await fetch('data/skills.tsv');
-        if (!res.ok) throw new Error(`Response status: ${res.status}`);
-        const text = await res.text();
-        return text.trim().split(/\r?\n/).slice(1).map((l, index) => {
-            const c = l.split('\t');
-            return { id: String(index), symbol: c[0]?.trim() || '', direction: c[3]?.trim() || '' };
-        });
+        const snap = await getDocs(collection(db, 'skillMaster'));
+        return snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => Number(a.id) - Number(b.id));
     } catch (e) {
         console.error("Error loading skills:", e);
         return [];

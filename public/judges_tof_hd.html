@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToF/HD Input - Trampoline System</title>
+    <style>
+        :root {
+            --bg: #0b0e11; --card: #1e2227;
+            --accent: #1a73e8; --success: #00e676; --danger: #ff1744;
+            --text: #ffffff; --text-dim: #90a4ae;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+        /* トップバー */
+        .top-bar { background: #000; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; flex-shrink: 0; }
+        .role-badge { font-size: 1.6rem; font-weight: 900; color: var(--accent); letter-spacing: 0.03em; }
+        .panel-badge { font-size: 0.8rem; font-weight: bold; color: var(--text-dim); margin-left: 10px; }
+        .btn-exit { color: var(--danger); text-decoration: none; border: 1px solid var(--danger); padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+
+        /* 選手バー */
+        .athlete-bar { background: var(--card); padding: 16px 24px; border-bottom: 1px solid #333; flex-shrink: 0; }
+        .athlete-name { font-size: 1.5rem; font-weight: 900; }
+        .athlete-meta { font-size: 0.85rem; color: var(--text-dim); margin-top: 4px; }
+        .no-athlete { color: var(--text-dim); font-style: italic; }
+
+        /* メイン */
+        .main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px; gap: 24px; }
+
+        /* 保存済み値 */
+        .saved-row { width: 100%; max-width: 360px; background: var(--card); border-radius: 10px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+        .saved-label { font-size: 0.75rem; color: var(--text-dim); font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; }
+        .saved-val { font-size: 1.4rem; font-weight: 900; font-family: monospace; color: var(--text-dim); }
+        .saved-val.has-val { color: var(--success); }
+
+        /* 入力エリア */
+        .input-section { width: 100%; max-width: 360px; text-align: center; }
+        .input-label { font-size: 0.7rem; color: var(--text-dim); font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+        .big-input {
+            width: 100%; background: #111; border: 2px solid #444; color: #fff;
+            padding: 18px; font-size: 3.5rem; font-weight: 900; border-radius: 12px;
+            text-align: center; font-family: monospace;
+            -moz-appearance: textfield;
+        }
+        .big-input::-webkit-outer-spin-button,
+        .big-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .big-input:focus { border-color: var(--accent); outline: none; background: #161a1f; }
+
+        .actual-wrap { margin-top: 12px; }
+        .actual-value { font-size: 2rem; color: var(--success); font-weight: 900; font-family: monospace; }
+        .actual-label { font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; }
+
+        /* 送信ボタン */
+        .btn-send {
+            width: 100%; max-width: 360px;
+            background: var(--accent); color: white; border: none;
+            padding: 20px; border-radius: 12px; font-size: 1.3rem; font-weight: 900;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .btn-send:hover:not(:disabled) { background: #1557b0; }
+        .btn-send:active:not(:disabled) { transform: translateY(1px); }
+        .btn-send:disabled { background: #37474f; cursor: not-allowed; }
+
+        /* ステータスメッセージ */
+        .status-msg { font-size: 0.95rem; font-weight: bold; min-height: 1.4em; text-align: center; }
+        .status-msg.ok  { color: var(--success); }
+        .status-msg.err { color: var(--danger); }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div>
+        <span class="role-badge" id="role-label">-</span>
+        <span class="panel-badge" id="panel-label">PANEL -</span>
+    </div>
+    <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
+</div>
+
+<div class="athlete-bar">
+    <div class="athlete-name" id="ath-name"><span class="no-athlete">選手を待機中…</span></div>
+    <div class="athlete-meta" id="ath-meta">-</div>
+</div>
+
+<div class="main">
+
+    <div class="saved-row">
+        <span class="saved-label">保存済み値</span>
+        <span class="saved-val" id="saved-val">-</span>
+    </div>
+
+    <div class="input-section">
+        <div class="input-label" id="input-label">入力値（整数）</div>
+        <input type="number" class="big-input" id="val-input"
+               placeholder="0" min="0" max="999999" inputmode="numeric"
+               oninput="onInput(this.value)">
+        <div class="actual-wrap">
+            <div class="actual-value" id="actual-display">-</div>
+            <div class="actual-label" id="actual-label">実際の値</div>
+        </div>
+    </div>
+
+    <button class="btn-send" id="btn-send" onclick="send()" disabled>送信</button>
+    <div class="status-msg" id="status-msg"></div>
+
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, getDoc, setDoc, serverTimestamp }
+        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
+    const db = getFirestore(initializeApp(firebaseConfig));
+
+    const params    = new URLSearchParams(location.search);
+    const eventId   = params.get('event');
+    const panel     = params.get('panel') || 'A';
+    const role      = params.get('role')  || 'T'; // 'T' or 'HD'
+
+    // ToF は × 1000（例: 16.200 → 16200）、HD は × 100（例: 8.50 → 850）
+    const divisor = role === 'T' ? 1000 : 100;
+
+    let currentAthleteId = null;
+    let currentRound     = null;
+
+    // ---- UI 初期化 ----
+    document.getElementById('role-label').textContent  = role === 'T' ? 'ToF (T)' : 'HD';
+    document.getElementById('panel-label').textContent = `PANEL ${panel}`;
+    document.getElementById('exit-link').href = `judge_role_select.html?event=${eventId}`;
+    document.getElementById('input-label').textContent  = `入力値（実際の値 × ${divisor} の整数）`;
+    document.getElementById('actual-label').textContent = `実際の値（入力値 ÷ ${divisor}）`;
+
+    // ---- liveState を監視して現在の選手を追従 ----
+    if (eventId) {
+        onSnapshot(doc(db, 'tournaments', eventId), snap => {
+            const data = snap.data() || {};
+            const live = data.liveState?.[panel] || {};
+
+            currentAthleteId = live.athleteId || null;
+            currentRound     = live.round     || 'pre1';
+
+            const nameEl = document.getElementById('ath-name');
+            const metaEl = document.getElementById('ath-meta');
+            if (live.athleteName) {
+                nameEl.innerHTML = '';
+                nameEl.textContent = live.athleteName;
+            } else {
+                nameEl.innerHTML = '<span class="no-athlete">選手を待機中…</span>';
+            }
+            metaEl.textContent = live.athleteClass
+                ? `${live.athleteClass} / ${currentRound.toUpperCase()}`
+                : '-';
+
+            // 送信ボタンの活性制御（入力済みのとき）
+            const v = parseInt(document.getElementById('val-input').value, 10);
+            document.getElementById('btn-send').disabled = !(currentAthleteId && !isNaN(v) && v >= 0);
+
+            // 保存済み値を取得・表示
+            loadSavedVal();
+        });
+    }
+
+    // ---- 保存済み値を読み込んで表示 ----
+    async function loadSavedVal() {
+        const savedEl = document.getElementById('saved-val');
+        if (!currentAthleteId || !currentRound) {
+            savedEl.textContent = '-';
+            savedEl.className = 'saved-val';
+            return;
+        }
+        const resId = `${eventId}_${currentAthleteId}_${currentRound}`;
+        const snap  = await getDoc(doc(db, 'results', resId));
+        if (snap.exists()) {
+            const d   = snap.data();
+            const val = role === 'T' ? d.tof : d.hd?.total;
+            if (val !== undefined && val !== null) {
+                savedEl.textContent = Number(val).toFixed(3);
+                savedEl.className   = 'saved-val has-val';
+                return;
+            }
+        }
+        savedEl.textContent = '-';
+        savedEl.className   = 'saved-val';
+    }
+
+    // ---- 入力値変化時 ----
+    window.onInput = function(raw) {
+        const v   = parseInt(raw, 10);
+        const btn = document.getElementById('btn-send');
+        if (!isNaN(v) && v >= 0) {
+            document.getElementById('actual-display').textContent = (v / divisor).toFixed(3);
+            btn.disabled = !currentAthleteId;
+        } else {
+            document.getElementById('actual-display').textContent = '-';
+            btn.disabled = true;
+        }
+    };
+
+    // ---- 送信 ----
+    window.send = async function() {
+        if (!currentAthleteId || !currentRound) {
+            showStatus('選手が選択されていません', true);
+            return;
+        }
+        const raw = parseInt(document.getElementById('val-input').value, 10);
+        if (isNaN(raw) || raw < 0) {
+            showStatus('値を入力してください', true);
+            return;
+        }
+
+        const actual = raw / divisor;
+        const resId  = `${eventId}_${currentAthleteId}_${currentRound}`;
+        const btn    = document.getElementById('btn-send');
+        btn.disabled = true;
+
+        try {
+            const saveData = role === 'T'
+                ? { tof: actual, updatedAt: serverTimestamp(), verifiedAt: serverTimestamp() }
+                : { hd: { total: actual }, updatedAt: serverTimestamp(), verifiedAt: serverTimestamp() };
+
+            await setDoc(doc(db, 'results', resId), saveData, { merge: true });
+
+            // 保存済み値を更新
+            const savedEl = document.getElementById('saved-val');
+            savedEl.textContent = actual.toFixed(3);
+            savedEl.className   = 'saved-val has-val';
+
+            showStatus('✓ 送信完了');
+        } catch (e) {
+            showStatus('エラー: ' + e.message, true);
+        } finally {
+            btn.disabled = false;
+        }
+    };
+
+    function showStatus(msg, isError = false) {
+        const el = document.getElementById('status-msg');
+        el.textContent = msg;
+        el.className   = 'status-msg ' + (isError ? 'err' : 'ok');
+        setTimeout(() => { el.textContent = ''; el.className = 'status-msg'; }, 3000);
+    }
+</script>
+</body>
+</html>

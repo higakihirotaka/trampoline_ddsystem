@@ -191,6 +191,8 @@
         const semifinal  = (rule.semifinalEnabled === true || rule.semifinalEnabled === 'true' || Number(rule.semifinalEnabled) === 1);
         const finalCount = isNaN(parseInt(rule.finalCount)) ? 8 : Math.max(0, parseInt(rule.finalCount));
         const eJudge     = isNaN(parseInt(rule.eJudgeCount)) ? 4 : Math.max(1, parseInt(rule.eJudgeCount));
+        const tofMode    = (rule.tofDefaultMode === 'manual') ? 'manual' : 'auto';
+        const hdMode     = (rule.hdDefaultMode  === 'manual') ? 'manual' : 'auto';
 
         const card = document.createElement('div');
         card.className = 'class-card';
@@ -279,6 +281,41 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ToF デフォルト入力モード -->
+            <div class="rule-row">
+                <div class="rule-label">ToF 入力</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="tof-mode-${key}" value="auto" ${tofMode === 'auto' ? 'checked' : ''}>
+                            <span>読込（自動）</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="tof-mode-${key}" value="manual" ${tofMode === 'manual' ? 'checked' : ''}>
+                            <span>手動入力</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HD デフォルト入力モード -->
+            <div class="rule-row">
+                <div class="rule-label">HD 入力</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="hd-mode-${key}" value="auto" ${hdMode === 'auto' ? 'checked' : ''}>
+                            <span>読込（自動）</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="hd-mode-${key}" value="manual" ${hdMode === 'manual' ? 'checked' : ''}>
+                            <span>手動入力</span>
+                        </label>
+                    </div>
+                    <div style="font-size:0.75rem;color:#90a4ae;margin-top:4px;">テクニカルコンソールでのデフォルト入力方式</div>
+                </div>
+            </div>
         `;
 
         // 予選本数の変更で順位決定方式を表示切替
@@ -332,7 +369,9 @@
                 const scoreMode  = card.querySelector(`input[name="score-${key}"]:checked`)?.value || 'best';
                 const semifinal  = card.querySelector(`input[name="semi-${key}"]:checked`)?.value === 'true';
                 const finalCount = parseInt(card.querySelector(`#final-count-${key}`).value) || 0;
-                const eJudge     = parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
+                const eJudge         = parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
+                const tofDefaultMode = card.querySelector(`input[name="tof-mode-${key}"]:checked`)?.value || 'auto';
+                const hdDefaultMode  = card.querySelector(`input[name="hd-mode-${key}"]:checked`)?.value  || 'auto';
 
                 const ruleObj = {
                     qualifyingRoutines: qualRoutes,
@@ -340,6 +379,8 @@
                     semifinalEnabled: semifinal,
                     finalCount,
                     eJudgeCount: eJudge,
+                    tofDefaultMode,
+                    hdDefaultMode,
                     hasFinal: finalCount > 0
                 };
                 if (type === 'synchro') synchro[name] = ruleObj;
