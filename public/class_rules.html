@@ -82,7 +82,7 @@
 
 <script type="module">
     import { getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
 
     const db = getFirestore(getApp());
@@ -91,6 +91,7 @@
 
     // { individual: [{name,display_order}], synchro: [...] }
     let classData = { individual: [], synchro: [] };
+    let initialized = false;
 
     ensureAdmin(user => {
         document.getElementById('auth-info').style.display = 'flex';
@@ -101,6 +102,8 @@
 
     async function initPage() {
         if (!eventId) { location.href = 'admin_index.html'; return; }
+        if (initialized) return;  // onAuthStateChanged が複数回発火しても1回だけ実行する
+        initialized = true;
         document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
 
         const tDoc = await getDoc(doc(db, 'tournaments', eventId));
@@ -114,20 +117,22 @@
 
         // クラス一覧を取得
         const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+        // クラス名の重複を除去（Firestoreに重複登録がある場合にラジオボタン競合を防ぐ）
+        const dedupe = arr => { const seen = new Set(); return arr.filter(c => { if (seen.has(c.name)) return false; seen.add(c.name); return true; }); };
 
         const rulesKeys = obj => Object.keys(obj || {}).map((name, i) => ({ name, display_order: i }));
 
         if (d.classes && !Array.isArray(d.classes) && (d.classes.individual || d.classes.synchro)) {
             // 新形式
-            classData.individual = sortByOrder(d.classes.individual);
-            classData.synchro    = sortByOrder(d.classes.synchro);
+            classData.individual = dedupe(sortByOrder(d.classes.individual));
+            classData.synchro    = dedupe(sortByOrder(d.classes.synchro));
             // シンクロが未保存でも classRules にデータがあれば補完
             if (classData.synchro.length === 0 && existingRules.synchro) {
                 classData.synchro = rulesKeys(existingRules.synchro);
             }
         } else if (Array.isArray(d.classes) && d.classes.length > 0) {
             // 旧フラット配列: すべて個人扱い、classRules からシンクロを補完
-            classData.individual = sortByOrder(d.classes);
+            classData.individual = dedupe(sortByOrder(d.classes));
             classData.synchro    = existingRules.synchro ? rulesKeys(existingRules.synchro) : [];
         } else {
             // classRules のキーから抽出
@@ -136,6 +141,7 @@
         }
 
         const container = document.getElementById('class-cards');
+        container.innerHTML = '';  // 2重初期化対策: 既存カードをクリア
         const total = classData.individual.length + classData.synchro.length;
 
         if (total === 0) {
@@ -179,16 +185,21 @@
     }
 
     function createClassCard(className, type, rule) {
-        const qualRoutes = rule.qualifyingRoutines ?? 2;
-        const scoreMode  = rule.scoreMode ?? 'best';
-        const semifinal  = rule.semifinalEnabled ?? false;
-        const finalCount = rule.finalCount ?? 8;
-        const eJudge     = rule.eJudgeCount ?? 4;
+        // 型が不明なデータでも必ず有効値になるよう正規化（文字列・0・NaN対策）
+        const qualRoutes = (parseInt(rule.qualifyingRoutines) === 1) ? 1 : 2;
+        const scoreMode  = (rule.scoreMode === 'total') ? 'total' : 'best';
+        const semifinal  = (rule.semifinalEnabled === true || rule.semifinalEnabled === 'true' || Number(rule.semifinalEnabled) === 1);
+        const finalCount = isNaN(parseInt(rule.finalCount)) ? 8 : Math.max(0, parseInt(rule.finalCount));
+        const eJudge     = isNaN(parseInt(rule.eJudgeCount)) ? 4 : Math.max(1, parseInt(rule.eJudgeCount));
+        const tofMode    = (rule.tofDefaultMode === 'manual') ? 'manual' : 'auto';
+        const hdMode     = (rule.hdDefaultMode  === 'manual') ? 'manual' : 'auto';
 
         const card = document.createElement('div');
         card.className = 'class-card';
         card.dataset.class = className;
         card.dataset.type = type;
+        // ラジオ name・ID はタイプ付きにして個人/シンクロ同名クラスの競合を防ぐ
+        const key = `${type}-${className}`;
         card.innerHTML = `
             <div class="class-card-header">
                 <span class="class-badge">${escHtml(className)}</span>
@@ -201,11 +212,11 @@
                 <div class="rule-controls">
                     <div class="radio-group">
                         <label class="radio-btn">
-                            <input type="radio" name="qual-${className}" value="1" ${qualRoutes === 1 ? 'checked' : ''}>
+                            <input type="radio" name="qual-${key}" value="1" ${qualRoutes === 1 ? 'checked' : ''}>
                             <span>1本</span>
                         </label>
                         <label class="radio-btn">
-                            <input type="radio" name="qual-${className}" value="2" ${qualRoutes === 2 ? 'checked' : ''}>
+                            <input type="radio" name="qual-${key}" value="2" ${qualRoutes === 2 ? 'checked' : ''}>
                             <span>2本</span>
                         </label>
                     </div>
@@ -213,16 +224,16 @@
             </div>
 
             <!-- 順位決定方式（2本時のみ） -->
-            <div class="rule-row conditional ${qualRoutes === 1 ? 'hidden' : ''}" id="score-mode-row-${className}">
+            <div class="rule-row conditional ${qualRoutes === 1 ? 'hidden' : ''}" id="score-mode-row-${key}">
                 <div class="rule-label">順位決定方式</div>
                 <div class="rule-controls">
                     <div class="radio-group">
                         <label class="radio-btn">
-                            <input type="radio" name="score-${className}" value="best" ${scoreMode === 'best' ? 'checked' : ''}>
+                            <input type="radio" name="score-${key}" value="best" ${scoreMode === 'best' ? 'checked' : ''}>
                             <span>ベストスコア</span>
                         </label>
                         <label class="radio-btn">
-                            <input type="radio" name="score-${className}" value="total" ${scoreMode === 'total' ? 'checked' : ''}>
+                            <input type="radio" name="score-${key}" value="total" ${scoreMode === 'total' ? 'checked' : ''}>
                             <span>合計スコア</span>
                         </label>
                     </div>
@@ -235,11 +246,11 @@
                 <div class="rule-controls">
                     <div class="radio-group">
                         <label class="radio-btn">
-                            <input type="radio" name="semi-${className}" value="false" ${!semifinal ? 'checked' : ''}>
+                            <input type="radio" name="semi-${key}" value="false" ${!semifinal ? 'checked' : ''}>
                             <span>なし</span>
                         </label>
                         <label class="radio-btn">
-                            <input type="radio" name="semi-${className}" value="true" ${semifinal ? 'checked' : ''}>
+                            <input type="radio" name="semi-${key}" value="true" ${semifinal ? 'checked' : ''}>
                             <span>あり</span>
                         </label>
                     </div>
@@ -251,10 +262,10 @@
                 <div class="rule-label">決勝人数</div>
                 <div class="rule-controls">
                     <div class="num-input-wrap">
-                        <input type="number" id="final-count-${className}" value="${finalCount}" min="0" max="99">
+                        <input type="number" id="final-count-${key}" value="${finalCount}" min="0" max="99">
                         <span class="num-unit">名</span>
                     </div>
-                    <div class="constraint-msg" id="constraint-${className}">
+                    <div class="constraint-msg" id="constraint-${key}">
                         準決勝ありの場合、決勝人数は1以上にしてください
                     </div>
                 </div>
@@ -265,34 +276,70 @@
                 <div class="rule-label">E審判人数</div>
                 <div class="rule-controls">
                     <div class="num-input-wrap">
-                        <input type="number" id="e-judge-${className}" value="${eJudge}" min="1" max="10">
+                        <input type="number" id="e-judge-${key}" value="${eJudge}" min="1" max="10">
                         <span class="num-unit">名</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- ToF デフォルト入力モード -->
+            <div class="rule-row">
+                <div class="rule-label">ToF 入力</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="tof-mode-${key}" value="auto" ${tofMode === 'auto' ? 'checked' : ''}>
+                            <span>読込（自動）</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="tof-mode-${key}" value="manual" ${tofMode === 'manual' ? 'checked' : ''}>
+                            <span>手動入力</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HD デフォルト入力モード -->
+            <div class="rule-row">
+                <div class="rule-label">HD 入力</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="hd-mode-${key}" value="auto" ${hdMode === 'auto' ? 'checked' : ''}>
+                            <span>読込（自動）</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="hd-mode-${key}" value="manual" ${hdMode === 'manual' ? 'checked' : ''}>
+                            <span>手動入力</span>
+                        </label>
+                    </div>
+                    <div style="font-size:0.75rem;color:#90a4ae;margin-top:4px;">テクニカルコンソールでのデフォルト入力方式</div>
                 </div>
             </div>
         `;
 
         // 予選本数の変更で順位決定方式を表示切替
-        card.querySelectorAll(`input[name="qual-${className}"]`).forEach(radio => {
+        card.querySelectorAll(`input[name="qual-${key}"]`).forEach(radio => {
             radio.addEventListener('change', () => {
-                const row = document.getElementById(`score-mode-row-${className}`);
+                const row = document.getElementById(`score-mode-row-${key}`);
                 row.classList.toggle('hidden', radio.value === '1');
             });
         });
 
         // 準決勝の変更で決勝人数の制約チェック
-        card.querySelectorAll(`input[name="semi-${className}"]`).forEach(radio => {
-            radio.addEventListener('change', () => validateFinal(className));
+        card.querySelectorAll(`input[name="semi-${key}"]`).forEach(radio => {
+            radio.addEventListener('change', () => validateFinal(className, type));
         });
-        card.querySelector(`#final-count-${className}`).addEventListener('input', () => validateFinal(className));
+        card.querySelector(`#final-count-${key}`).addEventListener('input', () => validateFinal(className, type));
 
         return card;
     }
 
-    function validateFinal(className) {
-        const semiVal = document.querySelector(`input[name="semi-${className}"]:checked`)?.value === 'true';
-        const finalCount = parseInt(document.getElementById(`final-count-${className}`).value) || 0;
-        const msg = document.getElementById(`constraint-${className}`);
+    function validateFinal(className, type) {
+        const key = `${type}-${className}`;
+        const semiVal = document.querySelector(`input[name="semi-${key}"]:checked`)?.value === 'true';
+        const finalCount = parseInt(document.getElementById(`final-count-${key}`).value) || 0;
+        const msg = document.getElementById(`constraint-${key}`);
         const invalid = semiVal && finalCount < 1;
         msg.classList.toggle('show', invalid);
         return !invalid;
@@ -302,7 +349,7 @@
         // バリデーション
         let valid = true;
         document.querySelectorAll('.class-card').forEach(card => {
-            if (!validateFinal(card.dataset.class)) valid = false;
+            if (!validateFinal(card.dataset.class, card.dataset.type)) valid = false;
         });
         if (!valid) { showToast('入力内容を確認してください', true); return; }
 
@@ -317,11 +364,14 @@
             document.querySelectorAll('.class-card').forEach(card => {
                 const name = card.dataset.class;
                 const type = card.dataset.type;
-                const qualRoutes = parseInt(card.querySelector(`input[name="qual-${name}"]:checked`)?.value) || 2;
-                const scoreMode  = card.querySelector(`input[name="score-${name}"]:checked`)?.value || 'best';
-                const semifinal  = card.querySelector(`input[name="semi-${name}"]:checked`)?.value === 'true';
-                const finalCount = parseInt(card.querySelector(`#final-count-${name}`).value) || 0;
-                const eJudge     = parseInt(card.querySelector(`#e-judge-${name}`).value) || 1;
+                const key  = `${type}-${name}`;
+                const qualRoutes = parseInt(card.querySelector(`input[name="qual-${key}"]:checked`)?.value) || 2;
+                const scoreMode  = card.querySelector(`input[name="score-${key}"]:checked`)?.value || 'best';
+                const semifinal  = card.querySelector(`input[name="semi-${key}"]:checked`)?.value === 'true';
+                const finalCount = parseInt(card.querySelector(`#final-count-${key}`).value) || 0;
+                const eJudge         = parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
+                const tofDefaultMode = card.querySelector(`input[name="tof-mode-${key}"]:checked`)?.value || 'auto';
+                const hdDefaultMode  = card.querySelector(`input[name="hd-mode-${key}"]:checked`)?.value  || 'auto';
 
                 const ruleObj = {
                     qualifyingRoutines: qualRoutes,
@@ -329,16 +379,20 @@
                     semifinalEnabled: semifinal,
                     finalCount,
                     eJudgeCount: eJudge,
+                    tofDefaultMode,
+                    hdDefaultMode,
                     hasFinal: finalCount > 0
                 };
                 if (type === 'synchro') synchro[name] = ruleObj;
                 else individual[name] = ruleObj;
             });
 
-            await setDoc(doc(db, 'tournaments', eventId), {
+            // updateDoc を使って classRules フィールドを完全上書き
+            // （merge:true だと古い synchro のキーが消えないため）
+            await updateDoc(doc(db, 'tournaments', eventId), {
                 classRules: { individual, synchro },
                 updatedAt: serverTimestamp()
-            }, { merge: true });
+            });
 
             location.href = `admin_menu.html?event=${eventId}`;
         } catch (e) {

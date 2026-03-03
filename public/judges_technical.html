@@ -13,24 +13,30 @@
         
         /* サイドバー */
         .sidebar { width: 320px; background: var(--sidebar-bg); border-right: 1px solid #333; display: flex; flex-direction: column; flex-shrink: 0; color: #333; }
-        .sidebar-header { padding: 20px; background: var(--primary); color: white; }
+        .sidebar-header { padding: 16px 20px; background: var(--primary); color: white; flex-shrink: 0; }
+        .sidebar-filters { background: #eceff1; border-bottom: 2px solid #cfd8dc; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+        .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+        .filter-label { font-size: 0.58rem; color: #90a4ae; font-weight: bold; text-transform: uppercase; min-width: 24px; }
+        .tab-btn { padding: 4px 10px; border-radius: 20px; border: 1px solid #b0bec5; background: white; color: #546e7a; font-size: 0.72rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
         .sidebar-list { flex-grow: 1; overflow-y: auto; padding-bottom: 50px; }
-        
+
         .cat-group { background: #cfd8dc; padding: 8px 15px; font-size: 0.8rem; font-weight: bold; color: #37474f; border-bottom: 1px solid #b0bec5; }
         .gender-group { background: #f1f3f4; padding: 5px 20px; font-size: 0.7rem; font-weight: bold; color: #78909c; }
         .athlete-row { padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .active-athlete { background: #e3f2fd; }
         .ath-name-text { font-size: 0.85rem; font-weight: bold; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ath-order { color: var(--accent); margin-right: 5px; font-family: monospace; }
-        
+        .ath-pair { font-size: 0.72rem; color: #78909c; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
         .round-box { display: flex; gap: 4px; }
-        .r-dot { 
-            width: 32px; height: 24px; border-radius: 4px; font-size: 0.65rem; 
-            display: flex; align-items: center; justify-content: center; 
+        .r-dot {
+            width: 32px; height: 24px; border-radius: 4px; font-size: 0.65rem;
+            display: flex; align-items: center; justify-content: center;
             background: #eee; color: #999; text-decoration: none; font-weight: bold; border: 1px solid transparent;
         }
-        .r-dot.has-sub { background: #e3f2fd; color: #1a73e8; } 
-        .r-dot.has-res { background: #e8f5e9; color: #2e7d32; } 
+        .r-dot.has-sub { background: #e3f2fd; color: #1a73e8; }
+        .r-dot.has-res { background: #e8f5e9; color: #2e7d32; }
         .r-dot.current { border: 2px solid #000; background: #fff; color: var(--accent); }
 
         /* メインコンソール */
@@ -42,11 +48,17 @@
         .main-content { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
 
         /* テーブル */
-        .monitor-table { width: 100%; border-collapse: separate; border-spacing: 2px; }
-        .monitor-table th, .monitor-table td { padding: 10px; text-align: center; border-radius: 4px; background: rgba(255,255,255,0.03); }
+        /* table-layout:fixed でセル幅固定。width:100% で画面幅を使い切り、
+           min-width:700px で狭い画面ではスクロール対応 */
+        .monitor-table { width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
+        .monitor-table th, .monitor-table td { padding: 8px 6px; text-align: center; border-radius: 4px; background: rgba(255,255,255,0.03); font-size: 1.1rem; overflow: hidden; white-space: nowrap; }
         .monitor-table th { background: #2a2e35; font-size: 0.65rem; color: var(--text-dim); }
         .skill-header { color: var(--accent) !important; font-weight: bold; }
         .val-filled { color: var(--success); font-weight: bold; }
+        /* 中間2名ハイライト */
+        .middle-cell { background: rgba(0,230,118,0.18) !important; color: #fff !important; font-weight: 900; outline: 1px solid rgba(0,230,118,0.5); }
+        .middle-row td { background: rgba(0,230,118,0.07) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(0,230,118,0.3); }
+        .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
 
         /* 入力エリア */
         .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
@@ -61,6 +73,54 @@
         .score-box div { font-size: 2.2rem; font-weight: 900; font-family: monospace; }
         
         .btn-confirm { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 1.1rem; font-weight: 900; cursor: pointer; }
+
+        /* 手動入力モード */
+        .btn-manual-toggle { background: transparent; color: #ff9800; border: 2px solid #ff9800; padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+        .btn-manual-toggle.active { background: #ff9800; color: #000; }
+        .manual-banner { background: #e65100; color: white; text-align: center; padding: 5px 10px; font-size: 0.8rem; font-weight: bold; display: none; letter-spacing: 0.03em; flex-shrink: 0; }
+        .manual-banner.show { display: block; }
+        input.manual-input { width: 44px; background: #111; border: 1px solid #ff9800; color: #fff; border-radius: 4px; padding: 4px 2px; font-size: 1.1rem; text-align: center; -moz-appearance: textfield; }
+        input.manual-input::-webkit-outer-spin-button, input.manual-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input.manual-input:focus { border-color: #ffc107; outline: none; box-shadow: 0 0 0 2px rgba(255,152,0,0.3); }
+        .btn-save-manual { background: #e65100; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+        .btn-save-manual:hover { background: #bf360c; }
+        .manual-saved { color: #00e676; font-size: 0.78rem; font-weight: bold; }
+        /* 行ごとの手動入力ボタン */
+        /* 読込/手動切り替えスイッチ */
+        .mode-toggle-box { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .mode-toggle-row { display: flex; align-items: center; gap: 8px; }
+        .mode-lbl { font-size: 0.7rem; font-weight: bold; color: var(--text-dim); transition: color 0.2s; }
+        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 22px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .toggle-track { position: absolute; cursor: pointer; inset: 0; background: #37474f; border-radius: 22px; transition: 0.25s; }
+        .toggle-track::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: 0.25s; }
+        .toggle-switch input:checked + .toggle-track { background: #ff9800; }
+        .toggle-switch input:checked + .toggle-track::before { transform: translateX(22px); }
+        /* セル直接編集（手動モード） */
+        .manual-cell { color: #ff9800; font-weight: bold; cursor: default; outline: none; }
+        .manual-cell:focus { background: rgba(255,152,0,0.25) !important; box-shadow: 0 0 0 1px #ff9800 inset; border-radius: 3px; }
+        .manual-cell.null-val { color: rgba(255,152,0,0.35); font-weight: normal; }
+        /* 行ごとの小型トグル */
+        .toggle-col { padding: 3px !important; vertical-align: middle; background: transparent !important; }
+        .toggle-switch-sm { position: relative; display: inline-block; width: 30px; height: 16px; }
+        .toggle-switch-sm input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .track-sm { position: absolute; cursor: pointer; inset: 0; background: #37474f; border-radius: 16px; transition: 0.2s; }
+        .track-sm::before { content: ''; position: absolute; width: 12px; height: 12px; left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.2s; }
+        .toggle-switch-sm input:checked + .track-sm { background: #ff9800; }
+        .toggle-switch-sm input:checked + .track-sm::before { transform: translateX(14px); }
+        /* ToF/HD モード切替ボタン */
+        .btn-th-mode { float: right; background: transparent; border: 1px solid #37474f; color: #78909c; padding: 1px 5px; border-radius: 3px; font-size: 0.6rem; cursor: pointer; transition: 0.15s; margin-left: 4px; }
+        .btn-th-mode.manual { border-color: #ff9800; color: #ff9800; }
+        /* D情報行（申請・実施・DD） */
+        .d-info-row th { font-size: 0.9rem; color: var(--text-dim); background: rgba(26,115,232,0.06); font-weight: normal; }
+        .d-info-row.d-confirmed th { background: rgba(0,230,118,0.08); color: var(--success); }
+        /* D確定バッジ */
+        .d-badge { font-size: 0.72rem; background: var(--success); color: #000; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
+        /* DD合計セル（ボーナス内訳を2行表示するため折り返しを許可） */
+        #dd-total-cell { white-space: normal; line-height: 1.3; }
+        /* D手動入力セル */
+        .d-manual-cell { color: #ff9800 !important; font-weight: bold !important; cursor: text; border-radius: 3px; }
+        .d-manual-cell:focus { background: rgba(255,152,0,0.2) !important; outline: 1px solid #ff9800; }
     </style>
 </head>
 <body>
@@ -71,12 +131,15 @@
         <div id="event-name-sidebar" style="font-weight: 900; font-size: 1.1rem; margin-top: 5px;">Loading...</div>
         <a href="#" id="menu-back" style="color: white; font-size: 0.7rem; text-decoration: none; display: block; margin-top: 10px; opacity: 0.7;">← ポータルに戻る</a>
     </div>
+    <div id="sidebar-filters" class="sidebar-filters"></div>
     <div id="sidebar-list" class="sidebar-list"></div>
 </div>
 
 <div class="console-wrapper">
     <div class="top-bar">
         <div id="panel-role-label" style="font-size: 0.8rem; font-weight: bold; color: var(--accent);">PANEL - | ROLE -</div>
+        <div></div>
+        <button onclick="fillDummyData()" style="background:transparent;border:1px solid #37474f;color:#546e7a;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
     </div>
 
@@ -89,23 +152,49 @@
     </div>
 
     <div class="main-content">
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
         <table class="monitor-table">
+            <colgroup>
+                <col style="width:70px"><!-- Judge/申請/実施/DD: 固定 -->
+                <col><col><col><col><col><col><col><col><col><col><!-- S1-S10: 均等自動分配 -->
+                <col><!-- Ln: S列と同幅 -->
+                <col style="width:62px"><!-- Total/SUM: 固定 -->
+                <col style="width:36px"><!-- toggle: 固定 -->
+            </colgroup>
             <thead>
-                <tr id="skill-symbols-row">
-                    <th style="width:70px;">Skill</th>
-                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
-                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
-                    <th>Ln</th><th>SUM</th>
+                <!-- 申請行 -->
+                <tr class="d-info-row" id="declared-row">
+                    <th style="width:70px;">申請</th>
+                    <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
+                    <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
+                    <th>-</th><th>-</th><th></th>
                 </tr>
+                <!-- 実施行 -->
+                <tr class="d-info-row" id="skill-symbols-row">
+                    <th style="width:70px;">実施 <span id="d-confirmed-badge"></span></th>
+                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
+                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
+                    <th>Ln</th><th>SUM</th><th></th>
+                </tr>
+                <!-- DD行 -->
+                <tr class="d-info-row" id="dd-row">
+                    <th style="width:70px;">DD <button class="btn-th-mode" id="d-mode-btn" onclick="toggleDMode()">読込</button></th>
+                    <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
+                    <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
+                    <th>-</th><th id="dd-total-cell">-</th><th></th>
+                </tr>
+                <!-- 審判ヘッダー行 -->
                 <tr>
                     <th>Judge</th>
                     <th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th>
                     <th>S6</th><th>S7</th><th>S8</th><th>S9</th><th>S10</th>
                     <th>Ln</th><th>Total</th>
+                    <th style="width:36px;font-size:0.55rem;color:#78909c;line-height:1.2">手動<br>入力</th>
                 </tr>
             </thead>
             <tbody id="judge-rows"></tbody>
         </table>
+        </div>
 
         <div class="input-grid">
             <div class="input-card">
@@ -116,15 +205,22 @@
                     <option value="4">4本</option><option value="3">3本</option><option value="2">2本</option><option value="1">1本</option><option value="0">0本</option>
                 </select>
             </div>
-            <div class="input-card"><label>ToF (T)</label><input type="number" id="tof" step="0.001" onchange="calc()"></div>
-            <div class="input-card"><label>HD</label><input type="number" id="hd" step="0.1" onchange="calc()"></div>
+            <div class="input-card">
+                <label>ToF (T) <button class="btn-th-mode" id="tof-mode-btn" onclick="toggleTofMode()">読込</button></label>
+                <input type="number" id="tof" step="0.001" onchange="calc()">
+            </div>
+            <div class="input-card">
+                <label>HD <button class="btn-th-mode" id="hd-mode-btn" onclick="toggleHdMode()">読込</button></label>
+                <input type="number" id="hd" step="0.1" onchange="calc()">
+            </div>
             <div class="input-card"><label>PENALTY (P)</label><input type="number" id="pen" step="0.1" value="0.0" onchange="calc()"></div>
         </div>
 
         <div class="score-summary">
             <div class="score-box"><label>Difficulty</label><div id="res-d">0.0</div></div>
             <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
-            <div class="score-box"><label>T + HD</label><div id="res-th">0.000</div></div>
+            <div class="score-box"><label>T</label><div id="res-t">0.000</div></div>
+            <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
             <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
         </div>
 
@@ -141,9 +237,14 @@
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
-    const athleteId = params.get('athlete'), round = params.get('round') || "pre1";
+    let athleteId = params.get('athlete'), round = params.get('round') || "pre1";
 
     let athletes = [], submissions = {}, results = {}, currentTour = null;
+    let fType = 'individual', fClass = '', fGender = '';
+    let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null;
+    let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
+    let skillMasterMap = {};  // skillId → { symbol, dd, ... }
+    let dMode = 'auto';       // 'auto' | 'manual'
 
     async function init() {
         if (!eventId) return;
@@ -151,12 +252,23 @@
         document.getElementById('exit-link').href = `judge_role_select.html?event=${eventId}`;
         document.getElementById('panel-role-label').innerText = `PANEL ${panel} | ROLE ${role}`;
 
-        const [tourSnap, athSnap, subSnap, resSnap] = await Promise.all([
+        const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await Promise.all([
             getDoc(doc(db, "tournaments", eventId)),
             getDocs(collection(db, "tournaments", eventId, "athletes")),
             getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
-            getDocs(query(collection(db, "results"), where("eventId", "==", eventId)))
+            getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
+            getDocs(collection(db, "skillMaster"))
         ]);
+        // Firestore skillMaster → skillMasterMap（ドキュメントID = 数値文字列）
+        smSnap.forEach(d => {
+            skillMasterMap[d.id] = {
+                id: d.id,
+                symbol: d.data().symbol,
+                dd: parseFloat(d.data().dd) || 0,
+                isTriple: d.data().isTriple === true,
+                direction: d.data().direction || ''
+            };
+        });
 
         currentTour = tourSnap.data();
         document.getElementById('event-name-sidebar').innerText = currentTour.name;
@@ -165,86 +277,483 @@
         resSnap.forEach(d => results[d.id] = d.data());
 
         renderSidebar();
+        renderScores({}); // 審判行を常に表示（numExecJudges 人分の空行）
 
         if (athleteId) {
             const ath = athletes.find(a => a.id === athleteId);
             if (ath) {
                 document.getElementById('ath-name').innerText = `No.${ath.order} ${ath.name1}`;
-                document.getElementById('ath-meta').innerText = `${ath.category} / ${round.toUpperCase()}`;
+                document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${round.toUpperCase()}`;
+
+                // E審判が自動追従するために liveState を更新（パネルごとに分離）
+                await setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: {
+                        [panel]: {
+                            athleteId,
+                            athleteName: `No.${ath.order} ${ath.name1}`,
+                            athleteClass: ath.class || ath.category || '',
+                            round,
+                            updatedAt: serverTimestamp()
+                        }
+                    }
+                }, { merge: true });
             }
             watchScores();
+            // クラスルールのToF/HDデフォルトモードを適用
+            const ath2 = athletes.find(a => a.id === athleteId);
+            if (ath2) {
+                const athType  = ath2.type || 'individual';
+                const athClass = ath2.class || ath2.category || '';
+                const cRule    = currentTour.classRules?.[athType]?.[athClass] || {};
+                // 新形式(tofDefaultMode/hdDefaultMode)、旧形式(tofHdDefaultMode)両対応
+                if ((cRule.tofDefaultMode || cRule.tofHdDefaultMode) === 'manual') toggleTofMode();
+                if ((cRule.hdDefaultMode  || cRule.tofHdDefaultMode) === 'manual') toggleHdMode();
+            }
         }
     }
 
     function renderSidebar() {
+        const isSynchro = fType === 'synchro';
+
+        // 種目でまず分ける
+        const byType = athletes.filter(a => (a.type || 'individual') === fType);
+
+        // クラス一覧（表示順を維持）
+        const classes = [...new Set(byType.map(a => a.class || a.category || ''))];
+
+        // 性別一覧（個人・シンクロ共通）
+        const genders = [...new Set(byType.map(a => a.gender || ''))].filter(Boolean);
+
+        // タブ描画
+        const hasType = athletes.some(a => (a.type || 'individual') === 'synchro'); // シンクロ選手が存在するか
+        const filterEl = document.getElementById('sidebar-filters');
+        let filHtml = '';
+
+        if (hasType) {
+            filHtml += `<div class="filter-row">
+                <span class="filter-label">種目</span>
+                <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
+                <button class="tab-btn ${fType==='synchro'?'active':''}" onclick="setFilter('type','synchro')">シンクロ</button>
+            </div>`;
+        }
+
+        if (classes.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">クラス</span>
+                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">全て</button>
+                ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c}')">${c}</button>`).join('')}
+            </div>`;
+        }
+
+        if (genders.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">性別</span>
+                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">全て</button>
+                ${genders.map(g => `<button class="tab-btn ${fGender===g?'active':''}" onclick="setFilter('gender','${g}')">${g}</button>`).join('')}
+            </div>`;
+        }
+
+        filterEl.style.display = filHtml ? '' : 'none';
+        filterEl.innerHTML = filHtml;
+
+        // 絞り込み＆ソート
+        const filtered = byType
+            .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+            .filter(a => !fGender || (a.gender || '') === fGender)
+            .sort((a, b) => {
+                const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                if (ca !== cb) return ca.localeCompare(cb);
+                const ga = a.gender || '', gb = b.gender || '';
+                if (ga !== gb) return ga.localeCompare(gb);
+                return (a.order ?? 999) - (b.order ?? 999);
+            });
+
         const listEl = document.getElementById('sidebar-list');
         listEl.innerHTML = "";
-        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
-
         let lastCat = "", lastGender = "";
-        athletes.forEach(ath => {
-            if (ath.category !== lastCat) { listEl.innerHTML += `<div class="cat-group">${ath.category}</div>`; lastCat = ath.category; lastGender = ""; }
-            if (ath.gender !== lastGender) { listEl.innerHTML += `<div class="gender-group">${ath.gender}</div>`; lastGender = ath.gender; }
+
+        filtered.forEach(ath => {
+            const cls = ath.class || ath.category || '';
+            if (cls !== lastCat) {
+                listEl.innerHTML += `<div class="cat-group">${cls}</div>`;
+                lastCat = cls; lastGender = "";
+            }
+            if ((ath.gender || '') !== lastGender) {
+                listEl.innerHTML += `<div class="gender-group">${ath.gender || ''}</div>`;
+                lastGender = ath.gender || '';
+            }
+
+            // クラスごとの予選本数を classRules から取得（なければトップレベル値にフォールバック）
+            const athType = ath.type || 'individual';
+            const classRule = currentTour.classRules?.[athType]?.[cls] || {};
+            const numPre = classRule.qualifyingRoutines ?? currentTour.qualifyingRoutines ?? 1;
 
             let dotsHtml = "";
-            const numPre = currentTour.qualifyingRoutines || 1;
-            for(let i=1; i<=numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
-            if(currentTour.hasFinal) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+            for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
 
             const isActive = ath.id === athleteId;
+            const nameHtml = isSynchro
+                ? `<span class="ath-order">${ath.order}.</span>${ath.name1} / ${ath.name2 || ''}`
+                : `<span class="ath-order">${ath.order}.</span>${ath.name1}`;
+
             listEl.innerHTML += `
                 <div class="athlete-row ${isActive ? 'active-athlete' : ''}">
-                    <div class="ath-name-text"><span class="ath-order">${ath.order}.</span>${ath.name1}</div>
+                    <div class="ath-name-text">${nameHtml}</div>
                     <div class="round-box">${dotsHtml}</div>
                 </div>`;
         });
     }
 
+    window.setFilter = (key, val) => {
+        if (key === 'type')   { fType = val; fClass = ''; fGender = ''; }
+        if (key === 'class')  fClass  = val;
+        if (key === 'gender') fGender = val;
+        renderSidebar();
+    };
+
     function getDotHtml(aid, rid, label) {
         const id = `${eventId}_${aid}_${rid}`;
-        const cls = (results[id] ? 'has-res' : (submissions[id] ? 'has-sub' : '')) + 
+        const cls = (results[id]?.published ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
                     (aid === athleteId && rid === round ? ' current' : '');
-        return `<a href="judges_technical.html?event=${eventId}&panel=${panel}&role=${role}&athlete=${aid}&round=${rid}" class="r-dot ${cls}">${label}</a>`;
+        return `<a href="#" class="r-dot ${cls}" onclick="switchAthlete('${aid}','${rid}');return false;">${label}</a>`;
     }
 
+    // ---- 選手切り替え（ページリロードなし） ----
+    window.switchAthlete = async function(aid, rid) {
+        if (aid === athleteId && rid === round) return;
+
+        // 変数更新
+        athleteId = aid;
+        round = rid;
+
+        // 手動入力状態リセット
+        manualRows = new Set();
+        pendingEdits = {};
+        latestData = {};
+
+        // D mode リセット
+        dMode = 'auto';
+        const dBtn = document.getElementById('d-mode-btn');
+        if (dBtn) { dBtn.textContent = '読込'; dBtn.classList.remove('manual'); }
+        document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+        document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+
+        // ToF/HD mode リセット（auto に戻す）
+        if (tofMode === 'manual') toggleTofMode();
+        if (hdMode === 'manual') toggleHdMode();
+
+        // バナー更新
+        const ath = athletes.find(a => a.id === aid);
+        if (ath) {
+            document.getElementById('ath-name').innerText = `No.${ath.order} ${ath.name1}`;
+            document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${rid.toUpperCase()}`;
+
+            // liveState 更新
+            await setDoc(doc(db, 'tournaments', eventId), {
+                liveState: { [panel]: {
+                    athleteId: aid,
+                    athleteName: `No.${ath.order} ${ath.name1}`,
+                    athleteClass: ath.class || ath.category || '',
+                    round: rid, updatedAt: serverTimestamp()
+                }}
+            }, { merge: true });
+
+            // クラスルールのデフォルトモード適用
+            const athType = ath.type || 'individual';
+            const athClass = ath.class || ath.category || '';
+            const cRule = currentTour.classRules?.[athType]?.[athClass] || {};
+            // 新形式(tofDefaultMode/hdDefaultMode)、旧形式(tofHdDefaultMode)両対応
+            if ((cRule.tofDefaultMode || cRule.tofHdDefaultMode) === 'manual') { if (tofMode === 'auto') toggleTofMode(); }
+            if ((cRule.hdDefaultMode  || cRule.tofHdDefaultMode) === 'manual') { if (hdMode  === 'auto') toggleHdMode();  }
+        }
+
+        // URL 更新（ブラウザ履歴に残す）
+        history.pushState({}, '', `judges_technical.html?event=${eventId}&panel=${panel}&role=${role}&athlete=${aid}&round=${rid}`);
+
+        // サイドバー更新 → スコア監視開始
+        renderSidebar();
+        watchScores();
+    };
+
     function watchScores() {
+        if (unsubscribeScores) unsubscribeScores();
         const resId = `${eventId}_${athleteId}_${round}`;
-        onSnapshot(doc(db, "results", resId), (snap) => {
-            if (snap.exists()) renderScores(snap.data());
+        // pendingEdits はキーダウンで直接更新するため、watchScores では latestData を更新して再描画のみ
+        unsubscribeScores = onSnapshot(doc(db, "results", resId), (snap) => {
+            latestData = snap.exists() ? snap.data() : {};
+            renderScores(latestData);
         });
     }
 
+    // ---- 中間2名ルール ----
+    // values: 各E審判の減点値（null=未入力）
+    // 返り値: { sum: 中間2名の和, indices: 中間2名のインデックスSet }
+    function middle2(values) {
+        const filled = values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
+        if (filled.length < 2) return { sum: 0, indices: new Set() };
+        const sorted = [...filled].sort((a, b) => a.v - b.v);
+        const n = sorted.length;
+        // n=4: index 1,2 / n=6: index 2,3 / 汎用: floor((n-2)/2), floor((n-2)/2)+1
+        const mid = Math.floor((n - 2) / 2);
+        return {
+            sum:     sorted[mid].v + sorted[mid + 1].v,
+            indices: new Set([sorted[mid].i, sorted[mid + 1].i])
+        };
+    }
+
+    // ---- 演技点計算 ----
+    function calcExecution(data) {
+        // パネルプレフィックスでフィルタリングし、表示用にプレフィックスを除去
+        const allJudges   = data?.execution?.judges || {};
+        const panelPrefix = `${panel}_`;
+        const judges      = Object.fromEntries(
+            Object.entries(allJudges)
+                .filter(([k]) => k.startsWith(panelPrefix))
+                .map(([k, v]) => [k.slice(panelPrefix.length), v])
+        );
+        const vLimit = data?.validCount ?? 10;
+        const numE   = currentTour?.numExecJudges || 6;
+        const jKeys  = Array.from({ length: numE }, (_, i) => `E${i + 1}`);
+
+        // 各技の中間2名
+        const skillResults = Array.from({ length: 10 }, (_, si) => {
+            const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
+            return middle2(vals);
+        });
+
+        // 着地の中間2名（有効本数=10のときのみ）
+        const landingResult = vLimit === 10
+            ? middle2(jKeys.map(k => judges[k]?.landing ?? null))
+            : { sum: 0, indices: new Set() };
+
+        // 合計減点 = 有効本数分の各技減点合計 + 着地減点
+        const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
+                        + landingResult.sum;
+        const execution = (vLimit * 2.0) - totalDed;
+
+        return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges };
+    }
+
+    // ---- スコア表示 ----
     function renderScores(data) {
+        latestData = data;
         document.getElementById('valid-count').value = data.validCount ?? 10;
-        document.getElementById('res-d').innerText = data.officialTotalDD?.toFixed(1) || "0.0";
+        document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
         document.getElementById('dd-label').innerText = `DD: ${data.officialTotalDD?.toFixed(1) || "0.0"}`;
-        
-        const skills = data.officialSkills || [];
-        const skillCells = document.querySelectorAll('.skill-header');
-        skillCells.forEach((el, i) => el.innerText = skills[i] || "-");
+
+        // ---- D情報行 ----
+        const resId = `${eventId}_${athleteId}_${round}`;
+        const subSkills = submissions[resId]?.skills || [];
+        const execSkills = data.officialSkills || [];
+        const vLimitD = data.validCount ?? 10;
+
+        // 申請行（数値IDはシンボルへ変換、重複は赤）
+        {
+            const seenIds = new Set();
+            document.querySelectorAll('.d-declared').forEach((el, i) => {
+                const s = subSkills[i];
+                el.style.color = '';
+                if (!s) { el.textContent = '-'; return; }
+                const rawVal = typeof s === 'string' ? s : (s.skill || '');
+                if (!rawVal) { el.textContent = '-'; return; }
+                let sym, skillId;
+                if (!isNaN(rawVal) && rawVal !== '' && skillMasterMap[rawVal]) {
+                    sym = skillMasterMap[rawVal].symbol;
+                    skillId = rawVal;
+                } else {
+                    sym = rawVal;
+                    const found = Object.entries(skillMasterMap).find(([_, v]) => v.symbol === sym);
+                    skillId = found ? found[0] : null;
+                }
+                el.textContent = sym || rawVal;
+                if (skillId && seenIds.has(skillId)) {
+                    el.style.color = 'var(--danger)';
+                } else if (skillId) {
+                    seenIds.add(skillId);
+                }
+            });
+        }
+
+        // 実施行（officialSkills → skillMasterMap でシンボル取得、重複は赤）
+        if (dMode === 'auto') {
+            const seenIds = new Set();
+            document.querySelectorAll('.skill-header').forEach((el, i) => {
+                el.style.color = '';
+                const id = execSkills[i];
+                if (i >= vLimitD || !id) { el.textContent = '-'; return; }
+                const skill = skillMasterMap[id];
+                if (!skill) { el.textContent = id; return; }
+                el.textContent = skill.symbol;
+                if (seenIds.has(id)) {
+                    el.style.color = 'var(--danger)';
+                } else {
+                    seenIds.add(id);
+                }
+            });
+        }
+
+        // D確定バッジ・緑枠
+        const badge = document.getElementById('d-confirmed-badge');
+        const dInfoRows = document.querySelectorAll('.d-info-row');
+        if (data.verifiedAt) {
+            badge.textContent = '✓ D確定';
+            badge.className = 'd-badge';
+            dInfoRows.forEach(r => r.classList.add('d-confirmed'));
+        } else {
+            badge.textContent = '';
+            badge.className = '';
+            dInfoRows.forEach(r => r.classList.remove('d-confirmed'));
+        }
+
+        // DD行（重複=0.0赤、ボーナス計算）
+        if (dMode === 'auto') {
+            const ath = athletes.find(a => a.id === athleteId);
+            const gender = ath?.gender || '';
+            const seenIds = new Set();
+            let baseDD = 0, tripleCount = 0;
+
+            document.querySelectorAll('.d-dd').forEach((el, i) => {
+                el.style.color = '';
+                el.style.fontWeight = '';
+                const id = execSkills[i];
+                if (i >= vLimitD || !id) { el.textContent = i >= vLimitD ? '' : '-'; return; }
+                const skill = skillMasterMap[id];
+                if (!skill) { el.textContent = '-'; return; }
+                if (seenIds.has(id)) {
+                    el.textContent = '0.0';
+                    el.style.color = 'var(--danger)';
+                    el.style.fontWeight = 'bold';
+                } else {
+                    el.textContent = skill.dd.toFixed(1);
+                    baseDD += skill.dd;
+                    if (skill.isTriple) tripleCount++;
+                    seenIds.add(id);
+                }
+            });
+
+            // ボーナス計算（男子:5本目以降のトリプル×0.3、女子:3本目以降のトリプル×0.3）
+            let bonus = 0;
+            if (gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+            else if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+
+            const totalDD = baseDD + bonus;
+            const ddTotalCell = document.getElementById('dd-total-cell');
+            if (baseDD > 0) {
+                ddTotalCell.innerHTML = bonus > 0
+                    ? `${totalDD.toFixed(1)}<br><span style="font-size:0.6rem;color:#90a4ae">${baseDD.toFixed(1)}+B${bonus.toFixed(1)}</span>`
+                    : baseDD.toFixed(1);
+            } else {
+                ddTotalCell.textContent = '-';
+            }
+
+            // 青い箱のD・dd-label も更新
+            document.getElementById('res-d').innerText = totalDD > 0 ? totalDD.toFixed(1) : "0.0";
+            document.getElementById('dd-label').innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : "0.0"}`;
+        }
+
+        // pendingEdits を Firestore フォーマットに変換してマージ（中間2名計算用）
+        let mergedData = data;
+        if (manualRows.size > 0) {
+            const existingJudges = data?.execution?.judges || {};
+            const mergedJudges = { ...existingJudges };
+            manualRows.forEach(jKey => {
+                const pe = pendingEdits[jKey];
+                if (!pe) return;
+                const deductions = Array.from({length: 10}, (_, i) => {
+                    const d = pe.deductions?.[i] ?? null;
+                    return d !== null ? d / 10 : null;
+                });
+                const landing = pe.landing !== null ? pe.landing / 10 : null;
+                mergedJudges[`${panel}_${jKey}`] = { deductions, landing };
+            });
+            mergedData = { ...data, execution: { ...(data.execution || {}), judges: mergedJudges } };
+        }
+
+        const ec = calcExecution(mergedData);
+        const { skillResults, landingResult, totalDed, vLimit, numE, jKeys, judges } = ec;
+
+        // フォーカス位置を記憶（re-render後に復元するため）
+        const activeEl = document.activeElement;
+        const focusJKey = activeEl?.dataset?.jkey;
+        const focusIdx  = activeEl?.dataset?.idx;
+        const focusIsLanding = activeEl?.classList?.contains('manual-landing-cell');
 
         const tbody = document.getElementById('judge-rows');
         tbody.innerHTML = "";
-        const judges = data.execution?.judges || {};
-        const vLimit = data.validCount ?? 10;
-        const numE = currentTour.numExecJudges || 6;
 
-        for (let i = 1; i <= numE; i++) {
-            const jKey = `E${i}`;
+        // 各E審判の行
+        jKeys.forEach((jKey, jIdx) => {
             const jData = judges[jKey] || { deductions: Array(10).fill(null), landing: null };
-            let row = `<tr><td>E${i}</td>`;
-            jData.deductions.forEach((v, idx) => {
-                row += `<td class="${v!==null?'val-filled':''}" style="${idx>=vLimit?'opacity:0.1':''}">${v!==null?v.toFixed(1):'-'}</td>`;
-            });
-            row += `<td class="${jData.landing!==null?'val-filled':''}" style="${vLimit<10?'opacity:0.1':''}">${jData.landing!==null?jData.landing.toFixed(1):'-'}</td>`;
-            row += `<td style="background:rgba(255,255,255,0.05)">${(jData.totalDeduction || 0).toFixed(1)}</td></tr>`;
+            const isManual = manualRows.has(jKey);
+            const pe = pendingEdits[jKey];
+
+            const rowStyle = isManual ? ' style="background:rgba(255,152,0,0.05)"' : '';
+            let row = `<tr${rowStyle}><td>${jKey}</td>`;
+
+            for (let i = 0; i < 10; i++) {
+                const v        = jData.deductions?.[i] ?? null;
+                const isMiddle = i < vLimit && skillResults[i].indices.has(jIdx);
+                const dimStyle = i >= vLimit ? 'opacity:0.15;' : '';
+                if (isManual) {
+                    const cur = pe?.deductions?.[i] ?? null;
+                    const valStr = cur !== null ? cur : '0';
+                    const nullCls = cur === null ? ' null-val' : '';
+                    row += `<td class="manual-cell${nullCls}" tabindex="0" data-jkey="${jKey}" data-idx="${i}" style="${dimStyle}">${valStr}</td>`;
+                } else {
+                    const cls = [v !== null ? 'val-filled' : '', isMiddle ? 'middle-cell' : ''].join(' ');
+                    row += `<td class="${cls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
+                }
+            }
+            // 着地
+            const lv        = jData.landing ?? null;
+            const isLandMid = vLimit === 10 && landingResult.indices.has(jIdx);
+            if (isManual) {
+                const curLv = pe?.landing ?? null;
+                const valLv = curLv !== null ? curLv : '0';
+                const nullLvCls = curLv === null ? ' null-val' : '';
+                const disAttrs = vLimit < 10 ? ' tabindex="-1" style="opacity:0.3;"' : ' tabindex="0"';
+                row += `<td class="manual-cell manual-landing-cell${nullLvCls}" data-jkey="${jKey}"${disAttrs}>${vLimit < 10 ? '-' : valLv}</td>`;
+                // 手動入力中の合計（pendingEditsから計算）
+                const manualDedSum = Array.from({length: vLimit}, (_, i) => {
+                    const d = pe?.deductions?.[i] ?? null;
+                    return d !== null ? d / 10 : 0;
+                }).reduce((a, b) => a + b, 0) + (vLimit === 10 && curLv !== null ? curLv / 10 : 0);
+                row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
+            } else {
+                const lnCls = [lv !== null ? 'val-filled' : '', isLandMid ? 'middle-cell' : ''].join(' ');
+                row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
+                row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
+            }
+            // 行ごとのトグルスイッチ（Total右）
+            row += `<td class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" ${isManual ? 'checked' : ''} onchange="toggleRowManual('${jKey}', this.checked)"><span class="track-sm"></span></label></td>`;
+            row += `</tr>`;
             tbody.innerHTML += row;
+        });
+
+        // 中間2名合計行（データがない技は "-"）
+        const hasJudgeData = Object.keys(judges).length > 0;
+        let m2Row = `<tr class="middle-row"><td>Med</td>`;
+        for (let i = 0; i < 10; i++) {
+            const hasVal = hasJudgeData && skillResults[i].indices.size > 0;
+            m2Row += i < vLimit
+                ? `<td>${hasVal ? Math.round(skillResults[i].sum * 10) : '-'}</td>`
+                : `<td style="opacity:0.15">-</td>`;
         }
-        
-        document.getElementById('tof').value = data.tof || "";
-        document.getElementById('hd').value = data.hd?.total || "";
+        const hasLanding = hasJudgeData && landingResult.indices.size > 0;
+        m2Row += `<td>${vLimit === 10 && hasLanding ? Math.round(landingResult.sum * 10) : '-'}</td>`;
+        m2Row += `<td class="ded-total">${hasJudgeData ? ec.execution.toFixed(1) : '-'}</td><td></td></tr>`;
+        tbody.innerHTML += m2Row;
+
+        // フォーカスを復元（手動入力行の再描画後）
+        if (focusJKey && manualRows.has(focusJKey)) {
+            const toFocus = focusIsLanding
+                ? document.querySelector(`.manual-landing-cell[data-jkey="${focusJKey}"]`)
+                : document.querySelector(`.manual-cell[data-jkey="${focusJKey}"][data-idx="${focusIdx}"]`);
+            if (toFocus) toFocus.focus();
+        }
+
+        if (tofMode === 'auto') document.getElementById('tof').value = data.tof || "";
+        if (hdMode === 'auto')  document.getElementById('hd').value  = data.hd?.total || "";
         document.getElementById('pen').value = data.penalty || 0;
-        calc(data);
+        updateScoreSummary(ec, hasJudgeData);
     }
 
     window.updateValid = async (val) => {
@@ -252,19 +761,301 @@
         await setDoc(doc(db, "results", resId), { validCount: parseInt(val) }, { merge: true });
     };
 
-    window.calc = function(data) {
+    window.calc = function(data) { updateScoreSummary(data ? calcExecution(data) : null); };
+
+    function updateScoreSummary(ec, hasJudgeData = true) {
         const d = parseFloat(document.getElementById('res-d').innerText) || 0;
-        const e = 18.2; // ここに中間値計算ロジックを入れる
+        const e = ec ? (hasJudgeData ? ec.execution : 0)
+                     : (parseFloat(document.getElementById('res-e').innerText) || 0);
         const t = parseFloat(document.getElementById('tof').value) || 0;
         const h = parseFloat(document.getElementById('hd').value) || 0;
         const p = parseFloat(document.getElementById('pen').value) || 0;
-        
-        document.getElementById('res-e').innerText = e.toFixed(1);
-        document.getElementById('res-th').innerText = (t + h).toFixed(3);
-        document.getElementById('res-total').innerText = (d + e + t + h - p).toFixed(3);
+
+        document.getElementById('res-e').innerText     = e.toFixed(1);
+        document.getElementById('res-t').innerText     = t.toFixed(3);
+        document.getElementById('res-hd').innerText    = h.toFixed(3);
+        document.getElementById('res-total').innerText = Math.max(0, d + e + t + h - p).toFixed(3);
+    }
+
+    window.toggleRowManual = function(jKey, on) {
+        if (on) {
+            manualRows.add(jKey);
+            const allJudges = latestData?.execution?.judges || {};
+            const jd = allJudges[`${panel}_${jKey}`] || {};
+            pendingEdits[jKey] = {
+                deductions: Array.from({ length: 10 }, (_, i) =>
+                    jd.deductions?.[i] != null ? Math.round(jd.deductions[i] * 10) : null),
+                landing: jd.landing != null ? Math.round(jd.landing * 10) : null
+            };
+        } else {
+            manualRows.delete(jKey);
+            delete pendingEdits[jKey];
+        }
+        renderScores(latestData);
+        if (on) {
+            setTimeout(() => {
+                const first = document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="0"]`);
+                if (first) first.focus();
+            }, 30);
+        }
     };
 
-    window.publish = () => { alert("公式スコアを送信しました。"); };
+    window.toggleTofMode = function() {
+        tofMode = tofMode === 'auto' ? 'manual' : 'auto';
+        const btn = document.getElementById('tof-mode-btn');
+        const inp = document.getElementById('tof');
+        if (tofMode === 'manual') {
+            btn.textContent = '手動'; btn.classList.add('manual');
+            inp.style.borderColor = '#ff9800'; inp.style.color = '#ff9800';
+            inp.style.background = 'rgba(255,152,0,0.06)';
+        } else {
+            btn.textContent = '読込'; btn.classList.remove('manual');
+            inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
+            inp.value = latestData.tof || ""; calc();
+        }
+    };
+
+    window.toggleHdMode = function() {
+        hdMode = hdMode === 'auto' ? 'manual' : 'auto';
+        const btn = document.getElementById('hd-mode-btn');
+        const inp = document.getElementById('hd');
+        if (hdMode === 'manual') {
+            btn.textContent = '手動'; btn.classList.add('manual');
+            inp.style.borderColor = '#ff9800'; inp.style.color = '#ff9800';
+            inp.style.background = 'rgba(255,152,0,0.06)';
+        } else {
+            btn.textContent = '読込'; btn.classList.remove('manual');
+            inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
+            inp.value = latestData.hd?.total || ""; calc();
+        }
+    };
+
+    window.toggleDMode = function() {
+        dMode = dMode === 'auto' ? 'manual' : 'auto';
+        const btn = document.getElementById('d-mode-btn');
+        const ddCells   = document.querySelectorAll('.d-dd');
+        const execCells = document.querySelectorAll('.skill-header');
+        if (dMode === 'manual') {
+            btn.textContent = '手動'; btn.classList.add('manual');
+            ddCells.forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+            execCells.forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+        } else {
+            btn.textContent = '読込'; btn.classList.remove('manual');
+            ddCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            execCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            renderScores(latestData);
+        }
+    };
+
+    // DD手動入力セルのリアルタイム合計更新（Eスコアをリセットしないよう直接計算）
+    document.addEventListener('input', function(e) {
+        if (!e.target.classList.contains('d-dd')) return;
+        let total = 0;
+        document.querySelectorAll('.d-dd').forEach(cell => {
+            total += parseFloat(cell.textContent) || 0;
+        });
+        document.getElementById('dd-total-cell').textContent = total.toFixed(1);
+        document.getElementById('res-d').innerText = total.toFixed(1);
+        document.getElementById('dd-label').innerText = `DD: ${total.toFixed(1)}`;
+        // 現在表示中のEスコアをそのまま使って合計を再計算
+        const eVal = parseFloat(document.getElementById('res-e').innerText) || 0;
+        const t    = parseFloat(document.getElementById('tof').value) || 0;
+        const h    = parseFloat(document.getElementById('hd').value) || 0;
+        const p    = parseFloat(document.getElementById('pen').value) || 0;
+        document.getElementById('res-total').innerText = Math.max(0, total + eVal + t + h - p).toFixed(3);
+    });
+
+    window.publish = async () => {
+        if (!athleteId) return;
+
+        const resId  = `${eventId}_${athleteId}_${round}`;
+        const vLimit = parseInt(document.getElementById('valid-count').value) || 10;
+        const d      = parseFloat(document.getElementById('res-d').innerText) || 0;
+        const e      = parseFloat(document.getElementById('res-e').innerText) || 0;
+        const t      = parseFloat(document.getElementById('res-t').innerText) || 0;
+        const h      = parseFloat(document.getElementById('res-hd').innerText) || 0;
+        const th     = t + h;
+        const total  = parseFloat(document.getElementById('res-total').innerText) || 0;
+
+        const saveData = {
+            published: true, publishedAt: serverTimestamp(),
+            verifiedAt: serverTimestamp(),
+            tof: t, hd: { total: h },
+            officialD: d, officialE: e, officialTH: th, officialTotal: total
+        };
+
+        // D手動入力モードの場合、officialSkills と officialTotalDD も保存
+        if (dMode === 'manual') {
+            const manualSymbols = [...document.querySelectorAll('.skill-header')].map(el =>
+                (el.textContent === '-' || el.textContent === '') ? '' : el.textContent.trim());
+            const manualDDs = [...document.querySelectorAll('.d-dd')].map(el => parseFloat(el.textContent) || 0);
+            saveData.officialSkills = manualSymbols;
+            saveData.officialTotalDD = manualDDs.reduce((a, b) => a + b, 0);
+        }
+
+        // 手動入力行がある場合、execution.judges を手動値＋既存値でマージして保存
+        if (manualRows.size > 0) {
+            const numE = currentTour?.numExecJudges || 6;
+            const judgesData = {};
+            const existingJudges = latestData?.execution?.judges || {};
+            Array.from({ length: numE }, (_, i) => `E${i + 1}`).forEach(jKey => {
+                if (manualRows.has(jKey)) {
+                    const deductions = Array.from({ length: 10 }, (_, i) => {
+                        const pe = pendingEdits[jKey]?.deductions?.[i] ?? null;
+                        return pe !== null ? Math.min(10, Math.max(0, pe)) / 10 : 0;
+                    });
+                    const peL = pendingEdits[jKey]?.landing ?? null;
+                    const landing = vLimit === 10 ? (peL !== null ? Math.min(10, Math.max(0, peL)) / 10 : 0) : 0;
+                    const totalDeduction = deductions.slice(0, vLimit).reduce((a, b) => a + b, 0) + landing;
+                    judgesData[`${panel}_${jKey}`] = { deductions, landing, totalDeduction };
+                } else {
+                    const existing = existingJudges[`${panel}_${jKey}`];
+                    if (existing) judgesData[`${panel}_${jKey}`] = existing;
+                }
+            });
+            saveData.execution = { judges: judgesData };
+        }
+
+        try {
+            await setDoc(doc(db, "results", resId), saveData, { merge: true });
+            if (!results[resId]) results[resId] = {};
+            results[resId].published = true;
+            renderSidebar();
+        } catch (err) {
+            alert('送信に失敗しました: ' + err.message);
+        }
+    };
+
+    // ---- キーボードナビゲーション（手動入力セル） ----
+    // 数字キー: 値セット → 自動的に右隣のセルへ移動  ←/→: セル間移動
+    document.addEventListener('keydown', function(e) {
+        const td = e.target;
+        if (!td.matches('td.manual-cell')) return;
+
+        const jKey = td.dataset.jkey;
+        const isLanding = td.classList.contains('manual-landing-cell');
+        const idx = isLanding ? null : parseInt(td.dataset.idx);
+        const vLimit = parseInt(document.getElementById('valid-count').value) || 10;
+
+        if (e.key >= '0' && e.key <= '9') {
+            e.preventDefault();
+            const val = parseInt(e.key);
+            if (!pendingEdits[jKey]) pendingEdits[jKey] = { deductions: Array(10).fill(null), landing: null };
+            if (!isLanding) pendingEdits[jKey].deductions[idx] = val;
+            else            pendingEdits[jKey].landing = val;
+            td.textContent = val;
+            td.classList.remove('null-val');
+            updateManualTotal(jKey, vLimit);
+            updateManualMed(vLimit);
+            getNextManualCell(jKey, idx, isLanding, vLimit)?.focus();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            getNextManualCell(jKey, idx, isLanding, vLimit)?.focus();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            getPrevManualCell(jKey, idx, isLanding)?.focus();
+        }
+    }, true);
+
+    function updateManualTotal(jKey, vLimit) {
+        const pe = pendingEdits[jKey];
+        if (!pe) return;
+        const dedSum = Array.from({length: vLimit}, (_, i) => {
+            const d = pe.deductions?.[i] ?? null;
+            return d !== null ? d / 10 : 0;
+        }).reduce((a, b) => a + b, 0) + (vLimit === 10 && pe.landing !== null ? pe.landing / 10 : 0);
+        const score = vLimit - dedSum;
+        // Total列はLanding列の直後の <td>。行内の最後から2番目のtd（toggleが最後）
+        const row = document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="0"]`)?.closest('tr');
+        if (!row) return;
+        const cells = row.querySelectorAll('td');
+        const totalCell = cells[cells.length - 2]; // 最後=toggle、その前=Total
+        if (totalCell) { totalCell.textContent = score.toFixed(1); totalCell.style.color = '#ff9800'; }
+    }
+
+    function updateManualMed(vLimit) {
+        const numE = currentTour?.numExecJudges || 6;
+        const jKeys = Array.from({length: numE}, (_, i) => `E${i + 1}`);
+
+        // マージされた審判データを構築（pendingEdits + Firestore）
+        const existingJudges = latestData?.execution?.judges || {};
+        const mergedJudges = {};
+        jKeys.forEach(jKey => {
+            const fullKey = `${panel}_${jKey}`;
+            if (manualRows.has(jKey)) {
+                const pe = pendingEdits[jKey];
+                if (!pe) return;
+                mergedJudges[fullKey] = {
+                    deductions: Array.from({length: 10}, (_, i) => {
+                        const d = pe.deductions?.[i] ?? null;
+                        return d !== null ? d / 10 : null;
+                    }),
+                    landing: pe.landing !== null ? pe.landing / 10 : null
+                };
+            } else if (existingJudges[fullKey]) {
+                mergedJudges[fullKey] = existingJudges[fullKey];
+            }
+        });
+
+        // 各技・着地の中間2名を計算
+        const skillResults = Array.from({length: 10}, (_, si) => {
+            const vals = jKeys.map(k => (mergedJudges[`${panel}_${k}`]?.deductions || [])[si] ?? null);
+            return middle2(vals);
+        });
+        const landingResult = vLimit === 10
+            ? middle2(jKeys.map(k => mergedJudges[`${panel}_${k}`]?.landing ?? null))
+            : { sum: 0, indices: new Set() };
+        const totalDed = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0) + landingResult.sum;
+
+        // Med行のセルを in-place 更新
+        const medRow = document.querySelector('#judge-rows .middle-row');
+        if (!medRow) return;
+        const cells = medRow.querySelectorAll('td');
+        // cells[0]=Med, cells[1..10]=S1-S10, cells[11]=Ln, cells[12]=SUM合計
+        const hasData = Object.keys(mergedJudges).length > 0;
+        for (let i = 0; i < 10; i++) {
+            const hasVal = hasData && skillResults[i].indices.size > 0;
+            if (i < vLimit) cells[i + 1].textContent = hasVal ? Math.round(skillResults[i].sum * 10) : '-';
+        }
+        const hasLanding = hasData && landingResult.indices.size > 0;
+        cells[11].textContent = vLimit === 10 && hasLanding ? Math.round(landingResult.sum * 10) : '-';
+        const execution = (vLimit * 2.0) - totalDed;
+        cells[12].textContent = hasData ? execution.toFixed(1) : '-';
+        // 青い箱のEスコア・Totalもリアルタイム更新
+        if (hasData) {
+            document.getElementById('res-e').innerText = execution.toFixed(1);
+            const d = parseFloat(document.getElementById('res-d').innerText) || 0;
+            const t = parseFloat(document.getElementById('tof').value) || 0;
+            const h = parseFloat(document.getElementById('hd').value) || 0;
+            const p = parseFloat(document.getElementById('pen').value) || 0;
+            document.getElementById('res-total').innerText = Math.max(0, d + execution + t + h - p).toFixed(3);
+        }
+    }
+
+    window.fillDummyData = function() {
+        const vLimit = parseInt(document.getElementById('valid-count').value) || 10;
+        const numE = currentTour?.numExecJudges || 6;
+        Array.from({length: numE}, (_, i) => `E${i + 1}`).forEach(jKey => {
+            manualRows.add(jKey);
+            pendingEdits[jKey] = {
+                deductions: Array.from({length: 10}, () => Math.floor(Math.random() * 6)),
+                landing: vLimit === 10 ? Math.floor(Math.random() * 6) : null
+            };
+        });
+        renderScores(latestData);
+    };
+
+    function getNextManualCell(jKey, idx, isLanding, vLimit) {
+        if (isLanding) return null;
+        if (idx < 9) return document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="${idx + 1}"]`);
+        if (idx === 9 && vLimit === 10) return document.querySelector(`.manual-landing-cell[data-jkey="${jKey}"]`);
+        return null;
+    }
+    function getPrevManualCell(jKey, idx, isLanding) {
+        if (isLanding) return document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="9"]`);
+        if (idx > 0)   return document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="${idx - 1}"]`);
+        return null;
+    }
 
     init();
 </script>

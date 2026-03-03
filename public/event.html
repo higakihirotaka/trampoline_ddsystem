@@ -98,18 +98,28 @@
                            Object.keys(rawClassRules).length > 0 ? { individual: rawClassRules, synchro: {} } :
                            { individual: {}, synchro: {} };
         
+        // 大会設定の display_order を使ってクラス表示順を決定
+        const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+        let indivClassOrder = [], syncClassOrder = [];
+        if (tour.classes && !Array.isArray(tour.classes)) {
+            indivClassOrder = sortByOrder(tour.classes.individual).map(c => c.name);
+            syncClassOrder  = sortByOrder(tour.classes.synchro).map(c => c.name);
+        } else if (Array.isArray(tour.classes)) {
+            indivClassOrder = sortByOrder(tour.classes).map(c => c.name);
+        }
+
         const indivContainer = document.getElementById('indiv-list');
         if (indivAthletes.length > 0) {
-            indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' + renderAthleteTables(indivAthletes, classRules.individual, subDataMap, eventId, 'individual', rawClassRules);
+            indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' + renderAthleteTables(indivAthletes, classRules.individual, subDataMap, eventId, 'individual', rawClassRules, indivClassOrder);
         }
 
         const syncContainer = document.getElementById('sync-list');
         if (syncAthletes.length > 0) {
-            syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' + renderAthleteTables(syncAthletes, classRules.synchro, subDataMap, eventId, 'synchro', rawClassRules);
+            syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' + renderAthleteTables(syncAthletes, classRules.synchro, subDataMap, eventId, 'synchro', rawClassRules, syncClassOrder);
         }
     }
 
-    function renderAthleteTables(athletes, rulesByType, subDataMap, eventId, type, fallbackRules = {}) {
+    function renderAthleteTables(athletes, rulesByType, subDataMap, eventId, type, fallbackRules = {}, classOrder = []) {
         const athletesByClass = athletes.reduce((acc, ath) => {
             const className = ath.class || 'N/A';
             if (!acc[className]) acc[className] = [];
@@ -117,7 +127,10 @@
             return acc;
         }, {});
 
-        const sortedClasses = Object.keys(athletesByClass).sort();
+        // display_order 順 → 未定義クラスはアルファベット順で末尾に追加
+        const ordered  = classOrder.filter(name => athletesByClass[name]);
+        const leftover = Object.keys(athletesByClass).filter(name => !classOrder.includes(name)).sort();
+        const sortedClasses = [...ordered, ...leftover];
         let finalHtml = '';
 
         for (const className of sortedClasses) {

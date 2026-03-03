@@ -76,7 +76,11 @@
         }
     }
     window.go = (p, r) => {
-        let url = r.startsWith('E') ? "judges_execution.html" : (r === 'D' ? "judges_entry.html" : "judges_technical.html");
+        let url;
+        if (r.startsWith('E'))       url = "judges_execution.html";
+        else if (r === 'D')          url = "judges_entry.html";
+        else if (r === 'T' || r === 'HD') url = "judges_tof_hd.html";
+        else                         url = "judges_technical.html";
         location.href = `${url}?event=${eventId}&panel=${p}&role=${r}`;
     };
     init();
