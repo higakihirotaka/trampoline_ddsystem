@@ -236,9 +236,10 @@
         for (let i = 0; i < 10; i++) {
             if (i < vLimit) {
                 const offId  = officialSkills[i];
-                const skill  = skillMaster[offId];
+                const skill  = skillMaster.find(m => m.id === String(offId));
                 const subRaw = sub.skills[i] || "";
-                const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+                const subSkillRaw = (typeof subRaw === 'object' && subRaw !== null) ? subRaw.skill : subRaw;
+                const subSkill = isNaN(subSkillRaw) ? skillMaster.find(m => m.symbol === subSkillRaw) : skillMaster.find(m => m.id === String(subSkillRaw));
                 const isDiff = skill && subSkill && skill.symbol !== subSkill.symbol;
                 if (isDiff) hasAnyDiff = true;
 

@@ -134,12 +134,13 @@
 
         const skillsData = subDoc.exists() ? subDoc.data().skills : [];
         const savedSkillIds = skillsData.map(s => {
-            if (typeof s === 'object' && s !== null) {
+            if (s === null || s === undefined) return "";
+            if (typeof s === 'object') {
                 // 通常申告フォーマット: { skill: "記号", dd: 0.0 }
                 const found = skillMaster.find(m => m.symbol === s.skill);
                 return found ? found.id : "";
             }
-            // 一括登録フォーマット: "5" などの ID 文字列
+            // 一括登録フォーマット: IDの文字列または数値
             const sStr = String(s);
             return skillMaster.find(m => m.id === sStr) ? sStr : "";
         });

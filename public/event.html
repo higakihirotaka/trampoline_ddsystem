@@ -77,7 +77,7 @@
         if (!tourSnap.exists()) return;
         const tour = tourSnap.data();
         document.getElementById('event-title').innerText = tour.name;
-        document.getElementById('event-date').innerText = `${tour.startDate} ～ ${tour.endDate}`;
+        document.getElementById('event-date').innerText = `${tour.startDate || tour.start_date || ''} ～ ${tour.endDate || tour.end_date || ''}`;
         
         startGlobalTimers(tour);
 
