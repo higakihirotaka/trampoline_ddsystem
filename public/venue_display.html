@@ -437,12 +437,14 @@
     );
   }
 
-  // ---- 技ごとのE減点 ----
+  // ---- 技ごとのE減点（データなし→null、表示は×10の整数） ----
   function getSkillEDed(panelJudges, si) {
     if (!panelJudges) return null;
     const jKeys = Object.keys(panelJudges);
     if (jKeys.length < 2) return null;
-    const vals = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
+    const vals   = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
+    const filled = vals.filter(v => v !== null);
+    if (filled.length === 0) return null;  // 審判未入力
     return mid2sum(vals);
   }
 
@@ -451,7 +453,9 @@
     if (!panelJudges) return null;
     const jKeys = Object.keys(panelJudges);
     if (jKeys.length < 2) return null;
-    const vals = jKeys.map(k => panelJudges[k]?.landing ?? null);
+    const vals   = jKeys.map(k => panelJudges[k]?.landing ?? null);
+    const filled = vals.filter(v => v !== null);
+    if (filled.length === 0) return null;
     return mid2sum(vals);
   }
 
@@ -522,8 +526,8 @@
 
     const vLimit        = resData.validCount ?? 10;
     const officialSkills= resData.officialSkills || [];
-    const panelJudges   = (resData.officialE === undefined || resData.officialE === null)
-                          ? getPanelJudges(resData) : null;
+    // officialE の有無に関わらず、技ごとの表示には審判ごとのデータを使う
+    const panelJudges   = getPanelJudges(resData);
 
     // ---- 技ごとデータ計算 ----
     const seenIds = new Set();
@@ -565,7 +569,7 @@
       }
 
       const eDedVal  = getSkillEDed(panelJudges, i);
-      const eDisplay = eDedVal !== null ? eDedVal.toFixed(1) : '--';
+      const eDisplay = eDedVal !== null ? Math.round(eDedVal * 10) : '--';
       const hasAlert = isDiff || isRepeat;
       const dCodeTxt = skill ? skill.symbol : '-';
       const dValTxt  = skill ? (isRepeat ? '0.0' : displayDD.toFixed(1)) : '-';
@@ -592,7 +596,7 @@
     const bonusCol = `
       <div class="skill-stack bonus-style">
         <div class="col-idx">LAN</div>
-        <div class="card e-card"><div class="e-val num">${landDed !== null ? landDed.toFixed(1) : '--'}</div></div>
+        <div class="card e-card"><div class="e-val num">${landDed !== null ? Math.round(landDed * 10) : '--'}</div></div>
         <div class="bonus-note-block">
           <span>D-SCORE</span>
           <span>BONUS</span>
