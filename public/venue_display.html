@@ -577,7 +577,7 @@
       skillCols.push(`
         <div class="skill-stack">
           <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
-          <div class="card e-card"><div class="e-val num${hasAlert ? ' alert' : ''}">${eDisplay}</div></div>
+          <div class="card e-card"><div class="e-val num">${eDisplay}</div></div>
           <div class="card d-card">
             <div class="d-code${hasAlert ? ' alert' : ''}">${dCodeTxt}</div>
             <div class="d-val num${hasAlert ? ' alert' : ''}">${dValTxt}</div>
@@ -622,6 +622,7 @@
 
     const isPublished = resData.published === true;
     const fmt1 = v => (v !== null && v !== undefined) ? Number(v).toFixed(1) : '--';
+    const fmt2 = v => (v !== null && v !== undefined) ? Number(v).toFixed(2) : '--';
     const fmt3 = v => (v !== null && v !== undefined) ? Number(v).toFixed(3) : '--';
 
     // ---- 他ラウンド結果 & 順位 ----
@@ -686,11 +687,11 @@
       </div>
 
       <div class="breakdown-row">
-        <div class="stat-item"><label>Exec.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(eScore)}</div></div>
+        <div class="stat-item"><label>Exec.</label><div class="val num">${fmt1(eScore)}</div></div>
         <div class="stat-item"><label>Diff.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(dScore)}</div></div>
         <div class="stat-item"><label>ToF</label><div class="val num">${fmt3(tScore)}</div></div>
-        <div class="stat-item"><label>HD</label><div class="val num">${fmt3(hdScore)}</div></div>
-        <div class="stat-item"><label>Penalty</label><div class="val num">${fmt1(pScore > 0 ? pScore : null)}</div></div>
+        <div class="stat-item"><label>HD</label><div class="val num">${fmt2(hdScore)}</div></div>
+        <div class="stat-item"><label>Penalty</label><div class="val num">${fmt1(pScore)}</div></div>
       </div>
 
       <div class="result-section">
@@ -698,7 +699,7 @@
         <div class="final-results">
           <div class="score-unit">
             <label>${isPublished ? 'TOTAL' : 'TOTAL*'}</label>
-            <div class="total-val num${hasAnyDiff ? ' alert':''}">${fmt3(totalScore)}</div>
+            <div class="total-val num">${fmt3(totalScore)}</div>
           </div>
           <div class="score-unit">
             <label>RANK</label>
