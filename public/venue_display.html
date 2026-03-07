@@ -1,388 +1,909 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trampoline Card System - Venue Monitor</title>
-    <style>
-        :root { --bg: #000000; --accent: #2979ff; --danger: #ff1744; --success: #00e676; --text-main: #ffffff; --text-dim: #b0bec5; }
-        body, html { margin: 0; padding: 0; background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; height: 100vh; width: 100vw; overflow: hidden; }
-
-        .dashboard { display: flex; flex-direction: column; height: 100vh; padding: 0; box-sizing: border-box; }
-
-        /* ヘッダー */
-        .header { flex-shrink: 0; height: 6vh; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); padding: 0 2vw; background: #0a0a0a; }
-        .header-title { font-size: 1.3vw; font-weight: 900; color: var(--accent); }
-        #event-name { font-size: 1.1vw; font-weight: bold; }
-        #clock { font-family: monospace; font-size: 1.3vw; }
-
-        .result-container { flex: 1; display: flex; flex-direction: column; padding: 0 2vw; justify-content: space-between; min-height: 0; }
-
-        /* 選手情報 */
-        .athlete-info { flex-shrink: 0; border-left: 12px solid var(--accent); padding-left: 1.5vw; margin: 1vh 0; }
-        .athlete-info h1 { margin: 0; font-size: 2.2vw; font-weight: 900; line-height: 1; }
-        .athlete-info p { margin: 0 0 2px 0; font-size: 1.4vw; color: var(--accent); font-weight: bold; }
-
-        /* テーブルエリア */
-        .table-container { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
-        .score-table { width: 100%; height: 100%; border-collapse: collapse; }
-        .score-table tr { height: calc(100% / 11); }
-        .score-table th { color: var(--accent); border-bottom: 3px solid #333; font-size: 1vw; text-transform: uppercase; letter-spacing: 2px; }
-        .score-table td { text-align: center; border-bottom: 1px solid #1a1a1a; color: #ffffff; font-size: 4.2vh; padding: 0; }
-
-        .col-idx { font-weight: 900; font-size: 0.8em; color: #ffffff !important; }
-        .col-sub { font-family: monospace; font-weight: 400; opacity: 0.9; }
-        .col-off { font-weight: 900; font-size: 1.2em; }
-
-        .diff-alert { color: var(--danger) !important; text-shadow: 0 0 15px rgba(255, 23, 68, 0.7); }
-        .zero-alert { color: var(--danger) !important; font-weight: 900; }
-
-        /* スコア集計バー */
-        .score-bar {
-            flex-shrink: 0;
-            height: 20vh;
-            display: flex;
-            align-items: stretch;
-            background: rgba(255,255,255,0.04);
-            border-radius: 12px;
-            margin: 0.8vh 0;
-            border: 1px solid #1e1e2e;
-            overflow: hidden;
-        }
-
-        /* DD詳細グループ（左） */
-        .dd-group {
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 0.8vh;
-            padding: 0 2.5vw;
-        }
-        .dd-row { display: flex; justify-content: space-between; align-items: baseline; gap: 2vw; }
-        .dd-item { display: flex; flex-direction: column; align-items: center; }
-        .dd-item label { font-size: 0.65vw; color: var(--text-dim); font-weight: bold; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
-        .dd-item span { font-size: 1.6vw; font-weight: 900; font-family: monospace; }
-
-        /* 区切り線 */
-        .bar-divider { width: 1px; background: #2a2a3e; flex-shrink: 0; }
-
-        /* スコア内訳グループ（中） */
-        .score-group {
-            flex: 1;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 2vw;
-        }
-        .score-item { text-align: center; }
-        .score-item label { font-size: 0.72vw; color: var(--text-dim); font-weight: bold; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 4px; }
-        .score-item span { font-size: 3vw; font-weight: 900; font-family: monospace; }
-        .score-item.tscore span, .score-item.hdscore span { font-size: 2.2vw; }
-        .score-item.pitem span { font-size: 1.8vw; color: var(--danger); }
-        .score-item.pitem label { color: var(--danger); }
-
-        /* TOTAL（右） */
-        .total-group {
-            flex-shrink: 0;
-            min-width: 18vw;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 0 2.5vw;
-            background: rgba(0,230,118,0.04);
-            border-left: 1px solid #1e1e2e;
-        }
-        .total-group label { font-size: 0.85vw; color: var(--text-dim); font-weight: bold; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 4px; }
-        .grand-total { font-size: 6.5vw; font-weight: 900; font-family: monospace; color: var(--success); line-height: 1; }
-        .grand-total.diff-alert { color: var(--danger); text-shadow: 0 0 25px rgba(255, 23, 68, 0.5); }
-        .grand-total.provisional { color: var(--text-dim); }
-
-        /* フッター */
-        .footer-credits { flex-shrink: 0; background: #000; color: #fff; text-align: center; padding: 0.5vh 0; border-top: 1px solid #333; }
-        .dev-info { font-size: 0.7vw; letter-spacing: 5px; text-transform: uppercase; opacity: 0.6; }
-        .dev-name { font-weight: 900; opacity: 0.8; }
-
-        .content-wrap { animation: fadeIn 0.4s ease-out; height: 100%; display: flex; flex-direction: column; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .no-val { color: #455a64; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trampoline Competition Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg-dark: #000c1a;
+      --bg-panel: rgba(255,255,255,0.08);
+      --accent-gold: #ffd700;
+      --accent-cyan: #00f2ff;
+      --text-white: #ffffff;
+      --text-muted: #cbd5e0;
+      --border-ui: rgba(0,242,255,0.2);
+      --alert-red: #ff3d3d;
+      --font-ui: "DIN 2014","DIN 2014 Demi","DIN 2014 Bold",
+                 "DIN Alternate","DIN Condensed",
+                 "Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",
+                 system-ui,-apple-system,"Segoe UI",sans-serif;
+      --left-col: 8cqw;
+      --col-gap: 0.6cqw;
+      --frame-pad-x: 3cqw;
+    }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Regular.woff2") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-SemiBold.woff2") format("woff2"); font-weight:600; font-style:normal; font-display:swap; }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Bold.woff2") format("woff2"); font-weight:700; font-style:normal; font-display:swap; }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-ExtraBold.woff2") format("woff2"); font-weight:800; font-style:normal; font-display:swap; }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Black.woff2") format("woff2"); font-weight:900; font-style:normal; font-display:swap; }
+    html, body{
+      margin:0; padding:0; height:100%; width:100%;
+      background:#000; color:var(--text-white);
+      font-family:var(--font-ui);
+      overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+    }
+    *{ box-sizing:border-box; }
+    .num{
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1, "lnum" 1;
+    }
+    .monitor-frame{
+      aspect-ratio: 16 / 9;
+      width:100%;
+      height:auto;
+      max-width:100%;
+      max-height:100%;
+      background: radial-gradient(circle at 50% 0%, #001e3d 0%, #000810 100%);
+      display:grid;
+      grid-template-rows: 6.5% 17.5% 40% 10% 22% 4%;
+      padding: 0 var(--frame-pad-x);
+      border: 1px solid rgba(0,242,255,0.1);
+      container-type: inline-size;
+    }
+    @supports not (width: 1cqw){
+      :root{ --left-col: 8vw; --col-gap: 0.6vw; --frame-pad-x: 3vw; }
+    }
+    /* ===== アニメーション ===== */
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(1.2cqh); filter: blur(2px); }
+      to   { opacity: 1; transform: translateY(0);      filter: blur(0); }
+    }
+    .convention-header,.athlete-section,.ribbon-wrapper,.breakdown-row,.result-section,.footer-credits{
+      opacity:0; animation: enter 2600ms ease-out forwards;
+    }
+    .convention-header{ animation-delay:    0ms; }
+    .athlete-section  { animation-delay: 1400ms; }
+    .ribbon-wrapper   { animation-delay: 2800ms; }
+    .breakdown-row    { animation-delay: 4200ms; }
+    .result-section   { animation-delay: 5600ms; }
+    .footer-credits   { animation-delay: 7000ms; }
+    /* スコア更新時はアニメなし */
+    .monitor-frame.no-anim .convention-header,
+    .monitor-frame.no-anim .athlete-section,
+    .monitor-frame.no-anim .ribbon-wrapper,
+    .monitor-frame.no-anim .breakdown-row,
+    .monitor-frame.no-anim .result-section,
+    .monitor-frame.no-anim .footer-credits{
+      animation: none !important;
+      opacity: 1 !important;
+    }
+    @media (prefers-reduced-motion: reduce){
+      *{ animation:none !important; transition:none !important; }
+      .convention-header,.athlete-section,.ribbon-wrapper,.breakdown-row,.result-section,.footer-credits{ opacity:1 !important; }
+    }
+    /* ===== 1. 大会名 ===== */
+    .convention-header{
+      border-bottom: 1.5px solid var(--border-ui);
+      display:flex; align-items:center; justify-content:center;
+      font-size: 1.1cqw; font-weight:700;
+      letter-spacing: 0.8cqw;
+      text-transform: uppercase;
+      white-space: nowrap; overflow:hidden; text-overflow: ellipsis;
+    }
+    /* ===== 2. 選手情報 ===== */
+    .athlete-section{
+      display:grid;
+      grid-template-columns: var(--left-col) repeat(11, 1fr);
+      column-gap: var(--col-gap);
+      grid-template-rows: auto 1fr;
+      align-items:end;
+      padding-bottom: 2cqh;
+      min-height:0;
+    }
+    .class-no{
+      grid-column: 1 / 7; grid-row: 1;
+      font-size: 1.8cqw; font-weight:800;
+      color: var(--accent-gold);
+      line-height: 1.1;
+      white-space: nowrap;
+      align-self:end;
+      padding-bottom: 0.5cqh;
+    }
+    .session-info{
+      grid-column: 8 / -1; grid-row: 1;
+      text-align:right;
+      color: var(--text-muted);
+      font-size: 1cqw; font-weight:700;
+      line-height: 1.3;
+      white-space: nowrap;
+      align-self:end;
+      padding-bottom: 0.5cqh;
+    }
+    .athlete-identity-group{
+      grid-column: 1 / -1; grid-row: 2;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:flex-end;
+      pointer-events:none;
+      min-height:0;
+      padding-bottom: 0.6cqh;
+    }
+    .athlete-name{
+      font-size: 5.5cqw; font-weight:900;
+      line-height: 0.9;
+      letter-spacing: -2px;
+      margin:0;
+      white-space: nowrap;
+      text-shadow: 0 0 30px rgba(0,242,255,0.2);
+    }
+    .athlete-team{
+      font-size: 2.2cqw; font-weight:900;
+      color: var(--text-white);
+      margin-top: 1.35cqh;
+      text-transform: uppercase;
+      opacity: 0.95;
+      letter-spacing: 0.15cqw;
+      text-shadow: 0 0 22px rgba(0,242,255,0.15);
+      line-height: 1.05;
+    }
+    /* ===== 3. リボン ===== */
+    .ribbon-wrapper{
+      display:grid;
+      grid-template-columns: var(--left-col) repeat(11, 1fr);
+      column-gap: var(--col-gap);
+      align-items: stretch;
+      padding-bottom: 1cqh;
+      min-height:0;
+    }
+    .row-labels{
+      display:grid;
+      grid-template-rows: 12fr 50fr 19fr 19fr;
+      row-gap:0;
+      text-align:right;
+      color: var(--text-muted);
+      font-weight:900;
+      font-size: 1.05cqw;
+      min-height:0;
+    }
+    .row-title{
+      display:flex; align-items:center; justify-content:flex-end;
+      text-transform: uppercase;
+      white-space: nowrap;
+      letter-spacing: 0.06cqw;
+    }
+    .row-title.idx-label{ opacity:0.95; font-size: 0.95cqw; color:var(--text-white); }
+    .row-title.e-label{ color:var(--text-white); }
+    .row-title.d-sub-label{ font-size: 0.95cqw; opacity:0.9; }
+    .skill-stack{
+      display:grid;
+      grid-template-rows: 12fr 50fr 19fr 19fr;
+      row-gap:0;
+      min-height:0;
+    }
+    .col-idx{
+      grid-row:1;
+      display:flex; align-items:center; justify-content:center;
+      font-size: 0.9cqw; font-weight:900;
+      color: var(--text-white);
+      letter-spacing: 1px;
+      min-width:0;
+    }
+    .card{
+      background: var(--bg-panel);
+      border: 1.5px solid var(--border-ui);
+      border-radius: 4px;
+      overflow:hidden;
+      min-width:0; min-height:0;
+      box-shadow: inset 0 0 15px rgba(0,242,255,0.03);
+    }
+    .card.e-card{
+      grid-row:2;
+      border-color: rgba(255,255,255,0.15);
+      display:flex; align-items:stretch; justify-content:stretch;
+    }
+    .e-val{
+      flex:1;
+      display:flex; align-items:center; justify-content:center;
+      font-size: 4.8cqw; font-weight:900;
+      line-height:1;
+    }
+    .card.d-card{
+      grid-row: 3 / 5;
+      background: rgba(0,0,0,0.3);
+      border-color: var(--border-ui);
+      display:grid;
+      grid-template-rows: 1fr 1fr;
+      min-height:0;
+    }
+    .d-code{
+      display:flex; align-items:center; justify-content:center;
+      font-size: 1.8cqw; font-weight:900;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-ui);
+      letter-spacing: -0.5px;
+      background: rgba(255,255,255,0.02);
+      white-space: nowrap; overflow:hidden; text-overflow: ellipsis;
+      padding: 0 6px;
+      line-height:1;
+    }
+    .d-val{
+      display:flex; align-items:center; justify-content:center;
+      font-size: 2cqw; font-weight:900;
+      line-height:1;
+    }
+    /* ===== LAN列 ===== */
+    .skill-stack.bonus-style .col-idx{
+      font-size: 0.95cqw;
+      font-weight: 900;
+      color: var(--text-white);
+      text-transform: uppercase;
+      letter-spacing: 0.2cqw;
+    }
+    .skill-stack.bonus-style .bonus-note-block{
+      grid-row: 3;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-end;
+      gap: 0.12cqh;
+      padding-bottom: 0.35cqh;
+      min-height:0;
+      pointer-events:none;
+      white-space: nowrap;
+    }
+    .skill-stack.bonus-style .bonus-note-block span{
+      font-size: 0.82cqw;
+      font-weight: 900;
+      letter-spacing: 0.12cqw;
+      text-transform: uppercase;
+      line-height: 1;
+      color: var(--accent-cyan);
+      opacity: 0.95;
+    }
+    .skill-stack.bonus-style .bonus-dval{
+      grid-row: 4;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:0;
+    }
+    .skill-stack.bonus-style .bonus-val{
+      font-size: 2cqw;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--text-white);
+    }
+    /* ===== 4. 内訳 ===== */
+    .breakdown-row{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2cqw;
+      border-top: 2.5px solid var(--border-ui);
+      border-bottom: 2.5px solid var(--border-ui);
+      align-items:center;
+      background: rgba(0,242,255,0.02);
+      min-height:0;
+    }
+    .stat-item{ display:flex; align-items:center; gap: 1.2cqw; height:100%; }
+    .stat-item label{
+      font-size: 1cqw; font-weight:800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .stat-item .val{
+      font-size: 3.8cqw; font-weight:900;
+      letter-spacing: -1.5px;
+      line-height:1;
+    }
+    /* ===== 5. 結果 ===== */
+    .result-section{
+      display:grid;
+      grid-template-columns: 50% 50%;
+      align-items:center;
+      min-height:0;
+    }
+    .routine-totals{
+      display:flex;
+      gap: 3cqw;
+      align-items:flex-end;
+      min-height:0;
+    }
+    .routine-box{ display:flex; flex-direction:column; align-items:flex-start; }
+    .routine-box label{
+      font-size: 1cqw;
+      color: var(--text-muted);
+      font-weight:800;
+      margin-bottom: 0.25cqh;
+    }
+    .routine-box .val{
+      font-size: 5.6cqw;
+      font-weight:800;
+      color: rgba(255,255,255,0.10);
+      line-height:1;
+      letter-spacing: -1.5px;
+    }
+    .routine-box.active label{ color: var(--accent-gold); }
+    .routine-box.active .val{
+      color: rgba(255,255,255,0.85);
+      border-bottom: 6px solid rgba(255,215,0,0.85);
+      padding-bottom: 3px;
+      text-shadow: 0 0 14px rgba(255,215,0,0.18);
+    }
+    .final-results{
+      display:flex;
+      justify-content:flex-end;
+      align-items:flex-end;
+      gap: 4cqw;
+      padding-bottom: 1.5cqh;
+      min-height:0;
+    }
+    .score-unit{ display:flex; align-items:flex-end; gap: 1cqw; }
+    .score-unit label{
+      font-size: 1.2cqw;
+      color: var(--accent-gold);
+      font-weight:900;
+      margin-bottom: 1.2cqw;
+      white-space: nowrap;
+    }
+    .total-val{ font-size: 8.5cqw; font-weight:900; line-height:1; letter-spacing:-2px; }
+    .rank-val{ font-size: 10.5cqw; font-weight:900; color: var(--accent-gold); line-height:1; }
+    /* ===== 6. クレジット ===== */
+    .footer-credits{
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      font-size: 0.8cqw;
+      color: rgba(255,255,255,0.2);
+      letter-spacing: 0.2cqw;
+      font-weight:700;
+      text-transform: uppercase;
+      min-height:0;
+    }
+    .alert{ color: var(--alert-red) !important; }
+    .repeat{ color: var(--alert-red) !important; font-weight:900; }
+    /* ===== 待機状態 ===== */
+    .waiting-msg{
+      grid-column: 1 / -1; grid-row: 1 / -1;
+      display:flex; align-items:center; justify-content:center;
+      font-size: 1.5cqw; font-weight:700;
+      letter-spacing: 0.4cqw;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    /* ===== 順位表オーバーレイ ===== */
+    .monitor-frame{ position: relative; }
+    #ranking-overlay{
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 0%, #001e3d 0%, #000810 100%);
+      display: flex; flex-direction: column;
+      padding: 2cqw 3.5cqw 1.5cqw;
+      opacity: 0; transform: translateY(0.6cqw);
+      transition: opacity 700ms ease-out, transform 700ms ease-out;
+      pointer-events: none; z-index: 10;
+    }
+    #ranking-overlay.visible{
+      opacity: 1; transform: translateY(0); pointer-events: auto;
+    }
+    .rk-title{
+      font-size: 1.4cqw; font-weight: 800;
+      letter-spacing: 0.45cqw; color: var(--accent-gold);
+      text-transform: uppercase;
+      border-bottom: 1.5px solid var(--border-ui);
+      padding-bottom: 0.4cqw; margin-bottom: 0.3cqw;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .rk-col-head{
+      display: grid;
+      grid-template-columns: 4.5cqw 1fr 13cqw 13cqw 17cqw;
+      gap: 1cqw; padding: 0 1cqw 0.3cqw;
+      font-size: 0.95cqw; font-weight: 800;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.1cqw; flex-shrink: 0;
+    }
+    .rk-col-head span:nth-child(n+3){ text-align: right; }
+    .rk-table{
+      display: flex; flex-direction: column;
+      gap: 0.35cqw; flex: 1; overflow: hidden;
+    }
+    .rk-row{
+      flex: 1; display: grid;
+      grid-template-columns: 4.5cqw 1fr 13cqw 13cqw 17cqw;
+      gap: 1cqw; align-items: center; padding: 0 1cqw;
+      border-radius: 4px; border: 1px solid transparent;
+      background: rgba(255,255,255,0.035); min-height: 0;
+    }
+    .rk-row.rk-current{
+      background: rgba(255,215,0,0.09);
+      border-color: rgba(255,215,0,0.35);
+    }
+    .rk-rank{ font-size: 2.2cqw; font-weight: 900; color: var(--text-muted); }
+    .rk-name-group{
+      display: flex; flex-direction: column; justify-content: center;
+      overflow: hidden; min-width: 0;
+    }
+    .rk-name{
+      font-size: 2.6cqw; font-weight: 800;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.1;
+    }
+    .rk-team{
+      font-size: 1.4cqw; font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.2; margin-top: 0.1cqw;
+    }
+    .rk-current .rk-name{ color: var(--accent-gold); }
+    .rk-current .rk-team{ color: rgba(255,215,0,0.65); }
+    .rk-sc{ font-size: 2.2cqw; font-weight: 700; text-align: right; color: var(--text-muted); }
+    .rk-tot{ font-size: 3.2cqw; font-weight: 900; text-align: right; }
+    .rk-current .rk-tot{ color: var(--accent-gold); }
+  </style>
 </head>
 <body>
-<div class="dashboard">
-    <header class="header">
-        <div class="header-title">Trampoline Competition Card System</div>
-        <div id="event-name">Loading...</div>
-        <div id="clock">00:00:00</div>
-    </header>
-
-    <main class="result-container" id="focus-area">
-        <div style="text-align:center; color:var(--text-dim); margin-top: 35vh;">
-            <h2 style="font-size:2vw; letter-spacing: 6px;">WAITING FOR JUDGE CONFIRMATION</h2>
-        </div>
-    </main>
-
-    <footer class="footer-credits">
-        <div class="dev-info">System Design & Development by <span class="dev-name">HIROTAKA.HIGAKI</span></div>
-    </footer>
-</div>
+  <div class="monitor-frame no-anim" id="monitor">
+    <div class="convention-header" id="event-name-el" style="opacity:1;">---</div>
+    <div class="athlete-section" style="opacity:1;">
+      <div class="waiting-msg">WAITING FOR JUDGE CONFIRMATION</div>
+    </div>
+    <div class="ribbon-wrapper" style="opacity:1;"></div>
+    <div class="breakdown-row" style="opacity:1;"></div>
+    <div class="result-section" style="opacity:1;"></div>
+    <footer class="footer-credits" style="opacity:1;">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
+  </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  const firebaseConfig = {
+    apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4",
+    authDomain: "trampoline-dd-test.firebaseapp.com",
+    projectId: "trampoline-dd-test"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
 
-    const params = new URLSearchParams(location.search);
-    const eventId = params.get('event')?.trim();
-    let skillMaster = [], athleteMap = {};
+  const params    = new URLSearchParams(location.search);
+  const eventId   = params.get('event')?.trim();
+  let skillMaster = [], athleteMap = {}, tournamentName = '---';
+  let lastResultId = null;
 
-    function getRoundLabel(rid) {
-        const labels = { 'pre1': 'Routine 1', 'pre2': 'Routine 2', 'final': 'Final Routine' };
-        return labels[rid] || rid.toUpperCase();
+  // ---- ラベル ----
+  function getRoundLabel(rid) {
+    const labels = { pre1:'QUALIFYING ROUND 1', pre2:'QUALIFYING ROUND 2', final:'FINAL ROUND' };
+    return labels[rid] || rid.toUpperCase();
+  }
+
+  // ---- 中間2名の和 ----
+  function mid2sum(vals) {
+    const filled = vals.filter(v => v !== null && v !== undefined);
+    if (filled.length < 2) return 0;
+    filled.sort((a, b) => a - b);
+    const mid = Math.floor((filled.length - 2) / 2);
+    return filled[mid] + filled[mid + 1];
+  }
+
+  // ---- パネル別審判データ取得 ----
+  function getPanelJudges(resData) {
+    const allJudges = resData.execution?.judges || {};
+    if (Object.keys(allJudges).length === 0) return null;
+    const byPanel = {};
+    Object.entries(allJudges).forEach(([k, v]) => {
+      const p    = k.split('_')[0];
+      const jKey = k.slice(p.length + 1);
+      if (!byPanel[p]) byPanel[p] = {};
+      byPanel[p][jKey] = v;
+    });
+    return Object.values(byPanel).reduce(
+      (best, cur) => Object.keys(cur).length > Object.keys(best).length ? cur : best, {}
+    );
+  }
+
+  // ---- 技ごとのE減点（データなし→null、表示は×10の整数） ----
+  function getSkillEDed(panelJudges, si) {
+    if (!panelJudges) return null;
+    const jKeys = Object.keys(panelJudges);
+    if (jKeys.length < 2) return null;
+    const vals   = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
+    const filled = vals.filter(v => v !== null);
+    if (filled.length === 0) return null;  // 審判未入力
+    return mid2sum(vals);
+  }
+
+  // ---- 着地E減点 ----
+  function getLandingDed(panelJudges) {
+    if (!panelJudges) return null;
+    const jKeys = Object.keys(panelJudges);
+    if (jKeys.length < 2) return null;
+    const vals   = jKeys.map(k => panelJudges[k]?.landing ?? null);
+    const filled = vals.filter(v => v !== null);
+    if (filled.length === 0) return null;
+    return mid2sum(vals);
+  }
+
+  // ---- E合計スコア ----
+  function calcMedE(resData) {
+    if (resData.officialE !== undefined && resData.officialE !== null) return resData.officialE;
+    const panelJudges = getPanelJudges(resData);
+    if (!panelJudges) return null;
+    const jKeys  = Object.keys(panelJudges);
+    if (jKeys.length < 2) return null;
+    const vLimit = resData.validCount ?? 10;
+    let totalDed = 0;
+    for (let si = 0; si < vLimit; si++) {
+      const vals = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
+      totalDed += mid2sum(vals);
+    }
+    if (vLimit === 10) {
+      const lVals = jKeys.map(k => panelJudges[k]?.landing ?? null);
+      totalDed += mid2sum(lVals);
+    }
+    return vLimit * 2.0 - totalDed;
+  }
+
+  // ---- 選手の他ラウンド結果取得 ----
+  async function getAthleteResults(athleteId) {
+    if (!eventId || !athleteId) return {};
+    try {
+      const q    = query(collection(db, "results"), where("eventId", "==", eventId), where("athleteId", "==", athleteId));
+      const snap = await getDocs(q);
+      const res  = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.officialTotal !== undefined) res[data.round] = data.officialTotal;
+      });
+      return res;
+    } catch { return {}; }
+  }
+
+  // ---- 順位計算 ----
+  async function calcRank(round, classVal, genderVal, total) {
+    if (total === null || total === undefined) return null;
+    try {
+      const q    = query(collection(db, "results"), where("eventId", "==", eventId), where("round", "==", round), where("published", "==", true));
+      const snap = await getDocs(q);
+      let rank = 1;
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const ath  = athleteMap[data.athleteId];
+        if (ath && ath.class === classVal && ath.gender === genderVal) {
+          if ((data.officialTotal ?? 0) > total) rank++;
+        }
+      });
+      return rank;
+    } catch { return null; }
+  }
+
+  // ---- メインレンダリング ----
+  async function renderFocusResult(resultDoc) {
+    const isNew   = resultDoc.id !== lastResultId;
+    lastResultId  = resultDoc.id;
+    const resData = resultDoc.data();
+    const ath     = athleteMap[resData.athleteId] || {};
+
+    // 提出データ取得
+    const subId   = `${eventId}_${resData.athleteId}_${resData.round}`;
+    const subSnap = await getDoc(doc(db, "submissions", subId));
+    const sub     = subSnap.exists() ? subSnap.data() : { skills: [] };
+
+    const vLimit        = resData.validCount ?? 10;
+    const officialSkills= resData.officialSkills || [];
+    // officialE の有無に関わらず、技ごとの表示には審判ごとのデータを使う
+    const panelJudges   = getPanelJudges(resData);
+
+    // ---- 技ごとデータ計算 ----
+    const seenIds = new Set();
+    let baseDD = 0, tripleCount = 0, hasAnyDiff = false;
+
+    const skillCols = [];
+    for (let i = 0; i < 10; i++) {
+      if (i >= vLimit) {
+        skillCols.push(`
+          <div class="skill-stack" style="opacity:0.25;">
+            <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
+            <div class="card e-card"><div class="e-val num" style="color:var(--text-muted);">--</div></div>
+            <div class="card d-card">
+              <div class="d-code">-</div>
+              <div class="d-val num">-</div>
+            </div>
+          </div>`);
+        continue;
+      }
+
+      const offId      = officialSkills[i];
+      const skill      = skillMaster.find(m => m.id === String(offId));
+      const subRaw     = sub.skills?.[i] || '';
+      const subSkillRaw= (typeof subRaw === 'object' && subRaw !== null) ? subRaw.skill : subRaw;
+      const subSkill   = isNaN(subSkillRaw)
+                         ? skillMaster.find(m => m.symbol === subSkillRaw)
+                         : skillMaster.find(m => m.id === String(subSkillRaw));
+
+      const isDiff  = !!(skill && subSkill && skill.symbol !== subSkill.symbol);
+      const isRepeat= !!(skill && seenIds.has(String(offId)));
+      if (isDiff) hasAnyDiff = true;
+
+      let displayDD = 0;
+      if (skill && !isRepeat) {
+        displayDD = skill.dd;
+        baseDD   += skill.dd;
+        if (skill.isTriple) tripleCount++;
+        seenIds.add(String(offId));
+      }
+
+      const eDedVal  = getSkillEDed(panelJudges, i);
+      const eDisplay = eDedVal !== null ? Math.round(eDedVal * 10) : '--';
+      const hasAlert = isDiff || isRepeat;
+      const dCodeTxt = skill ? skill.symbol : '-';
+      const dValTxt  = skill ? (isRepeat ? '0.0' : displayDD.toFixed(1)) : '-';
+
+      skillCols.push(`
+        <div class="skill-stack">
+          <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
+          <div class="card e-card"><div class="e-val num">${eDisplay}</div></div>
+          <div class="card d-card">
+            <div class="d-code${hasAlert ? ' alert' : ''}">${dCodeTxt}</div>
+            <div class="d-val num${hasAlert ? ' alert' : ''}">${dValTxt}</div>
+          </div>
+        </div>`);
     }
 
-    // ---- 中間2名の和を計算 ----
-    function mid2sum(vals) {
-        const filled = vals.filter(v => v !== null && v !== undefined);
-        if (filled.length < 2) return 0;
-        filled.sort((a, b) => a - b);
-        const mid = Math.floor((filled.length - 2) / 2);
-        return filled[mid] + filled[mid + 1];
+    // ---- ボーナス計算 ----
+    let bonus = 0;
+    if (ath.gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+    else if (ath.gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+    const finalDD = baseDD + bonus;
+
+    // LAN列
+    const landDed = getLandingDed(panelJudges);
+    const bonusCol = `
+      <div class="skill-stack bonus-style">
+        <div class="col-idx">LAN</div>
+        <div class="card e-card"><div class="e-val num">${landDed !== null ? Math.round(landDed * 10) : '--'}</div></div>
+        <div class="bonus-note-block">
+          <span>D-SCORE</span>
+          <span>BONUS</span>
+        </div>
+        <div class="bonus-dval">
+          <span class="bonus-val num">+${bonus.toFixed(1)}</span>
+        </div>
+      </div>`;
+
+    // ---- スコア集計 ----
+    const dScore = resData.officialD     !== undefined ? resData.officialD     : finalDD;
+    const eScore = calcMedE(resData);
+    const tScore = resData.tof           !== undefined ? resData.tof           : null;
+    const hdScore= resData.hd?.total     !== undefined ? resData.hd?.total     : null;
+    const pScore = resData.penalty       !== undefined ? resData.penalty       : 0;
+
+    let totalScore = null;
+    if (resData.officialTotal !== undefined) {
+      totalScore = resData.officialTotal;
+    } else if (eScore !== null && tScore !== null && hdScore !== null) {
+      totalScore = Math.max(0, dScore + eScore + tScore + hdScore - pScore);
     }
 
-    // ---- 実施スコア（Med）を計算 ----
-    // officialE があればそれを使用、なければ execution.judges から計算
-    function calcMedE(resData) {
-        if (resData.officialE !== undefined && resData.officialE !== null) {
-            return resData.officialE;
-        }
-        const allJudges = resData.execution?.judges || {};
-        if (Object.keys(allJudges).length === 0) return null;
+    const isPublished = resData.published === true;
+    const fmt1 = v => (v !== null && v !== undefined) ? Number(v).toFixed(1) : '--';
+    const fmt2 = v => (v !== null && v !== undefined) ? Number(v).toFixed(2) : '--';
+    const fmt3 = v => (v !== null && v !== undefined) ? Number(v).toFixed(3) : '--';
 
-        const vLimit = resData.validCount ?? 10;
+    // ---- 他ラウンド結果 & 順位 ----
+    const [athResults, rank] = await Promise.all([
+      getAthleteResults(resData.athleteId),
+      calcRank(resData.round, ath.class, ath.gender, totalScore)
+    ]);
 
-        // パネル別にグループ化し、審判数が最多のパネルを選択
-        const byPanel = {};
-        Object.entries(allJudges).forEach(([k, v]) => {
-            const p = k.split('_')[0];
-            const jKey = k.slice(p.length + 1);
-            if (!byPanel[p]) byPanel[p] = {};
-            byPanel[p][jKey] = v;
-        });
-        const panelJudges = Object.values(byPanel).reduce(
-            (best, cur) => Object.keys(cur).length > Object.keys(best).length ? cur : best, {}
-        );
-        const jKeys = Object.keys(panelJudges);
-        if (jKeys.length < 2) return null;
-
-        let totalDed = 0;
-        for (let si = 0; si < vLimit; si++) {
-            const vals = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
-            totalDed += mid2sum(vals);
-        }
-        if (vLimit === 10) {
-            const landingVals = jKeys.map(k => panelJudges[k]?.landing ?? null);
-            totalDed += mid2sum(landingVals);
-        }
-        return vLimit * 2.0 - totalDed;
+    // ---- ルーティン合計 ----
+    let routineTotalsHTML = '';
+    if (resData.round === 'pre1' || resData.round === 'pre2') {
+      const r1 = athResults['pre1'];
+      const r2 = athResults['pre2'];
+      routineTotalsHTML = `
+        <div class="routine-box${resData.round === 'pre1' ? ' active' : ''}">
+          <label>ROUTINE 1</label>
+          <div class="val num">${r1 !== undefined ? Number(r1).toFixed(3) : '--'}</div>
+        </div>
+        <div class="routine-box${resData.round === 'pre2' ? ' active' : ''}">
+          <label>ROUTINE 2</label>
+          <div class="val num">${r2 !== undefined ? Number(r2).toFixed(3) : '--'}</div>
+        </div>`;
+    } else {
+      routineTotalsHTML = `
+        <div class="routine-box active">
+          <label>FINAL</label>
+          <div class="val num">${fmt3(totalScore)}</div>
+        </div>`;
     }
 
-    async function init() {
-        if (!eventId) return;
-        try {
-            const [smSnap, athSnap] = await Promise.all([
-                getDocs(collection(db, "skillMaster")),
-                getDocs(collection(db, "tournaments", eventId, "athletes"))
-            ]);
+    // ---- セッション情報 ----
+    const dateStr    = new Date().toLocaleDateString('ja-JP').replace(/\//g, '.');
+    const groupStr   = ath.flightGroup ? `PANEL ${ath.flightGroup}` : '';
+    const sessionLine2 = [groupStr, dateStr].filter(Boolean).join(' | ');
+    const classGender  = [ath.class, ath.gender].filter(Boolean).join(' ');
 
-            skillMaster = smSnap.docs
-                .sort((a, b) => parseInt(a.id) - parseInt(b.id))
-                .map(d => ({
-                    id: d.id,
-                    symbol: d.data().symbol,
-                    dd: parseFloat(d.data().dd) || 0,
-                    isTriple: d.data().isTriple === true,
-                    direction: d.data().direction || ''
-                }));
+    // ---- フルHTML生成 ----
+    const html = `
+      <div class="convention-header">${tournamentName}</div>
 
-            athSnap.forEach(d => athleteMap[d.id] = d.data());
+      <div class="athlete-section">
+        <div class="class-no">${classGender} / No.${ath.order || '?'}</div>
+        <div class="session-info">
+          ${getRoundLabel(resData.round)}<br>
+          ${sessionLine2}
+        </div>
+        <div class="athlete-identity-group">
+          <h1 class="athlete-name">${ath.name1 || '---'}</h1>
+          <div class="athlete-team">${ath.club1 || '---'}</div>
+        </div>
+      </div>
 
-            const tourSnap = await getDoc(doc(db, "tournaments", eventId));
-            if (tourSnap.exists()) document.getElementById('event-name').innerText = tourSnap.data().name;
+      <div class="ribbon-wrapper">
+        <div class="row-labels">
+          <div class="row-title idx-label">Skill No</div>
+          <div class="row-title e-label">E-Deduction</div>
+          <div class="row-title d-sub-label">Skill Code</div>
+          <div class="row-title d-sub-label">D-Score</div>
+        </div>
+        ${skillCols.join('')}
+        ${bonusCol}
+      </div>
 
-            const q = query(collection(db, "results"), where("eventId", "==", eventId), orderBy("verifiedAt", "desc"), limit(1));
-            onSnapshot(q, (snap) => { if (!snap.empty) renderFocusResult(snap.docs[0]); });
-        } catch (e) { console.error(e); }
+      <div class="breakdown-row">
+        <div class="stat-item"><label>Exec.</label><div class="val num">${fmt1(eScore)}</div></div>
+        <div class="stat-item"><label>Diff.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(dScore)}</div></div>
+        <div class="stat-item"><label>ToF</label><div class="val num">${fmt3(tScore)}</div></div>
+        <div class="stat-item"><label>HD</label><div class="val num">${fmt2(hdScore)}</div></div>
+        <div class="stat-item"><label>Penalty</label><div class="val num">${fmt1(pScore)}</div></div>
+      </div>
+
+      <div class="result-section">
+        <div class="routine-totals">${routineTotalsHTML}</div>
+        <div class="final-results">
+          <div class="score-unit">
+            <label>${isPublished ? 'TOTAL' : 'TOTAL*'}</label>
+            <div class="total-val num">${fmt3(totalScore)}</div>
+          </div>
+          <div class="score-unit">
+            <label>RANK</label>
+            <div class="rank-val num">${rank !== null ? rank : '--'}</div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer-credits">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
+
+    const monitor = document.getElementById('monitor');
+
+    // 既存の順位表タイマー・オーバーレイをリセット
+    if (rankingTimer) { clearTimeout(rankingTimer); rankingTimer = null; }
+    let overlay = document.getElementById('ranking-overlay');
+    if (overlay) overlay.classList.remove('visible');
+
+    if (isNew) {
+      monitor.classList.remove('no-anim');
+    } else {
+      monitor.classList.add('no-anim');
     }
+    monitor.innerHTML = html;
 
-    async function renderFocusResult(resultDoc) {
-        const resData = resultDoc.data();
-        const ath = athleteMap[resData.athleteId];
-        const subId = `${eventId}_${resData.athleteId}_${resData.round}`;
-        const subSnap = await getDoc(doc(db, "submissions", subId));
-        const sub = subSnap.exists() ? subSnap.data() : { skills: [] };
+    // オーバーレイを再アタッチ（innerHTML で消えるため）
+    if (!overlay) { overlay = document.createElement('div'); overlay.id = 'ranking-overlay'; }
+    overlay.className = 'ranking-overlay';
+    overlay.innerHTML = '';
+    monitor.appendChild(overlay);
 
-        // ---- DD計算 ----
-        let rowsHtml = "", baseDD = 0, tripleCount = 0, hasAnyDiff = false;
-        const seenIds = new Set();
-        const vLimit = resData.validCount !== undefined ? resData.validCount : 10;
+    // 順位表タイマー起動（新規なら全アニメ完了後＋3s、更新なら3s）
+    const rankingDelay = isNew ? 13000 : 3000;
+    rankingTimer = setTimeout(() => showRanking(resData, ath), rankingDelay);
+  }
 
-        const officialSkills = resData.officialSkills || [];
-        for (let i = 0; i < 10; i++) {
-            if (i < vLimit) {
-                const offId  = officialSkills[i];
-                const skill  = skillMaster.find(m => m.id === String(offId));
-                const subRaw = sub.skills[i] || "";
-                const subSkillRaw = (typeof subRaw === 'object' && subRaw !== null) ? subRaw.skill : subRaw;
-                const subSkill = isNaN(subSkillRaw) ? skillMaster.find(m => m.symbol === subSkillRaw) : skillMaster.find(m => m.id === String(subSkillRaw));
-                const isDiff = skill && subSkill && skill.symbol !== subSkill.symbol;
-                if (isDiff) hasAnyDiff = true;
+  // ---- 順位表 ----
+  let rankingTimer = null;
 
-                let displayDD = 0, isZero = false;
-                if (skill) {
-                    if (seenIds.has(offId)) { displayDD = 0; isZero = true; }
-                    else { displayDD = skill.dd; baseDD += skill.dd; if (skill.isTriple) tripleCount++; seenIds.add(offId); }
-                }
-                const scoreClass = isZero ? 'zero-alert' : (isDiff ? 'diff-alert' : '');
+  async function showRanking(resData, ath) {
+    const overlay = document.getElementById('ranking-overlay');
+    if (!overlay) return;
+    const classVal  = ath.class  || ath.category || '';
+    const genderVal = ath.gender || '';
+    try {
+      const snap = await getDocs(
+        query(collection(db, "results"),
+          where("eventId", "==", eventId),
+          where("published", "==", true))
+      );
+      // 同クラス・同性別のアスリートごとにラウンド別スコアを集計
+      const byAth = {};
+      snap.docs.forEach(d => {
+        const r = d.data();
+        const a = athleteMap[r.athleteId];
+        if (!a) return;
+        if ((a.class || a.category || '') !== classVal) return;
+        if ((a.gender || '') !== genderVal) return;
+        if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null };
+        if (r.round === 'pre1') byAth[r.athleteId].pre1 = r.officialTotal ?? null;
+        if (r.round === 'pre2') byAth[r.athleteId].pre2 = r.officialTotal ?? null;
+      });
+      // 合計でソート（高い順）
+      const entries = Object.entries(byAth)
+        .map(([id, s]) => ({ id, ...s, total: (s.pre1 ?? 0) + (s.pre2 ?? 0) }))
+        .sort((a, b) => b.total - a.total);
+      const f = v => v !== null ? Number(v).toFixed(3) : '--';
+      // 上位8名 + 当該選手が8位以内でなければ末尾に追加
+      const curIdx = entries.findIndex(e => e.id === resData.athleteId);
+      const displayEntries = curIdx < 8
+        ? entries.slice(0, 8)
+        : [...entries.slice(0, 7), entries[curIdx]];
+      const rowsHTML = displayEntries.map((e) => {
+        const actualRank = entries.indexOf(e) + 1;
+        const cur = e.id === resData.athleteId;
+        const hasAny = e.pre1 !== null || e.pre2 !== null;
+        return `<div class="rk-row${cur ? ' rk-current' : ''}">
+          <div class="rk-rank num">${actualRank}</div>
+          <div class="rk-name-group">
+            <div class="rk-name">${e.a.name1 || '---'}</div>
+            <div class="rk-team">${e.a.club1 || ''}</div>
+          </div>
+          <div class="rk-sc num">${f(e.pre1)}</div>
+          <div class="rk-sc num">${f(e.pre2)}</div>
+          <div class="rk-tot num">${hasAny ? f(e.total) : '--'}</div>
+        </div>`;
+      }).join('');
+      const heading = [classVal, genderVal].filter(Boolean).join(' ');
+      overlay.innerHTML = `
+        <div class="rk-title">${heading} — STANDINGS</div>
+        <div class="rk-col-head">
+          <span>#</span><span>NAME</span><span>R1</span><span>R2</span><span>TOTAL</span>
+        </div>
+        <div class="rk-table">${rowsHTML}</div>`;
+      overlay.classList.add('visible');
+    } catch(e) { console.error(e); }
+  }
 
-                rowsHtml += `<tr>
-                    <td class="col-idx">#${i+1}</td>
-                    <td class="col-sub ${isDiff ? 'diff-alert' : ''}">${subSkill ? subSkill.symbol : '-'}</td>
-                    <td class="col-off ${isDiff ? 'diff-alert' : ''}">${skill ? skill.symbol : '-'}</td>
-                    <td class="${scoreClass}" style="font-family:monospace; font-weight:bold;">${displayDD.toFixed(1)}</td>
-                </tr>`;
-            } else {
-                rowsHtml += `<tr><td class="col-idx" style="opacity:0.3;">#${i+1}</td><td>-</td><td>-</td><td>-</td></tr>`;
-            }
-        }
+  // ---- 初期化 ----
+  async function init() {
+    if (!eventId) return;
+    try {
+      const [smSnap, athSnap, tourSnap] = await Promise.all([
+        getDocs(collection(db, "skillMaster")),
+        getDocs(collection(db, "tournaments", eventId, "athletes")),
+        getDoc(doc(db, "tournaments", eventId))
+      ]);
 
-        // ---- ボーナス計算 ----
-        let bonus = 0;
-        if (ath?.gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
-        else if (ath?.gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
-        const finalDD = baseDD + bonus;
+      skillMaster = smSnap.docs
+        .sort((a, b) => parseInt(a.id) - parseInt(b.id))
+        .map(d => ({
+          id      : d.id,
+          symbol  : d.data().symbol,
+          dd      : parseFloat(d.data().dd) || 0,
+          isTriple: d.data().isTriple === true,
+          direction: d.data().direction || ''
+        }));
 
-        // ---- スコア取得 ----
-        const dScore = resData.officialD   !== undefined ? resData.officialD   : finalDD;
-        const eScore = calcMedE(resData);
-        const tScore = resData.tof         !== undefined ? resData.tof         : null;
-        const hdScore= resData.hd?.total   !== undefined ? resData.hd?.total   : null;
-        const pScore = resData.penalty     !== undefined ? resData.penalty     : 0;
+      athSnap.forEach(d => athleteMap[d.id] = d.data());
 
-        // 合計: officialTotal があればそれ、なければ利用可能な値から計算
-        let totalScore = null;
-        if (resData.officialTotal !== undefined) {
-            totalScore = resData.officialTotal;
-        } else if (eScore !== null && tScore !== null && hdScore !== null) {
-            totalScore = Math.max(0, dScore + eScore + tScore + hdScore - pScore);
-        }
+      if (tourSnap.exists()) {
+        tournamentName = tourSnap.data().name || '---';
+        document.getElementById('event-name-el').textContent = tournamentName;
+      }
 
-        const isPublished = resData.published === true;
+      const q = query(
+        collection(db, "results"),
+        where("eventId", "==", eventId),
+        where("published", "==", true),
+        orderBy("publishedAt", "desc"),
+        limit(1)
+      );
+      onSnapshot(q, snap => { if (!snap.empty) renderFocusResult(snap.docs[0]); });
 
-        // ---- 表示用フォーマット ----
-        const fmt1 = v => v !== null ? v.toFixed(1) : '<span class="no-val">---</span>';
-        const fmt3 = v => v !== null ? v.toFixed(3) : '<span class="no-val">---</span>';
+    } catch (e) { console.error(e); }
+  }
 
-        const eDisplay     = fmt1(eScore);
-        const tDisplay     = fmt3(tScore);
-        const hdDisplay    = fmt3(hdScore);
-        const totalDisplay = fmt3(totalScore);
-
-        // ペナルティ表示（0のときは隠す）
-        const pStr = pScore > 0
-            ? `<div class="score-item pitem"><label>Penalty</label><span>-${pScore.toFixed(1)}</span></div>`
-            : '';
-
-        // ---- HTML生成 ----
-        document.getElementById('focus-area').innerHTML = `
-            <div class="content-wrap">
-                <div class="athlete-info">
-                    <p>${ath?.category || ath?.class || ''} ${ath?.gender || ''} / ${getRoundLabel(resData.round)}</p>
-                    <h1>No.${ath?.order} ${ath?.name1}</h1>
-                    <div style="font-size:1.1vw; opacity:0.75; color:var(--accent); font-weight:bold; margin-top:2px;">${ath?.club1 || ''}</div>
-                </div>
-
-                <div class="table-container">
-                    <table class="score-table">
-                        <thead>
-                            <tr>
-                                <th style="width:8%"></th>
-                                <th style="width:32%">Declaration</th>
-                                <th style="width:45%">Confirmed</th>
-                                <th style="width:15%">DD</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHtml}</tbody>
-                    </table>
-                </div>
-
-                <!-- スコアバー -->
-                <div class="score-bar">
-
-                    <!-- DD詳細 -->
-                    <div class="dd-group">
-                        <div class="dd-row">
-                            <div class="dd-item">
-                                <label>Skills</label>
-                                <span>${vLimit}</span>
-                            </div>
-                            <div class="dd-item">
-                                <label>Base&nbsp;DD</label>
-                                <span>${baseDD.toFixed(1)}</span>
-                            </div>
-                            <div class="dd-item">
-                                <label>Bonus</label>
-                                <span style="color:var(--accent)">+${bonus.toFixed(1)}</span>
-                            </div>
-                        </div>
-                        <div style="text-align:center; margin-top:0.3vh;">
-                            <span style="font-size:0.6vw; color:#444; letter-spacing:2px; text-transform:uppercase;">Final&nbsp;DD</span><br>
-                            <span style="font-size:2.2vw; font-weight:900; font-family:monospace; ${hasAnyDiff ? 'color:var(--danger)' : 'color:var(--success)'}">${finalDD.toFixed(1)}</span>
-                        </div>
-                    </div>
-
-                    <div class="bar-divider"></div>
-
-                    <!-- D / E / T / HD -->
-                    <div class="score-group">
-                        <div class="score-item">
-                            <label>D</label>
-                            <span>${fmt1(dScore)}</span>
-                        </div>
-                        <div class="score-item">
-                            <label>E&nbsp;(Med)</label>
-                            <span>${eDisplay}</span>
-                        </div>
-                        <div class="score-item tscore">
-                            <label>T</label>
-                            <span>${tDisplay}</span>
-                        </div>
-                        <div class="score-item hdscore">
-                            <label>HD</label>
-                            <span>${hdDisplay}</span>
-                        </div>
-                        ${pStr}
-                    </div>
-
-                    <!-- TOTAL -->
-                    <div class="total-group">
-                        <label>${isPublished ? 'TOTAL' : 'TOTAL*'}</label>
-                        <div class="grand-total ${hasAnyDiff ? 'diff-alert' : ''} ${(!isPublished && totalScore !== null) ? 'provisional' : ''}">
-                            ${totalDisplay}
-                        </div>
-                    </div>
-
-                </div>
-            </div>`;
-    }
-
-    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
-    init();
+  init();
 </script>
 </body>
 </html>

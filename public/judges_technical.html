@@ -1043,6 +1043,10 @@
             };
         });
         renderScores(latestData);
+        // renderScores(auto モード)による上書きの後に ToF/HD をセット
+        document.getElementById('tof').value = (Math.random() * 3 + 14).toFixed(2);
+        document.getElementById('hd').value = (Math.random() * 3 + 7).toFixed(1);
+        calc();
     };
 
     function getNextManualCell(jKey, idx, isLanding, vLimit) {
