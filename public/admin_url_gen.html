@@ -54,9 +54,9 @@
     </div>
 
     <div class="url-card judge">
-        <div class="card-title">⚖️ 審判入力画面</div>
+        <div class="card-title">🔢 D審判入力画面</div>
         <div class="qr-area"><canvas id="qr-judge"></canvas></div>
-        <div class="event-label" style="margin-bottom:8px;">Judge Entry URL</div>
+        <div class="event-label" style="margin-bottom:8px;">D-Judge URL</div>
         <div id="url-judge" class="url-box">生成中...</div>
         <button class="btn btn-copy" onclick="copy('url-judge')">URLをコピー</button>
     </div>
@@ -67,6 +67,30 @@
         <div class="event-label" style="margin-bottom:8px;">Card Check URL</div>
         <div id="url-check" class="url-box">生成中...</div>
         <button class="btn btn-copy" onclick="copy('url-check')">URLをコピー</button>
+    </div>
+
+    <div class="url-card judge">
+        <div class="card-title">🏅 CJP審判画面</div>
+        <div class="qr-area"><canvas id="qr-cjp"></canvas></div>
+        <div class="event-label" style="margin-bottom:8px;">CJP URL</div>
+        <div id="url-cjp" class="url-box">生成中...</div>
+        <button class="btn btn-copy" onclick="copy('url-cjp')">URLをコピー</button>
+    </div>
+
+    <div class="url-card judge">
+        <div class="card-title">🤸 E審判入力画面</div>
+        <div class="qr-area"><canvas id="qr-e-judge"></canvas></div>
+        <div class="event-label" style="margin-bottom:8px;">E-Judge URL</div>
+        <div id="url-e-judge" class="url-box">生成中...</div>
+        <button class="btn btn-copy" onclick="copy('url-e-judge')">URLをコピー</button>
+    </div>
+
+    <div class="url-card judge">
+        <div class="card-title">⏱ ToF/HD入力画面</div>
+        <div class="qr-area"><canvas id="qr-tof-judge"></canvas></div>
+        <div class="event-label" style="margin-bottom:8px;">ToF/HD URL</div>
+        <div id="url-tof-judge" class="url-box">生成中...</div>
+        <button class="btn btn-copy" onclick="copy('url-tof-judge')">URLをコピー</button>
     </div>
 </div>
 
@@ -106,6 +130,12 @@
         setupLink('qr-judge', 'url-judge', `${baseUrl}/judges_entry.html?event=${eventId}`);
         // 3. チェック用
         setupLink('qr-check', 'url-check', `${baseUrl}/admin_card_check.html?event=${eventId}`);
+        // 4. CJP審判
+        setupLink('qr-cjp', 'url-cjp', `${baseUrl}/judges_technical.html?event=${eventId}`);
+        // 5. E審判
+        setupLink('qr-e-judge', 'url-e-judge', `${baseUrl}/judges_execution.html?event=${eventId}`);
+        // 6. ToF/HD審判
+        setupLink('qr-tof-judge', 'url-tof-judge', `${baseUrl}/judges_tof_hd.html?event=${eventId}`);
     }
 
     function setupLink(canvasId, boxId, finalUrl) {

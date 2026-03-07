@@ -14,6 +14,11 @@
         .google-login-btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border: 1px solid #dadce0; border-radius: 8px; background-color: white; cursor: pointer; font-size: 1rem; font-weight: 500; color: #3c4043; transition: background-color .3s, box-shadow .3s; width: 100%; box-sizing: border-box; }
         .google-login-btn:hover { background-color: #f8f9fa; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .google-icon { width: 24px; height: 24px; margin-right: 15px; }
+        .dev-skip-btn { display: none; margin-top: 12px; padding: 8px 20px; border: 1px dashed #f4a100; border-radius: 8px; background-color: #fffbea; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #8a6000; width: 100%; box-sizing: border-box; transition: background-color .2s; }
+        .dev-skip-btn:hover { background-color: #fff3c2; }
+        .dev-badge { display: inline-block; background: #f4a100; color: white; font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-right: 6px; letter-spacing: 0.05em; vertical-align: middle; }
+        /* ローカル環境フラグ */
+        body.is-local .dev-skip-btn { display: block; }
     </style>
 </head>
 <body>
@@ -25,13 +30,24 @@
             <img class="google-icon" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google icon"/>
             <span>Googleでログイン</span>
         </button>
+        <button id="skip-btn" class="dev-skip-btn">
+            <span class="dev-badge">DEV</span>ログインをスキップ（ローカル開発用）
+        </button>
     </div>
 
+    <!-- モジュール読み込みより先に実行：ローカル環境判定 -->
+    <script>
+        const _prod = ['trampoline-dd-test.firebaseapp.com', 'trampoline-dd-test.web.app'];
+        if (!_prod.includes(location.hostname)) {
+            document.body.classList.add('is-local');
+        }
+    </script>
+
     <script type="module">
-        // All Firebase logic is now handled in auth.js
-        import { loginWithGoogle } from './auth.js';
+        import { loginWithGoogle, loginSkip } from './auth.js';
 
         document.getElementById('login-btn').addEventListener('click', loginWithGoogle);
+        document.getElementById('skip-btn').addEventListener('click', loginSkip);
     </script>
 </body>
 </html>

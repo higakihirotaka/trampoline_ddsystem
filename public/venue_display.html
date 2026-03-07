@@ -375,6 +375,73 @@
       text-transform: uppercase;
       color: var(--text-muted);
     }
+    /* ===== 順位表オーバーレイ ===== */
+    .monitor-frame{ position: relative; }
+    #ranking-overlay{
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 0%, #001e3d 0%, #000810 100%);
+      display: flex; flex-direction: column;
+      padding: 2cqw 3.5cqw 1.5cqw;
+      opacity: 0; transform: translateY(0.6cqw);
+      transition: opacity 700ms ease-out, transform 700ms ease-out;
+      pointer-events: none; z-index: 10;
+    }
+    #ranking-overlay.visible{
+      opacity: 1; transform: translateY(0); pointer-events: auto;
+    }
+    .rk-title{
+      font-size: 1.4cqw; font-weight: 800;
+      letter-spacing: 0.45cqw; color: var(--accent-gold);
+      text-transform: uppercase;
+      border-bottom: 1.5px solid var(--border-ui);
+      padding-bottom: 0.4cqw; margin-bottom: 0.3cqw;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .rk-col-head{
+      display: grid;
+      grid-template-columns: 4.5cqw 1fr 13cqw 13cqw 17cqw;
+      gap: 1cqw; padding: 0 1cqw 0.3cqw;
+      font-size: 0.95cqw; font-weight: 800;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.1cqw; flex-shrink: 0;
+    }
+    .rk-col-head span:nth-child(n+3){ text-align: right; }
+    .rk-table{
+      display: flex; flex-direction: column;
+      gap: 0.35cqw; flex: 1; overflow: hidden;
+    }
+    .rk-row{
+      flex: 1; display: grid;
+      grid-template-columns: 4.5cqw 1fr 13cqw 13cqw 17cqw;
+      gap: 1cqw; align-items: center; padding: 0 1cqw;
+      border-radius: 4px; border: 1px solid transparent;
+      background: rgba(255,255,255,0.035); min-height: 0;
+    }
+    .rk-row.rk-current{
+      background: rgba(255,215,0,0.09);
+      border-color: rgba(255,215,0,0.35);
+    }
+    .rk-rank{ font-size: 2.2cqw; font-weight: 900; color: var(--text-muted); }
+    .rk-name-group{
+      display: flex; flex-direction: column; justify-content: center;
+      overflow: hidden; min-width: 0;
+    }
+    .rk-name{
+      font-size: 2.6cqw; font-weight: 800;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.1;
+    }
+    .rk-team{
+      font-size: 1.4cqw; font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.2; margin-top: 0.1cqw;
+    }
+    .rk-current .rk-name{ color: var(--accent-gold); }
+    .rk-current .rk-team{ color: rgba(255,215,0,0.65); }
+    .rk-sc{ font-size: 2.2cqw; font-weight: 700; text-align: right; color: var(--text-muted); }
+    .rk-tot{ font-size: 3.2cqw; font-weight: 900; text-align: right; }
+    .rk-current .rk-tot{ color: var(--accent-gold); }
   </style>
 </head>
 <body>
@@ -593,10 +660,11 @@
 
     // LAN列
     const landDed = getLandingDed(panelJudges);
+    const isLanValid = vLimit === 10;
     const bonusCol = `
-      <div class="skill-stack bonus-style">
+      <div class="skill-stack bonus-style" style="${isLanValid ? '' : 'opacity:0.25;'}">
         <div class="col-idx">LAN</div>
-        <div class="card e-card"><div class="e-val num">${landDed !== null ? Math.round(landDed * 10) : '--'}</div></div>
+        <div class="card e-card"><div class="e-val num">${isLanValid && landDed !== null ? Math.round(landDed * 10) : '--'}</div></div>
         <div class="bonus-note-block">
           <span>D-SCORE</span>
           <span>BONUS</span>
@@ -711,12 +779,90 @@
       <footer class="footer-credits">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
 
     const monitor = document.getElementById('monitor');
+
+    // 既存の順位表タイマー・オーバーレイをリセット
+    if (rankingTimer) { clearTimeout(rankingTimer); rankingTimer = null; }
+    let overlay = document.getElementById('ranking-overlay');
+    if (overlay) overlay.classList.remove('visible');
+
     if (isNew) {
       monitor.classList.remove('no-anim');
     } else {
       monitor.classList.add('no-anim');
     }
     monitor.innerHTML = html;
+
+    // オーバーレイを再アタッチ（innerHTML で消えるため）
+    if (!overlay) { overlay = document.createElement('div'); overlay.id = 'ranking-overlay'; }
+    overlay.className = 'ranking-overlay';
+    overlay.innerHTML = '';
+    monitor.appendChild(overlay);
+
+    // 順位表タイマー起動（新規なら全アニメ完了後＋3s、更新なら3s）
+    const rankingDelay = isNew ? 13000 : 3000;
+    rankingTimer = setTimeout(() => showRanking(resData, ath), rankingDelay);
+  }
+
+  // ---- 順位表 ----
+  let rankingTimer = null;
+
+  async function showRanking(resData, ath) {
+    const overlay = document.getElementById('ranking-overlay');
+    if (!overlay) return;
+    const classVal  = ath.class  || ath.category || '';
+    const genderVal = ath.gender || '';
+    try {
+      const snap = await getDocs(
+        query(collection(db, "results"),
+          where("eventId", "==", eventId),
+          where("published", "==", true))
+      );
+      // 同クラス・同性別のアスリートごとにラウンド別スコアを集計
+      const byAth = {};
+      snap.docs.forEach(d => {
+        const r = d.data();
+        const a = athleteMap[r.athleteId];
+        if (!a) return;
+        if ((a.class || a.category || '') !== classVal) return;
+        if ((a.gender || '') !== genderVal) return;
+        if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null };
+        if (r.round === 'pre1') byAth[r.athleteId].pre1 = r.officialTotal ?? null;
+        if (r.round === 'pre2') byAth[r.athleteId].pre2 = r.officialTotal ?? null;
+      });
+      // 合計でソート（高い順）
+      const entries = Object.entries(byAth)
+        .map(([id, s]) => ({ id, ...s, total: (s.pre1 ?? 0) + (s.pre2 ?? 0) }))
+        .sort((a, b) => b.total - a.total);
+      const f = v => v !== null ? Number(v).toFixed(3) : '--';
+      // 上位8名 + 当該選手が8位以内でなければ末尾に追加
+      const curIdx = entries.findIndex(e => e.id === resData.athleteId);
+      const displayEntries = curIdx < 8
+        ? entries.slice(0, 8)
+        : [...entries.slice(0, 7), entries[curIdx]];
+      const rowsHTML = displayEntries.map((e) => {
+        const actualRank = entries.indexOf(e) + 1;
+        const cur = e.id === resData.athleteId;
+        const hasAny = e.pre1 !== null || e.pre2 !== null;
+        return `<div class="rk-row${cur ? ' rk-current' : ''}">
+          <div class="rk-rank num">${actualRank}</div>
+          <div class="rk-name-group">
+            <div class="rk-name">${e.a.name1 || '---'}</div>
+            <div class="rk-team">${e.a.club1 || ''}</div>
+          </div>
+          <div class="rk-sc num">${f(e.pre1)}</div>
+          <div class="rk-sc num">${f(e.pre2)}</div>
+          <div class="rk-tot num">${hasAny ? f(e.total) : '--'}</div>
+        </div>`;
+      }).join('');
+      const heading = [classVal, genderVal].filter(Boolean).join(' ');
+      overlay.innerHTML = `
+        <div class="rk-title">${heading} — STANDINGS</div>
+        <div class="rk-col-head">
+          <span>#</span><span>NAME</span><span>R1</span><span>R2</span><span>TOTAL</span>
+        </div>
+        <div class="rk-table">${rowsHTML}</div>`;
+      overlay.classList.add('visible');
+    } catch(e) { console.error(e); }
   }
 
   // ---- 初期化 ----
