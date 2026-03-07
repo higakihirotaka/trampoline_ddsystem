@@ -767,7 +767,7 @@
 
     window.updateValid = async (val) => {
         const resId = `${eventId}_${athleteId}_${round}`;
-        await setDoc(doc(db, "results", resId), { validCount: parseInt(val) }, { merge: true });
+        await setDoc(doc(db, "results", resId), { eventId, athleteId, round, validCount: parseInt(val) }, { merge: true });
     };
 
     function updateValidHeaders(n) {
@@ -903,6 +903,7 @@
         const total  = parseFloat(document.getElementById('res-total').innerText) || 0;
 
         const saveData = {
+            eventId, athleteId, round,
             published: true, publishedAt: serverTimestamp(),
             verifiedAt: serverTimestamp(),
             tof: t, hd: { total: h },
