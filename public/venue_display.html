@@ -660,10 +660,11 @@
 
     // LAN列
     const landDed = getLandingDed(panelJudges);
+    const isLanValid = vLimit === 10;
     const bonusCol = `
-      <div class="skill-stack bonus-style">
+      <div class="skill-stack bonus-style" style="${isLanValid ? '' : 'opacity:0.25;'}">
         <div class="col-idx">LAN</div>
-        <div class="card e-card"><div class="e-val num">${landDed !== null ? Math.round(landDed * 10) : '--'}</div></div>
+        <div class="card e-card"><div class="e-val num">${isLanValid && landDed !== null ? Math.round(landDed * 10) : '--'}</div></div>
         <div class="bonus-note-block">
           <span>D-SCORE</span>
           <span>BONUS</span>
