@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>管理者初期設定</title>
+  <style>
+    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f2f5; }
+    .card { background: #fff; padding: 40px; border-radius: 16px; width: 380px; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+    h1 { font-size: 1.2rem; margin-bottom: 8px; }
+    p  { color: #666; font-size: 0.9rem; margin-bottom: 28px; }
+    .btn { display: block; width: 100%; padding: 14px; border-radius: 10px; border: none; font-size: 1rem; font-weight: bold; cursor: pointer; background: #1a73e8; color: white; }
+    .btn:hover { background: #1557b0; }
+    .status { margin-top: 20px; font-size: 0.9rem; font-weight: bold; min-height: 1.4em; }
+    .ok  { color: #1e8e3e; }
+    .err { color: #d93025; }
+    .warn { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 10px; font-size: 0.8rem; color: #856404; margin-top: 16px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>🔧 管理者初期設定</h1>
+  <p>Googleアカウントでログインして、<br>自分を管理者として登録します。</p>
+  <button class="btn" onclick="setup()">Googleでログインして管理者登録</button>
+  <div class="status" id="status"></div>
+  <div class="warn">⚠ セットアップ完了後、このファイル（setup_admin.html）は削除してください。</div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4",
+    authDomain: "trampoline-dd-test.firebaseapp.com",
+    projectId: "trampoline-dd-test"
+  };
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  window.setup = async function() {
+    const statusEl = document.getElementById('status');
+    statusEl.textContent = '処理中...';
+    statusEl.className = 'status';
+    try {
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const user   = result.user;
+      await setDoc(doc(db, 'admins', user.uid), {
+        email    : user.email,
+        name     : user.displayName,
+        createdAt: serverTimestamp()
+      });
+      statusEl.textContent = `✓ ${user.displayName}（${user.email}）を管理者登録しました`;
+      statusEl.className   = 'status ok';
+      setTimeout(() => { location.href = 'admin_index.html'; }, 1500);
+    } catch (e) {
+      statusEl.textContent = 'エラー: ' + e.message;
+      statusEl.className   = 'status err';
+    }
+  };
+</script>
+</body>
+</html>
