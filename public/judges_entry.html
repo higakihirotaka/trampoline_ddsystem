@@ -95,7 +95,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
     const app = initializeApp(firebaseConfig); const db = getFirestore(app);
@@ -105,6 +105,7 @@
     let athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
+    let unsubValidCount = null;
     let fType = 'individual', fClass = '', fGender = '';
 
     async function init() {
@@ -270,6 +271,7 @@
     }
 
     window.selectRound = (aid, rid) => {
+        if (unsubValidCount) { unsubValidCount(); unsubValidCount = null; }
         athleteId = aid;
         round = rid;
         history.replaceState(null, '', `?event=${eventId}&athlete=${aid}&round=${rid}`);
@@ -277,6 +279,18 @@
         renderScoringArea();
         document.getElementById('main-content').scrollTop = 0;
     };
+
+    function watchValidCount(resId) {
+        if (unsubValidCount) { unsubValidCount(); unsubValidCount = null; }
+        unsubValidCount = onSnapshot(doc(db, 'results', resId), snap => {
+            const vc = (snap.exists() ? snap.data().validCount : null) ?? 10;
+            const el = document.getElementById('valid-count');
+            const disp = document.getElementById('valid-count-display');
+            if (el) el.value = vc;
+            if (disp) disp.innerText = `${vc}本`;
+            calcTotal();
+        });
+    }
 
     function renderScoringArea() {
         const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId], resData = results[subId], ath = athletes.find(a => a.id === athleteId);
@@ -308,9 +322,9 @@
                 </table>
                 <div class="valid-count-area">
                     <label style="font-weight:bold;">有効本数:</label>
-                    <select id="valid-count" style="width:100px;" onchange="calcTotal()" ${isLocked ? 'disabled' : ''}>
-                        ${[...Array(11).keys()].map(n => `<option value="${n}" ${n===validCount?'selected':''}>${n}本</option>`).join('')}
-                    </select>
+                    <span id="valid-count-display" style="font-size:1.2em; font-weight:900; color:var(--ok-green); padding:6px 14px; background:#f1f8e9; border-radius:8px; border:1px solid #c8e6c9;">${validCount}本</span>
+                    <input type="hidden" id="valid-count" value="${validCount}">
+                    <span style="font-size:0.75em; color:#90a4ae;">(CJP設定)</span>
                 </div>
                 <div class="footer-stats"><span id="total-dd" class="total-official">0.0</span></div>
                 <div class="action-area" id="action-area">
@@ -337,6 +351,7 @@
             updateOptions(i, currentId, false);
         }
         calcTotal();
+        watchValidCount(subId);
     }
 
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {

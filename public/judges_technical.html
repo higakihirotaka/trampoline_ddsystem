@@ -74,6 +74,13 @@
         
         .btn-confirm { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 1.1rem; font-weight: 900; cursor: pointer; }
 
+        /* S1-S10 有効本数クリック */
+        .sn-th { cursor: pointer; user-select: none; transition: background 0.15s, color 0.15s; }
+        .sn-th:hover { background: rgba(26,115,232,0.25) !important; }
+        .sn-th.sn-valid { background: rgba(0,230,118,0.15); color: var(--success); }
+        .sn-th.sn-cutoff { background: rgba(26,115,232,0.4) !important; color: #fff; font-weight: 900; outline: 2px solid var(--accent); }
+        .sn-th.sn-invalid { opacity: 0.3; }
+
         /* 手動入力モード */
         .btn-manual-toggle { background: transparent; color: #ff9800; border: 2px solid #ff9800; padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
         .btn-manual-toggle.active { background: #ff9800; color: #000; }
@@ -186,8 +193,8 @@
                 <!-- 審判ヘッダー行 -->
                 <tr>
                     <th>Judge</th>
-                    <th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th>
-                    <th>S6</th><th>S7</th><th>S8</th><th>S9</th><th>S10</th>
+                    <th class="sn-th" id="sn-th-1"  onclick="setValidCount(1)" >S1</th><th class="sn-th" id="sn-th-2"  onclick="setValidCount(2)" >S2</th><th class="sn-th" id="sn-th-3"  onclick="setValidCount(3)" >S3</th><th class="sn-th" id="sn-th-4"  onclick="setValidCount(4)" >S4</th><th class="sn-th" id="sn-th-5"  onclick="setValidCount(5)" >S5</th>
+                    <th class="sn-th" id="sn-th-6"  onclick="setValidCount(6)" >S6</th><th class="sn-th" id="sn-th-7"  onclick="setValidCount(7)" >S7</th><th class="sn-th" id="sn-th-8"  onclick="setValidCount(8)" >S8</th><th class="sn-th" id="sn-th-9"  onclick="setValidCount(9)" >S9</th><th class="sn-th" id="sn-th-10" onclick="setValidCount(10)">S10</th>
                     <th>Ln</th><th>Total</th>
                     <th style="width:36px;font-size:0.55rem;color:#78909c;line-height:1.2">手動<br>入力</th>
                 </tr>
@@ -535,7 +542,9 @@
     // ---- スコア表示 ----
     function renderScores(data) {
         latestData = data;
-        document.getElementById('valid-count').value = data.validCount ?? 10;
+        const _vc = data.validCount ?? 10;
+        document.getElementById('valid-count').value = _vc;
+        updateValidHeaders(_vc);
         document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
         document.getElementById('dd-label').innerText = `DD: ${data.officialTotalDD?.toFixed(1) || "0.0"}`;
 
@@ -759,6 +768,22 @@
     window.updateValid = async (val) => {
         const resId = `${eventId}_${athleteId}_${round}`;
         await setDoc(doc(db, "results", resId), { validCount: parseInt(val) }, { merge: true });
+    };
+
+    function updateValidHeaders(n) {
+        for (let i = 1; i <= 10; i++) {
+            const th = document.getElementById(`sn-th-${i}`);
+            if (!th) continue;
+            th.classList.toggle('sn-valid',   i < n);
+            th.classList.toggle('sn-cutoff',  i === n);
+            th.classList.toggle('sn-invalid', i > n);
+        }
+    }
+
+    window.setValidCount = (n) => {
+        document.getElementById('valid-count').value = n;
+        updateValidHeaders(n);
+        updateValid(n);
     };
 
     window.calc = function(data) { updateScoreSummary(data ? calcExecution(data) : null); };
