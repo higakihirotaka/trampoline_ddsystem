@@ -19,10 +19,12 @@
         .cat-group { background: #cfd8dc; padding: 10px 15px; font-size: 0.85em; font-weight: bold; color: #37474f; border-bottom: 1px solid #b0bec5; }
         .gender-group { background: #f1f3f4; padding: 6px 20px; font-size: 0.75em; font-weight: bold; color: #78909c; border-bottom: 1px solid #eee; }
 
-        .athlete-row { padding: 10px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .athlete-row { padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .athlete-row.active-athlete { background: #f0f7ff; }
-        .ath-name-text { font-size: 0.85em; font-weight: bold; color: #333; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ath-order { font-size: 0.85em; color: var(--accent); margin-right: 5px; font-family: monospace; }
+        .ath-name-text { flex-grow: 1; min-width: 0; }
+        .ath-name-main { font-size: 0.85em; font-weight: bold; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ath-name-sub { font-size: 0.72em; color: #90a4ae; font-weight: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+        .ath-order { color: var(--accent); margin-right: 4px; font-family: monospace; }
         
         .round-box { display: flex; gap: 6px; }
         .r-dot { 
@@ -99,7 +101,8 @@
     const app = initializeApp(firebaseConfig); const db = getFirestore(app);
     
     const params = new URLSearchParams(location.search);
-    const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
+    const eventId = params.get('event')?.trim();
+    let athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
     let fType = 'individual', fClass = '', fGender = '';
@@ -232,13 +235,20 @@
             for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
             if (currentTour.hasFinal) dotsHtml += getDotHtml(ath.id, 'final', 'F');
 
-            const nameHtml = isSynchro
+            const nameLine1 = isSynchro
                 ? `<span class="ath-order">${ath.order}.</span>${ath.name1} / ${ath.name2 || ''}`
                 : `<span class="ath-order">${ath.order}.</span>${ath.name1}`;
+            const nameLine2 = isSynchro
+                ? (ath.kana1 || ath.kana2 ? `${ath.kana1 || ''} / ${ath.kana2 || ''}` : '')
+                : (ath.kana1 || '');
+            const titleAttr = `${ath.name1 || ''}${ath.kana1 ? ' (' + ath.kana1 + ')' : ''}`;
 
             listEl.innerHTML += `
-                <div class="athlete-row ${ath.id === athleteId ? 'active-athlete' : ''}">
-                    <div class="ath-name-text">${nameHtml}</div>
+                <div class="athlete-row ${ath.id === athleteId ? 'active-athlete' : ''}" title="${titleAttr}">
+                    <div class="ath-name-text">
+                        <div class="ath-name-main">${nameLine1}</div>
+                        ${nameLine2 ? `<div class="ath-name-sub">${nameLine2}</div>` : ''}
+                    </div>
                     <div class="round-box">${dotsHtml}</div>
                 </div>`;
         });
@@ -256,18 +266,24 @@
         const cls = (results[id] ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
                     (aid === athleteId && rid === round ? ' current' : '') +
                     (checkHasDiff(aid, rid) ? ' diff-dot' : '');
-        return `<a href="judges_entry.html?event=${eventId}&athlete=${aid}&round=${rid}" class="r-dot ${cls}">${label}</a>`;
+        return `<a href="#" class="r-dot ${cls}" onclick="selectRound('${aid}','${rid}');return false;">${label}</a>`;
     }
+
+    window.selectRound = (aid, rid) => {
+        athleteId = aid;
+        round = rid;
+        history.replaceState(null, '', `?event=${eventId}&athlete=${aid}&round=${rid}`);
+        renderSidebar();
+        renderScoringArea();
+        document.getElementById('main-content').scrollTop = 0;
+    };
 
     function renderScoringArea() {
         const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId], resData = results[subId], ath = athletes.find(a => a.id === athleteId);
-        if (!sub) {
-            document.getElementById('main-content').innerHTML = `<div style="margin-top:150px; text-align:center;"><b style="font-size:1.5em;">No.${ath?.order || ''} ${ath?.name1 || ''}</b><br><div style="color:var(--warn-orange); font-weight:bold; margin-top:10px;">${round.toUpperCase()} 未提出</div></div>`;
-            return;
-        }
-
+        if (!ath) { document.getElementById('main-content').innerHTML = `<div style="margin-top:150px;text-align:center;color:var(--danger);">選手データが見つかりません</div>`; return; }
+        const noSub = !sub;
         const isLocked = !!resData;
-        const initialData = isLocked ? resData.officialSkills : sub.skills;
+        const initialData = (isLocked ? resData.officialSkills : sub?.skills) || [];
         const validCount = (isLocked && resData.validCount !== undefined) ? resData.validCount : 10;
 
         const initialIds = initialData.map(s => {
@@ -282,6 +298,7 @@
                     <div style="display:flex; justify-content:space-between;">
                         <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
                         ${isLocked ? '<span class="status-badge badge-locked">✓ 公式スコア確定済</span>' : ''}
+                        ${noSub ? '<span style="font-size:0.85em; font-weight:bold; color:var(--warn-orange); background:#fff3e0; padding:4px 10px; border-radius:6px; border:1px solid #ffcc80;">⚠ 選手未申告</span>' : ''}
                     </div>
                     <h2>No.${ath.order} ${ath.name1} <span style="font-size:0.5em; color:#666;">(${ath.kana1 || ""})</span></h2>
                 </div>
@@ -305,7 +322,7 @@
         for (let i = 1; i <= 10; i++) {
             const currentId = initialIds[i-1] || "";
             const skill = skillMaster[currentId] || {};
-            const subRaw = sub.skills[i-1] || "";
+            const subRaw = (sub?.skills || [])[i-1] || "";
             const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
 
             const tr = document.createElement('tr'); tr.id = `row-${i}`;
@@ -338,7 +355,7 @@
     window.calcTotal = () => {
         const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId];
         const validCountEl = document.getElementById('valid-count'), totalDDContainer = document.getElementById('total-dd');
-        if (!validCountEl || !sub) return;
+        if (!validCountEl) return;
 
         const validLimit = parseInt(validCountEl.value);
         let baseDD = 0, tripleCount = 0, hasAnyDiff = false;
@@ -351,7 +368,7 @@
 
         for (let i = 1; i <= 10; i++) {
             const id = document.getElementById(`skill-${i}`)?.value, row = document.getElementById(`row-${i}`), ddSpan = document.getElementById(`dd-${i}`), selSkill = document.getElementById(`skill-${i}`), selDir = document.getElementById(`dir-${i}`);
-            const subRaw = sub.skills[i-1] || "", subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+            const subRaw = (sub?.skills || [])[i-1] || "", subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
 
             if (i > validLimit) { row.classList.add('invalid-row'); ddSpan.innerText = "0.0"; continue; }
             row.classList.remove('invalid-row');

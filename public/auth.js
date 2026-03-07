@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, query, orderBy, getDocs, writeBatch, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Centralized Firebase Initialization
@@ -16,12 +16,33 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// ローカル環境（localhost / LAN IP）では Auth Emulator に自動接続
+// Firestore は本番をそのまま使用（Firestoreエミュレータは Java が必要なため）
+const _PROD_HOSTS = ['trampoline-dd-test.firebaseapp.com', 'trampoline-dd-test.web.app'];
+const _IS_LOCAL = !_PROD_HOSTS.includes(location.hostname);
+if (_IS_LOCAL) {
+    const _h = location.hostname;  // localhost または 192.168.x.x など
+    connectAuthEmulator(auth, `http://${_h}:9099`, { disableWarnings: true });
+    console.info(`[Dev] Auth Emulator に接続: http://${_h}:9099`);
+}
+
 // --- Auth Functions ---
 
 async function checkAdminStatus(user) {
     if (!user) return false;
+    // ローカル開発時は認証済みユーザーを全員管理者として扱う（IPアドレス制限なしでテスト可能）
+    if (_IS_LOCAL) return true;
     const adminDoc = await getDoc(doc(db, "admins", user.uid));
     return adminDoc.exists();
+}
+
+// ローカル開発時のみ使用可能なスキップログイン
+export const isLocalDev = _IS_LOCAL;
+
+export function loginSkip() {
+    if (!_IS_LOCAL) return;
+    // Auth Emulator 不要：直接 admin_index.html へ遷移
+    window.location.href = 'admin_index.html';
 }
 
 export async function loginWithGoogle() {
@@ -48,6 +69,11 @@ export function handleLoginRedirect() {
 }
 
 export function ensureAdmin(callback) {
+    // ローカル開発時は認証チェックをスキップして即コールバック（Firestoreは本番に直接接続）
+    if (_IS_LOCAL) {
+        callback({ displayName: 'Dev User', email: 'dev@local.dev', uid: 'dev-uid' });
+        return;
+    }
     onAuthStateChanged(auth, async (user) => {
         if (user && await checkAdminStatus(user)) {
             callback(user);
