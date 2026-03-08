@@ -2,8 +2,53 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=admin_index.html">
-    <script>window.location.replace('admin_index.html');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travaults System - Login</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f8f9fa;
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+        }
+        .login-container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 400px;
+        }
+        .logo {
+            width: 280px; /* ロゴのサイズは適宜調整してください */
+            height: auto;
+            margin-bottom: 30px;
+        }
+        .login-btn {
+            display: inline-block;
+            background-color: #004071; /* ロゴに合わせた濃いブルー */
+            color: white;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .login-btn:hover {
+            background-color: #002d50;
+        }
+    </style>
 </head>
-<body></body>
+<body>
+    <div class="login-container">
+        <img src="logo.png" alt="travaults system" class="logo">
+        <br>
+        <a href="admin_index.html" class="login-btn">管理者ログイン</a>
+    </div>
+</body>
 </html>
