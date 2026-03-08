@@ -36,10 +36,8 @@
         .status-link { text-decoration: none; padding: 8px 0; border-radius: 8px; font-size: 0.78em; font-weight: bold; display: block; width: 80px; margin: 0 auto; border: 1px solid transparent; transition: 0.2s; }
         .status-none { background: #fff; color: var(--primary-blue); border-color: var(--primary-blue); }
         .status-done { background: #e8f0fe; color: var(--primary-blue); border-color: transparent; }
-        .status-warning { background: #f9a825; color: white; border-color: transparent; animation: blinker 1.5s linear infinite; }
         .withdrawn-row { background-color: #f5f5f5; color: #999; }
         .withdrawn-row td { text-decoration: line-through; }
-        @keyframes blinker { 50% { opacity: 0.6; } }
     </style>
 </head>
 <body>
@@ -187,7 +185,7 @@
         const subId = `${eventId}_${ath.id}_${round}`;
         const sub = subDataMap.get(subId);
         let btnClass = "status-none", btnText = "入力";
-        if (sub) { btnClass = sub.checkStatus === 1 ? "status-warning" : "status-done"; btnText = sub.checkStatus === 1 ? "要修正" : "提出済"; }
+        if (sub) { btnClass = "status-done"; btnText = "提出済"; }
         return `<a href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${btnClass}">${btnText}</a>`;
     }
     
