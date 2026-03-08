@@ -3,82 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>進捗管理 - Trampoline Scoring System</title>
+    <title>競技カード管理 - Trampoline Scoring System</title>
     <style>
-        :root {
-            --primary: #37474f; --accent: #1a73e8; --bg: #eceff1; --card: #ffffff;
-            --status-none: #90a4ae; --status-sub: #0288d1; --status-warn: #f57c00; --status-ok: #388e3c;
-        }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
-        .dashboard-container { max-width: 1200px; margin: auto; background: var(--card); padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); border-top: 8px solid var(--primary); }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 15px; border-bottom: 1px solid #eee; text-align: center; }
-        .cat-row { background: #f8f9fa; font-weight: bold; text-align: left; }
-        .status-badge { padding: 6px 12px; border-radius: 6px; font-size: 0.75em; font-weight: bold; text-decoration: none; color: white; display: inline-block; min-width: 80px; }
-        .bg-none { background: var(--status-none); }
-        .bg-sub { background: var(--status-sub); }
-        .bg-warn { background: var(--status-warn); }
-        .bg-ok { background: var(--status-ok); }
+        :root { --primary-blue: #1a73e8; --bg-gray: #f0f2f5; --text-dark: #202124; --text-gray: #5f6368; --success-green: #1e8e3e; --indiv-purple: #5e35b1; --sync-teal: #00897b; }
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; padding: 20px; background: var(--bg-gray); margin: 0; }
+        .list-container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .header h1 { margin: 0; font-size: 1.6em; }
+        .header-sub { color: #888; font-size: 0.9em; margin-top: 4px; }
+        .back-link { text-decoration: none; color: #5f6368; font-size: 0.9rem; border: 1px solid #ccc; padding: 7px 18px; border-radius: 8px; white-space: nowrap; }
+
+        .section-header { font-size: 1.8em; font-weight: 900; margin: 50px 0 20px 0; padding-bottom: 10px; border-bottom: 4px solid; }
+        .indiv-header { border-color: var(--indiv-purple); color: var(--indiv-purple); }
+        .sync-header { border-color: var(--sync-teal); color: var(--sync-teal); }
+        .class-header { font-size: 1.3em; font-weight: 900; margin: 30px 0 15px 0; padding: 12px 20px; border-radius: 10px; color: white; }
+        .indiv-class-header { background: var(--indiv-purple); }
+        .sync-class-header { background: var(--sync-teal); }
+
+        .category-row { background: #f8f9fa; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; table-layout: auto; }
+        th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; }
+        th { color: var(--text-gray); font-size: 0.75em; text-transform: uppercase; white-space: nowrap; }
+        .col-num { width: 36px; }
+        .col-name { text-align: left; min-width: 120px; }
+        .col-btn { width: 88px; white-space: nowrap; }
+        .status-link { text-decoration: none; padding: 8px 0; border-radius: 8px; font-size: 0.78em; font-weight: bold; display: block; width: 80px; margin: 0 auto; border: 1px solid transparent; transition: 0.2s; }
+        .status-none  { background: #fff; color: var(--primary-blue); border-color: var(--primary-blue); }
+        .status-done  { background: #e8f0fe; color: var(--primary-blue); }
+        .status-ok    { background: #e6f4ea; color: var(--success-green); }
+        .withdrawn-row { background-color: #f5f5f5; color: #999; }
+        .withdrawn-row td { text-decoration: line-through; }
     </style>
 </head>
 <body>
-<div class="dashboard-container">
+<div class="list-container">
     <div class="header">
-        <div><h1 id="event-name" style="margin:0;">Loading...</h1><div style="color:#888;">進捗・ステータス管理</div></div>
-        <a href="admin_menu.html" id="menu-back" style="text-decoration:none; color:var(--accent); font-weight:bold;">← 管理メニューに戻る</a>
+        <div>
+            <h1 id="event-name">読み込み中...</h1>
+            <div class="header-sub">競技カード管理（管理者）</div>
+        </div>
+        <a id="menu-back" href="admin_menu.html" class="back-link">← 管理メニューに戻る</a>
     </div>
-    <div id="main-list"></div>
+    <div id="indiv-list"></div>
+    <div id="sync-list"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
     const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
-    const app = initializeApp(firebaseConfig); const db = getFirestore(app);
-    const params = new URLSearchParams(location.search); const eventId = params.get('event');
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event');
 
     async function init() {
         if (!eventId) { document.body.innerHTML = '<h1>エラー: 大会IDが見つかりません。</h1><a href="admin_index.html">大会選択に戻る</a>'; return; }
         document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
+
         const [tourSnap, athSnap, subSnap, resSnap] = await Promise.all([
             getDoc(doc(db, "tournaments", eventId)),
             getDocs(collection(db, "tournaments", eventId, "athletes")),
             getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
-            getDocs(query(collection(db, "results"), where("eventId", "==", eventId)))
+            getDocs(query(collection(db, "results"),     where("eventId", "==", eventId)))
         ]);
-        const tour = tourSnap.data(); document.getElementById('event-name').innerText = tour.name;
-        const subMap = {}; subSnap.forEach(d => { subMap[d.id] = d.data(); });
-        const resMap = {}; resSnap.forEach(d => { resMap[d.id] = d.data(); });
-        renderDashboard(tour, athSnap.docs.map(d => d.data()), subMap, resMap);
+
+        const tour = tourSnap.data();
+        document.getElementById('event-name').innerText = tour.name;
+
+        const subDataMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
+        const resDataMap = new Map(resSnap.docs.map(d => [d.id, d.data()]));
+        const allAthletes = athSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+
+        const indivAthletes = allAthletes.filter(a => a.type !== 'synchro');
+        const syncAthletes  = allAthletes.filter(a => a.type === 'synchro');
+
+        const rawClassRules = tour.classRules || {};
+        const hasNewFormat = 'individual' in rawClassRules || 'synchro' in rawClassRules;
+        const classRules = hasNewFormat ? rawClassRules :
+                           Object.keys(rawClassRules).length > 0 ? { individual: rawClassRules, synchro: {} } :
+                           { individual: {}, synchro: {} };
+
+        const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+        let indivClassOrder = [], syncClassOrder = [];
+        if (tour.classes && !Array.isArray(tour.classes)) {
+            indivClassOrder = sortByOrder(tour.classes.individual).map(c => c.name);
+            syncClassOrder  = sortByOrder(tour.classes.synchro).map(c => c.name);
+        } else if (Array.isArray(tour.classes)) {
+            indivClassOrder = sortByOrder(tour.classes).map(c => c.name);
+        }
+
+        if (indivAthletes.length > 0) {
+            document.getElementById('indiv-list').innerHTML =
+                '<h2 class="section-header indiv-header">個人競技</h2>' +
+                renderAthleteTables(indivAthletes, classRules.individual, subDataMap, resDataMap, 'individual', rawClassRules, indivClassOrder);
+        }
+        if (syncAthletes.length > 0) {
+            document.getElementById('sync-list').innerHTML =
+                '<h2 class="section-header sync-header">シンクロ競技</h2>' +
+                renderAthleteTables(syncAthletes, classRules.synchro, subDataMap, resDataMap, 'synchro', rawClassRules, syncClassOrder);
+        }
     }
 
-    function renderDashboard(tour, athletes, subMap, resMap) {
-        athletes.sort((a,b) => (a.category + a.gender + String(a.order).padStart(3,'0')).localeCompare(b.category + b.gender + String(b.order).padStart(3,'0')));
-        let html = ""; let currentGrp = ""; const numPre = tour.qualifyingRoutines || 1;
-        athletes.forEach(ath => {
-            const grp = `${ath.category} - ${ath.gender}`;
-            if (currentGrp !== grp) {
-                if (currentGrp !== "") html += "</tbody></table>";
-                currentGrp = grp;
-                html += `<table><thead><tr class="cat-row"><td colspan="${2 + numPre + (tour.hasFinal?1:0)}">${grp}</td></tr><tr><th>順</th><th style="text-align:left;">選手名</th>${Array.from({length:numPre}, (_,i)=>`<th>予選${i+1}</th>`).join('')}${tour.hasFinal ? '<th>決勝</th>' : ''}</tr></thead><tbody>`;
-            }
-            html += `<tr><td>${ath.order}</td><td style="text-align:left;"><b>${ath.name2 ? ath.name1+' / '+ath.name2 : ath.name1}</b></td>`;
-            for(let i=1; i<=numPre; i++) html += `<td>${getStatusBadge(ath, `pre${i}`, subMap, resMap)}</td>`;
-            if(tour.hasFinal) html += `<td>${getStatusBadge(ath, 'final', subMap, resMap)}</td>`;
-            html += `</tr>`;
-        });
-        document.getElementById('main-list').innerHTML = html + "</tbody></table>";
+    function renderAthleteTables(athletes, rulesByType, subDataMap, resDataMap, type, fallbackRules = {}, classOrder = []) {
+        const athletesByClass = athletes.reduce((acc, ath) => {
+            const className = ath.class || 'N/A';
+            if (!acc[className]) acc[className] = [];
+            acc[className].push(ath);
+            return acc;
+        }, {});
+
+        const ordered  = classOrder.filter(name => athletesByClass[name]);
+        const leftover = Object.keys(athletesByClass).filter(name => !classOrder.includes(name)).sort();
+        const sortedClasses = [...ordered, ...leftover];
+        let finalHtml = '';
+
+        for (const className of sortedClasses) {
+            const classAthletes = athletesByClass[className];
+            const rules = (rulesByType || {})[className] || fallbackRules[className] || { qualifyingRoutines: 2, hasFinal: false };
+
+            classAthletes.sort((a, b) =>
+                `${a.gender || ''}-${String(a.flightGroup || '').padStart(3,'0')}-${String(a.order || '').padStart(3,'0')}`
+                .localeCompare(`${b.gender || ''}-${String(b.flightGroup || '').padStart(3,'0')}-${String(b.order || '').padStart(3,'0')}`)
+            );
+
+            finalHtml += `<div class="class-header ${type === 'synchro' ? 'sync-class-header' : 'indiv-class-header'}">${className}</div>`;
+            let currentGender = "";
+
+            classAthletes.forEach(ath => {
+                if (currentGender !== ath.gender) {
+                    if (currentGender !== "") finalHtml += '</tbody></table>';
+                    currentGender = ath.gender;
+
+                    const routineHeaders = Array.from({ length: rules.qualifyingRoutines }, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
+                    const finalHeader = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
+                    const totalCols = 3 + rules.qualifyingRoutines + (rules.hasFinal ? 1 : 0);
+
+                    finalHtml += `
+                        <table>
+                            <thead>
+                                <tr class="category-row"><td colspan="${totalCols}" style="text-align:left;">${currentGender}</td></tr>
+                                <tr>
+                                    <th class="col-num">Gr</th>
+                                    <th class="col-num">順</th>
+                                    <th class="col-name">選手</th>
+                                    ${routineHeaders}
+                                    ${finalHeader}
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                }
+
+                const playerHtml = type === 'synchro'
+                    ? `<span style="font-weight:bold;">${ath.name1 || ''} / ${ath.name2 || ''}</span><br><small style="color:#888;">${ath.club1 || ''} / ${ath.club2 || ''}</small>`
+                    : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${ath.club1}</small>`;
+
+                finalHtml += `<tr class="${ath.isWithdrawn ? 'withdrawn-row' : ''}"><td class="col-num">${ath.flightGroup || '-'}</td><td class="col-num">${ath.order || '-'}</td><td class="col-name">${playerHtml}</td>`;
+
+                for (let i = 1; i <= rules.qualifyingRoutines; i++) {
+                    finalHtml += `<td>${getStatusButton(ath, `pre${i}`, subDataMap, resDataMap)}</td>`;
+                }
+                if (rules.hasFinal) {
+                    finalHtml += `<td>${getStatusButton(ath, 'final', subDataMap, resDataMap)}</td>`;
+                }
+                finalHtml += '</tr>';
+            });
+
+            if (classAthletes.length > 0) finalHtml += '</tbody></table>';
+        }
+        return finalHtml;
     }
 
-    function getStatusBadge(ath, rid, subMap, resMap) {
-        const subId = `${eventId}_${ath.id}_${rid}`;
-        const sub = subMap[subId]; const isOfficial = resMap[subId];
-        const editUrl = `entry.html?event=${eventId}&athlete=${ath.id}&round=${rid}&admin=1`;
-        if (isOfficial) return `<a href="${editUrl}" class="status-badge bg-ok">Official OK</a>`;
-        if (sub) return `<a href="${editUrl}" class="status-badge ${sub.checkStatus===1?'bg-warn':'bg-sub'}">${sub.checkStatus===1?'要修正！':'提出済'}</a>`;
-        return `<a href="${editUrl}" class="status-badge bg-none">未提出</a>`;
+    function getStatusButton(ath, round, subDataMap, resDataMap) {
+        if (ath.isWithdrawn) return "<span style='font-size:0.8em; color:#d32f2f;'>棄権</span>";
+        const subId = `${eventId}_${ath.id}_${round}`;
+        const editUrl = `entry.html?event=${eventId}&athlete=${ath.id}&round=${round}&admin=1`;
+        if (resDataMap.has(subId)) {
+            return `<a href="${editUrl}" class="status-link status-ok">Official</a>`;
+        }
+        if (subDataMap.has(subId)) {
+            return `<a href="${editUrl}" class="status-link status-done">提出済</a>`;
+        }
+        return `<a href="${editUrl}" class="status-link status-none">未提出</a>`;
     }
+
     init();
 </script>
 </body>
