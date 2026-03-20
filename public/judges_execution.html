@@ -253,7 +253,12 @@
 
         if (isInterrupted) {
             keypad.className = 'keypad';
-            keypad.innerHTML = `<button class="key key-undo" onclick="undo()">UNDO / EDIT</button>`;
+            keypad.innerHTML = `
+                <div style="grid-column:span 6; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#888; font-size:0.85rem; padding:4px 0; text-align:center;">
+                    <span>有効本数 <strong style="color:#aaa;">${vLimit}本</strong> で採点完了</span>
+                    <span style="font-size:0.75rem; color:#555;">修正する場合は UNDO を押してください</span>
+                </div>
+                <button class="key key-undo" onclick="undo()">UNDO / EDIT</button>`;
         } else if (currentIndex < 10) {
             keypad.className = 'keypad';
             keypad.innerHTML =
@@ -283,6 +288,8 @@
     // ---- 採点書き込み ----
     window.tap = async (v) => {
         if (!athleteId || !round) return;
+        // CJPが有効本数を変更した直後の競合を防ぐ（範囲外への書き込みをブロック）
+        if (currentIndex < 10 && currentIndex >= vLimit) return;
 
         if (currentIndex < 10) {
             if (!isValidDeduction(v)) return;   // 0.0~0.5以外は無視

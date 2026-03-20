@@ -71,6 +71,7 @@
 <script type="module">
     import { db } from "./firebase-config.js";
     import { doc, getDoc, collection, getDocs, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { normalizeClassRules, calcBonus } from "./shared.js";
     const params = new URLSearchParams(location.search);
     const eventIdParam = params.get('event');
     const eventId = eventIdParam ? eventIdParam.trim() : null;
@@ -91,6 +92,7 @@
     async function init() {
         if (!eventId) { document.body.innerHTML = "<h1>大会IDが見つかりません</h1><a href=\"admin_index.html\">大会選択に戻る</a>"; return; }
         document.getElementById('menu-back').href = 'admin_menu.html?event=' + eventId;
+        document.getElementById('sidebar-list').innerHTML = '<div style="padding:20px; color:#90a4ae; font-size:0.9rem;">読み込み中...</div>';
 
         const [tourSnap, athSnap, subSnap, skillSnap] = await Promise.all([
             getDoc(doc(db, "tournaments", eventId)),
@@ -105,13 +107,7 @@
         if (tourSnap.exists()) {
             const tourData = tourSnap.data();
             document.getElementById('event-name').innerText = tourData.name;
-            if (tourData.classRules) {
-                if (tourData.classRules.individual === undefined && tourData.classRules.synchro === undefined) {
-                    classRules.individual = tourData.classRules; // Old format
-                } else {
-                    classRules = tourData.classRules;
-                }
-            }
+            classRules = normalizeClassRules(tourData.classRules);
         }
         athletes = athSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
         subSnap.forEach(function(d) { submissions.set(d.id, d.data()); });
@@ -273,9 +269,7 @@
             '</tr>';
         }
         const gender = athlete.gender || '';
-        let bonus = 0;
-        if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-        if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+        const bonus = calcBonus(gender, tripleCount);
         const totalDD = baseDD + bonus;
         const currentStatus = submission.checkStatus ?? 0;
 

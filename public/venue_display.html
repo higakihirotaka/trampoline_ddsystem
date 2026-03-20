@@ -466,6 +466,7 @@
 <script type="module">
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { normalizeClassRules, calcBonus } from "./shared.js";
 
   const params    = new URLSearchParams(location.search);
   const eventId   = params.get('event')?.trim();
@@ -726,9 +727,7 @@
     }
 
     // ---- ボーナス計算 ----
-    let bonus = 0;
-    if (ath.gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-    else if (ath.gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+    const bonus = calcBonus(ath.gender, tripleCount);
     const finalDD = baseDD + bonus;
 
     // LAN列
@@ -937,9 +936,7 @@
   }
 
   function getClassRule(ath) {
-    const rawRules = tournamentData?.classRules || {};
-    const hasNew = 'individual' in rawRules || 'synchro' in rawRules;
-    const classRules = hasNew ? rawRules : { individual: rawRules, synchro: {} };
+    const classRules = normalizeClassRules(tournamentData?.classRules);
     const selType = (ath.type || 'individual');
     const classVal = ath.class || ath.category || '';
     return (classRules[selType] || {})[classVal] || {};
