@@ -107,12 +107,9 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, getDoc, setDoc, serverTimestamp }
+    import { db } from "./firebase-config.js";
+    import { doc, onSnapshot, getDoc, setDoc, serverTimestamp }
         from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
-    const db = getFirestore(initializeApp(firebaseConfig));
 
     const params    = new URLSearchParams(location.search);
     const eventId   = params.get('event');
@@ -174,7 +171,9 @@
         const snap  = await getDoc(doc(db, 'results', resId));
         if (snap.exists()) {
             const d   = snap.data();
-            const val = role === 'T' ? d.tof : d.hd?.total;
+            const val = role === 'T'
+                ? (d.tofByPanel?.[panel] ?? d.tof)
+                : (d.hdByPanel?.[panel] ?? d.hd?.total);
             if (val !== undefined && val !== null) {
                 savedEl.textContent = Number(val).toFixed(3);
                 savedEl.className   = 'saved-val has-val';
@@ -217,8 +216,8 @@
 
         try {
             const saveData = role === 'T'
-                ? { tof: actual, updatedAt: serverTimestamp(), verifiedAt: serverTimestamp() }
-                : { hd: { total: actual }, updatedAt: serverTimestamp(), verifiedAt: serverTimestamp() };
+                ? { tofByPanel: { [panel]: actual }, updatedAt: serverTimestamp() }
+                : { hdByPanel: { [panel]: actual }, updatedAt: serverTimestamp() };
 
             await setDoc(doc(db, 'results', resId), saveData, { merge: true });
 

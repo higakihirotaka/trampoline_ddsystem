@@ -86,12 +86,8 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round');
@@ -111,7 +107,7 @@
         const skillSnap = await getDocs(collection(db, 'skillMaster'));
         skillMaster = skillSnap.docs
             .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => Number(a.id) - Number(b.id));
+            .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)));
 
         const [athDoc, subDoc] = await Promise.all([
             getDoc(doc(db, "tournaments", eventId, "athletes", athleteId)),
@@ -217,7 +213,7 @@
 
         const gender = document.getElementById('ath-gender').value;
         let bonus = 0;
-        if (gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+        if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
         if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
         document.getElementById('dd-base').textContent  = baseDD.toFixed(1);

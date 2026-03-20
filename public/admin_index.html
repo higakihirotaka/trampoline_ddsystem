@@ -39,11 +39,9 @@
 </div>
 
 <script type="module">
-    import { getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, collection, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, collection, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, getTournaments } from './auth.js';
-
-    const db = getFirestore(getApp());
+    import { db } from "./firebase-config.js";
 
     async function populateTournaments() {
         const tournaments = await getTournaments();

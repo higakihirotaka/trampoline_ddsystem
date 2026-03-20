@@ -1,55 +1,33 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, query, orderBy, getDocs, writeBatch, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-// Centralized Firebase Initialization
-const firebaseConfig = {
-    apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4",
-    authDomain: "trampoline-dd-test.firebaseapp.com",
-    projectId: "trampoline-dd-test",
-    storageBucket: "trampoline-dd-test.appspot.com",
-    messagingSenderId: "722487617244",
-    appId: "1:722487617244:web:9ae10218c36c82763af619"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// ローカル環境（localhost / LAN IP）では Auth Emulator に自動接続
-// Firestore は本番をそのまま使用（Firestoreエミュレータは Java が必要なため）
-const _PROD_HOSTS = ['trampoline-dd-test.firebaseapp.com', 'trampoline-dd-test.web.app'];
-const _IS_LOCAL = !_PROD_HOSTS.includes(location.hostname);
-if (_IS_LOCAL) {
-    const _h = location.hostname;  // localhost または 192.168.x.x など
-    connectAuthEmulator(auth, `http://${_h}:9099`, { disableWarnings: true });
-    console.info(`[Dev] Auth Emulator に接続: http://${_h}:9099`);
-}
+import { app, db, auth, isLocalDev } from "./firebase-config.js";
+import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { doc, getDoc, collection, query, orderBy, getDocs, writeBatch, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- Auth Functions ---
 
 async function checkAdminStatus(user) {
     if (!user) return false;
-    // ローカル開発時は認証済みユーザーを全員管理者として扱う（IPアドレス制限なしでテスト可能）
-    if (_IS_LOCAL) return true;
+    if (isLocalDev) return true;
     const adminDoc = await getDoc(doc(db, "admins", user.uid));
     return adminDoc.exists();
 }
 
-// ローカル開発時のみ使用可能なスキップログイン
-export const isLocalDev = _IS_LOCAL;
+export { isLocalDev };
 
 export function loginSkip() {
-    if (!_IS_LOCAL) return;
-    // Auth Emulator 不要：直接 admin_index.html へ遷移
-    window.location.href = 'admin_index.html';
+    if (!isLocalDev) return;
+    // クエリパラメータを引き継いで遷移
+    const params = new URLSearchParams(window.location.search);
+    const qs = params.toString();
+    window.location.href = 'admin_index.html' + (qs ? '?' + qs : '');
 }
 
 export async function loginWithGoogle() {
     try {
         const result = await signInWithPopup(auth, new GoogleAuthProvider());
         if (await checkAdminStatus(result.user)) {
-            window.location.href = 'admin_index.html';
+            const params = new URLSearchParams(window.location.search);
+            const qs = params.toString();
+            window.location.href = 'admin_index.html' + (qs ? '?' + qs : '');
         } else {
             await signOut(auth);
             alert('管理者権限がありません。');
@@ -69,8 +47,7 @@ export function handleLoginRedirect() {
 }
 
 export function ensureAdmin(callback) {
-    // ローカル開発時は認証チェックをスキップして即コールバック（Firestoreは本番に直接接続）
-    if (_IS_LOCAL) {
+    if (isLocalDev) {
         callback({ displayName: 'Dev User', email: 'dev@local.dev', uid: 'dev-uid' });
         return;
     }
@@ -108,7 +85,7 @@ export async function getSkills() {
         const snap = await getDocs(collection(db, 'skillMaster'));
         return snap.docs
             .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => Number(a.id) - Number(b.id));
+            .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)));
     } catch (e) {
         console.error("Error loading skills:", e);
         return [];

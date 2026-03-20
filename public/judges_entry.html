@@ -94,11 +94,8 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
-    const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim();
@@ -106,7 +103,7 @@
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
     let unsubValidCount = null;
-    let fType = 'individual', fClass = '', fGender = '';
+    let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
 
     async function init() {
         if (!eventId) return;
@@ -121,7 +118,7 @@
                 getDocs(collection(db, "skillMaster"))
             ]);
 
-            // skillMaster: ドキュメントID（数値文字列）でソートして配列化
+            // skillMaster: ドキュメントID（数値文字列）でソートして配列化（ID=インデックスでアクセスされる）
             skillMaster = smSnap.docs
                 .sort((a, b) => parseInt(a.id) - parseInt(b.id))
                 .map(d => ({
@@ -129,7 +126,8 @@
                     symbol: d.data().symbol,
                     dd: parseFloat(d.data().dd) || 0,
                     isTriple: d.data().isTriple === true,
-                    direction: d.data().direction || ''
+                    direction: d.data().direction || '',
+                    displayOrder: d.data().displayOrder ?? parseInt(d.id)
                 }));
 
             currentTour = tourSnap.data();
@@ -197,20 +195,39 @@
             </div>`;
         }
 
+        // 決勝フィルター行を追加
+        const hasAnyFinals = athletes.some(a => a.finalOrder != null);
+        if (hasAnyFinals) {
+            filHtml += `<div class="filter-row">
+                <span class="filter-label">決勝</span>
+                <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">全て</button>
+                <button class="tab-btn ${fFinalOnly?'active':''}" onclick="setFilter('finalOnly',true)">🏆 決勝のみ</button>
+            </div>`;
+        }
+
         filterEl.style.display = filHtml ? '' : 'none';
         filterEl.innerHTML = filHtml;
 
         // 絞り込み＆ソート
-        const filtered = byType
-            .filter(a => !fClass  || (a.class || a.category || '') === fClass)
-            .filter(a => !fGender || (a.gender || '') === fGender)
-            .sort((a, b) => {
-                const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
-                if (ca !== cb) return ca.localeCompare(cb);
-                const ga = a.gender || '', gb = b.gender || '';
-                if (ga !== gb) return ga.localeCompare(gb);
-                return (a.order ?? 999) - (b.order ?? 999);
-            });
+        let filtered;
+        if (fFinalOnly) {
+            filtered = athletes
+                .filter(a => a.finalOrder != null)
+                .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+                .filter(a => !fGender || (a.gender || '') === fGender)
+                .sort((a, b) => (a.finalOrder ?? 999) - (b.finalOrder ?? 999));
+        } else {
+            filtered = byType
+                .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+                .filter(a => !fGender || (a.gender || '') === fGender)
+                .sort((a, b) => {
+                    const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                    if (ca !== cb) return ca.localeCompare(cb);
+                    const ga = a.gender || '', gb = b.gender || '';
+                    if (ga !== gb) return ga.localeCompare(gb);
+                    return (a.order ?? 999) - (b.order ?? 999);
+                });
+        }
 
         const listEl = document.getElementById('sidebar-list');
         listEl.innerHTML = "";
@@ -222,7 +239,7 @@
                 listEl.innerHTML += `<div class="cat-group">${cls}</div>`;
                 lastCat = cls; lastGender = "";
             }
-            if ((ath.gender || '') !== lastGender) {
+            if (!fFinalOnly && (ath.gender || '') !== lastGender) {
                 listEl.innerHTML += `<div class="gender-group">${ath.gender || ''}</div>`;
                 lastGender = ath.gender || '';
             }
@@ -231,10 +248,15 @@
             const athType = ath.type || 'individual';
             const classRule = currentTour.classRules?.[athType]?.[cls] || {};
             const numPre = classRule.qualifyingRoutines ?? currentTour.qualifyingRoutines ?? 1;
+            const hasFinalClass = classRule.hasFinal ?? false;
 
             let dotsHtml = "";
-            for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
-            if (currentTour.hasFinal) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+            if (fFinalOnly) {
+                dotsHtml = getDotHtml(ath.id, 'final', 'F');
+            } else {
+                for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
+                if (hasFinalClass) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+            }
 
             const nameLine1 = isSynchro
                 ? `<span class="ath-order">${ath.order}.</span>${ath.name1} / ${ath.name2 || ''}`
@@ -256,9 +278,10 @@
     }
 
     window.setFilter = (key, val) => {
-        if (key === 'type')   { fType = val; fClass = ''; fGender = ''; }
-        if (key === 'class')  fClass  = val;
-        if (key === 'gender') fGender = val;
+        if (key === 'type')      { fType = val; fClass = ''; fGender = ''; fFinalOnly = false; }
+        if (key === 'class')     fClass  = val;
+        if (key === 'gender')    fGender = val;
+        if (key === 'finalOnly') fFinalOnly = (val === true);
         renderSidebar();
     };
 
@@ -359,7 +382,7 @@
         const sel = document.getElementById(`skill-${idx}`);
         if(!sel) return;
         sel.innerHTML = '<option value="">選択</option>';
-        if (dir) skillMaster.filter(s => s.direction === dir).forEach(s => {
+        if (dir) skillMaster.filter(s => s.direction === dir).sort((a, b) => a.displayOrder - b.displayOrder).forEach(s => {
             const opt = document.createElement('option'); opt.value = s.id; opt.innerText = s.symbol;
             if (s.id === selectedId) opt.selected = true;
             sel.appendChild(opt);
@@ -405,7 +428,7 @@
 
         const ath = athletes.find(a => a.id === athleteId);
         let bonus = 0;
-        if (ath?.gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+        if (ath?.gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
         else if (ath?.gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');

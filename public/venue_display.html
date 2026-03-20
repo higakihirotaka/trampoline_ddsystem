@@ -64,14 +64,14 @@
       to   { opacity: 1; transform: translateY(0);      filter: blur(0); }
     }
     .convention-header,.athlete-section,.ribbon-wrapper,.breakdown-row,.result-section,.footer-credits{
-      opacity:0; animation: enter 2600ms ease-out forwards;
+      opacity:0; animation: enter var(--anim-duration, 2600ms) ease-out forwards;
     }
-    .convention-header{ animation-delay:    0ms; }
-    .athlete-section  { animation-delay: 1400ms; }
-    .ribbon-wrapper   { animation-delay: 2800ms; }
-    .breakdown-row    { animation-delay: 4200ms; }
-    .result-section   { animation-delay: 5600ms; }
-    .footer-credits   { animation-delay: 7000ms; }
+    .convention-header{ animation-delay: 0ms; }
+    .athlete-section  { animation-delay: calc(var(--anim-stagger, 1400ms) * 1); }
+    .ribbon-wrapper   { animation-delay: calc(var(--anim-stagger, 1400ms) * 2); }
+    .breakdown-row    { animation-delay: calc(var(--anim-stagger, 1400ms) * 3); }
+    .result-section   { animation-delay: calc(var(--anim-stagger, 1400ms) * 4); }
+    .footer-credits   { animation-delay: calc(var(--anim-stagger, 1400ms) * 5); }
     /* スコア更新時はアニメなし */
     .monitor-frame.no-anim .convention-header,
     .monitor-frame.no-anim .athlete-section,
@@ -416,6 +416,7 @@
       gap: 1cqw; align-items: center; padding: 0 1cqw;
       border-radius: 4px; border: 1px solid transparent;
       background: rgba(255,255,255,0.035); min-height: 0;
+      overflow: hidden;
     }
     .rk-row.rk-current{
       background: rgba(255,215,0,0.09);
@@ -427,21 +428,27 @@
       overflow: hidden; min-width: 0;
     }
     .rk-name{
-      font-size: 2.6cqw; font-weight: 800;
+      font-size: 2.4cqw; font-weight: 800;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       line-height: 1.1;
     }
     .rk-team{
-      font-size: 1.4cqw; font-weight: 600;
+      font-size: 1.2cqw; font-weight: 600;
       color: var(--text-muted);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      line-height: 1.2; margin-top: 0.1cqw;
+      line-height: 1.1; margin-top: 0;
     }
     .rk-current .rk-name{ color: var(--accent-gold); }
     .rk-current .rk-team{ color: rgba(255,215,0,0.65); }
     .rk-sc{ font-size: 2.2cqw; font-weight: 700; text-align: right; color: var(--text-muted); }
     .rk-tot{ font-size: 3.2cqw; font-weight: 900; text-align: right; }
     .rk-current .rk-tot{ color: var(--accent-gold); }
+    .rk-page-info{
+      float: right;
+      font-size: 0.9cqw;
+      color: var(--text-muted);
+      letter-spacing: 0.1cqw;
+    }
   </style>
 </head>
 <body>
@@ -457,21 +464,14 @@
   </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4",
-    authDomain: "trampoline-dd-test.firebaseapp.com",
-    projectId: "trampoline-dd-test"
-  };
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
+  import { db } from "./firebase-config.js";
+  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   const params    = new URLSearchParams(location.search);
   const eventId   = params.get('event')?.trim();
   let skillMaster = [], athleteMap = {}, tournamentName = '---';
   let lastResultId = null;
+  let tournamentData = null;  // numExecJudges 等を保持
 
   // ---- ラベル ----
   function getRoundLabel(rid) {
@@ -479,13 +479,41 @@
     return labels[rid] || rid.toUpperCase();
   }
 
-  // ---- 中間2名の和 ----
+  // ---- 中間2名の和（個人用） ----
   function mid2sum(vals) {
     const filled = vals.filter(v => v !== null && v !== undefined);
     if (filled.length < 2) return 0;
     filled.sort((a, b) => a - b);
     const mid = Math.floor((filled.length - 2) / 2);
     return filled[mid] + filled[mid + 1];
+  }
+
+  // ---- 中央値1名（3人から真ん中） ----
+  function median1(vals) {
+    const filled = vals.filter(v => v !== null && v !== undefined);
+    if (filled.length === 0) return null;
+    filled.sort((a, b) => a - b);
+    if (filled.length === 1) return filled[0];
+    if (filled.length === 2) return (filled[0] + filled[1]) / 2;
+    return filled[Math.floor(filled.length / 2)];
+  }
+
+  // ---- シンクロ用E減点（審判数に応じた平均） ----
+  function synchroEAvg(vals, numE) {
+    const filled = vals.filter(v => v !== null && v !== undefined);
+    if (filled.length === 0) return 0;
+    if (numE <= 4) {
+      return filled.reduce((a, b) => a + b, 0) / filled.length;
+    }
+    // 6人: E1,3,5の中間値 + E2,4,6の中間値 → 平均
+    const oddVals  = [vals[0], vals[2], vals[4]];
+    const evenVals = [vals[1], vals[3], vals[5]];
+    const medOdd  = median1(oddVals);
+    const medEven = median1(evenVals);
+    if (medOdd === null && medEven === null) return 0;
+    if (medOdd === null) return medEven;
+    if (medEven === null) return medOdd;
+    return (medOdd + medEven) / 2;
   }
 
   // ---- パネル別審判データ取得 ----
@@ -504,26 +532,33 @@
     );
   }
 
+  // ---- 選手がシンクロかどうか ----
+  function isSynchroAthlete(athleteId) {
+    return (athleteMap[athleteId]?.type || 'individual') === 'synchro';
+  }
+
   // ---- 技ごとのE減点（データなし→null、表示は×10の整数） ----
-  function getSkillEDed(panelJudges, si) {
+  function getSkillEDed(panelJudges, si, synchro) {
     if (!panelJudges) return null;
     const jKeys = Object.keys(panelJudges);
     if (jKeys.length < 2) return null;
     const vals   = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
     const filled = vals.filter(v => v !== null);
-    if (filled.length === 0) return null;  // 審判未入力
-    return mid2sum(vals);
+    if (filled.length === 0) return null;
+    const numE = tournamentData?.numExecJudges || jKeys.length;
+    return synchro ? synchroEAvg(vals, numE) : mid2sum(vals);
   }
 
   // ---- 着地E減点 ----
-  function getLandingDed(panelJudges) {
+  function getLandingDed(panelJudges, synchro) {
     if (!panelJudges) return null;
     const jKeys = Object.keys(panelJudges);
     if (jKeys.length < 2) return null;
     const vals   = jKeys.map(k => panelJudges[k]?.landing ?? null);
     const filled = vals.filter(v => v !== null);
     if (filled.length === 0) return null;
-    return mid2sum(vals);
+    const numE = tournamentData?.numExecJudges || jKeys.length;
+    return synchro ? synchroEAvg(vals, numE) : mid2sum(vals);
   }
 
   // ---- E合計スコア ----
@@ -534,16 +569,19 @@
     const jKeys  = Object.keys(panelJudges);
     if (jKeys.length < 2) return null;
     const vLimit = resData.validCount ?? 10;
+    const synchro = isSynchroAthlete(resData.athleteId);
+    const numE = tournamentData?.numExecJudges || jKeys.length;
     let totalDed = 0;
     for (let si = 0; si < vLimit; si++) {
       const vals = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
-      totalDed += mid2sum(vals);
+      totalDed += synchro ? synchroEAvg(vals, numE) : mid2sum(vals);
     }
     if (vLimit === 10) {
       const lVals = jKeys.map(k => panelJudges[k]?.landing ?? null);
-      totalDed += mid2sum(lVals);
+      totalDed += synchro ? synchroEAvg(lVals, numE) : mid2sum(lVals);
     }
-    return vLimit * 2.0 - totalDed;
+    const basePerSkill = synchro ? 1.0 : 2.0;
+    return vLimit * basePerSkill - totalDed;
   }
 
   // ---- 選手の他ラウンド結果取得 ----
@@ -561,8 +599,30 @@
     } catch { return {}; }
   }
 
-  // ---- 順位計算 ----
-  async function calcRank(round, classVal, genderVal, total) {
+  // ---- 順位計算（タイブレーク対応） ----
+  // タイブレーク: 個人=T→H→D, シンクロ=S(=tof)→H→D
+  function getTbScores(data) {
+    return {
+      tof:  data.tof ?? null,
+      hd:   data.hd?.total ?? null,
+      diff: data.officialD ?? data.dd ?? null
+    };
+  }
+
+  function tbCompare(myTb, otherTb) {
+    // 各タイブレーク項目で相手が上位かどうか判定
+    // 返り値: true = 相手が上位（rankを+1すべき）
+    const keys = ['tof', 'hd', 'diff'];
+    for (const k of keys) {
+      const mv = myTb[k], ov = otherTb[k];
+      if (mv != null && ov != null && Math.abs(mv - ov) > 1e-9) {
+        return ov > mv;  // 相手が高い → 上位
+      }
+    }
+    return false;  // ブレイクできない → 同順位（rank加算しない）
+  }
+
+  async function calcRank(round, classVal, genderVal, total, myTb) {
     if (total === null || total === undefined) return null;
     try {
       const q    = query(collection(db, "results"), where("eventId", "==", eventId), where("round", "==", round), where("published", "==", true));
@@ -572,7 +632,13 @@
         const data = d.data();
         const ath  = athleteMap[data.athleteId];
         if (ath && ath.class === classVal && ath.gender === genderVal) {
-          if ((data.officialTotal ?? 0) > total) rank++;
+          const otherTotal = data.officialTotal ?? 0;
+          if (otherTotal > total + 1e-9) {
+            rank++;
+          } else if (Math.abs(otherTotal - total) < 1e-9 && myTb) {
+            // 同点 → タイブレーク
+            if (tbCompare(myTb, getTbScores(data))) rank++;
+          }
         }
       });
       return rank;
@@ -586,6 +652,12 @@
     const resData = resultDoc.data();
     const ath     = athleteMap[resData.athleteId] || {};
 
+    // 順位表→スコア切替時: 旧スコアが一瞬見えるのを防ぐためモニターを隠す
+    const monitor = document.getElementById('monitor');
+    if (currentMode === 'ranking' || rankingPageTimer) {
+      monitor.style.opacity = '0';
+    }
+
     // 提出データ取得
     const subId   = `${eventId}_${resData.athleteId}_${resData.round}`;
     const subSnap = await getDoc(doc(db, "submissions", subId));
@@ -595,6 +667,7 @@
     const officialSkills= resData.officialSkills || [];
     // officialE の有無に関わらず、技ごとの表示には審判ごとのデータを使う
     const panelJudges   = getPanelJudges(resData);
+    const synchro       = isSynchroAthlete(resData.athleteId);
 
     // ---- 技ごとデータ計算 ----
     const seenIds = new Set();
@@ -635,7 +708,7 @@
         seenIds.add(String(offId));
       }
 
-      const eDedVal  = getSkillEDed(panelJudges, i);
+      const eDedVal  = getSkillEDed(panelJudges, i, synchro);
       const eDisplay = eDedVal !== null ? Math.round(eDedVal * 10) : '--';
       const hasAlert = isDiff || isRepeat;
       const dCodeTxt = skill ? skill.symbol : '-';
@@ -654,12 +727,12 @@
 
     // ---- ボーナス計算 ----
     let bonus = 0;
-    if (ath.gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+    if (ath.gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
     else if (ath.gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
     const finalDD = baseDD + bonus;
 
     // LAN列
-    const landDed = getLandingDed(panelJudges);
+    const landDed = getLandingDed(panelJudges, synchro);
     const isLanValid = vLimit === 10;
     const bonusCol = `
       <div class="skill-stack bonus-style" style="${isLanValid ? '' : 'opacity:0.25;'}">
@@ -696,7 +769,7 @@
     // ---- 他ラウンド結果 & 順位 ----
     const [athResults, rank] = await Promise.all([
       getAthleteResults(resData.athleteId),
-      calcRank(resData.round, ath.class, ath.gender, totalScore)
+      calcRank(resData.round, ath.class, ath.gender, totalScore, getTbScores(resData))
     ]);
 
     // ---- ルーティン合計 ----
@@ -778,10 +851,13 @@
 
       <footer class="footer-credits">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
 
-    const monitor = document.getElementById('monitor');
+    // 順位表用にデータを保持
+    lastShownResData = resData;
+    lastShownAth     = ath;
 
-    // 既存の順位表タイマー・オーバーレイをリセット
+    // 既存タイマー・オーバーレイをリセット
     if (rankingTimer) { clearTimeout(rankingTimer); rankingTimer = null; }
+    stopRankingLoop();
     let overlay = document.getElementById('ranking-overlay');
     if (overlay) overlay.classList.remove('visible');
 
@@ -791,6 +867,7 @@
       monitor.classList.add('no-anim');
     }
     monitor.innerHTML = html;
+    monitor.style.opacity = '';
 
     // オーバーレイを再アタッチ（innerHTML で消えるため）
     if (!overlay) { overlay = document.createElement('div'); overlay.id = 'ranking-overlay'; }
@@ -798,26 +875,94 @@
     overlay.innerHTML = '';
     monitor.appendChild(overlay);
 
-    // 順位表タイマー起動（新規なら全アニメ完了後＋3s、更新なら3s）
-    const rankingDelay = isNew ? 13000 : 3000;
-    rankingTimer = setTimeout(() => showRanking(resData, ath), rankingDelay);
+    // スコア表示後 → キュー処理 or 順位表ループへ
+    const displayDelay = isNew
+      ? displaySettings.scoreNewSec * 1000
+      : displaySettings.scoreUpdateSec * 1000;
+    rankingTimer = setTimeout(() => onScoreDisplayDone(), displayDelay);
   }
 
-  // ---- 順位表 ----
-  let rankingTimer = null;
+  // ==== 表示設定（Firestoreから読み込み、デフォルト値付き） ====
+  let displaySettings = {
+    scoreNewSec:    13,
+    scoreUpdateSec: 3,
+    rankingRows:    12,
+    rankingPageSec: 8,
+    animStaggerMs:  1400,
+    animDurationMs: 2600
+  };
 
-  async function showRanking(resData, ath) {
+  let rankingTimer     = null;   // スコア表示→順位表遷移タイマー
+  let rankingPageTimer = null;   // 順位表ページ切替タイマー
+  let currentMode      = 'idle'; // 'idle' | 'score' | 'ranking'
+  let displayQueue     = [];     // 表示待ちの resultDoc キュー
+  let lastShownResData = null;   // 最後に表示したスコアのデータ（順位表用）
+  let lastShownAth     = null;   // 最後に表示した選手情報
+  let currentRankingPage = 0;
+  let allRankingEntries  = [];
+
+  function enqueueResult(resultDoc) {
+    displayQueue.push(resultDoc);
+    if (currentMode !== 'score') processQueue();
+  }
+
+  async function processQueue() {
+    if (displayQueue.length === 0) {
+      if (lastShownResData) startRankingLoop();
+      return;
+    }
+    currentMode = 'score';
+    stopRankingLoop();
+    const resultDoc = displayQueue.shift();
+    await renderFocusResult(resultDoc);
+  }
+
+  function onScoreDisplayDone() {
+    // スコア表示完了 → キューに次があれば続行、なければ順位表へ
+    processQueue();
+  }
+
+  // ---- 順位表ループ ----
+  async function startRankingLoop() {
+    currentMode = 'ranking';
+    allRankingEntries = await fetchRankingEntries();
+    currentRankingPage = 0;
+    showRankingPage();
+  }
+
+  function stopRankingLoop() {
+    if (rankingPageTimer) { clearTimeout(rankingPageTimer); rankingPageTimer = null; }
     const overlay = document.getElementById('ranking-overlay');
-    if (!overlay) return;
+    if (overlay) overlay.classList.remove('visible');
+  }
+
+  function getClassRule(ath) {
+    const rawRules = tournamentData?.classRules || {};
+    const hasNew = 'individual' in rawRules || 'synchro' in rawRules;
+    const classRules = hasNew ? rawRules : { individual: rawRules, synchro: {} };
+    const selType = (ath.type || 'individual');
+    const classVal = ath.class || ath.category || '';
+    return (classRules[selType] || {})[classVal] || {};
+  }
+
+  async function fetchRankingEntries() {
+    if (!lastShownResData) return [];
+    const ath       = lastShownAth || {};
     const classVal  = ath.class  || ath.category || '';
     const genderVal = ath.gender || '';
+    const selType   = ath.type || 'individual';
+
+    // クラスルールからscoreModeとnumPreを取得
+    const rule      = getClassRule(ath);
+    const numPre    = rule.qualifyingRoutines || 1;
+    const scoreMode = rule.scoreMode || 'best';
+
     try {
       const snap = await getDocs(
         query(collection(db, "results"),
           where("eventId", "==", eventId),
           where("published", "==", true))
       );
-      // 同クラス・同性別のアスリートごとにラウンド別スコアを集計
       const byAth = {};
       snap.docs.forEach(d => {
         const r = d.data();
@@ -825,44 +970,127 @@
         if (!a) return;
         if ((a.class || a.category || '') !== classVal) return;
         if ((a.gender || '') !== genderVal) return;
-        if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null };
-        if (r.round === 'pre1') byAth[r.athleteId].pre1 = r.officialTotal ?? null;
-        if (r.round === 'pre2') byAth[r.athleteId].pre2 = r.officialTotal ?? null;
+        if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null, final: null, tb1: null, tb2: null };
+        if (r.round === 'pre1')  { byAth[r.athleteId].pre1 = r.officialTotal ?? null; byAth[r.athleteId].tb1 = getTbScores(r); }
+        if (r.round === 'pre2')  { byAth[r.athleteId].pre2 = r.officialTotal ?? null; byAth[r.athleteId].tb2 = getTbScores(r); }
+        if (r.round === 'final') byAth[r.athleteId].final = r.officialTotal ?? null;
       });
-      // 合計でソート（高い順）
-      const entries = Object.entries(byAth)
-        .map(([id, s]) => ({ id, ...s, total: (s.pre1 ?? 0) + (s.pre2 ?? 0) }))
-        .sort((a, b) => b.total - a.total);
-      const f = v => v !== null ? Number(v).toFixed(3) : '--';
-      // 上位8名 + 当該選手が8位以内でなければ末尾に追加
-      const curIdx = entries.findIndex(e => e.id === resData.athleteId);
-      const displayEntries = curIdx < 8
-        ? entries.slice(0, 8)
-        : [...entries.slice(0, 7), entries[curIdx]];
-      const rowsHTML = displayEntries.map((e) => {
-        const actualRank = entries.indexOf(e) + 1;
-        const cur = e.id === resData.athleteId;
-        const hasAny = e.pre1 !== null || e.pre2 !== null;
-        return `<div class="rk-row${cur ? ' rk-current' : ''}">
-          <div class="rk-rank num">${actualRank}</div>
-          <div class="rk-name-group">
-            <div class="rk-name">${e.a.name1 || '---'}</div>
-            <div class="rk-team">${e.a.club1 || ''}</div>
-          </div>
-          <div class="rk-sc num">${f(e.pre1)}</div>
-          <div class="rk-sc num">${f(e.pre2)}</div>
-          <div class="rk-tot num">${hasAny ? f(e.total) : '--'}</div>
-        </div>`;
-      }).join('');
-      const heading = [classVal, genderVal].filter(Boolean).join(' ');
-      overlay.innerHTML = `
-        <div class="rk-title">${heading} — STANDINGS</div>
-        <div class="rk-col-head">
-          <span>#</span><span>NAME</span><span>R1</span><span>R2</span><span>TOTAL</span>
+      return Object.entries(byAth)
+        .map(([id, s]) => {
+          // 予選スコア計算: best=高い方、total=合計
+          let qualScore = null;
+          if (numPre === 1) {
+            qualScore = s.pre1;
+          } else {
+            if (s.pre1 != null && s.pre2 != null) {
+              qualScore = scoreMode === 'total' ? s.pre1 + s.pre2 : Math.max(s.pre1, s.pre2);
+            } else if (s.pre1 != null) {
+              qualScore = s.pre1;
+            } else if (s.pre2 != null) {
+              qualScore = s.pre2;
+            }
+          }
+          // タイブレーク: bestモードは選ばれた方のルーティン、totalは合計
+          let tb;
+          if (scoreMode === 'best' && numPre >= 2 && s.pre1 != null && s.pre2 != null) {
+            tb = s.pre1 >= s.pre2 ? (s.tb1 || {}) : (s.tb2 || {});
+          } else {
+            tb = {
+              tof:  (s.tb1?.tof ?? 0) + (s.tb2?.tof ?? 0),
+              hd:   (s.tb1?.hd ?? 0) + (s.tb2?.hd ?? 0),
+              diff: (s.tb1?.diff ?? 0) + (s.tb2?.diff ?? 0)
+            };
+          }
+          return { id, ...s, total: qualScore, _tb: tb };
+        })
+        .sort((a, b) => {
+          const sa = a.total ?? -Infinity, sb = b.total ?? -Infinity;
+          const diff = sb - sa;
+          if (Math.abs(diff) > 1e-9) return diff;
+          // bestモード: 同点なら2本の合計で比較
+          if (scoreMode === 'best' && numPre >= 2) {
+            const ca = (a.pre1 ?? 0) + (a.pre2 ?? 0);
+            const cb = (b.pre1 ?? 0) + (b.pre2 ?? 0);
+            if (Math.abs(ca - cb) > 1e-9) return cb - ca;
+          }
+          // タイブレーク: 個人=T→H→D, シンクロ=S→H→D
+          const keys = ['tof', 'hd', 'diff'];
+          for (const k of keys) {
+            const va = a._tb[k], vb = b._tb[k];
+            if (va != null && vb != null && Math.abs(va - vb) > 1e-9) return vb - va;
+          }
+          return 0;
+        });
+    } catch(e) { console.error(e); return []; }
+  }
+
+  function showRankingPage() {
+    if (allRankingEntries.length === 0) return;
+    const rowsPerPage = displaySettings.rankingRows;
+    const totalPages = Math.ceil(allRankingEntries.length / rowsPerPage);
+    const page  = currentRankingPage % totalPages;
+    const start = page * rowsPerPage;
+    const pageEntries = allRankingEntries.slice(start, start + rowsPerPage);
+    renderRankingOverlay(pageEntries, start, totalPages, page);
+    rankingPageTimer = setTimeout(() => {
+      currentRankingPage++;
+      showRankingPage();
+    }, displaySettings.rankingPageSec * 1000);
+  }
+
+  function renderRankingOverlay(entries, startOffset, totalPages, currentPage) {
+    const overlay = document.getElementById('ranking-overlay');
+    if (!overlay) return;
+    const ath       = lastShownAth || {};
+    const classVal  = ath.class  || ath.category || '';
+    const genderVal = ath.gender || '';
+    const heading   = [classVal, genderVal].filter(Boolean).join(' ');
+    const f = v => v !== null && v !== undefined ? Number(v).toFixed(3) : '--';
+    const curAthId = lastShownResData?.athleteId;
+
+    const rule      = getClassRule(ath);
+    const numPre    = rule.qualifyingRoutines || 1;
+    const scoreMode = rule.scoreMode || 'best';
+    const scoreModeLabel = scoreMode === 'total' ? 'TOTAL' : 'BEST';
+    const show2     = numPre >= 2;
+
+    const rowsHTML = entries.map((e, i) => {
+      const rank   = startOffset + i + 1;
+      const cur    = e.id === curAthId;
+      const hasAny = e.pre1 !== null || e.pre2 !== null;
+      const r2col  = show2 ? `<div class="rk-sc num">${f(e.pre2)}</div>` : '';
+      return `<div class="rk-row${cur ? ' rk-current' : ''}">
+        <div class="rk-rank num">${rank}</div>
+        <div class="rk-name-group">
+          <div class="rk-name">${e.a.name1 || '---'}</div>
+          <div class="rk-team">${e.a.club1 || ''}</div>
         </div>
-        <div class="rk-table">${rowsHTML}</div>`;
-      overlay.classList.add('visible');
-    } catch(e) { console.error(e); }
+        <div class="rk-sc num">${f(e.pre1)}</div>
+        ${r2col}
+        <div class="rk-tot num">${hasAny ? f(e.total) : '--'}</div>
+      </div>`;
+    }).join('');
+
+    const pageIndicator = totalPages > 1
+      ? `<span class="rk-page-info">${currentPage + 1} / ${totalPages}</span>`
+      : '';
+
+    const r2head = show2 ? '<span>R2</span>' : '';
+    const totalHead = show2 ? scoreModeLabel : 'TOTAL';
+
+    overlay.innerHTML = `
+      <div class="rk-title">${heading} — STANDINGS ${pageIndicator}</div>
+      <div class="rk-col-head">
+        <span>#</span><span>NAME</span><span>R1</span>${r2head}<span>${totalHead}</span>
+      </div>
+      <div class="rk-table">${rowsHTML}</div>`;
+    overlay.classList.add('visible');
+  }
+
+  // ---- アニメーション設定をCSS変数で適用 ----
+  function applyAnimSettings() {
+    document.documentElement.style.setProperty('--anim-duration', displaySettings.animDurationMs + 'ms');
+    document.documentElement.style.setProperty('--anim-stagger', displaySettings.animStaggerMs + 'ms');
   }
 
   // ---- 初期化 ----
@@ -876,30 +1104,58 @@
       ]);
 
       skillMaster = smSnap.docs
-        .sort((a, b) => parseInt(a.id) - parseInt(b.id))
+        .sort((a, b) => (a.data().displayOrder ?? parseInt(a.id)) - (b.data().displayOrder ?? parseInt(b.id)))
         .map(d => ({
           id      : d.id,
           symbol  : d.data().symbol,
           dd      : parseFloat(d.data().dd) || 0,
           isTriple: d.data().isTriple === true,
-          direction: d.data().direction || ''
+          direction: d.data().direction || '',
+          displayOrder: d.data().displayOrder ?? parseInt(d.id)
         }));
 
       athSnap.forEach(d => athleteMap[d.id] = d.data());
 
       if (tourSnap.exists()) {
-        tournamentName = tourSnap.data().name || '---';
+        const tourData = tourSnap.data();
+        tournamentData = tourData;
+        tournamentName = tourData.name || '---';
         document.getElementById('event-name-el').textContent = tournamentName;
+        // displaySettings を読み込み
+        if (tourData.displaySettings) {
+          Object.assign(displaySettings, tourData.displaySettings);
+          applyAnimSettings();
+        }
       }
 
+      // displaySettings をリアルタイム監視（管理者が変更したら即反映）
+      onSnapshot(doc(db, 'tournaments', eventId), snap => {
+        if (snap.exists() && snap.data().displaySettings) {
+          Object.assign(displaySettings, snap.data().displaySettings);
+          applyAnimSettings();
+        }
+      });
+
+      // 全published結果を監視（デュアルパネル対応）
       const q = query(
         collection(db, "results"),
         where("eventId", "==", eventId),
         where("published", "==", true),
-        orderBy("publishedAt", "desc"),
-        limit(1)
+        orderBy("publishedAt", "desc")
       );
-      onSnapshot(q, snap => { if (!snap.empty) renderFocusResult(snap.docs[0]); });
+      let initialLoad = true;
+      onSnapshot(q, snap => {
+        if (initialLoad) {
+          initialLoad = false;
+          // 初回: 最新1件のみ表示
+          if (!snap.empty) enqueueResult(snap.docs[0]);
+          return;
+        }
+        // 以後: 新規追加分のみキューに入れる
+        snap.docChanges().forEach(change => {
+          if (change.type === 'added') enqueueResult(change.doc);
+        });
+      });
 
     } catch (e) { console.error(e); }
   }

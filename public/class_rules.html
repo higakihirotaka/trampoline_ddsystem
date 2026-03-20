@@ -81,11 +81,9 @@
 <div id="toast" class="toast"></div>
 
 <script type="module">
-    import { getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
-
-    const db = getFirestore(getApp());
+    import { db } from "./firebase-config.js";
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
@@ -189,7 +187,7 @@
         const qualRoutes = (parseInt(rule.qualifyingRoutines) === 1) ? 1 : 2;
         const scoreMode  = (rule.scoreMode === 'total') ? 'total' : 'best';
         const semifinal  = (rule.semifinalEnabled === true || rule.semifinalEnabled === 'true' || Number(rule.semifinalEnabled) === 1);
-        const finalCount = isNaN(parseInt(rule.finalCount)) ? 8 : Math.max(0, parseInt(rule.finalCount));
+        const hasFinal   = (rule.hasFinal === true || rule.hasFinal === 'true' || Number(rule.hasFinal) === 1 || (rule.finalCount != null && parseInt(rule.finalCount) > 0));
         const eJudge     = isNaN(parseInt(rule.eJudgeCount)) ? 4 : Math.max(1, parseInt(rule.eJudgeCount));
         const tofMode    = (rule.tofDefaultMode === 'manual') ? 'manual' : 'auto';
         const hdMode     = (rule.hdDefaultMode  === 'manual') ? 'manual' : 'auto';
@@ -257,16 +255,22 @@
                 </div>
             </div>
 
-            <!-- 決勝人数 -->
+            <!-- 決勝 -->
             <div class="rule-row">
-                <div class="rule-label">決勝人数</div>
+                <div class="rule-label">決勝</div>
                 <div class="rule-controls">
-                    <div class="num-input-wrap">
-                        <input type="number" id="final-count-${key}" value="${finalCount}" min="0" max="99">
-                        <span class="num-unit">名</span>
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="final-${key}" value="false" ${!hasFinal ? 'checked' : ''}>
+                            <span>なし</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="final-${key}" value="true" ${hasFinal ? 'checked' : ''}>
+                            <span>あり</span>
+                        </label>
                     </div>
                     <div class="constraint-msg" id="constraint-${key}">
-                        準決勝ありの場合、決勝人数は1以上にしてください
+                        準決勝ありの場合、決勝はありにしてください
                     </div>
                 </div>
             </div>
@@ -326,11 +330,13 @@
             });
         });
 
-        // 準決勝の変更で決勝人数の制約チェック
+        // 準決勝の変更で決勝の制約チェック
         card.querySelectorAll(`input[name="semi-${key}"]`).forEach(radio => {
             radio.addEventListener('change', () => validateFinal(className, type));
         });
-        card.querySelector(`#final-count-${key}`).addEventListener('input', () => validateFinal(className, type));
+        card.querySelectorAll(`input[name="final-${key}"]`).forEach(radio => {
+            radio.addEventListener('change', () => validateFinal(className, type));
+        });
 
         return card;
     }
@@ -338,9 +344,9 @@
     function validateFinal(className, type) {
         const key = `${type}-${className}`;
         const semiVal = document.querySelector(`input[name="semi-${key}"]:checked`)?.value === 'true';
-        const finalCount = parseInt(document.getElementById(`final-count-${key}`).value) || 0;
+        const hasFinal = document.querySelector(`input[name="final-${key}"]:checked`)?.value === 'true';
         const msg = document.getElementById(`constraint-${key}`);
-        const invalid = semiVal && finalCount < 1;
+        const invalid = semiVal && !hasFinal;
         msg.classList.toggle('show', invalid);
         return !invalid;
     }
@@ -368,7 +374,7 @@
                 const qualRoutes = parseInt(card.querySelector(`input[name="qual-${key}"]:checked`)?.value) || 2;
                 const scoreMode  = card.querySelector(`input[name="score-${key}"]:checked`)?.value || 'best';
                 const semifinal  = card.querySelector(`input[name="semi-${key}"]:checked`)?.value === 'true';
-                const finalCount = parseInt(card.querySelector(`#final-count-${key}`).value) || 0;
+                const hasFinal   = card.querySelector(`input[name="final-${key}"]:checked`)?.value === 'true';
                 const eJudge         = parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
                 const tofDefaultMode = card.querySelector(`input[name="tof-mode-${key}"]:checked`)?.value || 'auto';
                 const hdDefaultMode  = card.querySelector(`input[name="hd-mode-${key}"]:checked`)?.value  || 'auto';
@@ -377,11 +383,10 @@
                     qualifyingRoutines: qualRoutes,
                     scoreMode,
                     semifinalEnabled: semifinal,
-                    finalCount,
                     eJudgeCount: eJudge,
                     tofDefaultMode,
                     hdDefaultMode,
-                    hasFinal: finalCount > 0
+                    hasFinal
                 };
                 if (type === 'synchro') synchro[name] = ruleObj;
                 else individual[name] = ruleObj;

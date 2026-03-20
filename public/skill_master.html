@@ -18,7 +18,7 @@
         /* 新規追加フォーム */
         .add-panel { background: white; border: 2px solid var(--primary); border-radius: 14px; padding: 20px 24px; margin-bottom: 20px; }
         .add-panel h3 { margin: 0 0 16px 0; font-size: 1rem; color: var(--primary); }
-        .add-fields { display: grid; grid-template-columns: 1fr 1fr 90px auto 110px 1fr; gap: 10px; align-items: end; }
+        .add-fields { display: grid; grid-template-columns: 1fr 90px auto 110px 1fr; gap: 10px; align-items: end; }
         .add-field-wrap { display: flex; flex-direction: column; gap: 4px; }
         .add-field-label { font-size: 0.73rem; color: var(--gray); font-weight: bold; }
         .add-input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box; }
@@ -48,14 +48,34 @@
         .editing-row { background: #e8f0fe !important; }
         .editing-row td { padding-top: 6px; padding-bottom: 6px; }
 
+        .col-order   { width: 60px; text-align: center; }
         .col-id      { width: 40px; text-align: center; color: #aaa; font-size: 0.78rem; }
-        .col-sym     { width: 110px; font-family: monospace; font-size: 0.95rem; font-weight: bold; color: #202124; }
-        .col-display { width: 150px; color: #555; }
+        .col-sym     { width: 150px; font-family: monospace; font-size: 0.95rem; font-weight: bold; color: #202124; }
         .col-dd      { width: 60px; text-align: center; }
         .col-triple  { width: 52px; text-align: center; }
         .col-dir     { width: 70px; }
         .col-note    { min-width: 140px; color: #777; font-size: 0.85rem; }
         .col-act     { width: 110px; text-align: right; white-space: nowrap; }
+
+        /* 順序ボタン */
+        .order-btns { display: flex; gap: 2px; justify-content: center; }
+        .order-btn { width: 24px; height: 24px; border: 1px solid #ccc; border-radius: 4px; background: white; color: #555; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
+        .order-btn:hover { background: #e3f2fd; border-color: var(--primary); }
+        .order-btn:disabled { opacity: 0.3; cursor: default; background: white; border-color: #eee; }
+        .order-num { font-size: 0.75rem; color: #999; margin-bottom: 2px; }
+
+        /* 一括保存バー */
+        .order-save-bar { position: sticky; bottom: 0; background: #fff3e0; border-top: 2px solid var(--warn); padding: 10px 20px; display: none; align-items: center; justify-content: center; gap: 12px; z-index: 10; }
+        .order-save-bar.visible { display: flex; }
+        .btn-save-order { padding: 8px 24px; border-radius: 8px; border: none; background: var(--warn); color: white; font-size: 0.95rem; font-weight: bold; cursor: pointer; }
+        .btn-save-order:hover { background: #e65100; }
+        .btn-reset-order { padding: 8px 18px; border-radius: 8px; border: 1px solid #ccc; background: white; color: #555; font-size: 0.9rem; cursor: pointer; }
+
+        /* ドラッグ中 */
+        .skill-table tbody tr.dragging { opacity: 0.4; }
+        .skill-table tbody tr.drag-over { border-top: 3px solid var(--primary); }
+        .drag-handle { cursor: grab; color: #bbb; font-size: 1rem; user-select: none; }
+        .drag-handle:active { cursor: grabbing; }
 
         /* 表示モードのテキスト */
         .display-text { color: #555; }
@@ -100,10 +120,6 @@
                 <input type="text" class="add-input" id="new-symbol" placeholder="例: o, 841<">
             </div>
             <div class="add-field-wrap">
-                <div class="add-field-label">得点表示用Symbol</div>
-                <input type="text" class="add-input" id="new-display-symbol" placeholder="例: ○, 8回ひねり">
-            </div>
-            <div class="add-field-wrap">
                 <div class="add-field-label">DD</div>
                 <input type="number" class="add-input" id="new-dd" step="0.1" min="0" max="9.9" value="0.0">
             </div>
@@ -145,9 +161,9 @@
     <table class="skill-table" id="skill-table" style="display:none;">
         <thead>
             <tr>
+                <th class="col-order">順序</th>
                 <th class="col-id">#</th>
                 <th class="col-sym">Symbol</th>
-                <th class="col-display">得点表示用Symbol</th>
                 <th class="col-dd">DD</th>
                 <th class="col-triple">3回転</th>
                 <th class="col-dir">系統</th>
@@ -158,27 +174,44 @@
         <tbody id="skill-body"></tbody>
     </table>
     <div id="empty-msg" class="empty" style="display:none;">該当する技がありません</div>
+
+    <div class="order-save-bar" id="order-save-bar">
+        <span>⚠️ 表示順を変更しました</span>
+        <button class="btn-save-order" onclick="saveOrder()">順序を保存</button>
+        <button class="btn-reset-order" onclick="resetOrder()">元に戻す</button>
+    </div>
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    import { db } from "./firebase-config.js";
+    import { collection, getDocs, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     let skills = [];
     let editingId = null;   // 現在編集中の行ID
     let currentDir = '';
     let tripleOnly = false;
+    let orderDirty = false; // 順序変更フラグ
+    let savedOrder = [];    // 保存前の順序（元に戻す用）
+
+    function skillSortKey(s) {
+        // displayOrder があればそれ、なければ id の数値
+        return s.displayOrder ?? Number(s.id);
+    }
 
     async function init() {
         const snap = await getDocs(collection(db, 'skillMaster'));
         skills = snap.docs
             .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => Number(a.id) - Number(b.id));
+            .sort((a, b) => skillSortKey(a) - skillSortKey(b));
 
+        // displayOrder が未設定のものに初期値を振る
+        skills.forEach((s, i) => {
+            if (s.displayOrder === undefined || s.displayOrder === null) {
+                s.displayOrder = i;
+            }
+        });
+
+        savedOrder = skills.map(s => s.id);
         document.getElementById('loading').style.display = 'none';
         document.getElementById('skill-table').style.display = '';
         render();
@@ -190,7 +223,6 @@
         panel.style.display = visible ? 'none' : '';
         if (!visible) {
             document.getElementById('new-symbol').value = '';
-            document.getElementById('new-display-symbol').value = '';
             document.getElementById('new-dd').value = '0.0';
             document.getElementById('new-triple').checked = false;
             document.getElementById('new-dir').value = '';
@@ -208,20 +240,21 @@
         }
 
         const nextId = String(skills.length > 0 ? Math.max(...skills.map(s => Number(s.id))) + 1 : 0);
+        const nextOrder = skills.length > 0 ? Math.max(...skills.map(s => s.displayOrder ?? 0)) + 1 : 0;
         const data = {
             symbol,
-            displaySymbol: document.getElementById('new-display-symbol').value.trim(),
             dd: parseFloat(document.getElementById('new-dd').value) || 0,
             isTriple: document.getElementById('new-triple').checked,
             direction: document.getElementById('new-dir').value,
             note: document.getElementById('new-note').value.trim(),
+            displayOrder: nextOrder,
             updatedAt: serverTimestamp()
         };
 
         try {
             await setDoc(doc(db, 'skillMaster', nextId), data);
             skills.push({ id: nextId, ...data });
-            skills.sort((a, b) => Number(a.id) - Number(b.id));
+            skills.sort((a, b) => skillSortKey(a) - skillSortKey(b));
             document.getElementById('add-panel').style.display = 'none';
             render();
             setTimeout(() => {
@@ -266,7 +299,7 @@
         const filtered = skills.filter(s => {
             if (currentDir && s.direction !== currentDir) return false;
             if (tripleOnly && !s.isTriple) return false;
-            if (q && !s.symbol.toLowerCase().includes(q) && !(s.displaySymbol || '').toLowerCase().includes(q)) return false;
+            if (q && !s.symbol.toLowerCase().includes(q)) return false;
             return true;
         });
 
@@ -278,15 +311,21 @@
             document.getElementById('empty-msg').style.display = '';
         } else {
             document.getElementById('empty-msg').style.display = 'none';
-            tbody.innerHTML = filtered.map(s => {
+            const isFiltered = currentDir || tripleOnly || q;
+            tbody.innerHTML = filtered.map((s, fi) => {
+                // skills配列内のインデックス（フィルタなしの全体順序）
+                const globalIdx = skills.indexOf(s);
+                const isFirst = globalIdx === 0;
+                const isLast  = globalIdx === skills.length - 1;
+
                 if (editingId === s.id) {
                     // 編集モード行
                     return `<tr id="row-${s.id}" class="editing-row">
+                        <td class="col-order"><span class="order-num">${globalIdx + 1}</span></td>
                         <td class="col-id">${s.id}</td>
-                        <td class="col-sym">${s.symbol}</td>
-                        <td class="col-display">
-                            <input type="text" class="edit-input" data-id="${s.id}" data-field="displaySymbol"
-                                value="${(s.displaySymbol || '').replace(/"/g, '&quot;')}" placeholder="表示用...">
+                        <td class="col-sym">
+                            <input type="text" class="edit-input" data-id="${s.id}" data-field="symbol"
+                                value="${s.symbol.replace(/"/g, '&quot;')}" style="font-family:monospace; font-weight:bold;">
                         </td>
                         <td class="col-dd">
                             <input type="number" class="edit-input" data-id="${s.id}" data-field="dd"
@@ -314,16 +353,20 @@
                     </tr>`;
                 } else {
                     // 表示モード行
-                    const displaySym = s.displaySymbol
-                        ? `<span class="display-text">${s.displaySymbol}</span>`
-                        : `<span class="display-empty">-</span>`;
                     const noteText = s.note
                         ? s.note
                         : `<span class="display-empty">-</span>`;
-                    return `<tr id="row-${s.id}">
+                    return `<tr id="row-${s.id}" draggable="${isFiltered ? 'false' : 'true'}" data-skill-id="${s.id}"
+                                ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)" ondragend="onDragEnd(event)">
+                        <td class="col-order">
+                            <span class="order-num">${globalIdx + 1}</span>
+                            ${!isFiltered ? `<div class="order-btns">
+                                <button class="order-btn" onclick="moveSkill('${s.id}',-1)" ${isFirst ? 'disabled' : ''} title="上へ">▲</button>
+                                <button class="order-btn" onclick="moveSkill('${s.id}',1)" ${isLast ? 'disabled' : ''} title="下へ">▼</button>
+                            </div>` : ''}
+                        </td>
                         <td class="col-id">${s.id}</td>
-                        <td class="col-sym">${s.symbol}</td>
-                        <td class="col-display">${displaySym}</td>
+                        <td class="col-sym">${isFiltered ? '' : '<span class="drag-handle">☰ </span>'}${s.symbol}</td>
                         <td class="col-dd" style="text-align:center;">${Number(s.dd).toFixed(1)}</td>
                         <td class="col-triple">${s.isTriple ? '<span class="triple-check">✓</span>' : ''}</td>
                         <td class="col-dir">${dirLabel[s.direction] || s.direction || ''}</td>
@@ -338,6 +381,97 @@
         document.getElementById('count-label').textContent = `${filtered.length} / ${skills.length} 件`;
     };
 
+    // ---- 順序変更 ----
+    window.moveSkill = function(id, direction) {
+        const idx = skills.findIndex(s => s.id === id);
+        if (idx < 0) return;
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= skills.length) return;
+        [skills[idx], skills[newIdx]] = [skills[newIdx], skills[idx]];
+        reindexOrder();
+        markOrderDirty();
+        render();
+    };
+
+    function reindexOrder() {
+        skills.forEach((s, i) => { s.displayOrder = i; });
+    }
+
+    function markOrderDirty() {
+        const current = skills.map(s => s.id);
+        orderDirty = JSON.stringify(current) !== JSON.stringify(savedOrder);
+        document.getElementById('order-save-bar').classList.toggle('visible', orderDirty);
+    }
+
+    window.saveOrder = async function() {
+        try {
+            const batch = [];
+            for (const s of skills) {
+                batch.push(setDoc(doc(db, 'skillMaster', s.id), { displayOrder: s.displayOrder }, { merge: true }));
+            }
+            await Promise.all(batch);
+            savedOrder = skills.map(s => s.id);
+            orderDirty = false;
+            document.getElementById('order-save-bar').classList.remove('visible');
+            alert('表示順を保存しました。');
+        } catch (e) {
+            console.error('Order save error:', e);
+            alert('保存に失敗しました: ' + e.message);
+        }
+    };
+
+    window.resetOrder = function() {
+        // savedOrder の順番に戻す
+        const map = {};
+        skills.forEach(s => { map[s.id] = s; });
+        skills = savedOrder.map(id => map[id]).filter(Boolean);
+        reindexOrder();
+        orderDirty = false;
+        document.getElementById('order-save-bar').classList.remove('visible');
+        render();
+    };
+
+    // ---- ドラッグ & ドロップ ----
+    let draggedId = null;
+
+    window.onDragStart = function(e) {
+        draggedId = e.currentTarget.dataset.skillId;
+        e.currentTarget.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    window.onDragOver = function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        e.currentTarget.classList.add('drag-over');
+    };
+
+    window.onDragLeave = function(e) {
+        e.currentTarget.classList.remove('drag-over');
+    };
+
+    window.onDrop = function(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        const targetId = e.currentTarget.dataset.skillId;
+        if (!draggedId || draggedId === targetId) return;
+        const fromIdx = skills.findIndex(s => s.id === draggedId);
+        const toIdx   = skills.findIndex(s => s.id === targetId);
+        if (fromIdx < 0 || toIdx < 0) return;
+        const [moved] = skills.splice(fromIdx, 1);
+        skills.splice(toIdx, 0, moved);
+        reindexOrder();
+        markOrderDirty();
+        render();
+    };
+
+    window.onDragEnd = function(e) {
+        draggedId = null;
+        document.querySelectorAll('.dragging, .drag-over').forEach(el => {
+            el.classList.remove('dragging', 'drag-over');
+        });
+    };
+
     window.saveRow = async function(id) {
         const skill = skills.find(s => s.id === id);
         if (!skill) return;
@@ -345,21 +479,26 @@
         const saveBtn = document.getElementById(`save-${id}`);
         if (saveBtn) saveBtn.disabled = true;
 
-        const displayEl = document.querySelector(`input.edit-input[data-id="${id}"][data-field="displaySymbol"]`);
+        const symbolEl  = document.querySelector(`input.edit-input[data-id="${id}"][data-field="symbol"]`);
         const ddEl      = document.querySelector(`input.edit-input[data-id="${id}"][data-field="dd"]`);
         const tripleEl  = document.querySelector(`input.edit-triple-cb[data-id="${id}"]`);
         const dirEl     = document.querySelector(`select.edit-input[data-id="${id}"][data-field="direction"]`);
         const noteEl    = document.querySelector(`input.edit-input[data-id="${id}"][data-field="note"]`);
 
-        const newDisplaySymbol = displayEl?.value.trim() || '';
-        const newDd            = parseFloat(ddEl?.value) || 0;
-        const newIsTriple      = tripleEl?.checked || false;
-        const newDirection     = dirEl?.value || skill.direction;
-        const newNote          = noteEl?.value.trim() || '';
+        const newSymbol    = symbolEl?.value.trim() || skill.symbol;
+        const newDd        = parseFloat(ddEl?.value) || 0;
+        const newIsTriple  = tripleEl?.checked || false;
+        const newDirection = dirEl?.value || skill.direction;
+        const newNote      = noteEl?.value.trim() || '';
+
+        if (!newSymbol) {
+            alert('Symbolは必須です。');
+            if (saveBtn) saveBtn.disabled = false;
+            return;
+        }
 
         const data = {
-            symbol: skill.symbol,
-            displaySymbol: newDisplaySymbol,
+            symbol: newSymbol,
             dd: newDd,
             isTriple: newIsTriple,
             direction: newDirection,
@@ -372,7 +511,7 @@
 
             const idx = skills.findIndex(s => s.id === id);
             if (idx >= 0) {
-                skills[idx] = { ...skills[idx], displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, direction: newDirection, note: newNote };
+                skills[idx] = { ...skills[idx], symbol: newSymbol, dd: newDd, isTriple: newIsTriple, direction: newDirection, note: newNote };
             }
             editingId = null;
             render();

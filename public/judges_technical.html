@@ -236,18 +236,15 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, getDoc, getDocs, collection, query, where, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
-    const db = getFirestore(initializeApp(firebaseConfig));
+    import { db } from "./firebase-config.js";
+    import { doc, onSnapshot, getDoc, getDocs, collection, query, where, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
     let athleteId = params.get('athlete'), round = params.get('round') || "pre1";
 
     let athletes = [], submissions = {}, results = {}, currentTour = null;
-    let fType = 'individual', fClass = '', fGender = '';
+    let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null;
     let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
     let skillMasterMap = {};  // skillId → { symbol, dd, ... }
@@ -273,7 +270,8 @@
                 symbol: d.data().symbol,
                 dd: parseFloat(d.data().dd) || 0,
                 isTriple: d.data().isTriple === true,
-                direction: d.data().direction || ''
+                direction: d.data().direction || '',
+                displayOrder: d.data().displayOrder ?? parseInt(d.id)
             };
         });
 
@@ -358,20 +356,39 @@
             </div>`;
         }
 
+        // 決勝フィルター行
+        const hasAnyFinals = athletes.some(a => a.finalOrder != null);
+        if (hasAnyFinals) {
+            filHtml += `<div class="filter-row">
+                <span class="filter-label">決勝</span>
+                <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">全て</button>
+                <button class="tab-btn ${fFinalOnly?'active':''}" onclick="setFilter('finalOnly',true)">🏆 決勝のみ</button>
+            </div>`;
+        }
+
         filterEl.style.display = filHtml ? '' : 'none';
         filterEl.innerHTML = filHtml;
 
         // 絞り込み＆ソート
-        const filtered = byType
-            .filter(a => !fClass  || (a.class || a.category || '') === fClass)
-            .filter(a => !fGender || (a.gender || '') === fGender)
-            .sort((a, b) => {
-                const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
-                if (ca !== cb) return ca.localeCompare(cb);
-                const ga = a.gender || '', gb = b.gender || '';
-                if (ga !== gb) return ga.localeCompare(gb);
-                return (a.order ?? 999) - (b.order ?? 999);
-            });
+        let filtered;
+        if (fFinalOnly) {
+            filtered = athletes
+                .filter(a => a.finalOrder != null)
+                .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+                .filter(a => !fGender || (a.gender || '') === fGender)
+                .sort((a, b) => (a.finalOrder ?? 999) - (b.finalOrder ?? 999));
+        } else {
+            filtered = byType
+                .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+                .filter(a => !fGender || (a.gender || '') === fGender)
+                .sort((a, b) => {
+                    const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                    if (ca !== cb) return ca.localeCompare(cb);
+                    const ga = a.gender || '', gb = b.gender || '';
+                    if (ga !== gb) return ga.localeCompare(gb);
+                    return (a.order ?? 999) - (b.order ?? 999);
+                });
+        }
 
         const listEl = document.getElementById('sidebar-list');
         listEl.innerHTML = "";
@@ -383,7 +400,7 @@
                 listEl.innerHTML += `<div class="cat-group">${cls}</div>`;
                 lastCat = cls; lastGender = "";
             }
-            if ((ath.gender || '') !== lastGender) {
+            if (!fFinalOnly && (ath.gender || '') !== lastGender) {
                 listEl.innerHTML += `<div class="gender-group">${ath.gender || ''}</div>`;
                 lastGender = ath.gender || '';
             }
@@ -392,9 +409,15 @@
             const athType = ath.type || 'individual';
             const classRule = currentTour.classRules?.[athType]?.[cls] || {};
             const numPre = classRule.qualifyingRoutines ?? currentTour.qualifyingRoutines ?? 1;
+            const hasFinalClass = classRule.hasFinal ?? false;
 
             let dotsHtml = "";
-            for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
+            if (fFinalOnly) {
+                dotsHtml = getDotHtml(ath.id, 'final', 'F');
+            } else {
+                for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
+                if (hasFinalClass) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+            }
 
             const isActive = ath.id === athleteId;
             const nameHtml = isSynchro
@@ -410,9 +433,10 @@
     }
 
     window.setFilter = (key, val) => {
-        if (key === 'type')   { fType = val; fClass = ''; fGender = ''; }
-        if (key === 'class')  fClass  = val;
-        if (key === 'gender') fGender = val;
+        if (key === 'type')      { fType = val; fClass = ''; fGender = ''; fFinalOnly = false; }
+        if (key === 'class')     fClass  = val;
+        if (key === 'gender')    fGender = val;
+        if (key === 'finalOnly') fFinalOnly = (val === true);
         renderSidebar();
     };
 
@@ -490,7 +514,7 @@
         });
     }
 
-    // ---- 中間2名ルール ----
+    // ---- 中間2名ルール（個人用） ----
     // values: 各E審判の減点値（null=未入力）
     // 返り値: { sum: 中間2名の和, indices: 中間2名のインデックスSet }
     function middle2(values) {
@@ -498,7 +522,7 @@
         if (filled.length < 2) return { sum: 0, indices: new Set() };
         const sorted = [...filled].sort((a, b) => a.v - b.v);
         const n = sorted.length;
-        // n=4: index 1,2 / n=6: index 2,3 / 汎用: floor((n-2)/2), floor((n-2)/2)+1
+        // n=2: 2人の合計 / n=4: index 1,2 / n=6: index 2,3
         const mid = Math.floor((n - 2) / 2);
         return {
             sum:     sorted[mid].v + sorted[mid + 1].v,
@@ -506,8 +530,40 @@
         };
     }
 
+    // ---- 中央値1名（3人から真ん中を取得） ----
+    function median1(values) {
+        const filled = values.filter(v => v !== null && v !== undefined);
+        if (filled.length === 0) return null;
+        filled.sort((a, b) => a - b);
+        if (filled.length === 1) return filled[0];
+        if (filled.length === 2) return (filled[0] + filled[1]) / 2;
+        return filled[Math.floor(filled.length / 2)]; // 3人→真ん中
+    }
+
+    // ---- シンクロ用E減点計算 ----
+    // numE=2: 2人の平均, numE=4: 4人の平均, numE=6: E1,3,5の中間値 + E2,4,6の中間値 の平均
+    function synchroEDed(values, numE) {
+        const filled = values.filter(v => v !== null && v !== undefined);
+        if (filled.length === 0) return { avg: 0, hasData: false };
+        if (numE <= 4) {
+            // 2人 or 4人: 全員の平均
+            const avg = filled.reduce((a, b) => a + b, 0) / filled.length;
+            return { avg, hasData: true };
+        }
+        // 6人: E1,3,5(奇数)の中間値 + E2,4,6(偶数)の中間値 → 平均
+        const oddVals  = [values[0], values[2], values[4]]; // E1, E3, E5
+        const evenVals = [values[1], values[3], values[5]]; // E2, E4, E6
+        const medOdd  = median1(oddVals);
+        const medEven = median1(evenVals);
+        if (medOdd === null && medEven === null) return { avg: 0, hasData: false };
+        if (medOdd === null) return { avg: medEven, hasData: true };
+        if (medEven === null) return { avg: medOdd, hasData: true };
+        return { avg: (medOdd + medEven) / 2, hasData: true };
+    }
+
     // ---- 演技点計算 ----
     function calcExecution(data) {
+        const isSynchro = fType === 'synchro';
         // パネルプレフィックスでフィルタリングし、表示用にプレフィックスを除去
         const allJudges   = data?.execution?.judges || {};
         const panelPrefix = `${panel}_`;
@@ -520,23 +576,34 @@
         const numE   = currentTour?.numExecJudges || 6;
         const jKeys  = Array.from({ length: numE }, (_, i) => `E${i + 1}`);
 
-        // 各技の中間2名
-        const skillResults = Array.from({ length: 10 }, (_, si) => {
-            const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
-            return middle2(vals);
-        });
-
-        // 着地の中間2名（有効本数=10のときのみ）
-        const landingResult = vLimit === 10
-            ? middle2(jKeys.map(k => judges[k]?.landing ?? null))
-            : { sum: 0, indices: new Set() };
-
-        // 合計減点 = 有効本数分の各技減点合計 + 着地減点
-        const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
-                        + landingResult.sum;
-        const execution = (vLimit * 2.0) - totalDed;
-
-        return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges };
+        if (!isSynchro) {
+            // ---- 個人: 各技の中間2名の合計 ----
+            const skillResults = Array.from({ length: 10 }, (_, si) => {
+                const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
+                return middle2(vals);
+            });
+            const landingResult = vLimit === 10
+                ? middle2(jKeys.map(k => judges[k]?.landing ?? null))
+                : { sum: 0, indices: new Set() };
+            const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
+                            + landingResult.sum;
+            const execution = (vLimit * 2.0) - totalDed;
+            return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges, isSynchro };
+        } else {
+            // ---- シンクロ: 審判数に応じた平均計算 ----
+            const skillResults = Array.from({ length: 10 }, (_, si) => {
+                const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
+                const r = synchroEDed(vals, numE);
+                return { sum: r.avg, indices: new Set(), hasData: r.hasData };
+            });
+            const landingResult = vLimit === 10
+                ? (() => { const r = synchroEDed(jKeys.map(k => judges[k]?.landing ?? null), numE); return { sum: r.avg, indices: new Set(), hasData: r.hasData }; })()
+                : { sum: 0, indices: new Set(), hasData: false };
+            const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
+                            + landingResult.sum;
+            const execution = (vLimit * 1.0) - totalDed;  // シンクロ: 有効技数 × 1.0
+            return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges, isSynchro };
+        }
     }
 
     // ---- スコア表示 ----
@@ -554,12 +621,14 @@
         const execSkills = data.officialSkills || [];
         const vLimitD = data.validCount ?? 10;
 
-        // 申請行（数値IDはシンボルへ変換、重複は赤）
+        // 申請行（数値IDはシンボルへ変換、重複は赤、実施と異なれば赤）
+        let hasDeclaredMismatch = false;
         {
             const seenIds = new Set();
             document.querySelectorAll('.d-declared').forEach((el, i) => {
                 const s = subSkills[i];
                 el.style.color = '';
+                el.style.fontWeight = '';
                 if (!s) { el.textContent = '-'; return; }
                 const rawVal = typeof s === 'string' ? s : (s.skill || '');
                 if (!rawVal) { el.textContent = '-'; return; }
@@ -573,10 +642,18 @@
                     skillId = found ? found[0] : null;
                 }
                 el.textContent = sym || rawVal;
+                // 重複チェック
                 if (skillId && seenIds.has(skillId)) {
                     el.style.color = 'var(--danger)';
                 } else if (skillId) {
                     seenIds.add(skillId);
+                }
+                // 実施技との比較：異なれば赤
+                const execId = execSkills[i];
+                if (i < vLimitD && skillId && execId && String(skillId) !== String(execId)) {
+                    el.style.color = 'var(--danger)';
+                    el.style.fontWeight = 'bold';
+                    hasDeclaredMismatch = true;
                 }
             });
         }
@@ -638,9 +715,9 @@
                 }
             });
 
-            // ボーナス計算（男子:5本目以降のトリプル×0.3、女子:3本目以降のトリプル×0.3）
+            // ボーナス計算（男子:6本目以降のトリプル×0.3、女子:3本目以降のトリプル×0.3）
             let bonus = 0;
-            if (gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+            if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
             else if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
             const totalDD = baseDD + bonus;
@@ -653,9 +730,13 @@
                 ddTotalCell.textContent = '-';
             }
 
-            // 青い箱のD・dd-label も更新
-            document.getElementById('res-d').innerText = totalDD > 0 ? totalDD.toFixed(1) : "0.0";
-            document.getElementById('dd-label').innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : "0.0"}`;
+            // 青い箱のD・dd-label も更新（申請と実施が異なる技があれば赤）
+            const resDEl = document.getElementById('res-d');
+            resDEl.innerText = totalDD > 0 ? totalDD.toFixed(1) : "0.0";
+            resDEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
+            const ddLabelEl = document.getElementById('dd-label');
+            ddLabelEl.innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : "0.0"}`;
+            ddLabelEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
         }
 
         // pendingEdits を Firestore フォーマットに変換してマージ（中間2名計算用）
@@ -759,8 +840,8 @@
             if (toFocus) toFocus.focus();
         }
 
-        if (tofMode === 'auto') document.getElementById('tof').value = data.tof || "";
-        if (hdMode === 'auto')  document.getElementById('hd').value  = data.hd?.total || "";
+        if (tofMode === 'auto') document.getElementById('tof').value = data.tofByPanel?.[panel] ?? data.tof ?? "";
+        if (hdMode === 'auto')  document.getElementById('hd').value  = data.hdByPanel?.[panel] ?? data.hd?.total ?? "";
         document.getElementById('pen').value = data.penalty || 0;
         updateScoreSummary(ec, hasJudgeData);
     }
@@ -836,7 +917,7 @@
         } else {
             btn.textContent = '読込'; btn.classList.remove('manual');
             inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
-            inp.value = latestData.tof || ""; calc();
+            inp.value = latestData.tofByPanel?.[panel] ?? latestData.tof ?? ""; calc();
         }
     };
 
@@ -851,7 +932,7 @@
         } else {
             btn.textContent = '読込'; btn.classList.remove('manual');
             inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
-            inp.value = latestData.hd?.total || ""; calc();
+            inp.value = latestData.hdByPanel?.[panel] ?? latestData.hd?.total ?? ""; calc();
         }
     };
 
@@ -907,6 +988,7 @@
             published: true, publishedAt: serverTimestamp(),
             verifiedAt: serverTimestamp(),
             tof: t, hd: { total: h },
+            tofByPanel: { [panel]: t }, hdByPanel: { [panel]: h },
             officialD: d, officialE: e, officialTH: th, officialTotal: total
         };
 
@@ -1023,13 +1105,25 @@
             }
         });
 
-        // 各技・着地の中間2名を計算
+        // 各技・着地の計算（個人: 中間2名合計、シンクロ: 審判数に応じた平均）
+        const isSynchro = fType === 'synchro';
         const skillResults = Array.from({length: 10}, (_, si) => {
             const vals = jKeys.map(k => (mergedJudges[`${panel}_${k}`]?.deductions || [])[si] ?? null);
+            if (isSynchro) {
+                const r = synchroEDed(vals, numE);
+                return { sum: r.avg, indices: new Set(), hasData: r.hasData };
+            }
             return middle2(vals);
         });
         const landingResult = vLimit === 10
-            ? middle2(jKeys.map(k => mergedJudges[`${panel}_${k}`]?.landing ?? null))
+            ? (() => {
+                const vals = jKeys.map(k => mergedJudges[`${panel}_${k}`]?.landing ?? null);
+                if (isSynchro) {
+                    const r = synchroEDed(vals, numE);
+                    return { sum: r.avg, indices: new Set(), hasData: r.hasData };
+                }
+                return middle2(vals);
+            })()
             : { sum: 0, indices: new Set() };
         const totalDed = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0) + landingResult.sum;
 
@@ -1043,9 +1137,10 @@
             const hasVal = hasData && skillResults[i].indices.size > 0;
             if (i < vLimit) cells[i + 1].textContent = hasVal ? Math.round(skillResults[i].sum * 10) : '-';
         }
-        const hasLanding = hasData && landingResult.indices.size > 0;
+        const hasLanding = hasData && (isSynchro ? landingResult.hasData : landingResult.indices.size > 0);
         cells[11].textContent = vLimit === 10 && hasLanding ? Math.round(landingResult.sum * 10) : '-';
-        const execution = (vLimit * 2.0) - totalDed;
+        const basePerSkill = isSynchro ? 1.0 : 2.0;
+        const execution = (vLimit * basePerSkill) - totalDed;
         cells[12].textContent = hasData ? execution.toFixed(1) : '-';
         // 青い箱のEスコア・Totalもリアルタイム更新
         if (hasData) {

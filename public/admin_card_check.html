@@ -8,6 +8,9 @@
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         .sidebar { width: 450px; background: #fff; border-right: 1px solid #cfd8dc; display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { padding: 20px; background: var(--primary); color: white; position: sticky; top: 0; z-index: 10; }
+        .final-toggle { display: flex; gap: 8px; padding: 8px 12px; background: #37474f; border-bottom: 2px solid #cfd8dc; flex-shrink: 0; }
+        .final-toggle-btn { flex: 1; padding: 6px 10px; border-radius: 20px; border: 1px solid #b0bec5; background: #546e7a; color: #cfd8dc; font-size: 0.78rem; font-weight: bold; cursor: pointer; transition: 0.15s; }
+        .final-toggle-btn.active { background: #ffc107; color: #263238; border-color: #ffc107; }
         .sidebar-list { flex-grow: 1; overflow-y: auto; padding-bottom: 50px; }
         .section-header { padding: 15px 18px 8px; font-size: 1.1rem; font-weight: 900; background: #f4f4f4; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; position: sticky; top: 0; }
         .indiv-header { color: var(--indiv-purple); }
@@ -55,6 +58,10 @@
         <div id="event-name" style="font-size:0.9em;">読み込み中...</div>
         <a href="admin_menu.html" id="menu-back" style="color:white; font-size:0.8em; display:block; margin-top:10px;">← 管理者メニューへ</a>
     </div>
+    <div class="final-toggle">
+        <button class="final-toggle-btn active" id="btn-all-mode" onclick="window.setFinalMode(false)">全ラウンド</button>
+        <button class="final-toggle-btn" id="btn-final-mode" onclick="window.setFinalMode(true)">🏆 決勝のみ</button>
+    </div>
     <div id="sidebar-list" class="sidebar-list"></div>
 </div>
 <div class="main-viewer" id="main-viewer">
@@ -62,18 +69,24 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, collection, getDocs, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = { apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4", projectId: "trampoline-dd-test" };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc, collection, getDocs, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     const params = new URLSearchParams(location.search);
     const eventIdParam = params.get('event');
     const eventId = eventIdParam ? eventIdParam.trim() : null;
 
     let athletes = [], submissions = new Map(), classRules = { individual: {}, synchro: {} }, skillMaster = [];
     let currentSelection = { athleteId: null, round: null };
+    let finalOnlyMode = false;
+
+    window.setFinalMode = function(isFinal) {
+        finalOnlyMode = isFinal;
+        document.getElementById('btn-all-mode').classList.toggle('active', !isFinal);
+        document.getElementById('btn-final-mode').classList.toggle('active', isFinal);
+        currentSelection = { athleteId: null, round: null };
+        document.getElementById('main-viewer').innerHTML = '<div id="viewer-placeholder">サイドバーから<br>チェックする演技を選択してください</div>';
+        renderSidebar();
+    };
 
     async function init() {
         if (!eventId) { document.body.innerHTML = "<h1>大会IDが見つかりません</h1><a href=\"admin_index.html\">大会選択に戻る</a>"; return; }
@@ -87,7 +100,7 @@
         ]);
         skillMaster = skillSnap.docs
             .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => Number(a.id) - Number(b.id));
+            .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)));
 
         if (tourSnap.exists()) {
             const tourData = tourSnap.data();
@@ -112,6 +125,39 @@
 
     function renderSidebar() {
         const listEl = document.getElementById('sidebar-list');
+
+        if (finalOnlyMode) {
+            // 決勝モード: finalOrder が設定された選手のみ、finalOrder 順に表示
+            const finalists = athletes
+                .filter(function(a) { return a.finalOrder != null; })
+                .sort(function(a, b) { return (a.finalOrder || 999) - (b.finalOrder || 999); });
+
+            let finalHtml = '';
+            if (finalists.length === 0) {
+                finalHtml = '<div style="padding:20px; color:#90a4ae; font-size:0.9rem;">決勝進出選手が設定されていません。<br>「決勝試技順処理」で設定してください。</div>';
+            } else {
+                let currentType = null;
+                finalists.forEach(function(ath) {
+                    const athType = ath.type || 'individual';
+                    if (athType !== currentType) {
+                        currentType = athType;
+                        const headerClass = athType === 'synchro' ? 'sync-header' : 'indiv-header';
+                        finalHtml += '<div class="section-header ' + headerClass + '">🏆 決勝 — ' + (athType === 'synchro' ? 'シンクロ' : '個人') + '</div>';
+                    }
+                    const athName = ath.type === 'synchro' ? ath.name1 + ' / ' + ath.name2 : ath.name1;
+                    const clubName = ath.type === 'synchro' ? ath.club1 : '(' + ath.club1 + ')';
+                    const itemStyle = ath.id === currentSelection.athleteId ? 'background:#f0f7ff; border-left: 4px solid var(--accent);' : '';
+                    const dot = createDot(ath.id, 'final', 'F');
+                    finalHtml += '<div class="athlete-item" style="' + itemStyle + '">' +
+                        '<div class="athlete-name"><strong>' + ath.finalOrder + '.</strong> ' + athName + ' <small>' + clubName + '</small></div>' +
+                        '<div class="round-box">' + dot + '</div>' +
+                    '</div>';
+                });
+            }
+            listEl.innerHTML = finalHtml;
+            return;
+        }
+
         const groupedAthletes = athletes.reduce(function(acc, ath) {
             const type = ath.type || 'individual';
             const className = ath.class || 'N/A';
@@ -144,15 +190,15 @@
             finalHtml += '<div class="class-header">' + className + ' ' + gender + '</div>';
 
             const groupAthletes = groupedAthletes[key].sort(function(a,b) { return (a.order || 999) - (b.order || 999); });
-            
+
             groupAthletes.forEach(function(ath) {
                 const athType = ath.type || 'individual';
                 const rules = (classRules[athType] && classRules[athType][ath.class]) ? classRules[athType][ath.class] : { qualifyingRoutines: 1, hasFinal: false };
-                
+
                 let dots = '';
                 for(let i = 1; i <= rules.qualifyingRoutines; i++) dots += createDot(ath.id, 'pre' + i, 'R' + i);
                 if(rules.hasFinal) dots += createDot(ath.id, 'final', 'F');
-                
+
                 const athName = ath.type === 'synchro' ? ath.name1 + ' / ' + ath.name2 : ath.name1;
                 const clubName = ath.type === 'synchro' ? ath.club1 : '(' + ath.club1 + ')';
                 const itemStyle = ath.id === currentSelection.athleteId ? 'background:#f0f7ff; border-left: 4px solid var(--accent);' : '';
@@ -228,7 +274,7 @@
         }
         const gender = athlete.gender || '';
         let bonus = 0;
-        if (gender === '男子' && tripleCount >= 5) bonus = (tripleCount - 4) * 0.3;
+        if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
         if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
         const totalDD = baseDD + bonus;
         const currentStatus = submission.checkStatus ?? 0;
@@ -300,19 +346,34 @@
     };
 
     function findNextTarget() {
+        if (finalOnlyMode) {
+            const sortedFinalists = athletes
+                .filter(function(a) { return a.finalOrder != null; })
+                .sort(function(a, b) { return (a.finalOrder || 999) - (b.finalOrder || 999); });
+            const currentIdx = sortedFinalists.findIndex(function(a) { return a.id === currentSelection.athleteId; });
+            const searchOrder = [...sortedFinalists.slice(currentIdx), ...sortedFinalists.slice(0, currentIdx)];
+            for (const ath of searchOrder) {
+                if (ath.id === currentSelection.athleteId && 'final' === currentSelection.round) continue;
+                const subId = eventId + '_' + ath.id + '_final';
+                const sub = submissions.get(subId);
+                if (sub && sub.checkStatus !== 2) return { athleteId: ath.id, round: 'final' };
+            }
+            return null;
+        }
+
         const sortedAthletes = [...athletes].sort(function(a, b) {
             const keyA = (a.class || '') + '-' + (a.gender || '') + '-' + String(a.order || '999').padStart(4, '0');
             const keyB = (b.class || '') + '-' + (b.gender || '') + '-' + String(b.order || '999').padStart(4, '0');
             return keyA.localeCompare(keyB);
         });
-        
+
         const currentAthIndex = sortedAthletes.findIndex(function(a) { return a.id === currentSelection.athleteId; });
         const searchOrder = [...sortedAthletes.slice(currentAthIndex), ...sortedAthletes.slice(0, currentAthIndex)];
 
         for (const ath of searchOrder) {
             const athType = ath.type || 'individual';
             const rules = (classRules[athType] && classRules[athType][ath.class]) ? classRules[athType][ath.class] : { qualifyingRoutines: 1, hasFinal: false };
-            
+
             const rounds = [];
             for(let i = 1; i <= rules.qualifyingRoutines; i++) rounds.push('pre' + i);
             if(rules.hasFinal) rounds.push('final');
@@ -327,7 +388,7 @@
                 }
             }
         }
-        return null; 
+        return null;
     }
 
     init();
