@@ -424,19 +424,19 @@
     }
     .rk-rank{ font-size: 2.2cqw; font-weight: 900; color: var(--text-muted); }
     .rk-name-group{
-      display: flex; flex-direction: column; justify-content: center;
-      overflow: hidden; min-width: 0;
+      display: flex; flex-direction: row; align-items: baseline;
+      gap: 0.8cqw; overflow: hidden; min-width: 0;
     }
     .rk-name{
       font-size: 2.4cqw; font-weight: 800;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      line-height: 1.0;
+      flex-shrink: 0;
     }
     .rk-team{
       font-size: 1.2cqw; font-weight: 600;
       color: var(--text-muted);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      line-height: 1.0; margin-top: 0;
+      flex: 1; min-width: 0;
     }
     .rk-current .rk-name{ color: var(--accent-gold); }
     .rk-current .rk-team{ color: rgba(255,215,0,0.65); }
