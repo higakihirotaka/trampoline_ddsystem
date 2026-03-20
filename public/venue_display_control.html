@@ -8,44 +8,49 @@
     <style>
         :root { --primary: #263238; --accent: #1a73e8; --bg: #f0f2f5; --card: #ffffff; --green: #2e7d32; --text-main: #263238; --text-sub: #546e7a; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text-main); }
-        .container { max-width: 800px; margin: 0 auto; }
+        .container { max-width: 760px; margin: 0 auto; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
         .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
         .auth-info span { font-weight: bold; color: var(--text-main); }
         .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--accent); cursor: pointer; font-size: 0.9em; margin-left: 12px; padding: 3px 8px; }
-        .header { text-align: center; margin-bottom: 30px; }
+        .header { text-align: center; margin-bottom: 28px; }
         .event-badge { display: inline-block; padding: 6px 16px; background: var(--accent); color: white; border-radius: 20px; font-weight: bold; margin-top: 8px; }
         h1 { margin: 0 0 8px; }
 
         .section-title {
-            font-size: 1.1rem; font-weight: 900; margin: 30px 0 15px;
+            font-size: 1.05rem; font-weight: 900; margin: 28px 0 12px;
             display: flex; align-items: center; gap: 10px;
-            border-left: 5px solid var(--accent); padding-left: 15px;
+            border-left: 5px solid var(--accent); padding-left: 14px;
         }
         .card {
-            background: var(--card); border-radius: 16px; padding: 28px 32px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 20px;
+            background: var(--card); border-radius: 16px; padding: 24px 28px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 16px;
         }
         .setting-row {
             display: flex; align-items: center; gap: 16px;
-            padding: 16px 0; border-bottom: 1px solid #f0f0f0;
+            padding: 15px 0; border-bottom: 1px solid #f0f0f0;
         }
         .setting-row:last-child { border-bottom: none; padding-bottom: 0; }
         .setting-label { flex: 1; }
         .setting-label strong { display: block; font-size: 0.95rem; }
         .setting-label span { font-size: 0.8rem; color: var(--text-sub); }
         .setting-control { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-        input[type="range"] {
-            width: 140px; accent-color: var(--accent);
-        }
+        input[type="range"] { width: 130px; accent-color: var(--accent); }
         .val-box {
-            width: 54px; text-align: center;
+            width: 52px; text-align: center;
             font-size: 1.1rem; font-weight: 700;
             border: 2px solid #e0e0e0; border-radius: 8px; padding: 4px 6px;
             background: #f8fbff;
         }
-        .unit { font-size: 0.8rem; color: var(--text-sub); width: 24px; }
+        .unit { font-size: 0.8rem; color: var(--text-sub); width: 22px; }
+
+        .timeline {
+            background: #f8fbff; border-radius: 10px; padding: 14px 18px;
+            font-size: 0.85rem; color: var(--text-sub); margin-top: 8px;
+            border: 1px solid #e3eaf5;
+        }
+        .timeline strong { color: var(--text-main); }
 
         .btn-save {
             display: block; width: 100%; padding: 16px;
@@ -61,17 +66,14 @@
         }
 
         .display-link-card {
-            background: #e8f5e9; border-radius: 16px; padding: 20px 28px;
+            background: #e8f5e9; border-radius: 14px; padding: 18px 24px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px;
-            display: flex; align-items: center; gap: 16px;
+            display: flex; align-items: center; gap: 14px;
         }
         .display-link-card .icon { font-size: 2rem; }
-        .display-link-card a {
-            color: var(--green); font-weight: 700; text-decoration: none;
-            word-break: break-all; font-size: 0.95rem;
-        }
+        .display-link-card a { color: var(--green); font-weight: 700; text-decoration: none; font-size: 0.9rem; word-break: break-all; }
         .display-link-card a:hover { text-decoration: underline; }
-        .display-link-card p { margin: 4px 0 0; font-size: 0.8rem; color: var(--text-sub); }
+        .display-link-card p { margin: 4px 0 0; font-size: 0.78rem; color: var(--text-sub); }
     </style>
 </head>
 <body>
@@ -89,7 +91,6 @@
         <div id="event-name" class="event-badge">読み込み中...</div>
     </div>
 
-    <!-- 会場ディスプレイへのリンク -->
     <div class="display-link-card">
         <div class="icon">📺</div>
         <div>
@@ -98,40 +99,43 @@
         </div>
     </div>
 
-    <!-- スコア表示タイミング -->
-    <div class="section-title">⏱️ スコア表示タイミング</div>
+    <!-- 個人スコア表示 -->
+    <div class="section-title">📊 個人スコア表示</div>
     <div class="card">
         <div class="setting-row">
             <div class="setting-label">
-                <strong>新規スコア 表示時間</strong>
-                <span>初めてスコアが出たときの表示秒数</span>
+                <strong>アニメーション時間</strong>
+                <span>スコアが画面に登場し、アニメーションが完了するまでの秒数</span>
             </div>
             <div class="setting-control">
-                <input type="range" id="range-scoreNewSec" min="3" max="30" step="1" value="13">
-                <input type="number" id="val-scoreNewSec" class="val-box" min="3" max="30" value="13">
+                <input type="range" id="range-animTotalSec" min="3" max="20" step="1" value="10">
+                <input type="number" id="val-animTotalSec" class="val-box" min="3" max="20" value="10">
                 <span class="unit">秒</span>
             </div>
         </div>
         <div class="setting-row">
             <div class="setting-label">
-                <strong>スコア更新時 表示時間</strong>
-                <span>再試技等でスコアが更新されたときの秒数</span>
+                <strong>アニメーション後の保持時間</strong>
+                <span>アニメーション完了後、順位表に切り替わるまで表示し続ける秒数</span>
             </div>
             <div class="setting-control">
-                <input type="range" id="range-scoreUpdateSec" min="1" max="15" step="1" value="3">
-                <input type="number" id="val-scoreUpdateSec" class="val-box" min="1" max="15" value="3">
+                <input type="range" id="range-holdSec" min="0" max="20" step="1" value="3">
+                <input type="number" id="val-holdSec" class="val-box" min="0" max="20" value="3">
                 <span class="unit">秒</span>
             </div>
         </div>
+        <div class="timeline" id="timeline-preview">
+            スコア表示 → <strong>10秒</strong>でアニメーション完了 → さらに<strong>3秒</strong>保持 → 順位表へ（合計 <strong>13秒</strong>）
+        </div>
     </div>
 
-    <!-- 順位表設定 -->
-    <div class="section-title">🏆 順位表設定</div>
+    <!-- 順位表 -->
+    <div class="section-title">🏆 順位表</div>
     <div class="card">
         <div class="setting-row">
             <div class="setting-label">
                 <strong>1ページの表示人数</strong>
-                <span>順位表を何人ずつ表示するか</span>
+                <span>人数が多い場合は自動でページ送りされます</span>
             </div>
             <div class="setting-control">
                 <input type="range" id="range-rankingRows" min="4" max="20" step="1" value="12">
@@ -141,40 +145,13 @@
         </div>
         <div class="setting-row">
             <div class="setting-label">
-                <strong>ページ切り替え間隔</strong>
+                <strong>ページ送りの間隔</strong>
                 <span>次のページに自動で切り替わるまでの秒数</span>
             </div>
             <div class="setting-control">
                 <input type="range" id="range-rankingPageSec" min="3" max="30" step="1" value="8">
                 <input type="number" id="val-rankingPageSec" class="val-box" min="3" max="30" value="8">
                 <span class="unit">秒</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- アニメーション設定 -->
-    <div class="section-title">✨ アニメーション</div>
-    <div class="card">
-        <div class="setting-row">
-            <div class="setting-label">
-                <strong>アニメーション時間</strong>
-                <span>各要素のフェードイン時間</span>
-            </div>
-            <div class="setting-control">
-                <input type="range" id="range-animDurationMs" min="500" max="5000" step="100" value="2600">
-                <input type="number" id="val-animDurationMs" class="val-box" min="500" max="5000" step="100" value="2600">
-                <span class="unit">ms</span>
-            </div>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <strong>要素間の遅延</strong>
-                <span>各要素が順番に現れるときの間隔</span>
-            </div>
-            <div class="setting-control">
-                <input type="range" id="range-animStaggerMs" min="200" max="3000" step="100" value="1400">
-                <input type="number" id="val-animStaggerMs" class="val-box" min="200" max="3000" step="100" value="1400">
-                <span class="unit">ms</span>
             </div>
         </div>
     </div>
@@ -191,58 +168,54 @@
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
-    // バックリンクにeventIdをセット
     document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
-
-    // 会場ディスプレイリンク
     const venueUrl = `${location.origin}/venue_display.html?event=${eventId}`;
     const venueLink = document.getElementById('venue-link');
-    venueLink.href  = venueUrl;
+    venueLink.href = venueUrl;
     venueLink.textContent = venueUrl;
 
-    // 設定キーと初期値のマップ
-    const SETTINGS = {
-        scoreNewSec:    { default: 13 },
-        scoreUpdateSec: { default: 3 },
-        rankingRows:    { default: 12 },
-        rankingPageSec: { default: 8 },
-        animDurationMs: { default: 2600 },
-        animStaggerMs:  { default: 1400 },
-    };
+    const KEYS = ['animTotalSec', 'holdSec', 'rankingRows', 'rankingPageSec'];
+    const DEFAULTS = { animTotalSec: 10, holdSec: 3, rankingRows: 12, rankingPageSec: 8 };
 
-    // スライダー ↔ 数値ボックスを連動させる
-    Object.keys(SETTINGS).forEach(key => {
+    // タイムラインプレビューを更新
+    function updateTimeline() {
+        const anim = Number(document.getElementById('val-animTotalSec').value);
+        const hold = Number(document.getElementById('val-holdSec').value);
+        document.getElementById('timeline-preview').innerHTML =
+            `スコア表示 → <strong>${anim}秒</strong>でアニメーション完了 → さらに<strong>${hold}秒</strong>保持 → 順位表へ（合計 <strong>${anim + hold}秒</strong>）`;
+    }
+
+    // スライダー ↔ 数値ボックス連動
+    KEYS.forEach(key => {
         const range = document.getElementById(`range-${key}`);
         const val   = document.getElementById(`val-${key}`);
         if (!range || !val) return;
-        range.addEventListener('input', () => { val.value = range.value; });
-        val.addEventListener('input',  () => { range.value = val.value; });
+        range.addEventListener('input', () => { val.value = range.value; updateTimeline(); });
+        val.addEventListener('input',  () => { range.value = val.value; updateTimeline(); });
     });
 
-    // 現在の設定をUIに反映
     function applyToUI(settings) {
-        Object.keys(SETTINGS).forEach(key => {
-            const v     = settings[key] ?? SETTINGS[key].default;
+        KEYS.forEach(key => {
+            const v = settings[key] ?? DEFAULTS[key];
             const range = document.getElementById(`range-${key}`);
             const val   = document.getElementById(`val-${key}`);
             if (range) range.value = v;
             if (val)   val.value   = v;
         });
+        updateTimeline();
     }
 
-    // UIから設定を読む
     function readFromUI() {
         const out = {};
-        Object.keys(SETTINGS).forEach(key => {
+        KEYS.forEach(key => {
             const val = document.getElementById(`val-${key}`);
-            out[key]  = val ? Number(val.value) : SETTINGS[key].default;
+            out[key] = val ? Number(val.value) : DEFAULTS[key];
         });
         return out;
     }
 
     // 認証 & ロード
     ensureAdmin(async user => {
-        // auth-info 表示
         document.getElementById('auth-info').style.display = 'flex';
         document.getElementById('user-name').textContent = user.displayName || user.email;
         document.getElementById('logout-btn').onclick = logout;
@@ -252,7 +225,6 @@
             return;
         }
 
-        // 大会名 & 設定読み込み
         const tourSnap = await getDoc(doc(db, 'tournaments', eventId));
         if (!tourSnap.exists()) {
             document.getElementById('event-name').textContent = '大会が見つかりません';

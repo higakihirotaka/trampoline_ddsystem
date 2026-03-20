@@ -876,20 +876,16 @@
     monitor.appendChild(overlay);
 
     // スコア表示後 → キュー処理 or 順位表ループへ
-    const displayDelay = isNew
-      ? displaySettings.scoreNewSec * 1000
-      : displaySettings.scoreUpdateSec * 1000;
+    const displayDelay = (displaySettings.animTotalSec + displaySettings.holdSec) * 1000;
     rankingTimer = setTimeout(() => onScoreDisplayDone(), displayDelay);
   }
 
   // ==== 表示設定（Firestoreから読み込み、デフォルト値付き） ====
   let displaySettings = {
-    scoreNewSec:    13,
-    scoreUpdateSec: 3,
-    rankingRows:    12,
-    rankingPageSec: 8,
-    animStaggerMs:  1400,
-    animDurationMs: 2600
+    animTotalSec:  10,   // スコアアニメーションが完了するまでの秒数
+    holdSec:        3,   // アニメーション完了後に保持する秒数
+    rankingRows:   12,   // 順位表の1ページあたりの表示人数
+    rankingPageSec: 8,   // 順位表ページ送りの間隔（秒）
   };
 
   let rankingTimer     = null;   // スコア表示→順位表遷移タイマー
@@ -1086,9 +1082,15 @@
   }
 
   // ---- アニメーション設定をCSS変数で適用 ----
+  // animTotalSec から duration / stagger を比率（元の 2600:1400 = 13:7）で自動計算
+  // 5要素分の stagger + duration = animTotal なので:
+  //   stagger = animTotal * 7/48、duration = animTotal * 13/48
   function applyAnimSettings() {
-    document.documentElement.style.setProperty('--anim-duration', displaySettings.animDurationMs + 'ms');
-    document.documentElement.style.setProperty('--anim-stagger', displaySettings.animStaggerMs + 'ms');
+    const total    = displaySettings.animTotalSec * 1000;
+    const stagger  = Math.round(total * 7 / 48);
+    const duration = Math.round(total * 13 / 48);
+    document.documentElement.style.setProperty('--anim-duration', duration + 'ms');
+    document.documentElement.style.setProperty('--anim-stagger',  stagger  + 'ms');
   }
 
   // ---- 初期化 ----
