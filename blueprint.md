@@ -52,6 +52,37 @@ This project is a web-based application designed to manage and display competiti
 
 ---
 
+## Scoring Rules (固定ルール・変更不可)
+
+### E得点の中間値計算（TRA個人）
+
+E審判が複数いる場合、種目ごとの減点は **「中央値×2」** で算出する。
+
+| 審判人数 | 計算方法 | 例: [0.1, 0.2, 0.3] |
+|----------|----------|---------------------|
+| 3名 | 中央値（2番目）×2 | 0.2 × 2 = 0.4 |
+| 5名 | 中央値（3番目）×2 | 0.3 × 2 = 0.6 |
+
+実装: `venue_display.html` の `mid2sum()` 関数
+```javascript
+const mid = Math.floor(filled.length / 2);
+return filled[mid] * 2;
+```
+
+### TRAボーナス点
+
+- **女子**: 3本目以降の3回宙（またはクワッド）ごとに +0.3
+- **男子**: 6本目以降の3回宙（またはクワッド）ごとに +0.3
+
+実装: `shared.js` の `calcBonus()` 関数。4回宙はskillMasterの `isTriple` フラグで吸収。
+
+### 予選スコア
+
+- デフォルト: **ベストスコア**（2本の高い方を採用）
+- クラスルールの `scoreMode` フィールドで `'total'`（合計）に変更可能
+
+---
+
 ## Current Plan: Implement Class-Specific Competition Rules
 
 **Purpose:** To enable administrators to define different competition rules for different classes within the same tournament, offering greater flexibility for complex event formats.
