@@ -480,13 +480,13 @@
     return labels[rid] || rid.toUpperCase();
   }
 
-  // ---- 中間2名の和（個人用） ----
+  // ---- 中間1名×2（個人用）: 3名→中央値×2、5名→中央値×2 ----
   function mid2sum(vals) {
     const filled = vals.filter(v => v !== null && v !== undefined);
     if (filled.length < 2) return 0;
     filled.sort((a, b) => a - b);
-    const mid = Math.floor((filled.length - 2) / 2);
-    return filled[mid] + filled[mid + 1];
+    const mid = Math.floor(filled.length / 2);
+    return filled[mid] * 2;
   }
 
   // ---- 中央値1名（3人から真ん中） ----
