@@ -470,24 +470,24 @@
     margin-bottom:1.2rem;
   }
   .vs-title-name{
-    font-size:6.5vw; font-weight:900; line-height:1.05;
+    font-size:var(--vs-title-fs,6.5vw); font-weight:900; line-height:1.05;
     letter-spacing:0.03em;
     color:var(--accent-cyan);
     text-shadow:0 0 80px rgba(0,242,255,0.35);
   }
   .vs-cer-name{
-    font-size:3.5vw; font-weight:800; line-height:1.2;
+    font-size:var(--vs-cer-name-fs,3.5vw); font-weight:800; line-height:1.2;
     color:var(--text-muted);
     letter-spacing:0.05em;
     margin-bottom:1.5rem;
   }
   .vs-ceremony-label{
-    font-size:10vw; font-weight:900; letter-spacing:0.15em;
+    font-size:var(--vs-cer-label-fs,10vw); font-weight:900; letter-spacing:0.15em;
     color:var(--accent-gold);
     text-shadow:0 0 80px rgba(255,215,0,0.35);
   }
   .vs-class-names{
-    font-size:4.5vw; font-weight:900;
+    font-size:var(--vs-class-fs,4.5vw); font-weight:900;
     color:var(--accent-cyan);
     letter-spacing:0.05em;
     margin-bottom:1.5rem;
@@ -495,7 +495,7 @@
     white-space:pre-line;
   }
   .vs-timer{
-    font-size:16vw; font-weight:900; line-height:0.95;
+    font-size:var(--vs-timer-fs,16vw); font-weight:900; line-height:0.95;
     letter-spacing:-0.02em;
     color:var(--text-white);
     text-shadow:0 0 100px rgba(255,255,255,0.1);
@@ -540,7 +540,7 @@
 
 <script type="module">
   import { db } from "./firebase-config.js";
-  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules, calcBonus } from "./shared.js";
 
   const params    = new URLSearchParams(location.search);
@@ -1172,8 +1172,17 @@
 
   function applyVenueScreen(tourData) {
     const screen = tourData.venueScreen || 'score';
-    const warmup = tourData.warmupSettings || {};
+    const warmup = tourData.warmupSettings  || {};
+    const ts     = tourData.titleSettings   || {};
+    const cs     = tourData.ceremonySettings|| {};
     const name   = tournamentName || '---';
+
+    // フォントサイズ CSS変数を適用
+    document.documentElement.style.setProperty('--vs-title-fs',    (ts.fontSize      || 6.5) + 'vw');
+    document.documentElement.style.setProperty('--vs-cer-name-fs', (cs.nameFontSize  || 3.5) + 'vw');
+    document.documentElement.style.setProperty('--vs-cer-label-fs',(cs.labelFontSize || 10)  + 'vw');
+    document.documentElement.style.setProperty('--vs-class-fs',    (warmup.classFontSize || 4.5) + 'vw');
+    document.documentElement.style.setProperty('--vs-timer-fs',    (warmup.timerFontSize || 16)  + 'vw');
 
     // 大会名を各画面に反映
     document.getElementById('vs-title-name').textContent = name;
@@ -1292,7 +1301,11 @@
         }
         // 以後: 新規追加分のみキューに入れる
         snap.docChanges().forEach(change => {
-          if (change.type === 'added') enqueueResult(change.doc);
+          if (change.type === 'added') {
+            // スコア更新時: 会場画面を自動解除してスコア表示へ
+            updateDoc(doc(db, 'tournaments', eventId), { venueScreen: 'score' }).catch(console.error);
+            enqueueResult(change.doc);
+          }
         });
       });
 
