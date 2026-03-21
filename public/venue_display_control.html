@@ -6,74 +6,117 @@
     <title>大会画面コントロール</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        :root { --primary: #263238; --accent: #1a73e8; --bg: #f0f2f5; --card: #ffffff; --green: #2e7d32; --text-main: #263238; --text-sub: #546e7a; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text-main); }
-        .container { max-width: 760px; margin: 0 auto; }
-        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
-        .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
-        .auth-info span { font-weight: bold; color: var(--text-main); }
-        .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--accent); cursor: pointer; font-size: 0.9em; margin-left: 12px; padding: 3px 8px; }
-        .header { text-align: center; margin-bottom: 28px; }
-        .event-badge { display: inline-block; padding: 6px 16px; background: var(--accent); color: white; border-radius: 20px; font-weight: bold; margin-top: 8px; }
-        h1 { margin: 0 0 8px; }
+        :root {
+            --accent: #1a73e8; --bg: #f0f2f5; --card: #ffffff;
+            --green: #2e7d32; --text-main: #263238; --text-sub: #546e7a;
+            --gold: #f9a825; --red: #c62828;
+        }
+        body { font-family:'Inter',sans-serif; background:var(--bg); margin:0; padding:20px; color:var(--text-main); }
+        .container { max-width:820px; margin:0 auto; }
+        .header-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+        .btn-back { text-decoration:none; color:var(--text-sub); font-size:0.9rem; border:1px solid #ccc; padding:8px 20px; border-radius:8px; }
+        .auth-info { font-size:0.85em; color:#999; display:none; align-items:center; }
+        .auth-info span { font-weight:bold; color:var(--text-main); }
+        .logout-btn { background:none; border:1px solid #ccc; border-radius:5px; color:var(--accent); cursor:pointer; font-size:0.9em; margin-left:12px; padding:3px 8px; }
+        .header { text-align:center; margin-bottom:20px; }
+        .event-badge { display:inline-block; padding:6px 16px; background:var(--accent); color:white; border-radius:20px; font-weight:bold; margin-top:8px; }
+        h1 { margin:0 0 8px; }
 
+        /* tabs */
+        .tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid #e0e0e0; }
+        .tab-btn {
+            padding:10px 24px; border:none; background:none; cursor:pointer;
+            font-size:0.95rem; font-weight:700; color:var(--text-sub);
+            border-bottom:3px solid transparent; margin-bottom:-2px;
+            transition:0.15s;
+        }
+        .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
+
+        /* section */
         .section-title {
-            font-size: 1.05rem; font-weight: 900; margin: 28px 0 12px;
-            display: flex; align-items: center; gap: 10px;
-            border-left: 5px solid var(--accent); padding-left: 14px;
+            font-size:1.0rem; font-weight:900; margin:24px 0 10px;
+            display:flex; align-items:center; gap:10px;
+            border-left:5px solid var(--accent); padding-left:14px;
         }
-        .card {
-            background: var(--card); border-radius: 16px; padding: 24px 28px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 16px;
-        }
-        .setting-row {
-            display: flex; align-items: center; gap: 16px;
-            padding: 15px 0; border-bottom: 1px solid #f0f0f0;
-        }
-        .setting-row:last-child { border-bottom: none; padding-bottom: 0; }
-        .setting-label { flex: 1; }
-        .setting-label strong { display: block; font-size: 0.95rem; }
-        .setting-label span { font-size: 0.8rem; color: var(--text-sub); }
-        .setting-control { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-        input[type="range"] { width: 130px; accent-color: var(--accent); }
-        .val-box {
-            width: 52px; text-align: center;
-            font-size: 1.1rem; font-weight: 700;
-            border: 2px solid #e0e0e0; border-radius: 8px; padding: 4px 6px;
-            background: #f8fbff;
-        }
-        .unit { font-size: 0.8rem; color: var(--text-sub); width: 22px; }
+        .card { background:var(--card); border-radius:16px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.07); margin-bottom:14px; }
 
-        .timeline {
-            background: #f8fbff; border-radius: 10px; padding: 14px 18px;
-            font-size: 0.85rem; color: var(--text-sub); margin-top: 8px;
-            border: 1px solid #e3eaf5;
-        }
-        .timeline strong { color: var(--text-main); }
+        /* setting rows */
+        .setting-row { display:flex; align-items:center; gap:16px; padding:14px 0; border-bottom:1px solid #f0f0f0; }
+        .setting-row:last-child { border-bottom:none; padding-bottom:0; }
+        .setting-label { flex:1; }
+        .setting-label strong { display:block; font-size:0.93rem; }
+        .setting-label span { font-size:0.78rem; color:var(--text-sub); }
+        .setting-control { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+        input[type="range"] { width:120px; accent-color:var(--accent); }
+        .val-box { width:50px; text-align:center; font-size:1.05rem; font-weight:700; border:2px solid #e0e0e0; border-radius:8px; padding:4px 4px; background:#f8fbff; }
+        .unit { font-size:0.8rem; color:var(--text-sub); width:20px; }
+        .timeline { background:#f8fbff; border-radius:10px; padding:12px 16px; font-size:0.83rem; color:var(--text-sub); margin-top:8px; border:1px solid #e3eaf5; }
+        .timeline strong { color:var(--text-main); }
+        .btn-save { display:block; width:100%; padding:15px; background:var(--green); color:white; border:none; border-radius:12px; font-size:1.0rem; font-weight:700; cursor:pointer; transition:0.2s; margin-top:22px; }
+        .btn-save:hover { background:#1b5e20; }
+        .btn-save:disabled { background:#aaa; cursor:default; }
+        .save-status { text-align:center; font-size:0.88rem; margin-top:8px; min-height:1.4em; color:var(--green); font-weight:600; }
 
-        .btn-save {
-            display: block; width: 100%; padding: 16px;
-            background: var(--green); color: white;
-            border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 700;
-            cursor: pointer; transition: 0.2s; margin-top: 24px;
-        }
-        .btn-save:hover { background: #1b5e20; }
-        .btn-save:disabled { background: #aaa; cursor: default; }
-        .save-status {
-            text-align: center; font-size: 0.9rem; margin-top: 10px;
-            min-height: 1.4em; color: var(--green); font-weight: 600;
-        }
+        /* display link */
+        .display-link-card { background:#e8f5e9; border-radius:14px; padding:16px 22px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:18px; display:flex; align-items:center; gap:12px; }
+        .display-link-card .icon { font-size:1.8rem; }
+        .display-link-card a { color:var(--green); font-weight:700; text-decoration:none; font-size:0.85rem; word-break:break-all; }
+        .display-link-card a:hover { text-decoration:underline; }
+        .display-link-card p { margin:3px 0 0; font-size:0.76rem; color:var(--text-sub); }
 
-        .display-link-card {
-            background: #e8f5e9; border-radius: 14px; padding: 18px 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px;
-            display: flex; align-items: center; gap: 14px;
+        /* screen switcher */
+        .screen-btns { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .screen-btn {
+            padding:18px 10px; border:2px solid #e0e0e0; background:white;
+            border-radius:14px; cursor:pointer; text-align:center;
+            font-size:0.9rem; font-weight:700; color:var(--text-sub);
+            transition:0.2s;
         }
-        .display-link-card .icon { font-size: 2rem; }
-        .display-link-card a { color: var(--green); font-weight: 700; text-decoration: none; font-size: 0.9rem; word-break: break-all; }
-        .display-link-card a:hover { text-decoration: underline; }
-        .display-link-card p { margin: 4px 0 0; font-size: 0.78rem; color: var(--text-sub); }
+        .screen-btn .btn-icon { font-size:2rem; display:block; margin-bottom:6px; }
+        .screen-btn:hover { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .screen-btn.active { border-color:var(--accent); background:var(--accent); color:white; }
+        .screen-btn.active .btn-sub { color:rgba(255,255,255,0.8); }
+        .btn-sub { font-size:0.72rem; font-weight:400; display:block; margin-top:3px; color:var(--text-sub); }
+
+        /* warmup settings */
+        .warmup-settings { margin-top:14px; border:2px solid var(--accent); border-radius:14px; padding:20px 22px; background:#f0f5ff; }
+        .warmup-settings.hidden { display:none; }
+        .wu-title { font-size:0.92rem; font-weight:900; color:var(--accent); margin-bottom:14px; }
+        .wu-row { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+        .wu-row:last-child { margin-bottom:0; }
+        .wu-label { font-size:0.85rem; font-weight:700; min-width:90px; color:var(--text-main); }
+        .wu-input { flex:1; padding:8px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; font-weight:700; }
+        .wu-input:focus { outline:none; border-color:var(--accent); }
+
+        /* timer control */
+        .timer-display {
+            font-size:3.5rem; font-weight:900; letter-spacing:-0.02em;
+            font-variant-numeric:tabular-nums; color:var(--text-main);
+            text-align:center; margin:14px 0 8px;
+            line-height:1;
+        }
+        .timer-display.running { color:var(--green); }
+        .timer-display.warning { color:#e65100; }
+        .timer-display.done    { color:var(--gold); }
+        .timer-btns { display:flex; gap:10px; margin-bottom:12px; }
+        .timer-btn { flex:1; padding:11px; border:none; border-radius:10px; font-size:0.88rem; font-weight:700; cursor:pointer; transition:0.15s; }
+        .timer-btn-start  { background:var(--green); color:white; }
+        .timer-btn-start:hover  { background:#1b5e20; }
+        .timer-btn-pause  { background:#e65100; color:white; }
+        .timer-btn-pause:hover  { background:#bf360c; }
+        .timer-btn-reset  { background:#546e7a; color:white; }
+        .timer-btn-reset:hover  { background:#37474f; }
+        .timer-preset { display:flex; gap:8px; flex-wrap:wrap; }
+        .preset-btn { padding:6px 14px; border:1.5px solid #b0bec5; background:white; border-radius:20px; font-size:0.8rem; font-weight:700; cursor:pointer; color:var(--text-sub); transition:0.15s; }
+        .preset-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+        .current-screen-badge {
+            display:inline-block; padding:4px 12px; border-radius:20px;
+            font-size:0.8rem; font-weight:700; margin-bottom:14px;
+            background:#e3f2fd; color:var(--accent);
+        }
     </style>
 </head>
 <body>
@@ -95,74 +138,146 @@
         <div class="icon">📺</div>
         <div>
             <a id="venue-link" href="#" target="_blank">会場ディスプレイを開く</a>
-            <p>このURLを会場表示用PCのブラウザで開いてください</p>
+            <p>会場表示用PCのブラウザでこのURLを開いてください</p>
         </div>
     </div>
 
-    <!-- 個人スコア表示 -->
-    <div class="section-title">📊 個人スコア表示</div>
-    <div class="card">
-        <div class="setting-row">
-            <div class="setting-label">
-                <strong>アニメーション時間</strong>
-                <span>スコアが画面に登場し、アニメーションが完了するまでの秒数</span>
-            </div>
-            <div class="setting-control">
-                <input type="range" id="range-animTotalSec" min="3" max="20" step="1" value="10">
-                <input type="number" id="val-animTotalSec" class="val-box" min="3" max="20" value="10">
-                <span class="unit">秒</span>
-            </div>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <strong>アニメーション後の保持時間</strong>
-                <span>アニメーション完了後、順位表に切り替わるまで表示し続ける秒数</span>
-            </div>
-            <div class="setting-control">
-                <input type="range" id="range-holdSec" min="0" max="20" step="1" value="3">
-                <input type="number" id="val-holdSec" class="val-box" min="0" max="20" value="3">
-                <span class="unit">秒</span>
-            </div>
-        </div>
-        <div class="timeline" id="timeline-preview">
-            スコア表示 → <strong>10秒</strong>でアニメーション完了 → さらに<strong>3秒</strong>保持 → 順位表へ（合計 <strong>13秒</strong>）
-        </div>
+    <!-- タブ -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="display">⚙️ 画面表示設定</button>
+        <button class="tab-btn" data-tab="switch">🎬 画面切り替え</button>
     </div>
 
-    <!-- 順位表 -->
-    <div class="section-title">🏆 順位表</div>
-    <div class="card">
-        <div class="setting-row">
-            <div class="setting-label">
-                <strong>1ページの表示人数</strong>
-                <span>人数が多い場合は自動でページ送りされます</span>
+    <!-- タブ1: 画面表示設定 -->
+    <div id="tab-display" class="tab-panel active">
+        <div class="section-title">📊 個人スコア表示</div>
+        <div class="card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>アニメーション時間</strong>
+                    <span>スコアが画面に登場しアニメーションが完了するまでの秒数</span>
+                </div>
+                <div class="setting-control">
+                    <input type="range" id="range-animTotalSec" min="3" max="20" step="1" value="10">
+                    <input type="number" id="val-animTotalSec" class="val-box" min="3" max="20" value="10">
+                    <span class="unit">秒</span>
+                </div>
             </div>
-            <div class="setting-control">
-                <input type="range" id="range-rankingRows" min="4" max="20" step="1" value="12">
-                <input type="number" id="val-rankingRows" class="val-box" min="4" max="20" value="12">
-                <span class="unit">人</span>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>アニメーション後の保持時間</strong>
+                    <span>アニメーション完了後、順位表に切り替わるまで表示し続ける秒数</span>
+                </div>
+                <div class="setting-control">
+                    <input type="range" id="range-holdSec" min="0" max="20" step="1" value="3">
+                    <input type="number" id="val-holdSec" class="val-box" min="0" max="20" value="3">
+                    <span class="unit">秒</span>
+                </div>
+            </div>
+            <div class="timeline" id="timeline-preview"></div>
+        </div>
+
+        <div class="section-title">🏆 順位表</div>
+        <div class="card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>1ページの表示人数</strong>
+                    <span>人数が多い場合は自動でページ送りされます</span>
+                </div>
+                <div class="setting-control">
+                    <input type="range" id="range-rankingRows" min="4" max="20" step="1" value="12">
+                    <input type="number" id="val-rankingRows" class="val-box" min="4" max="20" value="12">
+                    <span class="unit">人</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>ページ送りの間隔</strong>
+                    <span>次のページに自動で切り替わるまでの秒数</span>
+                </div>
+                <div class="setting-control">
+                    <input type="range" id="range-rankingPageSec" min="3" max="30" step="1" value="8">
+                    <input type="number" id="val-rankingPageSec" class="val-box" min="3" max="30" value="8">
+                    <span class="unit">秒</span>
+                </div>
             </div>
         </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <strong>ページ送りの間隔</strong>
-                <span>次のページに自動で切り替わるまでの秒数</span>
+
+        <button class="btn-save" id="save-settings-btn" disabled>保存する</button>
+        <div class="save-status" id="save-settings-status"></div>
+    </div>
+
+    <!-- タブ2: 画面切り替え -->
+    <div id="tab-switch" class="tab-panel">
+        <div class="section-title">🎬 現在の表示画面</div>
+        <div class="card">
+            <div id="current-screen-badge" class="current-screen-badge">読み込み中...</div>
+            <div class="screen-btns">
+                <button class="screen-btn" data-screen="score">
+                    <span class="btn-icon">📊</span>
+                    スコア表示
+                    <span class="btn-sub">通常の採点・順位表示</span>
+                </button>
+                <button class="screen-btn" data-screen="title">
+                    <span class="btn-icon">🏟️</span>
+                    大会タイトル画面
+                    <span class="btn-sub">大会名を全画面表示</span>
+                </button>
+                <button class="screen-btn" data-screen="ceremony">
+                    <span class="btn-icon">🏅</span>
+                    表彰式画面
+                    <span class="btn-sub">大会名 + 表彰式</span>
+                </button>
+                <button class="screen-btn" data-screen="warmup">
+                    <span class="btn-icon">🏃</span>
+                    会場練習画面
+                    <span class="btn-sub">クラス名 + タイマー</span>
+                </button>
             </div>
-            <div class="setting-control">
-                <input type="range" id="range-rankingPageSec" min="3" max="30" step="1" value="8">
-                <input type="number" id="val-rankingPageSec" class="val-box" min="3" max="30" value="8">
-                <span class="unit">秒</span>
+
+            <!-- 会場練習 設定パネル -->
+            <div id="warmup-settings" class="warmup-settings hidden">
+                <div class="wu-title">🏃 会場練習 設定</div>
+
+                <div class="wu-row">
+                    <span class="wu-label">クラス名①</span>
+                    <input type="text" id="wu-class1" class="wu-input" placeholder="例: ジュニア男子">
+                </div>
+                <div class="wu-row">
+                    <span class="wu-label">クラス名②</span>
+                    <input type="text" id="wu-class2" class="wu-input" placeholder="（省略可）例: ジュニア女子">
+                </div>
+
+                <div style="height:1px; background:#c5cae9; margin:14px 0;"></div>
+
+                <div class="wu-title" style="margin-bottom:6px;">⏱️ タイマー</div>
+                <div class="timer-display num" id="ctrl-timer">--:--</div>
+
+                <div class="timer-btns">
+                    <button class="timer-btn timer-btn-start" id="timer-start-btn">▶ 開始</button>
+                    <button class="timer-btn timer-btn-pause" id="timer-pause-btn" disabled>⏸ 一時停止</button>
+                    <button class="timer-btn timer-btn-reset" id="timer-reset-btn">↺ リセット</button>
+                </div>
+
+                <div class="timer-preset">
+                    <span style="font-size:0.8rem; font-weight:700; color:var(--text-sub); align-self:center; margin-right:4px;">プリセット:</span>
+                    <button class="preset-btn" data-min="3">3分</button>
+                    <button class="preset-btn" data-min="5">5分</button>
+                    <button class="preset-btn" data-min="8">8分</button>
+                    <button class="preset-btn" data-min="10">10分</button>
+                    <button class="preset-btn" data-min="15">15分</button>
+                </div>
+
+                <button class="btn-save" id="save-warmup-btn" style="margin-top:16px;">クラス名を保存</button>
+                <div class="save-status" id="save-warmup-status"></div>
             </div>
         </div>
     </div>
-
-    <button class="btn-save" id="save-btn" disabled>保存する</button>
-    <div class="save-status" id="save-status"></div>
 </div>
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
 
     const params  = new URLSearchParams(location.search);
@@ -174,92 +289,265 @@
     venueLink.href = venueUrl;
     venueLink.textContent = venueUrl;
 
-    const KEYS = ['animTotalSec', 'holdSec', 'rankingRows', 'rankingPageSec'];
-    const DEFAULTS = { animTotalSec: 10, holdSec: 3, rankingRows: 12, rankingPageSec: 8 };
+    // --- タブ切り替え ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
 
-    // タイムラインプレビューを更新
+    // --- タブ1: 画面表示設定 ---
+    const DISP_KEYS = ['animTotalSec', 'holdSec', 'rankingRows', 'rankingPageSec'];
+    const DISP_DEFAULTS = { animTotalSec:10, holdSec:3, rankingRows:12, rankingPageSec:8 };
+
     function updateTimeline() {
         const anim = Number(document.getElementById('val-animTotalSec').value);
         const hold = Number(document.getElementById('val-holdSec').value);
         document.getElementById('timeline-preview').innerHTML =
-            `スコア表示 → <strong>${anim}秒</strong>でアニメーション完了 → さらに<strong>${hold}秒</strong>保持 → 順位表へ（合計 <strong>${anim + hold}秒</strong>）`;
+            `スコア表示 → <strong>${anim}秒</strong>でアニメーション完了 → さらに<strong>${hold}秒</strong>保持 → 順位表へ（合計 <strong>${anim+hold}秒</strong>）`;
     }
 
-    // スライダー ↔ 数値ボックス連動
-    KEYS.forEach(key => {
+    DISP_KEYS.forEach(key => {
         const range = document.getElementById(`range-${key}`);
         const val   = document.getElementById(`val-${key}`);
         if (!range || !val) return;
         range.addEventListener('input', () => { val.value = range.value; updateTimeline(); });
         val.addEventListener('input',  () => { range.value = val.value; updateTimeline(); });
     });
+    updateTimeline();
 
-    function applyToUI(settings) {
-        KEYS.forEach(key => {
-            const v = settings[key] ?? DEFAULTS[key];
-            const range = document.getElementById(`range-${key}`);
-            const val   = document.getElementById(`val-${key}`);
-            if (range) range.value = v;
-            if (val)   val.value   = v;
+    function applyDisplaySettingsToUI(settings) {
+        DISP_KEYS.forEach(key => {
+            const v = settings[key] ?? DISP_DEFAULTS[key];
+            const r = document.getElementById(`range-${key}`);
+            const v2 = document.getElementById(`val-${key}`);
+            if (r) r.value = v;
+            if (v2) v2.value = v;
         });
         updateTimeline();
     }
 
-    function readFromUI() {
+    function readDisplaySettings() {
         const out = {};
-        KEYS.forEach(key => {
-            const val = document.getElementById(`val-${key}`);
-            out[key] = val ? Number(val.value) : DEFAULTS[key];
+        DISP_KEYS.forEach(key => {
+            const el = document.getElementById(`val-${key}`);
+            out[key] = el ? Number(el.value) : DISP_DEFAULTS[key];
         });
         return out;
     }
 
-    // 認証 & ロード
+    document.getElementById('save-settings-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('save-settings-btn');
+        const status = document.getElementById('save-settings-status');
+        btn.disabled = true; status.textContent = '保存中...'; status.style.color = '#888';
+        try {
+            await updateDoc(doc(db,'tournaments',eventId), { displaySettings: readDisplaySettings() });
+            status.textContent = '✅ 保存しました'; status.style.color = '#2e7d32';
+        } catch(e) {
+            status.textContent = `❌ 失敗: ${e.message}`; status.style.color = '#c62828';
+        } finally { btn.disabled = false; }
+    });
+
+    // --- タブ2: 画面切り替え ---
+    let currentScreen = 'score';
+    let warmupData = {};
+    let ctrlTimerInterval = null;
+
+    const SCREEN_LABELS = {
+        score:    '📊 スコア表示中',
+        title:    '🏟️ 大会タイトル画面',
+        ceremony: '🏅 表彰式画面',
+        warmup:   '🏃 会場練習画面',
+    };
+
+    function applyScreenState(screen, warmup) {
+        currentScreen = screen;
+        warmupData    = warmup || {};
+
+        // badge
+        document.getElementById('current-screen-badge').textContent = SCREEN_LABELS[screen] || screen;
+
+        // ボタンのactive状態
+        document.querySelectorAll('.screen-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.screen === screen);
+        });
+
+        // 会場練習パネルの表示
+        const panel = document.getElementById('warmup-settings');
+        if (screen === 'warmup') {
+            panel.classList.remove('hidden');
+            document.getElementById('wu-class1').value = warmupData.class1 || '';
+            document.getElementById('wu-class2').value = warmupData.class2 || '';
+        } else {
+            panel.classList.add('hidden');
+        }
+
+        // タイマー表示更新
+        syncCtrlTimer();
+    }
+
+    // 画面切り替えボタン
+    document.querySelectorAll('.screen-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const screen = btn.dataset.screen;
+            // warmupに切り替えるとき、クラス名も一緒に保存
+            const update = { venueScreen: screen };
+            // warmup → パネルを見せるだけ（Firestore更新はボタンで）
+            try {
+                await updateDoc(doc(db,'tournaments',eventId), update);
+            } catch(e) { alert('切り替え失敗: ' + e.message); }
+        });
+    });
+
+    // タイマー制御
+    function syncCtrlTimer() {
+        clearInterval(ctrlTimerInterval);
+        ctrlTimerInterval = null;
+        const timerEl  = document.getElementById('ctrl-timer');
+        const startBtn = document.getElementById('timer-start-btn');
+        const pauseBtn = document.getElementById('timer-pause-btn');
+
+        if (currentScreen !== 'warmup') {
+            timerEl.textContent = '--:--';
+            timerEl.className = 'timer-display num';
+            startBtn.disabled = true;
+            pauseBtn.disabled = true;
+            return;
+        }
+
+        startBtn.disabled = false;
+
+        function tick() {
+            const wu = warmupData;
+            if (wu.timerPaused || !wu.timerEndTime) {
+                const rem = wu.timerRemainingMs ?? 0;
+                renderCtrlTimer(timerEl, rem, false);
+                startBtn.textContent = '▶ 開始';
+                startBtn.disabled = (rem === 0);
+                pauseBtn.disabled = true;
+                return;
+            }
+            const rem = Math.max(0, wu.timerEndTime - Date.now());
+            renderCtrlTimer(timerEl, rem, true);
+            startBtn.textContent = '▶ 開始';
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            if (rem === 0) { clearInterval(ctrlTimerInterval); ctrlTimerInterval = null; }
+        }
+
+        tick();
+        if (!warmupData.timerPaused && warmupData.timerEndTime) {
+            ctrlTimerInterval = setInterval(tick, 500);
+        }
+    }
+
+    function renderCtrlTimer(el, ms, running) {
+        const totalSec = Math.ceil(ms / 1000);
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        el.textContent = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+        el.className = 'timer-display num' +
+            (ms === 0 ? ' done' : ms < 60000 ? ' warning' : running ? ' running' : '');
+    }
+
+    // 開始
+    document.getElementById('timer-start-btn').addEventListener('click', async () => {
+        const rem = warmupData.timerRemainingMs ?? 0;
+        if (rem <= 0) return;
+        const endTime = Date.now() + rem;
+        try {
+            await updateDoc(doc(db,'tournaments',eventId), {
+                'warmupSettings.timerEndTime':    endTime,
+                'warmupSettings.timerPaused':     false,
+                'warmupSettings.timerRemainingMs': rem,
+            });
+        } catch(e) { alert('失敗: ' + e.message); }
+    });
+
+    // 一時停止
+    document.getElementById('timer-pause-btn').addEventListener('click', async () => {
+        if (!warmupData.timerEndTime) return;
+        const rem = Math.max(0, warmupData.timerEndTime - Date.now());
+        try {
+            await updateDoc(doc(db,'tournaments',eventId), {
+                'warmupSettings.timerRemainingMs': rem,
+                'warmupSettings.timerPaused':      true,
+                'warmupSettings.timerEndTime':     null,
+            });
+        } catch(e) { alert('失敗: ' + e.message); }
+    });
+
+    // リセット
+    document.getElementById('timer-reset-btn').addEventListener('click', async () => {
+        const rem = warmupData.timerDefaultMs ?? (5 * 60 * 1000);
+        try {
+            await updateDoc(doc(db,'tournaments',eventId), {
+                'warmupSettings.timerRemainingMs': rem,
+                'warmupSettings.timerPaused':      true,
+                'warmupSettings.timerEndTime':     null,
+            });
+        } catch(e) { alert('失敗: ' + e.message); }
+    });
+
+    // プリセット
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const ms = Number(btn.dataset.min) * 60 * 1000;
+            try {
+                await updateDoc(doc(db,'tournaments',eventId), {
+                    'warmupSettings.timerDefaultMs':   ms,
+                    'warmupSettings.timerRemainingMs': ms,
+                    'warmupSettings.timerPaused':      true,
+                    'warmupSettings.timerEndTime':     null,
+                });
+            } catch(e) { alert('失敗: ' + e.message); }
+        });
+    });
+
+    // クラス名保存
+    document.getElementById('save-warmup-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('save-warmup-btn');
+        const status = document.getElementById('save-warmup-status');
+        btn.disabled = true; status.textContent = '保存中...'; status.style.color = '#888';
+        const class1 = document.getElementById('wu-class1').value.trim();
+        const class2 = document.getElementById('wu-class2').value.trim();
+        try {
+            await updateDoc(doc(db,'tournaments',eventId), {
+                'warmupSettings.class1': class1,
+                'warmupSettings.class2': class2,
+            });
+            status.textContent = '✅ 保存しました'; status.style.color = '#2e7d32';
+        } catch(e) {
+            status.textContent = `❌ 失敗: ${e.message}`; status.style.color = '#c62828';
+        } finally { btn.disabled = false; }
+    });
+
+    // --- 認証 & リアルタイム監視 ---
     ensureAdmin(async user => {
         document.getElementById('auth-info').style.display = 'flex';
         document.getElementById('user-name').textContent = user.displayName || user.email;
         document.getElementById('logout-btn').onclick = logout;
 
-        if (!eventId) {
-            document.getElementById('event-name').textContent = 'URLにeventパラメータがありません';
-            return;
-        }
+        if (!eventId) { document.getElementById('event-name').textContent = 'URLにeventパラメータがありません'; return; }
 
-        const tourSnap = await getDoc(doc(db, 'tournaments', eventId));
-        if (!tourSnap.exists()) {
-            document.getElementById('event-name').textContent = '大会が見つかりません';
-            return;
-        }
-        const tourData = tourSnap.data();
-        document.getElementById('event-name').textContent = tourData.name || eventId;
+        const tourSnap = await getDoc(doc(db,'tournaments',eventId));
+        if (!tourSnap.exists()) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
 
-        if (tourData.displaySettings) {
-            applyToUI(tourData.displaySettings);
-        }
+        document.getElementById('event-name').textContent = tourSnap.data().name || eventId;
+        if (tourSnap.data().displaySettings) applyDisplaySettingsToUI(tourSnap.data().displaySettings);
 
-        document.getElementById('save-btn').disabled = false;
-    });
+        document.getElementById('save-settings-btn').disabled = false;
 
-    // 保存
-    document.getElementById('save-btn').addEventListener('click', async () => {
-        const btn    = document.getElementById('save-btn');
-        const status = document.getElementById('save-status');
-        btn.disabled = true;
-        status.textContent = '保存中...';
-        status.style.color = '#888';
-
-        try {
-            await updateDoc(doc(db, 'tournaments', eventId), {
-                displaySettings: readFromUI()
-            });
-            status.textContent = '✅ 保存しました（会場ディスプレイに即時反映）';
-            status.style.color = '#2e7d32';
-        } catch (e) {
-            status.textContent = `❌ 保存に失敗しました: ${e.message}`;
-            status.style.color = '#c62828';
-        } finally {
-            btn.disabled = false;
-        }
+        // リアルタイム監視（別端末からの変更も反映）
+        onSnapshot(doc(db,'tournaments',eventId), snap => {
+            if (!snap.exists()) return;
+            const data = snap.data();
+            if (data.displaySettings) applyDisplaySettingsToUI(data.displaySettings);
+            applyScreenState(data.venueScreen || 'score', data.warmupSettings || {});
+        });
     });
 </script>
 </body>

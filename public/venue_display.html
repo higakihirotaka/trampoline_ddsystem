@@ -450,6 +450,62 @@
       color: var(--text-muted);
       letter-spacing: 0.1cqw;
     }
+  /* ===== 会場画面オーバーレイ（タイトル / 表彰式 / 会場練習） ===== */
+  .venue-screen{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background: radial-gradient(circle at 50% 0%, #001e3d 0%, #000810 100%);
+    z-index:100;
+    opacity:0; pointer-events:none;
+    transition: opacity 0.8s ease;
+    font-family:var(--font-ui);
+    color:white; text-align:center;
+    padding:4vw;
+  }
+  .venue-screen.active{ opacity:1; pointer-events:auto; }
+  .vs-label{
+    font-size:1.0vw; font-weight:700; letter-spacing:0.4em;
+    color:var(--text-muted); text-transform:uppercase;
+    margin-bottom:1.2rem;
+  }
+  .vs-title-name{
+    font-size:6.5vw; font-weight:900; line-height:1.05;
+    letter-spacing:0.03em;
+    color:var(--accent-cyan);
+    text-shadow:0 0 80px rgba(0,242,255,0.35);
+  }
+  .vs-cer-name{
+    font-size:3.5vw; font-weight:800; line-height:1.2;
+    color:var(--text-muted);
+    letter-spacing:0.05em;
+    margin-bottom:1.5rem;
+  }
+  .vs-ceremony-label{
+    font-size:10vw; font-weight:900; letter-spacing:0.15em;
+    color:var(--accent-gold);
+    text-shadow:0 0 80px rgba(255,215,0,0.35);
+  }
+  .vs-class-names{
+    font-size:4.5vw; font-weight:900;
+    color:var(--accent-cyan);
+    letter-spacing:0.05em;
+    margin-bottom:1.5rem;
+    text-shadow:0 0 50px rgba(0,242,255,0.3);
+    white-space:pre-line;
+  }
+  .vs-timer{
+    font-size:16vw; font-weight:900; line-height:0.95;
+    letter-spacing:-0.02em;
+    color:var(--text-white);
+    text-shadow:0 0 100px rgba(255,255,255,0.1);
+    font-variant-numeric:tabular-nums;
+    font-feature-settings:"tnum" 1;
+    transition: color 0.5s, text-shadow 0.5s;
+  }
+  .vs-timer.warning{ color:#ff6b35; text-shadow:0 0 100px rgba(255,107,53,0.4); }
+  .vs-timer.done   { color:var(--accent-gold); text-shadow:0 0 100px rgba(255,215,0,0.4); animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.6} }
   </style>
 </head>
 <body>
@@ -462,6 +518,24 @@
     <div class="breakdown-row" style="opacity:1;"></div>
     <div class="result-section" style="opacity:1;"></div>
     <footer class="footer-credits" style="opacity:1;">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
+  </div>
+
+  <!-- 大会タイトル画面 -->
+  <div id="vs-title" class="venue-screen">
+    <div class="vs-label">COMPETITION</div>
+    <div class="vs-title-name" id="vs-title-name">---</div>
+  </div>
+
+  <!-- 表彰式画面 -->
+  <div id="vs-ceremony" class="venue-screen">
+    <div class="vs-cer-name" id="vs-cer-name">---</div>
+    <div class="vs-ceremony-label">表彰式</div>
+  </div>
+
+  <!-- 会場練習画面 -->
+  <div id="vs-warmup" class="venue-screen">
+    <div class="vs-class-names" id="vs-class-names">---</div>
+    <div class="vs-timer num done" id="vs-timer">--:--</div>
   </div>
 
 <script type="module">
@@ -1093,6 +1167,68 @@
     document.documentElement.style.setProperty('--anim-stagger',  stagger  + 'ms');
   }
 
+  // ---- 会場画面オーバーレイ管理 ----
+  let warmupTimerInterval = null;
+
+  function applyVenueScreen(tourData) {
+    const screen = tourData.venueScreen || 'score';
+    const warmup = tourData.warmupSettings || {};
+    const name   = tournamentName || '---';
+
+    // 大会名を各画面に反映
+    document.getElementById('vs-title-name').textContent = name;
+    document.getElementById('vs-cer-name').textContent   = name;
+
+    // クラス名（2クラスまで）
+    const classes = [warmup.class1, warmup.class2].filter(Boolean);
+    document.getElementById('vs-class-names').textContent = classes.join('\n') || '---';
+
+    // 全画面を一旦非表示
+    ['vs-title','vs-ceremony','vs-warmup'].forEach(id => {
+      document.getElementById(id).classList.remove('active');
+    });
+    clearInterval(warmupTimerInterval);
+    warmupTimerInterval = null;
+
+    if (screen === 'title') {
+      document.getElementById('vs-title').classList.add('active');
+    } else if (screen === 'ceremony') {
+      document.getElementById('vs-ceremony').classList.add('active');
+    } else if (screen === 'warmup') {
+      document.getElementById('vs-warmup').classList.add('active');
+      startWarmupDisplay(warmup);
+    }
+    // 'score' の場合はオーバーレイなし（通常のスコア表示）
+  }
+
+  function startWarmupDisplay(warmup) {
+    const timerEl = document.getElementById('vs-timer');
+    function tick() {
+      if (!timerEl) return;
+      if (warmup.timerPaused || !warmup.timerEndTime) {
+        const rem = warmup.timerRemainingMs ?? 0;
+        showTimerDisplay(timerEl, rem);
+        return;
+      }
+      const rem = Math.max(0, warmup.timerEndTime - Date.now());
+      showTimerDisplay(timerEl, rem);
+      if (rem === 0) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
+    }
+    tick();
+    if (!warmup.timerPaused && warmup.timerEndTime) {
+      warmupTimerInterval = setInterval(tick, 500);
+    }
+  }
+
+  function showTimerDisplay(el, ms) {
+    const totalSec = Math.ceil(ms / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    el.textContent = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    el.className = 'vs-timer num' +
+      (ms === 0 ? ' done' : ms < 60000 ? ' warning' : '');
+  }
+
   // ---- 初期化 ----
   async function init() {
     if (!eventId) return;
@@ -1128,12 +1264,15 @@
         }
       }
 
-      // displaySettings をリアルタイム監視（管理者が変更したら即反映）
+      // 大会ドキュメントをリアルタイム監視（displaySettings + 会場画面切り替え）
       onSnapshot(doc(db, 'tournaments', eventId), snap => {
-        if (snap.exists() && snap.data().displaySettings) {
-          Object.assign(displaySettings, snap.data().displaySettings);
+        if (!snap.exists()) return;
+        const data = snap.data();
+        if (data.displaySettings) {
+          Object.assign(displaySettings, data.displaySettings);
           applyAnimSettings();
         }
+        applyVenueScreen(data);
       });
 
       // 全published結果を監視（デュアルパネル対応）
