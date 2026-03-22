@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>決勝試技順処理</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root { --primary:#263238; --accent:#1a73e8; --gold:#f9a825; --bg:#f0f2f5; --card:#fff; --green:#2e7d32; --text-main:#263238; --text-sub:#546e7a; }
+    body { font-family:'Inter',sans-serif; background:var(--bg); margin:0; padding:20px; color:var(--text-main); }
+    .container { max-width:900px; margin:0 auto; }
+
+    .header-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .btn-back { text-decoration:none; color:var(--text-sub); font-size:.9rem; border:1px solid #ccc; padding:8px 20px; border-radius:8px; }
+    .auth-info { font-size:.85em; color:#999; display:none; align-items:center; }
+    .logout-btn { background:none; border:1px solid #ccc; border-radius:5px; color:var(--accent); cursor:pointer; font-size:.9em; margin-left:12px; padding:3px 8px; }
+
+    .header { text-align:center; margin-bottom:24px; }
+    .header h1 { margin:0 0 8px; }
+    .event-badge { display:inline-block; padding:6px 16px; background:var(--accent); color:white; border-radius:20px; font-weight:bold; }
+
+    .card { background:var(--card); border-radius:16px; padding:24px 28px; box-shadow:0 2px 8px rgba(0,0,0,.07); margin-bottom:16px; }
+
+    /* クラス選択 */
+    .filter-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    .filter-row:last-child { margin-bottom:0; }
+    .filter-label { font-size:.8rem; font-weight:700; color:var(--text-sub); width:50px; flex-shrink:0; }
+    .tab-btn { padding:5px 14px; border-radius:20px; border:1px solid #b0bec5; background:#fff; color:#546e7a; font-size:.8rem; font-weight:700; cursor:pointer; transition:.15s; white-space:nowrap; }
+    .tab-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+    /* 決勝人数 */
+    .finalcount-row { display:flex; align-items:center; gap:12px; margin-top:12px; }
+    .finalcount-row label { font-weight:700; font-size:.95rem; }
+    .finalcount-row input[type=number] { width:70px; padding:6px 10px; border:2px solid #ccc; border-radius:8px; font-size:1.1rem; text-align:center; }
+    .btn-apply { padding:8px 22px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:.9rem; }
+    .btn-apply:hover { background:#1558b0; }
+
+    /* 順位表 */
+    .standings-card { background:var(--card); border-radius:16px; padding:0; box-shadow:0 2px 8px rgba(0,0,0,.07); overflow:hidden; margin-bottom:16px; }
+    .standings-head { padding:16px 24px; border-bottom:2px solid #e0e0e0; font-weight:900; font-size:1.05rem; display:flex; align-items:center; gap:10px; }
+    table { width:100%; border-collapse:collapse; }
+    th { background:#37474f; color:#fff; padding:10px 12px; font-size:.8rem; text-align:center; }
+    th:nth-child(2) { text-align:left; }
+    td { padding:10px 12px; text-align:center; border-bottom:1px solid #f0f0f0; font-size:.95rem; }
+    td:nth-child(2) { text-align:left; }
+    tr.finalist { background:#fffde7; }
+    tr.finalist td:first-child { font-weight:900; color:var(--gold); }
+    tr.finalist .final-order-badge { display:inline-block; background:var(--gold); color:#000; border-radius:5px; padding:2px 8px; font-weight:900; font-size:.9rem; }
+    tr.non-finalist { opacity:.45; }
+    .no-score { color:#bbb; font-size:.85rem; }
+    .num { font-family:'Courier New',monospace; }
+
+    /* 保存ボタン */
+    .btn-save { display:block; width:100%; padding:16px; background:var(--green); color:#fff; border:none; border-radius:12px; font-size:1.05rem; font-weight:700; cursor:pointer; transition:.2s; margin-top:0; }
+    .btn-save:hover { background:#1b5e20; }
+    .btn-save:disabled { background:#aaa; cursor:default; }
+    .save-status { text-align:center; font-size:.9rem; min-height:1.4em; margin-top:10px; font-weight:600; }
+
+    .info-box { background:#e3f2fd; border-radius:10px; padding:12px 18px; font-size:.85rem; color:#1565c0; margin-bottom:16px; line-height:1.6; }
+    .warn-box { background:#fff3e0; border-radius:10px; padding:12px 18px; font-size:.85rem; color:#e65100; margin-bottom:16px; }
+    .empty-msg { text-align:center; color:#90a4ae; padding:40px 0; font-size:.9rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header-bar">
+    <a id="back-link" href="admin_menu.html" class="btn-back">← メニューに戻る</a>
+    <div id="auth-info" class="auth-info">
+      <span id="user-name"></span>としてログイン中
+      <button id="logout-btn" class="logout-btn">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="header">
+    <h1>🏆 決勝試技順処理</h1>
+    <div id="event-name" class="event-badge">読み込み中...</div>
+  </div>
+
+  <div class="info-box">
+    クラスを選び、決勝進出人数を設定して「確認・確定」を押してください。<br>
+    <strong>予選順位が下位の選手から先に試技します（逆順）。</strong>
+    確定後は「保存する」を押すまで反映されません。
+  </div>
+
+  <!-- クラス選択 -->
+  <div class="card">
+    <div id="type-row" class="filter-row" style="display:none">
+      <span class="filter-label">種目</span>
+    </div>
+    <div id="gender-row" class="filter-row" style="display:none">
+      <span class="filter-label">性別</span>
+    </div>
+    <div id="class-row" class="filter-row" style="display:none">
+      <span class="filter-label">クラス</span>
+    </div>
+    <div class="finalcount-row">
+      <label>決勝人数：</label>
+      <input type="number" id="final-count" min="1" max="40" value="8">
+      <span style="font-size:.85rem;color:var(--text-sub);">（クラス設定値を自動反映）</span>
+      <button class="btn-apply" onclick="applyFinalCount()">確認・確定</button>
+    </div>
+  </div>
+
+  <!-- 順位表 -->
+  <div class="standings-card" id="standings-card" style="display:none">
+    <div class="standings-head">
+      <span id="standings-title">予選順位</span>
+      <span id="standings-meta" style="font-size:.8rem;color:var(--text-sub);margin-left:auto;"></span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:50px">予選順位</th>
+          <th>選手名 / 所属</th>
+          <th style="width:90px">R1</th>
+          <th style="width:90px">R2</th>
+          <th style="width:100px">予選スコア</th>
+          <th style="width:100px">決勝試技順</th>
+        </tr>
+      </thead>
+      <tbody id="standings-tbody"></tbody>
+    </table>
+  </div>
+
+  <div id="warn-overwrite" class="warn-box" style="display:none">
+    ⚠️ このクラスにはすでに決勝試技順が設定されています。保存すると上書きされます。
+  </div>
+
+  <button class="btn-save" id="save-btn" style="display:none" disabled>保存する</button>
+  <div class="save-status" id="save-status"></div>
+</div>
+
+<script type="module">
+  import { db } from "./firebase-config.js";
+  import { doc, getDoc, getDocs, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { ensureAdmin, logout } from "./auth.js";
+
+  const params  = new URLSearchParams(location.search);
+  const eventId = params.get('event');
+  document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+
+  let athletes = [], tourData = null;
+  let fType = 'individual', fGender = '', fClass = '';
+  let pendingFinalOrder = null; // 確定前プレビュー
+
+  const fmt = v => (v != null ? Number(v).toFixed(3) : '--');
+
+  // ---- 認証 & 初期化 ----
+  ensureAdmin(async user => {
+    document.getElementById('auth-info').style.display = 'flex';
+    document.getElementById('user-name').textContent = user.displayName || user.email;
+    document.getElementById('logout-btn').onclick = logout;
+
+    if (!eventId) { document.getElementById('event-name').textContent = 'URLにeventパラメータがありません'; return; }
+
+    const tourSnap = await getDoc(doc(db, 'tournaments', eventId));
+    if (!tourSnap.exists()) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
+
+    tourData = tourSnap.data();
+    document.getElementById('event-name').textContent = tourData.name || eventId;
+
+    const athSnap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
+    athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    buildFilters();
+    updateFinalCountFromRule();
+  });
+
+  // ---- フィルターUI構築 ----
+  function buildFilters() {
+    const types   = [...new Set(athletes.map(a => a.type || 'individual'))];
+    const genders = [...new Set(athletes.map(a => a.gender || '').filter(Boolean))];
+    const classes = [...new Set(athletes.map(a => a.class || a.category || '').filter(Boolean))];
+
+    const typeRow = document.getElementById('type-row');
+    if (types.length > 1) {
+      typeRow.style.display = '';
+      [['individual','個人'],['synchro','シンクロ']].forEach(([v,l]) => {
+        if (!types.includes(v)) return;
+        const b = document.createElement('button');
+        b.className = 'tab-btn' + (fType === v ? ' active' : '');
+        b.textContent = l;
+        b.onclick = () => { fType = v; fGender = ''; fClass = ''; renderFilters(); updateFinalCountFromRule(); };
+        typeRow.appendChild(b);
+      });
+    }
+
+    renderFilters();
+  }
+
+  function renderFilters() {
+    const byType = athletes.filter(a => (a.type || 'individual') === fType);
+    const genders = [...new Set(byType.map(a => a.gender || '').filter(Boolean))];
+    const classes = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
+
+    const genderRow = document.getElementById('gender-row');
+    genderRow.innerHTML = '<span class="filter-label">性別</span>';
+    if (genders.length > 1) {
+      genderRow.style.display = '';
+      const allBtn = mkTabBtn('全て', fGender === '', () => { fGender = ''; renderFilters(); updateFinalCountFromRule(); });
+      genderRow.appendChild(allBtn);
+      genders.forEach(g => {
+        genderRow.appendChild(mkTabBtn(g, fGender === g, () => { fGender = g; renderFilters(); updateFinalCountFromRule(); }));
+      });
+    } else {
+      genderRow.style.display = 'none';
+      if (genders.length === 1) fGender = genders[0];
+    }
+
+    const classRow = document.getElementById('class-row');
+    classRow.innerHTML = '<span class="filter-label">クラス</span>';
+    if (classes.length > 1) {
+      classRow.style.display = '';
+      const allBtn = mkTabBtn('全て', fClass === '', () => { fClass = ''; updateFinalCountFromRule(); });
+      classRow.appendChild(allBtn);
+      classes.forEach(c => {
+        classRow.appendChild(mkTabBtn(c, fClass === c, () => { fClass = c; updateFinalCountFromRule(); }));
+      });
+    } else {
+      classRow.style.display = classes.length === 1 ? '' : 'none';
+      if (classes.length === 1) { fClass = classes[0]; classRow.appendChild(mkTabBtn(classes[0], true, () => {})); }
+    }
+
+    // アクティブボタン更新
+    document.querySelectorAll('#type-row .tab-btn').forEach(b => {
+      b.classList.toggle('active', (b.textContent === '個人' && fType === 'individual') || (b.textContent === 'シンクロ' && fType === 'synchro'));
+    });
+
+    pendingFinalOrder = null;
+    document.getElementById('standings-card').style.display = 'none';
+    document.getElementById('save-btn').style.display = 'none';
+    document.getElementById('warn-overwrite').style.display = 'none';
+  }
+
+  function mkTabBtn(label, active, fn) {
+    const b = document.createElement('button');
+    b.className = 'tab-btn' + (active ? ' active' : '');
+    b.textContent = label;
+    b.onclick = fn;
+    return b;
+  }
+
+  // ---- クラスルールから決勝人数を自動入力 ----
+  function updateFinalCountFromRule() {
+    if (!tourData) return;
+    const cRules = tourData.classRules || {};
+    const byType = (cRules.individual || cRules.synchro) ? cRules : { individual: cRules };
+    const rule = (byType[fType] || {})[fClass] || {};
+    if (rule.finalCount) document.getElementById('final-count').value = rule.finalCount;
+  }
+
+  // ---- 確認・確定ボタン ----
+  window.applyFinalCount = async function() {
+    const finalCount = parseInt(document.getElementById('final-count').value);
+    if (!finalCount || finalCount < 1) { alert('決勝人数を入力してください'); return; }
+
+    // このクラスの全選手を取得
+    const classAthletes = athletes.filter(a =>
+      (a.type || 'individual') === fType &&
+      (!fGender || (a.gender || '') === fGender) &&
+      (!fClass  || (a.class || a.category || '') === fClass)
+    );
+    if (classAthletes.length === 0) { alert('該当する選手がいません'); return; }
+
+    // publishedな予選結果を取得
+    const resSnap = await getDocs(query(
+      collection(db, 'results'),
+      where('eventId', '==', eventId),
+      where('published', '==', true)
+    ));
+    const resultsByAth = {};
+    resSnap.docs.forEach(d => {
+      const r = d.data();
+      if (!resultsByAth[r.athleteId]) resultsByAth[r.athleteId] = {};
+      resultsByAth[r.athleteId][r.round] = r;
+    });
+
+    // クラスルールからscoreMode取得
+    const cRules = tourData.classRules || {};
+    const byType = (cRules.individual || cRules.synchro) ? cRules : { individual: cRules };
+    const rule = (byType[fType] || {})[fClass] || {};
+    const numPre    = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
+    const scoreMode = rule.scoreMode || 'best';
+
+    // 予選スコア計算
+    const ranked = classAthletes.map(a => {
+      const rMap = resultsByAth[a.id] || {};
+      const pre1 = rMap['pre1']?.officialTotal ?? null;
+      const pre2 = rMap['pre2']?.officialTotal ?? null;
+      let qualScore = null;
+      if (numPre === 1) {
+        qualScore = pre1;
+      } else {
+        if (pre1 != null && pre2 != null) {
+          qualScore = scoreMode === 'total' ? pre1 + pre2 : Math.max(pre1, pre2);
+        } else if (pre1 != null) qualScore = pre1;
+        else if (pre2 != null) qualScore = pre2;
+      }
+      return { a, pre1, pre2, qualScore };
+    }).sort((a, b) => {
+      if (a.qualScore == null && b.qualScore == null) return 0;
+      if (a.qualScore == null) return 1;
+      if (b.qualScore == null) return -1;
+      return b.qualScore - a.qualScore;
+    });
+
+    // 決勝試技順を逆順で割り当て（予選1位が最後）
+    const actual = Math.min(finalCount, ranked.filter(r => r.qualScore != null).length);
+    pendingFinalOrder = ranked.map((entry, idx) => {
+      const qualRank = idx + 1;
+      const inFinal  = idx < actual && entry.qualScore != null;
+      const finalOrder = inFinal ? (actual - idx) : null; // 1位→最後(actual番目), actual位→1番目
+      return { ...entry, qualRank, inFinal, finalOrder };
+    });
+
+    renderStandings(pendingFinalOrder, numPre, actual);
+    document.getElementById('standings-card').style.display = '';
+    document.getElementById('save-btn').style.display = '';
+    document.getElementById('save-btn').disabled = false;
+    document.getElementById('save-status').textContent = '';
+
+    const hasExisting = classAthletes.some(a => a.finalOrder != null);
+    document.getElementById('warn-overwrite').style.display = hasExisting ? '' : 'none';
+  };
+
+  // ---- 順位表描画 ----
+  function renderStandings(entries, numPre, actual) {
+    const title = [fClass, fGender, fType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
+    document.getElementById('standings-title').textContent = `${title} 予選順位`;
+    document.getElementById('standings-meta').textContent = `決勝進出: ${actual}人`;
+
+    const r2col = numPre >= 2;
+    const tbody = document.getElementById('standings-tbody');
+    tbody.innerHTML = entries.map(e => {
+      const badge = e.inFinal
+        ? `<span class="final-order-badge">第 ${e.finalOrder} 試技</span>`
+        : '<span style="color:#bbb;font-size:.8rem;">−</span>';
+      const r2cell = r2col ? `<td class="num">${fmt(e.pre2)}</td>` : '';
+      return `<tr class="${e.inFinal ? 'finalist' : 'non-finalist'}">
+        <td class="num">${e.qualRank}</td>
+        <td>
+          <div style="font-weight:700">${e.a.name1 || '---'}</div>
+          <div style="font-size:.78rem;color:var(--text-sub)">${e.a.club1 || ''}</div>
+        </td>
+        <td class="num">${fmt(e.pre1)}</td>
+        ${r2cell}
+        <td class="num">${e.qualScore != null ? fmt(e.qualScore) : '<span class="no-score">未提出</span>'}</td>
+        <td>${badge}</td>
+      </tr>`;
+    }).join('');
+
+    // theadのR2列
+    const thead = document.querySelector('table thead tr');
+    const r2th = thead.querySelector('th:nth-child(4)');
+    if (!r2col && r2th) r2th.style.display = 'none';
+    else if (r2th) r2th.style.display = '';
+  }
+
+  // ---- 保存 ----
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    if (!pendingFinalOrder) return;
+    const btn = document.getElementById('save-btn');
+    const status = document.getElementById('save-status');
+    btn.disabled = true;
+    status.style.color = '#888';
+    status.textContent = '保存中...';
+
+    try {
+      const batch = writeBatch(db);
+      pendingFinalOrder.forEach(e => {
+        const ref = doc(db, 'tournaments', eventId, 'athletes', e.a.id);
+        batch.update(ref, {
+          finalOrder: e.inFinal ? e.finalOrder : null,
+          isInFinal:  e.inFinal
+        });
+      });
+      await batch.commit();
+
+      // ローカルのathletesデータも更新
+      pendingFinalOrder.forEach(e => {
+        const a = athletes.find(x => x.id === e.a.id);
+        if (a) { a.finalOrder = e.inFinal ? e.finalOrder : null; a.isInFinal = e.inFinal; }
+      });
+
+      status.style.color = '#2e7d32';
+      status.textContent = `✅ 保存しました。CJP・D審判の「決勝のみ」フィルターに反映されます。`;
+      document.getElementById('warn-overwrite').style.display = 'none';
+    } catch (err) {
+      status.style.color = '#c62828';
+      status.textContent = `❌ 保存に失敗しました: ${err.message}`;
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
