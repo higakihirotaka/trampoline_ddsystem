@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>順位表</title>
+  <style>
+    :root { --accent:#1a3a6b; --gold:#b8860b; }
+    * { box-sizing:border-box; }
+    body { font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin:0; padding:0; background:#f5f5f5; color:#111; }
+
+    /* ---- コントロールパネル（印刷非表示） ---- */
+    .controls {
+      background:#fff; border-bottom:2px solid #ddd;
+      padding:14px 20px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    }
+    .controls select {
+      padding:7px 12px; border:1px solid #bbb; border-radius:6px;
+      font-size:.9rem; background:#fff; cursor:pointer;
+    }
+    .btn-load {
+      padding:8px 22px; background:var(--accent); color:#fff;
+      border:none; border-radius:6px; font-weight:700; font-size:.9rem; cursor:pointer;
+    }
+    .btn-print {
+      padding:8px 22px; background:#555; color:#fff;
+      border:none; border-radius:6px; font-weight:700; font-size:.9rem; cursor:pointer; margin-left:auto;
+    }
+    .controls label { font-size:.85rem; font-weight:700; color:#555; }
+
+    /* ---- 印刷エリア ---- */
+    .print-area { max-width:1000px; margin:20px auto; padding:0 20px; }
+
+    .sheet-header {
+      text-align:center; border-bottom:3px solid var(--accent);
+      padding-bottom:10px; margin-bottom:16px;
+    }
+    .event-name { font-size:1.15rem; font-weight:900; color:var(--accent); margin:0 0 4px; }
+    .sheet-title { font-size:1.5rem; font-weight:900; margin:0; }
+    .sheet-sub { font-size:.85rem; color:#555; margin:6px 0 0; }
+
+    .standings-table {
+      width:100%; border-collapse:collapse; font-size:.95rem;
+    }
+    .standings-table th {
+      background:var(--accent); color:#fff; padding:9px 10px;
+      text-align:center; font-size:.8rem; font-weight:700; letter-spacing:.03em;
+    }
+    .standings-table th.left { text-align:left; }
+    .standings-table td {
+      padding:8px 10px; border-bottom:1px solid #ddd;
+      vertical-align:middle;
+    }
+    .standings-table td.center { text-align:center; }
+    .standings-table td.num { text-align:right; font-family:'Courier New',monospace; font-size:.9rem; }
+    .standings-table tr:nth-child(even) td { background:#fafafa; }
+    .standings-table tr:first-child td { background:#fef9e7; }
+    .standings-table tr:nth-child(2) td { background:#fdf6f0; }
+    .standings-table tr:nth-child(3) td { background:#f0f7f0; }
+
+    .rank-num { font-size:1.15rem; font-weight:900; color:var(--accent); }
+    .rank-1 .rank-num { color:var(--gold); }
+    .rank-2 .rank-num { color:#888; }
+    .rank-3 .rank-num { color:#a0522d; }
+
+    .name-main { font-weight:700; font-size:1rem; }
+    .name-club { font-size:.78rem; color:#666; margin-top:2px; }
+
+    .score-total { font-weight:900; font-size:1.05rem; }
+    .score-best { font-weight:900; font-size:1.05rem; color:var(--accent); }
+    .score-na { color:#bbb; }
+
+    .medal { font-size:1.2rem; }
+
+    .loading { text-align:center; padding:60px 0; color:#aaa; font-size:1rem; }
+    .no-data { text-align:center; padding:60px 0; color:#999; font-size:1rem; }
+
+    .score-mode-note { font-size:.75rem; color:#888; text-align:right; margin:4px 0 10px; }
+
+    @media print {
+      .controls { display:none !important; }
+      body { background:#fff; }
+      .print-area { margin:0; padding:10px 15px; max-width:none; }
+      .standings-table { font-size:.88rem; }
+      .standings-table th { font-size:.75rem; }
+      @page { margin:15mm 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- コントロール -->
+<div class="controls" id="controls">
+  <label>種目</label>
+  <select id="sel-type">
+    <option value="individual">個人</option>
+    <option value="synchro">シンクロ</option>
+  </select>
+
+  <label>性別</label>
+  <select id="sel-gender">
+    <option value="">（全て）</option>
+  </select>
+
+  <label>クラス</label>
+  <select id="sel-class">
+    <option value="">（全て）</option>
+  </select>
+
+  <label>ラウンド</label>
+  <select id="sel-round">
+    <option value="qualifying">予選（合計/ベスト）</option>
+    <option value="pre1">予選 第1ルーティン</option>
+    <option value="pre2">予選 第2ルーティン</option>
+    <option value="final">決勝</option>
+  </select>
+
+  <button class="btn-load" onclick="loadRanking()">表示</button>
+  <button class="btn-print" onclick="window.print()">🖨 印刷</button>
+</div>
+
+<!-- 印刷エリア -->
+<div class="print-area">
+  <div id="output"><div class="loading">クラスを選んで「表示」を押してください</div></div>
+</div>
+
+<script type="module">
+  import { db } from "./firebase-config.js";
+  import { doc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { normalizeClassRules } from "./shared.js";
+
+  const params  = new URLSearchParams(location.search);
+  const eventId = params.get('event');
+
+  let athletes = [], tourData = null;
+
+  async function init() {
+    if (!eventId) { document.getElementById('output').innerHTML = '<div class="no-data">URLにeventパラメータがありません</div>'; return; }
+    const [tourSnap, athSnap] = await Promise.all([
+      getDoc(doc(db, 'tournaments', eventId)),
+      getDocs(collection(db, 'tournaments', eventId, 'athletes'))
+    ]);
+    if (!tourSnap.exists()) { document.getElementById('output').innerHTML = '<div class="no-data">大会が見つかりません</div>'; return; }
+    tourData = tourSnap.data();
+    athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    buildSelectors();
+  }
+
+  function buildSelectors() {
+    const selGender = document.getElementById('sel-gender');
+    const selClass  = document.getElementById('sel-class');
+
+    function updateOptions() {
+      const fType = document.getElementById('sel-type').value;
+      const byType = athletes.filter(a => (a.type || 'individual') === fType);
+
+      const genders = [...new Set(byType.map(a => a.gender || '').filter(Boolean))];
+      selGender.innerHTML = '<option value="">（全て）</option>' +
+        genders.map(g => `<option value="${g}">${g}</option>`).join('');
+
+      const classes = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
+      selClass.innerHTML = '<option value="">（全て）</option>' +
+        classes.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    document.getElementById('sel-type').onchange = updateOptions;
+    updateOptions();
+  }
+
+  window.loadRanking = async function() {
+    const fType   = document.getElementById('sel-type').value;
+    const fGender = document.getElementById('sel-gender').value;
+    const fClass  = document.getElementById('sel-class').value;
+    const fRound  = document.getElementById('sel-round').value;
+
+    document.getElementById('output').innerHTML = '<div class="loading">読み込み中...</div>';
+
+    const classRules = normalizeClassRules(tourData.classRules);
+
+    // 対象選手
+    const filtered = athletes.filter(a =>
+      (a.type || 'individual') === fType &&
+      (!fGender || (a.gender || '') === fGender) &&
+      (!fClass  || (a.class || a.category || '') === fClass)
+    );
+    if (filtered.length === 0) { document.getElementById('output').innerHTML = '<div class="no-data">該当する選手がいません</div>'; return; }
+
+    // 結果取得（published=true）
+    const resSnap = await getDocs(query(
+      collection(db, 'results'),
+      where('eventId', '==', eventId),
+      where('published', '==', true)
+    ));
+    const byAth = {};
+    resSnap.docs.forEach(d => {
+      const r = d.data();
+      if (!byAth[r.athleteId]) byAth[r.athleteId] = {};
+      byAth[r.athleteId][r.round] = r;
+    });
+
+    const athMap = Object.fromEntries(athletes.map(a => [a.id, a]));
+    const fmt3 = v => v != null ? Number(v).toFixed(3) : null;
+
+    // 各選手のスコア計算
+    const rows = filtered.map(a => {
+      const rMap  = byAth[a.id] || {};
+      const rule  = (classRules[fType] || {})[a.class || a.category || ''] || {};
+      const numPre = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
+      const scoreMode = rule.scoreMode || 'best';
+
+      const pre1 = rMap['pre1']?.officialTotal ?? null;
+      const pre2 = rMap['pre2']?.officialTotal ?? null;
+      const final = rMap['final']?.officialTotal ?? null;
+
+      let mainScore = null;
+      if (fRound === 'qualifying') {
+        if (numPre === 1) mainScore = pre1;
+        else if (pre1 != null && pre2 != null) mainScore = scoreMode === 'total' ? pre1 + pre2 : Math.max(pre1, pre2);
+        else mainScore = pre1 ?? pre2;
+      } else if (fRound === 'pre1') { mainScore = pre1; }
+      else if (fRound === 'pre2') { mainScore = pre2; }
+      else if (fRound === 'final') { mainScore = final; }
+
+      return { a, pre1, pre2, final, mainScore, numPre, scoreMode };
+    }).sort((x, y) => {
+      if (x.mainScore == null && y.mainScore == null) return 0;
+      if (x.mainScore == null) return 1;
+      if (y.mainScore == null) return -1;
+      return y.mainScore - x.mainScore;
+    });
+
+    // タイトル
+    const labelType   = fType === 'synchro' ? 'シンクロ' : '個人';
+    const labelGender = fGender || '';
+    const labelClass  = fClass || '';
+    const roundLabels = {
+      qualifying: '予選',
+      pre1: '予選 第1ルーティン',
+      pre2: '予選 第2ルーティン',
+      final: '決勝'
+    };
+    const sheetTitle = [labelClass, labelGender, labelType, roundLabels[fRound]].filter(Boolean).join('　');
+
+    // 表示判定
+    const showPre2  = rows.some(r => r.numPre >= 2) && (fRound === 'qualifying');
+    const showFinal = fRound === 'final';
+    const rule0     = rows[0] ? ((classRules[fType] || {})[rows[0].a.class || rows[0].a.category || ''] || {}) : {};
+    const scoreMode = rule0.scoreMode || 'best';
+    const totalLabel = fRound === 'qualifying' ? (scoreMode === 'total' ? '合計' : 'ベスト') : 'スコア';
+    const isBest = fRound === 'qualifying' && scoreMode === 'best';
+
+    // 決勝は試技順ヘッダー追加
+    const finalOrderCol = showFinal
+      ? '<th style="width:70px">試技順</th>'
+      : '';
+    const r2col = showPre2
+      ? '<th style="width:100px">R2</th>'
+      : '';
+    const r1label = fRound === 'qualifying' ? 'R1' : 'スコア';
+
+    const tbody = rows.map((r, i) => {
+      const rank = i + 1;
+      const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+      const rankClass = rank <= 3 ? `rank-${rank}` : '';
+
+      const scoreCell = r.mainScore != null
+        ? `<span class="${isBest ? 'score-best' : 'score-total'}">${fmt3(r.mainScore)}</span>`
+        : `<span class="score-na">−</span>`;
+
+      const r2cell = showPre2
+        ? `<td class="num">${r.pre2 != null ? fmt3(r.pre2) : '<span class="score-na">−</span>'}</td>`
+        : '';
+
+      const finalOrderCell = showFinal
+        ? `<td class="center">${r.a.finalOrder != null ? `第${r.a.finalOrder}試技` : '−'}</td>`
+        : '';
+
+      const r1val = fRound === 'qualifying' ? r.pre1 : r.mainScore;
+      const r1cell = r1val != null ? fmt3(r1val) : '<span class="score-na">−</span>';
+
+      const nameCell = r.a.type === 'synchro'
+        ? `<div class="name-main">${r.a.name1 || '−'}　/　${r.a.name2 || '−'}</div>
+           <div class="name-club">${[r.a.club1, r.a.club2].filter(Boolean).join(' / ')}</div>`
+        : `<div class="name-main">${r.a.name1 || '−'}</div>
+           <div class="name-club">${r.a.club1 || ''}</div>`;
+
+      return `<tr class="${rankClass}">
+        <td class="center"><span class="rank-num">${rank}</span>${medal ? ` <span class="medal">${medal}</span>` : ''}</td>
+        <td>${nameCell}</td>
+        ${fRound === 'qualifying' ? `<td class="num">${r1cell}</td>` : ''}
+        ${r2cell}
+        ${fRound !== 'qualifying' && fRound !== 'pre1' && fRound !== 'pre2' ? '' : `<td class="num">${fRound !== 'qualifying' ? r1cell : fmt3(r.pre1) ?? '<span class="score-na">−</span>'}</td>`}
+        <td class="num">${scoreCell}</td>
+        ${finalOrderCell}
+      </tr>`;
+    }).join('');
+
+    // スコアモード注記
+    const modeNote = fRound === 'qualifying'
+      ? `<div class="score-mode-note">集計方式：${scoreMode === 'total' ? '2本合計' : '2本中ベストスコア'}</div>`
+      : '';
+
+    // ヘッダー組み立て
+    const isSingle = fRound !== 'qualifying';
+    const r1th = isSingle ? '' : `<th style="width:100px">R1</th>`;
+    const scoreTh = `<th style="width:110px">${totalLabel}</th>`;
+
+    document.getElementById('output').innerHTML = `
+      <div class="sheet-header">
+        <div class="event-name">${tourData.name || ''}</div>
+        <div class="sheet-title">${sheetTitle}</div>
+        <div class="sheet-sub">出力日時：${new Date().toLocaleString('ja-JP')}</div>
+      </div>
+      ${modeNote}
+      <table class="standings-table">
+        <thead>
+          <tr>
+            <th style="width:60px">順位</th>
+            <th class="left">選手名 / 所属</th>
+            ${fRound === 'qualifying' ? `<th style="width:100px">R1</th>` : ''}
+            ${r2col}
+            ${scoreTh}
+            ${finalOrderCol}
+          </tr>
+        </thead>
+        <tbody>${tbody}</tbody>
+      </table>`;
+  };
+
+  init();
+</script>
+</body>
+</html>
