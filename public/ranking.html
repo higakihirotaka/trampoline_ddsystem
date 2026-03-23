@@ -63,9 +63,10 @@
 
     .rank-num { font-size:1.1rem; font-weight:900; color:var(--accent); }
 
-    /* 決勝進出・リザーブマーク */
-    .q-mark { font-size:9px; font-weight:900; color:#1565c0; margin-left:3px; vertical-align:super; }
-    .r-mark { font-size:9px; font-weight:900; color:#e65100; margin-left:3px; vertical-align:super; }
+    /* 決勝進出・リザーブマーク（右上に絶対配置して数字位置を変えない） */
+    .col-rank { position:relative; }
+    .q-mark { position:absolute; top:3px; right:3px; font-size:8px; font-weight:900; color:#1565c0; line-height:1; }
+    .r-mark { position:absolute; top:3px; right:3px; font-size:8px; font-weight:900; color:#e65100; line-height:1; }
     tr.is-qual td { background:#e8f0fe !important; }
     tr.is-resv td { background:#fff3e0 !important; }
 
