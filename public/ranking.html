@@ -32,10 +32,12 @@
     .sheet-sub { font-size:.72rem; color:#666; margin:4px 0 0; }
     .sheet-credit {
       position:absolute; top:0; right:0;
-      text-align:right; line-height:1.5;
+      display:flex; align-items:center; gap:8px;
     }
-    .sheet-credit .sys-name { font-size:.85rem; font-weight:900; color:var(--accent); }
-    .sheet-credit .sys-dev  { font-size:.7rem; color:#888; }
+    .sheet-credit img { height:48px; width:auto; }
+    .sheet-credit .sys-text { text-align:right; line-height:1.5; }
+    .sheet-credit .sys-name { font-size:.85rem; font-weight:900; color:var(--accent); display:block; }
+    .sheet-credit .sys-dev  { font-size:.7rem; color:#888; display:block; }
 
     /* ---- スコア表 ---- */
     .score-table {
@@ -401,8 +403,11 @@
     document.getElementById('output').innerHTML = `
       <div class="sheet-header">
         <div class="sheet-credit">
-          <div class="sys-name">TRAvaults system</div>
-          <div class="sys-dev">Dev. Hirotaka.H</div>
+          <div class="sys-text">
+            <span class="sys-name">TRAvaults system</span>
+            <span class="sys-dev">Dev. Hirotaka.H</span>
+          </div>
+          <img src="logo.png" alt="TRAvaults system">
         </div>
         <div class="event-name">${tourData.name || ''}</div>
         <div class="sheet-title">${sheetTitle}</div>
