@@ -53,15 +53,13 @@
     tr.ath-row-2 td { border-bottom:2px solid #aaa; }
     tr.ath-row-2:nth-child(4n+2) td { background:#fafafa; }
 
-    /* 1位〜3位 */
-    tr.rank-1 td { background:#fef9e7 !important; }
-    tr.rank-2 td { background:#f5f5f5 !important; }
-    tr.rank-3 td { background:#f0f7f0 !important; }
-
     .rank-num { font-size:1.1rem; font-weight:900; color:var(--accent); }
-    .rank-1 .rank-num { color:var(--gold); }
-    .rank-2 .rank-num { color:#777; }
-    .rank-3 .rank-num { color:#a0522d; }
+
+    /* 決勝進出・リザーブマーク */
+    .q-mark { font-size:9px; font-weight:900; color:#1565c0; margin-left:3px; vertical-align:super; }
+    .r-mark { font-size:9px; font-weight:900; color:#e65100; margin-left:3px; vertical-align:super; }
+    tr.is-qual td { background:#e8f0fe !important; }
+    tr.is-resv td { background:#fff3e0 !important; }
 
     .ath-name { font-weight:700; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .ath-club { font-size:10px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -125,7 +123,16 @@
     <option value="pre2">予選 R2のみ</option>
     <option value="final">決勝</option>
   </select>
-  <button class="btn-load" onclick="loadRanking()">表示</button>
+  <label>決勝進出</label>
+  <select id="sel-qual">
+    <option value="0">なし</option>
+    ${Array.from({length:20},(_,i)=>`<option value="${i+1}">${i+1}人</option>`).join('')}
+  </select>
+  <label>リザーブ</label>
+  <select id="sel-resv">
+    <option value="0">なし</option>
+    ${Array.from({length:10},(_,i)=>`<option value="${i+1}">${i+1}人</option>`).join('')}
+  </select>
   <button class="btn-print" onclick="window.print()">🖨 印刷</button>
 </div>
 
@@ -175,7 +182,7 @@
     }
     document.getElementById('sel-type').onchange = () => update(false);
     // セレクタ変更で自動再読み込み
-    ['sel-gender','sel-class','sel-round'].forEach(id =>
+    ['sel-gender','sel-class','sel-round','sel-qual','sel-resv'].forEach(id =>
       document.getElementById(id).addEventListener('change', () => loadRanking())
     );
 
@@ -314,12 +321,18 @@
       <col class="col-score"><col class="col-total">
     </colgroup>`;
 
+    const nQual = parseInt(document.getElementById('sel-qual').value) || 0;
+    const nResv = parseInt(document.getElementById('sel-resv').value) || 0;
+
     // tbody
     let tbodyHtml = '';
     rows.forEach((r, idx) => {
       const rank = idx + 1;
-      const rankCls = rank <= 3 ? ` rank-${rank}` : '';
-      const medal = rank === 1 ? ' 🥇' : rank === 2 ? ' 🥈' : rank === 3 ? ' 🥉' : '';
+      const isQual = nQual > 0 && rank <= nQual;
+      const isResv = nResv > 0 && rank > nQual && rank <= nQual + nResv;
+      const rankCls = isQual ? ' is-qual' : isResv ? ' is-resv' : '';
+      const qmark = isQual ? '<span class="q-mark">Q</span>' : isResv ? '<span class="r-mark">R</span>' : '';
+      const medal = '';
 
       const nameHtml = r.a.type === 'synchro'
         ? `<div class="ath-name">${r.a.name1 || '−'} / ${r.a.name2 || '−'}</div>
@@ -361,7 +374,7 @@
         const cell = v => v != null ? v : '<span class="score-na">−</span>';
 
         tbodyHtml += `<tr class="${rowCls}">
-          ${isFirst ? `<td class="col-rank" rowspan="${showRounds.length}"><span class="rank-num">${rank}</span>${medal}</td>` : ''}
+          ${isFirst ? `<td class="col-rank" rowspan="${showRounds.length}"><span class="rank-num">${rank}</span>${qmark}</td>` : ''}
           ${isFirst ? `<td class="left" rowspan="${showRounds.length}">${nameHtml}</td>` : ''}
           <td class="round-label">${rndLabel}</td>
           ${skillCells}
