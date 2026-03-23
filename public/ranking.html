@@ -26,10 +26,16 @@
     /* ---- 本体 ---- */
     .print-area { padding:10px 12px; }
 
-    .sheet-header { text-align:center; border-bottom:3px solid var(--accent); padding-bottom:8px; margin-bottom:12px; }
+    .sheet-header { position:relative; text-align:center; border-bottom:3px solid var(--accent); padding-bottom:8px; margin-bottom:12px; }
     .event-name { font-size:1rem; font-weight:900; color:var(--accent); margin:0 0 2px; }
     .sheet-title { font-size:1.4rem; font-weight:900; margin:0; }
     .sheet-sub { font-size:.72rem; color:#666; margin:4px 0 0; }
+    .sheet-credit {
+      position:absolute; top:0; right:0;
+      text-align:right; line-height:1.5;
+    }
+    .sheet-credit .sys-name { font-size:.85rem; font-weight:900; color:var(--accent); }
+    .sheet-credit .sys-dev  { font-size:.7rem; color:#888; }
 
     /* ---- スコア表 ---- */
     .score-table {
@@ -394,6 +400,10 @@
 
     document.getElementById('output').innerHTML = `
       <div class="sheet-header">
+        <div class="sheet-credit">
+          <div class="sys-name">TRAvaults system</div>
+          <div class="sys-dev">Dev. Hirotaka.H</div>
+        </div>
         <div class="event-name">${tourData.name || ''}</div>
         <div class="sheet-title">${sheetTitle}</div>
         <div class="sheet-sub">出力日時：${new Date().toLocaleString('ja-JP')}</div>
