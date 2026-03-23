@@ -7,24 +7,24 @@
   <style>
     :root { --accent:#1a3a6b; --gold:#b8860b; }
     * { box-sizing:border-box; }
-    body { font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin:0; padding:0; background:#f0f2f5; color:#111; font-size:13px; }
+    body { font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin:0; padding:0; background:#fff; color:#111; font-size:13px; }
 
     /* ---- コントロール（印刷非表示） ---- */
     .controls {
-      background:#fff; border-bottom:2px solid #ccc;
-      padding:12px 16px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+      background:#f7f8fa; border-bottom:1px solid #ddd;
+      padding:8px 12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
       position:sticky; top:0; z-index:10;
     }
-    .controls label { font-size:.8rem; font-weight:700; color:#555; }
+    .controls label { font-size:.75rem; font-weight:700; color:#666; }
     .controls select {
-      padding:6px 10px; border:1px solid #bbb; border-radius:6px;
-      font-size:.85rem; background:#fff; cursor:pointer;
+      padding:4px 8px; border:1px solid #bbb; border-radius:5px;
+      font-size:.8rem; background:#fff; cursor:pointer;
     }
-    .btn-load { padding:7px 20px; background:var(--accent); color:#fff; border:none; border-radius:6px; font-weight:700; font-size:.85rem; cursor:pointer; }
-    .btn-print { padding:7px 20px; background:#555; color:#fff; border:none; border-radius:6px; font-weight:700; font-size:.85rem; cursor:pointer; }
+    .btn-load { padding:5px 16px; background:var(--accent); color:#fff; border:none; border-radius:5px; font-weight:700; font-size:.8rem; cursor:pointer; }
+    .btn-print { padding:5px 16px; background:#666; color:#fff; border:none; border-radius:5px; font-weight:700; font-size:.8rem; cursor:pointer; }
 
     /* ---- 本体 ---- */
-    .print-area { padding:16px 12px; }
+    .print-area { padding:10px 12px; }
 
     .sheet-header { text-align:center; border-bottom:3px solid var(--accent); padding-bottom:8px; margin-bottom:12px; }
     .event-name { font-size:1rem; font-weight:900; color:var(--accent); margin:0 0 2px; }
@@ -155,7 +155,12 @@
   }
 
   function buildSelectors() {
-    function update() {
+    const urlType   = params.get('type');
+    const urlGender = params.get('gender');
+    const urlClass  = params.get('class');
+    const urlRound  = params.get('round');
+
+    function update(autoLoad) {
       const fType = document.getElementById('sel-type').value;
       const byType = athletes.filter(a => (a.type || 'individual') === fType);
       const genders = [...new Set(byType.map(a => a.gender || '').filter(Boolean))];
@@ -164,9 +169,19 @@
         '<option value="">（全て）</option>' + genders.map(g => `<option>${g}</option>`).join('');
       document.getElementById('sel-class').innerHTML =
         '<option value="">（全て）</option>' + classes.map(c => `<option>${c}</option>`).join('');
+      if (urlGender) document.getElementById('sel-gender').value = urlGender;
+      if (urlClass)  document.getElementById('sel-class').value  = urlClass;
+      if (autoLoad) loadRanking();
     }
-    document.getElementById('sel-type').onchange = update;
-    update();
+    document.getElementById('sel-type').onchange = () => update(false);
+    // セレクタ変更で自動再読み込み
+    ['sel-gender','sel-class','sel-round'].forEach(id =>
+      document.getElementById(id).addEventListener('change', () => loadRanking())
+    );
+
+    if (urlType)  document.getElementById('sel-type').value  = urlType;
+    if (urlRound) document.getElementById('sel-round').value = urlRound;
+    update(/* autoLoad = */ !!(urlClass || urlGender));  // URLパラメータあれば即表示
   }
 
   // S1-S10: 全審判の各技減点を合計（stored値×10 = タップ単位に戻す）
