@@ -172,18 +172,27 @@
   // S1-S10: 全審判の各技減点を合計（stored値×10 = タップ単位に戻す）
   function calcSkillTotals(result) {
     const judges = Object.values(result.execution?.judges || {});
-    if (judges.length === 0) return { skills: Array(10).fill(null), land: null, judgeCount: 0 };
-    const skills = Array(10).fill(0);
-    let land = 0;
-    judges.forEach(j => {
-      (j.deductions || []).forEach((d, i) => { if (i < 10) skills[i] += d * 10; });
-      land += (j.landing || 0) * 10;
+    if (judges.length === 0) return { skills: Array(10).fill(null), land: null };
+
+    // judges_technical.html と同じ中央値計算（3人→index1, 5人→index2）
+    function median(vals) {
+      const filled = vals.filter(v => v !== null && v !== undefined);
+      if (filled.length === 0) return null;
+      filled.sort((a, b) => a - b);
+      return filled[Math.floor(filled.length / 2)];
+    }
+
+    // 各技の中央値減点を ×10 して整数表示（0.2 → 2）
+    const skills = Array.from({ length: 10 }, (_, i) => {
+      const vals = judges.map(j => (j.deductions || [])[i] ?? null);
+      const med = median(vals);
+      return med !== null ? Math.round(med * 10) : null;
     });
-    return {
-      skills: skills.map(v => Math.round(v * 10) / 10),
-      land: Math.round(land * 10) / 10,
-      judgeCount: judges.length
-    };
+
+    const landMed = median(judges.map(j => j.landing ?? null));
+    const land = landMed !== null ? Math.round(landMed * 10) : null;
+
+    return { skills, land };
   }
 
   const fmt3 = v => v != null ? Number(v).toFixed(3) : null;
