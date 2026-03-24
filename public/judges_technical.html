@@ -57,10 +57,19 @@
         .monitor-table th { background: var(--th-bg); font-size: 0.65rem; color: var(--th-text); border-color: #0d2440; font-weight: 700; letter-spacing: 0.03em; }
         .skill-header { color: #90caf9 !important; font-weight: bold; }
         .val-filled { color: #2e7d32; font-weight: bold; }
-        /* 審判値ハイライト（明るい背景向け） */
-        .middle-cell { background: #c8e6c9 !important; color: #1b5e20 !important; font-weight: 900; outline: 2px solid #66bb6a; }
-        .low-cell    { background: #bbdefb !important; color: #0d47a1 !important; font-weight: 900; outline: 2px solid #42a5f5; }
-        .high-cell   { background: #ffcdd2 !important; color: #b71c1c !important; font-weight: 900; outline: 2px solid #ef5350; }
+        /* 審判値ハイライト（明るい背景向け）— 2段階 */
+        .middle-cell      { background: #c8e6c9 !important; color: #1b5e20 !important; font-weight: 900; outline: 2px solid #66bb6a; }
+        /* 甘すぎる（低減点）: mild=薄青, strong=濃青+白文字 */
+        .low-cell-mild    { background: #bbdefb !important; color: #0d47a1 !important; font-weight: 900; outline: 2px solid #42a5f5; }
+        .low-cell         { background: #1565c0 !important; color: #ffffff !important; font-weight: 900; outline: 2px solid #0d47a1; }
+        /* 厳しすぎる（高減点）: mild=薄赤, strong=濃赤+白文字 */
+        .high-cell-mild   { background: #ffcdd2 !important; color: #b71c1c !important; font-weight: 900; outline: 2px solid #ef5350; }
+        .high-cell        { background: #c62828 !important; color: #ffffff !important; font-weight: 900; outline: 2px solid #b71c1c; }
+        /* 手動入力セルにアウトライアー色を重ねる */
+        .manual-cell.low-cell-mild  { background: #bbdefb !important; color: #0d47a1 !important; }
+        .manual-cell.low-cell       { background: #1565c0 !important; color: #ffffff !important; }
+        .manual-cell.high-cell-mild { background: #ffcdd2 !important; color: #b71c1c !important; }
+        .manual-cell.high-cell      { background: #c62828 !important; color: #ffffff !important; }
         .middle-row td { background: rgba(67,160,71,0.08) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(67,160,71,0.3) !important; }
         .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
 
@@ -548,6 +557,35 @@
         }, { merge: true });
     };
 
+    // ---- セル色クラス決定（2段階）----
+    // v: 0.0-1.0 形式の減点値, sr: skillResult, jIdx: 審判インデックス, i: 技番号, vLimit: 有効本数
+    function cellColorCls(v, sr, jIdx, i, vLimit) {
+        if (i >= vLimit || v === null || sr.midMin === null) return v !== null ? 'val-filled' : '';
+        if (sr.indices.has(jIdx)) return 'val-filled'; // 採用審判は無色
+        if (v < sr.midMin - 1e-9) {
+            const diff = Math.round((sr.midMin - v) * 10);
+            return diff >= 2 ? 'low-cell' : 'low-cell-mild';
+        }
+        if (v > sr.midMax + 1e-9) {
+            const diff = Math.round((v - sr.midMax) * 10);
+            return diff >= 2 ? 'high-cell' : 'high-cell-mild';
+        }
+        return 'val-filled';
+    }
+    function landingColorCls(lv, lr, jIdx, vLimit) {
+        if (vLimit < 10 || lv === null || lr.midMin === null) return lv !== null ? 'val-filled' : '';
+        if (lr.indices.has(jIdx)) return 'val-filled';
+        if (lv < lr.midMin - 1e-9) {
+            const diff = Math.round((lr.midMin - lv) * 10);
+            return diff >= 2 ? 'low-cell' : 'low-cell-mild';
+        }
+        if (lv > lr.midMax + 1e-9) {
+            const diff = Math.round((lv - lr.midMax) * 10);
+            return diff >= 2 ? 'high-cell' : 'high-cell-mild';
+        }
+        return 'val-filled';
+    }
+
     // ---- 中間2名ルール（個人用） ----
     // values: 各E審判の減点値（null=未入力）
     // 返り値: { sum: 中間2名の和, indices: 中間2名のインデックスSet }
@@ -818,31 +856,28 @@
                 const v        = jData.deductions?.[i] ?? null;
                 const dimStyle = i >= vLimit ? 'opacity:0.15;' : '';
                 const sr       = skillResults[i];
-                const isMiddle = i < vLimit && sr.indices.has(jIdx);
-                // 採用値の範囲外のみ色付け（採用値と同じ値は色なし）
-                const isLow    = !isMiddle && i < vLimit && v !== null && sr.midMin !== null && v < sr.midMin - 1e-9;
-                const isHigh   = !isMiddle && i < vLimit && v !== null && sr.midMax !== null && v > sr.midMax + 1e-9;
                 if (isManual) {
-                    const cur = pe?.deductions?.[i] ?? null;
+                    const cur    = pe?.deductions?.[i] ?? null;
                     const valStr = cur !== null ? cur : '0';
+                    const vFloat = cur !== null ? cur / 10 : null;
                     const nullCls = cur === null ? ' null-val' : '';
-                    row += `<td class="manual-cell${nullCls}" tabindex="0" data-jkey="${jKey}" data-idx="${i}" style="${dimStyle}">${valStr}</td>`;
+                    const colorCls = cellColorCls(vFloat, sr, jIdx, i, vLimit);
+                    row += `<td class="manual-cell${nullCls} ${colorCls}" tabindex="0" data-jkey="${jKey}" data-idx="${i}" style="${dimStyle}">${valStr}</td>`;
                 } else {
-                    const cellCls = isLow ? 'low-cell' : isHigh ? 'high-cell' : (v !== null ? 'val-filled' : '');
-                    row += `<td class="${cellCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
+                    const colorCls = cellColorCls(v, sr, jIdx, i, vLimit);
+                    row += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
                 }
             }
             // 着地
-            const lv         = jData.landing ?? null;
-            const isLandMid  = vLimit === 10 && landingResult.indices.has(jIdx);
-            const isLandLow  = !isLandMid && vLimit === 10 && lv !== null && landingResult.midMin !== null && lv < landingResult.midMin - 1e-9;
-            const isLandHigh = !isLandMid && vLimit === 10 && lv !== null && landingResult.midMax !== null && lv > landingResult.midMax + 1e-9;
+            const lv = jData.landing ?? null;
             if (isManual) {
-                const curLv = pe?.landing ?? null;
-                const valLv = curLv !== null ? curLv : '0';
+                const curLv    = pe?.landing ?? null;
+                const valLv    = curLv !== null ? curLv : '0';
+                const vFloatLv = curLv !== null ? curLv / 10 : null;
                 const nullLvCls = curLv === null ? ' null-val' : '';
-                const disAttrs = vLimit < 10 ? ' tabindex="-1" style="opacity:0.3;"' : ' tabindex="0"';
-                row += `<td class="manual-cell manual-landing-cell${nullLvCls}" data-jkey="${jKey}"${disAttrs}>${vLimit < 10 ? '-' : valLv}</td>`;
+                const colorLvCls = landingColorCls(vFloatLv, landingResult, jIdx, vLimit);
+                const disAttrs = vLimit < 10 ? ' tabindex="-1" style="opacity:0.3;"' : ` tabindex="0"`;
+                row += `<td class="manual-cell manual-landing-cell${nullLvCls} ${colorLvCls}" data-jkey="${jKey}"${disAttrs}>${vLimit < 10 ? '-' : valLv}</td>`;
                 // 手動入力中の合計（pendingEditsから計算）
                 const manualDedSum = Array.from({length: vLimit}, (_, i) => {
                     const d = pe?.deductions?.[i] ?? null;
@@ -850,7 +885,7 @@
                 }).reduce((a, b) => a + b, 0) + (vLimit === 10 && curLv !== null ? curLv / 10 : 0);
                 row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
             } else {
-                const lnCls = isLandLow ? 'low-cell' : isLandHigh ? 'high-cell' : (lv !== null ? 'val-filled' : '');
+                const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit);
                 row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
                 row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
             }
