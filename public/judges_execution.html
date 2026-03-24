@@ -18,7 +18,7 @@
             background: #000; padding: 8px 14px;
             border-bottom: 1px solid #222;
             display: flex; justify-content: space-between; align-items: center;
-            flex-shrink: 0; gap: 8px;
+            flex-shrink: 0; gap: 8px; position: relative;
         }
         .header-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
         .header-role    { font-size: clamp(0.6rem, 1vw, 0.9rem); color: #555; font-weight: bold; letter-spacing: 1px; white-space: nowrap; }
@@ -90,6 +90,27 @@
 
         /* ---- スマホ縦向けレイアウト ---- */
         @media (max-width: 540px) and (orientation: portrait) {
+            /* ヘッダーを縦積みに */
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 8px 12px 6px;
+                gap: 2px;
+            }
+            .header-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 2px;
+                width: 100%;
+            }
+            .header-role    { font-size: 0.65rem; }
+            .header-athlete { font-size: 1.15rem; white-space: normal; overflow: visible; text-overflow: unset; }
+            .header-round   { font-size: 0.8rem; }
+            .btn-exit {
+                position: absolute; top: 8px; right: 12px;
+                padding: 4px 10px; font-size: 0.7rem;
+            }
+
             /* ステップバーをコンパクトに */
             .steps {
                 gap: 2px; padding: 4px 4px;
@@ -134,16 +155,16 @@
                 min-width: 36px; text-align: right;
             }
 
-            /* キーパッドを残り全部に拡張 */
+            /* キーパッドをコンパクトに */
             .keypad {
-                flex: 1;
+                flex: 0 0 34dvh;
                 margin-top: 0;
-                grid-template-rows: 1fr 64px;
-                padding: 8px 8px 20px;
-                gap: 8px;
+                grid-template-rows: 1fr 52px;
+                padding: 6px 8px 14px;
+                gap: 6px;
             }
-            .key { font-size: 2rem; border-radius: 12px; }
-            .key-undo { font-size: 1.1rem; }
+            .key { font-size: 1.6rem; border-radius: 10px; }
+            .key-undo { font-size: 1rem; }
         }
     </style>
 </head>
