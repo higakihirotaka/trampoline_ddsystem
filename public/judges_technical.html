@@ -828,7 +828,7 @@
                     const nullCls = cur === null ? ' null-val' : '';
                     row += `<td class="manual-cell${nullCls}" tabindex="0" data-jkey="${jKey}" data-idx="${i}" style="${dimStyle}">${valStr}</td>`;
                 } else {
-                    const cellCls = isMiddle ? 'middle-cell' : isLow ? 'low-cell' : isHigh ? 'high-cell' : (v !== null ? 'val-filled' : '');
+                    const cellCls = isLow ? 'low-cell' : isHigh ? 'high-cell' : (v !== null ? 'val-filled' : '');
                     row += `<td class="${cellCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
                 }
             }
@@ -850,7 +850,7 @@
                 }).reduce((a, b) => a + b, 0) + (vLimit === 10 && curLv !== null ? curLv / 10 : 0);
                 row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
             } else {
-                const lnCls = isLandMid ? 'middle-cell' : isLandLow ? 'low-cell' : isLandHigh ? 'high-cell' : (lv !== null ? 'val-filled' : '');
+                const lnCls = isLandLow ? 'low-cell' : isLandHigh ? 'high-cell' : (lv !== null ? 'val-filled' : '');
                 row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
                 row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
             }
