@@ -205,6 +205,7 @@
     let currentIndex = 0, vLimit = 10;
     let deductions = Array(10).fill(null), landing = null;
     let unsubResult = null;
+    let isLocked = false;
 
     // ---- バリデーション ----
     const VALID_DEDUCTIONS = [0, 0.1, 0.2, 0.3, 0.4, 0.5];
@@ -239,9 +240,18 @@
 
         onSnapshot(doc(db, 'tournaments', eventId), (snap) => {
             if (!snap.exists()) return;
-            const state = snap.data()?.liveState?.[panel];  // パネルごとに分離
+            const state = snap.data()?.liveState?.[panel];
             if (!state?.athleteId) { showWaiting(); return; }
-            if (state.athleteId !== athleteId || state.round !== round) switchAthlete(state);
+            if (state.athleteId !== athleteId || state.round !== round) {
+                switchAthlete(state);
+            } else {
+                // 同じ選手のままロック状態が変わった場合のみ再描画
+                const newLocked = state.locked === true;
+                if (newLocked !== isLocked) {
+                    isLocked = newLocked;
+                    refresh();
+                }
+            }
         });
     }
 
@@ -261,6 +271,7 @@
 
         athleteId    = state.athleteId;
         round        = state.round || 'pre1';
+        isLocked     = state.locked === true;
         deductions   = Array(10).fill(null);
         landing      = null;
         currentIndex = 0;
@@ -355,8 +366,21 @@
         }
 
         // キーパッド
-        const isInterrupted = (vLimit < 10 && currentIndex >= vLimit);
         const keypad = document.getElementById('keypad');
+
+        // ロック中は入力不可
+        if (isLocked) {
+            keypad.className = 'keypad';
+            keypad.innerHTML = `
+                <div style="grid-column:span 6; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#444; padding:8px 0; text-align:center;">
+                    <span style="font-size:2rem;">🔒</span>
+                    <span style="font-weight:bold; color:#555; font-size:0.9rem;">CJPが採点をロック中</span>
+                    <span style="font-size:0.72rem; color:#333;">「修正する」が押されると解除されます</span>
+                </div>`;
+            return;
+        }
+
+        const isInterrupted = (vLimit < 10 && currentIndex >= vLimit);
 
         if (isInterrupted) {
             keypad.className = 'keypad';

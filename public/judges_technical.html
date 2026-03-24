@@ -72,7 +72,10 @@
         .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 5px; }
         .score-box div { font-size: 2.2rem; font-weight: 900; font-family: monospace; }
         
-        .btn-confirm { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 1.1rem; font-weight: 900; cursor: pointer; }
+        .btn-confirm { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 1.1rem; font-weight: 900; cursor: pointer; width: 100%; }
+        .lock-banner { display: none; background: #0a1a0a; border: 2px solid var(--accent); border-radius: 10px; padding: 16px 20px; align-items: center; justify-content: space-between; gap: 16px; }
+        .lock-banner span { color: var(--accent); font-weight: 900; font-size: 1rem; }
+        .btn-unlock { background: #2a1010; color: #ff8a65; border: 2px solid #ff8a65; padding: 12px 24px; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 0.95rem; white-space: nowrap; }
 
         /* S1-S10 有効本数クリック */
         .sn-th { cursor: pointer; user-select: none; transition: background 0.15s, color 0.15s; }
@@ -231,7 +234,11 @@
             <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
         </div>
 
-        <button class="btn-confirm" onclick="publish()">公式スコアを確定してモニターへ送信</button>
+        <div class="lock-banner" id="lock-banner">
+            <span>✅ 公式スコア確定済み</span>
+            <button class="btn-unlock" onclick="unlock()">修正する</button>
+        </div>
+        <button class="btn-confirm" id="btn-confirm" onclick="publish()">公式スコアを確定してモニターへ送信</button>
     </div>
 </div>
 
@@ -247,6 +254,7 @@
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null;
     let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
+    let isLocked = false;
     let skillMasterMap = {};  // skillId → { symbol, dd, ... }
     let dMode = 'auto';       // 'auto' | 'manual'
 
@@ -477,13 +485,14 @@
             document.getElementById('ath-name').innerText = `No.${ath.order} ${ath.name1}`;
             document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${rid.toUpperCase()}`;
 
-            // liveState 更新
+            // liveState 更新（選手切り替え時は必ずロック解除）
             await setDoc(doc(db, 'tournaments', eventId), {
                 liveState: { [panel]: {
                     athleteId: aid,
                     athleteName: `No.${ath.order} ${ath.name1}`,
                     athleteClass: ath.class || ath.category || '',
-                    round: rid, updatedAt: serverTimestamp()
+                    round: rid, updatedAt: serverTimestamp(),
+                    locked: false
                 }}
             }, { merge: true });
 
@@ -507,12 +516,32 @@
     function watchScores() {
         if (unsubscribeScores) unsubscribeScores();
         const resId = `${eventId}_${athleteId}_${round}`;
-        // pendingEdits はキーダウンで直接更新するため、watchScores では latestData を更新して再描画のみ
-        unsubscribeScores = onSnapshot(doc(db, "results", resId), (snap) => {
+        unsubscribeScores = onSnapshot(doc(db, "results", resId), async (snap) => {
             latestData = snap.exists() ? snap.data() : {};
+            const newLocked = latestData.published === true;
+            const lockChanged = newLocked !== isLocked;
             renderScores(latestData);
+            // E審判のロック状態をFirestoreに同期（変化があった場合のみ）
+            if (lockChanged) {
+                setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: { [panel]: { locked: newLocked } }
+                }, { merge: true }).catch(() => {});
+            }
         });
     }
+
+    function applyLock(locked) {
+        isLocked = locked;
+        document.getElementById('lock-banner').style.display = locked ? 'flex' : 'none';
+        document.getElementById('btn-confirm').style.display = locked ? 'none' : 'block';
+    }
+
+    window.unlock = async function() {
+        applyLock(false);
+        await setDoc(doc(db, 'tournaments', eventId), {
+            liveState: { [panel]: { locked: false } }
+        }, { merge: true });
+    };
 
     // ---- 中間2名ルール（個人用） ----
     // values: 各E審判の減点値（null=未入力）
@@ -844,6 +873,9 @@
         if (hdMode === 'auto')  document.getElementById('hd').value  = data.hdByPanel?.[panel] ?? data.hd?.total ?? "";
         document.getElementById('pen').value = data.penalty || 0;
         updateScoreSummary(ec, hasJudgeData);
+
+        // 確定済みロック状態を反映
+        applyLock(data.published === true);
     }
 
     window.updateValid = async (val) => {
