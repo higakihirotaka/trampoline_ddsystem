@@ -553,16 +553,16 @@
     // 返り値: { sum: 中間2名の和, indices: 中間2名のインデックスSet }
     function middle2(values) {
         const filled = values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
-        if (filled.length < 2) return { sum: 0, indices: new Set(), lowIndices: new Set(), highIndices: new Set() };
+        if (filled.length < 2) return { sum: 0, indices: new Set(), midMin: null, midMax: null };
         const sorted = [...filled].sort((a, b) => a.v - b.v);
         const n = sorted.length;
-        // n=2: index 0,1 / n=4: index 1,2 / n=6: index 2,3
         const mid = Math.floor((n - 2) / 2);
+        const v0 = sorted[mid].v, v1 = sorted[mid + 1].v;
         return {
-            sum:         sorted[mid].v + sorted[mid + 1].v,
-            indices:     new Set([sorted[mid].i, sorted[mid + 1].i]),
-            lowIndices:  new Set(sorted.slice(0, mid).map(x => x.i)),       // 採用値より低い（甘い）
-            highIndices: new Set(sorted.slice(mid + 2).map(x => x.i))       // 採用値より高い（厳しい）
+            sum:    v0 + v1,
+            indices: new Set([sorted[mid].i, sorted[mid + 1].i]),
+            midMin: Math.min(v0, v1),   // 採用値の下限
+            midMax: Math.max(v0, v1)    // 採用値の上限
         };
     }
 
@@ -817,9 +817,11 @@
             for (let i = 0; i < 10; i++) {
                 const v        = jData.deductions?.[i] ?? null;
                 const dimStyle = i >= vLimit ? 'opacity:0.15;' : '';
-                const isMiddle = i < vLimit && skillResults[i].indices.has(jIdx);
-                const isLow    = i < vLimit && skillResults[i].lowIndices?.has(jIdx);
-                const isHigh   = i < vLimit && skillResults[i].highIndices?.has(jIdx);
+                const sr       = skillResults[i];
+                const isMiddle = i < vLimit && sr.indices.has(jIdx);
+                // 採用値の範囲外のみ色付け（採用値と同じ値は色なし）
+                const isLow    = !isMiddle && i < vLimit && v !== null && sr.midMin !== null && v < sr.midMin - 1e-9;
+                const isHigh   = !isMiddle && i < vLimit && v !== null && sr.midMax !== null && v > sr.midMax + 1e-9;
                 if (isManual) {
                     const cur = pe?.deductions?.[i] ?? null;
                     const valStr = cur !== null ? cur : '0';
@@ -833,8 +835,8 @@
             // 着地
             const lv         = jData.landing ?? null;
             const isLandMid  = vLimit === 10 && landingResult.indices.has(jIdx);
-            const isLandLow  = vLimit === 10 && landingResult.lowIndices?.has(jIdx);
-            const isLandHigh = vLimit === 10 && landingResult.highIndices?.has(jIdx);
+            const isLandLow  = !isLandMid && vLimit === 10 && lv !== null && landingResult.midMin !== null && lv < landingResult.midMin - 1e-9;
+            const isLandHigh = !isLandMid && vLimit === 10 && lv !== null && landingResult.midMax !== null && lv > landingResult.midMax + 1e-9;
             if (isManual) {
                 const curLv = pe?.landing ?? null;
                 const valLv = curLv !== null ? curLv : '0';
