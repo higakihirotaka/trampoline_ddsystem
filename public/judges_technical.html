@@ -56,7 +56,9 @@
         .skill-header { color: var(--accent) !important; font-weight: bold; }
         .val-filled { color: var(--success); font-weight: bold; }
         /* 中間2名ハイライト */
-        .middle-cell { background: rgba(0,230,118,0.18) !important; color: #fff !important; font-weight: 900; outline: 1px solid rgba(0,230,118,0.5); }
+        .middle-cell { background: rgba(0,230,118,0.32) !important; color: #fff !important; font-weight: 900; outline: 2px solid rgba(0,230,118,0.7); }
+        .low-cell    { background: rgba(25,118,210,0.55) !important; color: #fff !important; font-weight: 900; }
+        .high-cell   { background: rgba(229,57,53,0.18) !important; color: #ff8a80 !important; font-weight: 900; outline: 2px solid rgba(229,57,53,0.75) !important; }
         .middle-row td { background: rgba(0,230,118,0.07) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(0,230,118,0.3); }
         .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
 
@@ -548,14 +550,16 @@
     // 返り値: { sum: 中間2名の和, indices: 中間2名のインデックスSet }
     function middle2(values) {
         const filled = values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
-        if (filled.length < 2) return { sum: 0, indices: new Set() };
+        if (filled.length < 2) return { sum: 0, indices: new Set(), lowIndices: new Set(), highIndices: new Set() };
         const sorted = [...filled].sort((a, b) => a.v - b.v);
         const n = sorted.length;
-        // n=2: 2人の合計 / n=4: index 1,2 / n=6: index 2,3
+        // n=2: index 0,1 / n=4: index 1,2 / n=6: index 2,3
         const mid = Math.floor((n - 2) / 2);
         return {
-            sum:     sorted[mid].v + sorted[mid + 1].v,
-            indices: new Set([sorted[mid].i, sorted[mid + 1].i])
+            sum:         sorted[mid].v + sorted[mid + 1].v,
+            indices:     new Set([sorted[mid].i, sorted[mid + 1].i]),
+            lowIndices:  new Set(sorted.slice(0, mid).map(x => x.i)),       // 採用値より低い（甘い）
+            highIndices: new Set(sorted.slice(mid + 2).map(x => x.i))       // 採用値より高い（厳しい）
         };
     }
 
@@ -809,21 +813,25 @@
 
             for (let i = 0; i < 10; i++) {
                 const v        = jData.deductions?.[i] ?? null;
-                const isMiddle = i < vLimit && skillResults[i].indices.has(jIdx);
                 const dimStyle = i >= vLimit ? 'opacity:0.15;' : '';
+                const isMiddle = i < vLimit && skillResults[i].indices.has(jIdx);
+                const isLow    = i < vLimit && skillResults[i].lowIndices?.has(jIdx);
+                const isHigh   = i < vLimit && skillResults[i].highIndices?.has(jIdx);
                 if (isManual) {
                     const cur = pe?.deductions?.[i] ?? null;
                     const valStr = cur !== null ? cur : '0';
                     const nullCls = cur === null ? ' null-val' : '';
                     row += `<td class="manual-cell${nullCls}" tabindex="0" data-jkey="${jKey}" data-idx="${i}" style="${dimStyle}">${valStr}</td>`;
                 } else {
-                    const cls = [v !== null ? 'val-filled' : '', isMiddle ? 'middle-cell' : ''].join(' ');
-                    row += `<td class="${cls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
+                    const cellCls = isMiddle ? 'middle-cell' : isLow ? 'low-cell' : isHigh ? 'high-cell' : (v !== null ? 'val-filled' : '');
+                    row += `<td class="${cellCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
                 }
             }
             // 着地
-            const lv        = jData.landing ?? null;
-            const isLandMid = vLimit === 10 && landingResult.indices.has(jIdx);
+            const lv         = jData.landing ?? null;
+            const isLandMid  = vLimit === 10 && landingResult.indices.has(jIdx);
+            const isLandLow  = vLimit === 10 && landingResult.lowIndices?.has(jIdx);
+            const isLandHigh = vLimit === 10 && landingResult.highIndices?.has(jIdx);
             if (isManual) {
                 const curLv = pe?.landing ?? null;
                 const valLv = curLv !== null ? curLv : '0';
@@ -837,7 +845,7 @@
                 }).reduce((a, b) => a + b, 0) + (vLimit === 10 && curLv !== null ? curLv / 10 : 0);
                 row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
             } else {
-                const lnCls = [lv !== null ? 'val-filled' : '', isLandMid ? 'middle-cell' : ''].join(' ');
+                const lnCls = isLandMid ? 'middle-cell' : isLandLow ? 'low-cell' : isLandHigh ? 'high-cell' : (lv !== null ? 'val-filled' : '');
                 row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
                 row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
             }
