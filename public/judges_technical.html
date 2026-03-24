@@ -137,9 +137,13 @@
         .btn-th-mode.manual { border-color: #ff9800; color: #ff9800; }
         /* 審判ヘッダー行 - 文字大きめ */
         .monitor-table thead tr:last-child th { font-size: 0.82rem; }
-        /* 実施技行 背景色 */
-        #skill-symbols-row th { background: #e1f5fe !important; color: #01579b; }
-        #skill-symbols-row th.skill-header { background: #e1f5fe !important; color: #01579b; }
+        /* 実施技行 背景色 — 確定状態で切り替え */
+        #skill-symbols-row th { background: #e1f5fe !important; color: #01579b; transition: opacity 0.3s, filter 0.3s; }
+        #skill-symbols-row th.skill-header { background: #e1f5fe !important; color: #01579b; transition: opacity 0.3s, filter 0.3s; }
+        /* 未確定時: 薄く・グレーがかった表示 */
+        #skill-symbols-row:not(.d-confirmed) th { opacity: 0.35; filter: grayscale(0.5); }
+        /* 確定時: くっきり */
+        #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; }
         /* dd-bonus-cell 手動時 */
         #dd-bonus-cell.d-manual-cell { color: #e65100 !important; font-weight: bold !important; cursor: text; background: #fff8f0 !important; }
         #dd-bonus-cell.d-manual-cell:focus { background: rgba(255,152,0,0.15) !important; outline: 2px solid #ff9800; }
@@ -567,17 +571,6 @@
         }, { merge: true });
     };
 
-    // D確定トグル（確定 ↔ 未確定）
-    window.toggleDConfirmed = async function() {
-        if (!athleteId) return;
-        const resId = `${eventId}_${athleteId}_${round}`;
-        const isConfirmed = !!latestData.verifiedAt;
-        if (isConfirmed) {
-            await setDoc(doc(db, "results", resId), { verifiedAt: deleteField() }, { merge: true });
-        } else {
-            await setDoc(doc(db, "results", resId), { verifiedAt: serverTimestamp() }, { merge: true });
-        }
-    };
 
     // ---- セル色クラス決定（2段階）----
     // v: 0.0-1.0 形式の減点値, sr: skillResult, jIdx: 審判インデックス, i: 技番号, vLimit: 有効本数
@@ -776,11 +769,12 @@
         const badge = document.getElementById('d-confirmed-badge');
         const dInfoRows = document.querySelectorAll('.d-info-row');
         if (data.verifiedAt) {
-            badge.innerHTML = '<span onclick="toggleDConfirmed()" style="cursor:pointer" title="クリックで未確定に戻す">✓ D確定</span>';
+            badge.textContent = '確定';
             badge.className = 'd-badge';
             dInfoRows.forEach(r => r.classList.add('d-confirmed'));
         } else {
-            badge.innerHTML = '<span onclick="toggleDConfirmed()" style="cursor:pointer;opacity:0.55;font-size:0.68rem" title="クリックでD確定">未確定</span>';
+            badge.textContent = '未確定';
+            badge.style.cssText = 'font-size:0.68rem;color:#90a4ae;font-weight:normal;margin-left:4px;';
             badge.className = '';
             dInfoRows.forEach(r => r.classList.remove('d-confirmed'));
         }
@@ -818,7 +812,7 @@
 
             const totalDD = baseDD + bonus;
             const ddTotalCell = document.getElementById('dd-total-cell');
-            ddTotalCell.textContent = baseDD > 0 ? baseDD.toFixed(1) : '-';
+            ddTotalCell.textContent = (baseDD + bonus) > 0 ? (baseDD + bonus).toFixed(1) : '-';
             // Bonus列にボーナス値を表示（手動モードでなければ上書き）
             const bonusCell = document.getElementById('dd-bonus-cell');
             if (bonusCell && dMode === 'auto') {
@@ -1061,8 +1055,8 @@
             baseDD += parseFloat(cell.textContent) || 0;
         });
         const bonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
-        const totalDD = baseDD + (bonus > 0 ? bonus : 0);
-        document.getElementById('dd-total-cell').textContent = baseDD.toFixed(1);
+        const totalDD = baseDD + bonus;
+        document.getElementById('dd-total-cell').textContent = totalDD.toFixed(1);
         document.getElementById('res-d').innerText = totalDD.toFixed(1);
         document.getElementById('dd-label').innerText = `DD: ${totalDD.toFixed(1)}`;
         const eVal = parseFloat(document.getElementById('res-e').innerText) || 0;
