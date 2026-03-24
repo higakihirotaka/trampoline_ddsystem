@@ -135,6 +135,14 @@
         /* ToF/HD モード切替ボタン */
         .btn-th-mode { float: right; background: transparent; border: 1px solid #90a4ae; color: #607d8b; padding: 1px 5px; border-radius: 3px; font-size: 0.6rem; cursor: pointer; transition: 0.15s; margin-left: 4px; }
         .btn-th-mode.manual { border-color: #ff9800; color: #ff9800; }
+        /* 審判ヘッダー行 - 文字大きめ */
+        .monitor-table thead tr:last-child th { font-size: 0.82rem; }
+        /* 実施技行 背景色 */
+        #skill-symbols-row th { background: #e1f5fe !important; color: #01579b; }
+        #skill-symbols-row th.skill-header { background: #e1f5fe !important; color: #01579b; }
+        /* dd-bonus-cell 手動時 */
+        #dd-bonus-cell.d-manual-cell { color: #e65100 !important; font-weight: bold !important; cursor: text; background: #fff8f0 !important; }
+        #dd-bonus-cell.d-manual-cell:focus { background: rgba(255,152,0,0.15) !important; outline: 2px solid #ff9800; }
         /* D情報行（申請・実施・DD） */
         .d-info-row th { font-size: 0.9rem; color: var(--text-dim); background: rgba(26,115,232,0.07); font-weight: normal; border-color: rgba(26,115,232,0.15) !important; }
         .d-info-row.d-confirmed th { background: rgba(67,160,71,0.1); color: var(--success); }
@@ -191,28 +199,28 @@
                     <th style="width:70px;">申請</th>
                     <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
                     <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
-                    <th>-</th><th>-</th><th></th>
+                    <th>-</th><th>-</th><th class="toggle-col"></th>
                 </tr>
                 <!-- 実施行 -->
                 <tr class="d-info-row" id="skill-symbols-row">
                     <th style="width:70px;">実施 <span id="d-confirmed-badge"></span></th>
                     <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
                     <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
-                    <th>Ln</th><th>SUM</th><th></th>
+                    <th>Bonus</th><th>SUM</th><th class="toggle-col"></th>
                 </tr>
                 <!-- DD行 -->
                 <tr class="d-info-row" id="dd-row">
-                    <th style="width:70px;">DD <button class="btn-th-mode" id="d-mode-btn" onclick="toggleDMode()">読込</button></th>
+                    <th style="width:70px;">DD</th>
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
-                    <th>-</th><th id="dd-total-cell">-</th><th></th>
+                    <th id="dd-bonus-cell">-</th><th id="dd-total-cell">-</th><th class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" id="d-mode-toggle" onchange="toggleDMode(this.checked)"><span class="track-sm"></span></label></th>
                 </tr>
                 <!-- 審判ヘッダー行 -->
                 <tr>
                     <th>Judge</th>
                     <th class="sn-th" id="sn-th-1"  onclick="setValidCount(1)" >S1</th><th class="sn-th" id="sn-th-2"  onclick="setValidCount(2)" >S2</th><th class="sn-th" id="sn-th-3"  onclick="setValidCount(3)" >S3</th><th class="sn-th" id="sn-th-4"  onclick="setValidCount(4)" >S4</th><th class="sn-th" id="sn-th-5"  onclick="setValidCount(5)" >S5</th>
                     <th class="sn-th" id="sn-th-6"  onclick="setValidCount(6)" >S6</th><th class="sn-th" id="sn-th-7"  onclick="setValidCount(7)" >S7</th><th class="sn-th" id="sn-th-8"  onclick="setValidCount(8)" >S8</th><th class="sn-th" id="sn-th-9"  onclick="setValidCount(9)" >S9</th><th class="sn-th" id="sn-th-10" onclick="setValidCount(10)">S10</th>
-                    <th>Ln</th><th>Total</th>
+                    <th>Bonus</th><th>Total</th>
                     <th style="width:36px;font-size:0.55rem;color:var(--th-text);opacity:0.7;line-height:1.2">手動<br>入力</th>
                 </tr>
             </thead>
@@ -484,10 +492,12 @@
 
         // D mode リセット
         dMode = 'auto';
-        const dBtn = document.getElementById('d-mode-btn');
-        if (dBtn) { dBtn.textContent = '読込'; dBtn.classList.remove('manual'); }
+        const dToggle = document.getElementById('d-mode-toggle');
+        if (dToggle) dToggle.checked = false;
         document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
         document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+        const dBonusCell = document.getElementById('dd-bonus-cell');
+        if (dBonusCell) { dBonusCell.contentEditable = 'false'; dBonusCell.classList.remove('d-manual-cell'); }
 
         // ToF/HD mode リセット（auto に戻す）
         if (tofMode === 'manual') toggleTofMode();
@@ -796,12 +806,11 @@
 
             const totalDD = baseDD + bonus;
             const ddTotalCell = document.getElementById('dd-total-cell');
-            if (baseDD > 0) {
-                ddTotalCell.innerHTML = bonus > 0
-                    ? `${totalDD.toFixed(1)}<br><span style="font-size:0.6rem;color:#90a4ae">${baseDD.toFixed(1)}+B${bonus.toFixed(1)}</span>`
-                    : baseDD.toFixed(1);
-            } else {
-                ddTotalCell.textContent = '-';
+            ddTotalCell.textContent = baseDD > 0 ? baseDD.toFixed(1) : '-';
+            // Bonus列にボーナス値を表示（手動モードでなければ上書き）
+            const bonusCell = document.getElementById('dd-bonus-cell');
+            if (bonusCell && dMode === 'auto') {
+                bonusCell.textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
             }
 
             // 青い箱のD・dd-label も更新（申請と実施が異なる技があれば赤）
@@ -868,25 +877,17 @@
                     row += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
                 }
             }
-            // 着地
-            const lv = jData.landing ?? null;
+            // Bonus列（E審判には関係しないので空欄）
+            row += `<td style="opacity:0.2">-</td>`;
+            // Total列
             if (isManual) {
-                const curLv    = pe?.landing ?? null;
-                const valLv    = curLv !== null ? curLv : '0';
-                const vFloatLv = curLv !== null ? curLv / 10 : null;
-                const nullLvCls = curLv === null ? ' null-val' : '';
-                const colorLvCls = landingColorCls(vFloatLv, landingResult, jIdx, vLimit);
-                const disAttrs = vLimit < 10 ? ' tabindex="-1" style="opacity:0.3;"' : ` tabindex="0"`;
-                row += `<td class="manual-cell manual-landing-cell${nullLvCls} ${colorLvCls}" data-jkey="${jKey}"${disAttrs}>${vLimit < 10 ? '-' : valLv}</td>`;
-                // 手動入力中の合計（pendingEditsから計算）
+                const curLv = pe?.landing ?? null;
                 const manualDedSum = Array.from({length: vLimit}, (_, i) => {
                     const d = pe?.deductions?.[i] ?? null;
                     return d !== null ? d / 10 : 0;
                 }).reduce((a, b) => a + b, 0) + (vLimit === 10 && curLv !== null ? curLv / 10 : 0);
                 row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
             } else {
-                const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit);
-                row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
                 row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
             }
             // 行ごとのトグルスイッチ（Total右）
@@ -904,8 +905,7 @@
                 ? `<td>${hasVal ? Math.round(skillResults[i].sum * 10) : '-'}</td>`
                 : `<td style="opacity:0.15">-</td>`;
         }
-        const hasLanding = hasJudgeData && landingResult.indices.size > 0;
-        m2Row += `<td>${vLimit === 10 && hasLanding ? Math.round(landingResult.sum * 10) : '-'}</td>`;
+        m2Row += `<td style="opacity:0.2">-</td>`;
         m2Row += `<td class="ded-total">${hasJudgeData ? ec.execution.toFixed(1) : '-'}</td><td></td></tr>`;
         tbody.innerHTML += m2Row;
 
@@ -1016,39 +1016,40 @@
         }
     };
 
-    window.toggleDMode = function() {
-        dMode = dMode === 'auto' ? 'manual' : 'auto';
-        const btn = document.getElementById('d-mode-btn');
-        const ddCells   = document.querySelectorAll('.d-dd');
-        const execCells = document.querySelectorAll('.skill-header');
+    window.toggleDMode = function(on) {
+        dMode = on ? 'manual' : 'auto';
+        const ddCells    = document.querySelectorAll('.d-dd');
+        const execCells  = document.querySelectorAll('.skill-header');
+        const bonusCell  = document.getElementById('dd-bonus-cell');
         if (dMode === 'manual') {
-            btn.textContent = '手動'; btn.classList.add('manual');
             ddCells.forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
             execCells.forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+            if (bonusCell) { bonusCell.contentEditable = 'true'; bonusCell.classList.add('d-manual-cell'); }
         } else {
-            btn.textContent = '読込'; btn.classList.remove('manual');
             ddCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
             execCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            if (bonusCell) { bonusCell.contentEditable = 'false'; bonusCell.classList.remove('d-manual-cell'); }
             renderScores(latestData);
         }
     };
 
     // DD手動入力セルのリアルタイム合計更新（Eスコアをリセットしないよう直接計算）
     document.addEventListener('input', function(e) {
-        if (!e.target.classList.contains('d-dd')) return;
-        let total = 0;
+        if (!e.target.classList.contains('d-dd') && e.target.id !== 'dd-bonus-cell') return;
+        let baseDD = 0;
         document.querySelectorAll('.d-dd').forEach(cell => {
-            total += parseFloat(cell.textContent) || 0;
+            baseDD += parseFloat(cell.textContent) || 0;
         });
-        document.getElementById('dd-total-cell').textContent = total.toFixed(1);
-        document.getElementById('res-d').innerText = total.toFixed(1);
-        document.getElementById('dd-label').innerText = `DD: ${total.toFixed(1)}`;
-        // 現在表示中のEスコアをそのまま使って合計を再計算
+        const bonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
+        const totalDD = baseDD + (bonus > 0 ? bonus : 0);
+        document.getElementById('dd-total-cell').textContent = baseDD.toFixed(1);
+        document.getElementById('res-d').innerText = totalDD.toFixed(1);
+        document.getElementById('dd-label').innerText = `DD: ${totalDD.toFixed(1)}`;
         const eVal = parseFloat(document.getElementById('res-e').innerText) || 0;
         const t    = parseFloat(document.getElementById('tof').value) || 0;
         const h    = parseFloat(document.getElementById('hd').value) || 0;
         const p    = parseFloat(document.getElementById('pen').value) || 0;
-        document.getElementById('res-total').innerText = Math.max(0, total + eVal + t + h - p).toFixed(3);
+        document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(3);
     });
 
     window.publish = async () => {
@@ -1077,8 +1078,9 @@
             const manualSymbols = [...document.querySelectorAll('.skill-header')].map(el =>
                 (el.textContent === '-' || el.textContent === '') ? '' : el.textContent.trim());
             const manualDDs = [...document.querySelectorAll('.d-dd')].map(el => parseFloat(el.textContent) || 0);
+            const manualBonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
             saveData.officialSkills = manualSymbols;
-            saveData.officialTotalDD = manualDDs.reduce((a, b) => a + b, 0);
+            saveData.officialTotalDD = manualDDs.reduce((a, b) => a + b, 0) + manualBonus;
         }
 
         // 手動入力行がある場合、execution.judges を手動値＋既存値でマージして保存
