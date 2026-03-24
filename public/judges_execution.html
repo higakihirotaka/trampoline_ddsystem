@@ -82,6 +82,69 @@
             grid-column: span 6; font-size: 1rem;
             background: #2a2020; color: #ff8a65; border-color: #111;
         }
+
+        /* ---- 現在技パネル（スマホ縦向けのみ表示） ---- */
+        .current-panel {
+            display: none;
+        }
+
+        /* ---- スマホ縦向けレイアウト ---- */
+        @media (max-width: 540px) and (orientation: portrait) {
+            /* ステップバーをコンパクトに */
+            .steps {
+                gap: 2px; padding: 4px 4px;
+            }
+            .step {
+                aspect-ratio: unset;
+                height: 36px;
+                min-height: unset;
+                border-radius: 4px;
+                gap: 1px;
+            }
+            .step-lbl { font-size: 0.5rem; color: #333; }
+            .step.filled .step-lbl { color: #3a6a3a; }
+            .step.active .step-lbl { color: var(--accent); }
+            .step-val { font-size: 0.85rem; }
+
+            /* 現在技パネルを表示 */
+            .current-panel {
+                display: flex;
+                align-items: center; justify-content: center;
+                background: #060809;
+                border-top: 1px solid #1a1a1a;
+                border-bottom: 1px solid #1a1a1a;
+                padding: 10px 16px;
+                gap: 14px;
+                flex-shrink: 0;
+            }
+            .cp-label {
+                font-size: 1.1rem; color: #666;
+                font-weight: 900; letter-spacing: 1px;
+                min-width: 40px; text-align: center;
+            }
+            .cp-arrow { font-size: 1.4rem; color: #333; }
+            .cp-value {
+                font-size: 4rem; font-weight: 900; line-height: 1;
+                color: var(--accent);
+                min-width: 70px; text-align: center;
+            }
+            .cp-value.empty { color: #2a2a2a; }
+            .cp-pos {
+                font-size: 0.8rem; color: #444;
+                min-width: 36px; text-align: right;
+            }
+
+            /* キーパッドを残り全部に拡張 */
+            .keypad {
+                flex: 1;
+                margin-top: 0;
+                grid-template-rows: 1fr 64px;
+                padding: 8px 8px 20px;
+                gap: 8px;
+            }
+            .key { font-size: 2rem; border-radius: 12px; }
+            .key-undo { font-size: 1.1rem; }
+        }
     </style>
 </head>
 <body>
@@ -102,6 +165,7 @@
 
 <div class="judge-ui" id="judge-ui" style="display:none;">
     <div class="steps" id="steps"></div>
+    <div class="current-panel" id="current-panel"></div>
     <div class="keypad" id="keypad"></div>
 </div>
 
@@ -245,6 +309,27 @@
             }
 
             stepsEl.appendChild(s);
+        }
+
+        // 現在技パネル（スマホ縦向け用）
+        const cpEl = document.getElementById('current-panel');
+        if (cpEl) {
+            const isLand = (currentIndex === 10);
+            const isInt  = (vLimit < 10 && currentIndex >= vLimit);
+            if (isInt) {
+                cpEl.innerHTML = `<div class="cp-label" style="font-size:0.95rem;color:#555;">有効本数 ${vLimit}本 で完了</div>`;
+            } else {
+                const lbl     = isLand ? 'LAN' : `S${currentIndex + 1}`;
+                const curVal  = isLand ? landing : deductions[currentIndex];
+                const dispVal = curVal !== null ? Math.round(curVal * 10) : '?';
+                const pos     = isLand ? 'LAN' : `${currentIndex + 1} / ${vLimit}`;
+                const isEmpty = curVal === null;
+                cpEl.innerHTML = `
+                    <div class="cp-label">${lbl}</div>
+                    <div class="cp-arrow">→</div>
+                    <div class="cp-value${isEmpty ? ' empty' : ''}">${dispVal}</div>
+                    <div class="cp-pos">${pos}</div>`;
+            }
         }
 
         // キーパッド
