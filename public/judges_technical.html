@@ -701,8 +701,11 @@
         const _vc = data.validCount ?? 10;
         document.getElementById('valid-count').value = _vc;
         updateValidHeaders(_vc);
-        document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
-        document.getElementById('dd-label').innerText = `DD: ${data.officialTotalDD?.toFixed(1) || "0.0"}`;
+        // 手動入力中は Firestore の値で上書きしない
+        if (dMode === 'auto') {
+            document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
+            document.getElementById('dd-label').innerText = `DD: ${data.officialTotalDD?.toFixed(1) || "0.0"}`;
+        }
 
         // ---- D情報行 ----
         const resId = `${eventId}_${athleteId}_${round}`;
