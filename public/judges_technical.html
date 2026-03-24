@@ -5,9 +5,11 @@
     <title>Technical Console - Trampoline System</title>
     <style>
         :root {
-            --bg: #0b0e11; --card-bg: #1e2227; --accent: #1a73e8;
-            --success: #00e676; --danger: #ff1744; --text: #ffffff; --text-dim: #90a4ae;
-            --sidebar-bg: #ffffff; --primary: #37474f;
+            --bg: #edf1f7; --card-bg: #ffffff; --accent: #1a73e8;
+            --success: #2e7d32; --danger: #c62828; --text: #1a2a3a; --text-dim: #607d8b;
+            --sidebar-bg: #f4f7fb; --primary: #1e3a5f;
+            --border: #d4dce8; --th-bg: #1e3a5f; --th-text: #e8f0fa;
+            --cell-bg: #ffffff; --cell-alt: #f5f8fc;
         }
         body, html { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; display: flex; overflow: hidden; }
         
@@ -41,50 +43,51 @@
 
         /* メインコンソール */
         .console-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .top-bar { background: #000; padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        .btn-exit { color: var(--danger); text-decoration: none; border: 1px solid var(--danger); padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .top-bar { background: var(--primary); padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; }
+        .btn-exit { color: #ffb3b3; text-decoration: none; border: 1px solid #ff8a80; padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 
-        .athlete-banner { background: var(--card-bg); padding: 15px 25px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #333; }
+        .athlete-banner { background: var(--card-bg); padding: 15px 25px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
         .main-content { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
 
         /* テーブル */
         /* table-layout:fixed でセル幅固定。width:100% で画面幅を使い切り、
            min-width:700px で狭い画面ではスクロール対応 */
         .monitor-table { width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
-        .monitor-table th, .monitor-table td { padding: 8px 6px; text-align: center; border-radius: 4px; background: rgba(255,255,255,0.03); font-size: 1.1rem; overflow: hidden; white-space: nowrap; }
-        .monitor-table th { background: #2a2e35; font-size: 0.65rem; color: var(--text-dim); }
-        .skill-header { color: var(--accent) !important; font-weight: bold; }
-        .val-filled { color: var(--success); font-weight: bold; }
-        /* 中間2名ハイライト */
-        .middle-cell { background: rgba(0,230,118,0.32) !important; color: #fff !important; font-weight: 900; outline: 2px solid rgba(0,230,118,0.7); }
-        .low-cell    { background: rgba(25,118,210,0.55) !important; color: #fff !important; font-weight: 900; }
-        .high-cell   { background: rgba(229,57,53,0.18) !important; color: #ff8a80 !important; font-weight: 900; outline: 2px solid rgba(229,57,53,0.75) !important; }
-        .middle-row td { background: rgba(0,230,118,0.07) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(0,230,118,0.3); }
+        .monitor-table th, .monitor-table td { padding: 8px 6px; text-align: center; border-radius: 4px; background: var(--cell-bg); font-size: 1.1rem; overflow: hidden; white-space: nowrap; color: var(--text); border: 1px solid transparent; }
+        .monitor-table th { background: var(--th-bg); font-size: 0.65rem; color: var(--th-text); border-color: #0d2440; font-weight: 700; letter-spacing: 0.03em; }
+        .skill-header { color: #90caf9 !important; font-weight: bold; }
+        .val-filled { color: #2e7d32; font-weight: bold; }
+        /* 審判値ハイライト（明るい背景向け） */
+        .middle-cell { background: #c8e6c9 !important; color: #1b5e20 !important; font-weight: 900; outline: 2px solid #66bb6a; }
+        .low-cell    { background: #bbdefb !important; color: #0d47a1 !important; font-weight: 900; outline: 2px solid #42a5f5; }
+        .high-cell   { background: #ffcdd2 !important; color: #b71c1c !important; font-weight: 900; outline: 2px solid #ef5350; }
+        .middle-row td { background: rgba(67,160,71,0.08) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(67,160,71,0.3) !important; }
         .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
 
         /* 入力エリア */
         .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        .input-card { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid #333; }
+        .input-card { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
         .input-card label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 8px; font-weight: bold; }
-        .input-card input, .input-card select { width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 10px; font-size: 1.2rem; border-radius: 6px; box-sizing: border-box; }
+        .input-card input, .input-card select { width: 100%; background: #f5f8fc; border: 1px solid var(--border); color: var(--text); padding: 10px; font-size: 1.2rem; border-radius: 6px; box-sizing: border-box; }
+        .input-card input:focus, .input-card select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
 
         /* スコア集計 */
-        .score-summary { background: #000; padding: 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 2px solid var(--accent); }
+        .score-summary { background: var(--card-bg); padding: 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,0.12); }
         .score-box { text-align: center; }
-        .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 5px; }
-        .score-box div { font-size: 2.2rem; font-weight: 900; font-family: monospace; }
-        
-        .btn-confirm { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 1.1rem; font-weight: 900; cursor: pointer; width: 100%; }
-        .lock-banner { display: none; background: #0a1a0a; border: 2px solid var(--accent); border-radius: 10px; padding: 16px 20px; align-items: center; justify-content: space-between; gap: 16px; }
-        .lock-banner span { color: var(--accent); font-weight: 900; font-size: 1rem; }
-        .btn-unlock { background: #2a1010; color: #ff8a65; border: 2px solid #ff8a65; padding: 12px 24px; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 0.95rem; white-space: nowrap; }
+        .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 5px; font-weight: bold; }
+        .score-box div { font-size: 2.2rem; font-weight: 900; font-family: monospace; color: var(--text); }
+
+        .btn-confirm { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 1.1rem; font-weight: 900; cursor: pointer; width: 100%; box-shadow: 0 2px 8px rgba(26,115,232,0.3); }
+        .lock-banner { display: none; background: #e8f5e9; border: 2px solid #43a047; border-radius: 10px; padding: 16px 20px; align-items: center; justify-content: space-between; gap: 16px; }
+        .lock-banner span { color: #2e7d32; font-weight: 900; font-size: 1rem; }
+        .btn-unlock { background: #fff3e0; color: #e65100; border: 2px solid #ff9800; padding: 12px 24px; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 0.95rem; white-space: nowrap; }
 
         /* S1-S10 有効本数クリック */
         .sn-th { cursor: pointer; user-select: none; transition: background 0.15s, color 0.15s; }
-        .sn-th:hover { background: rgba(26,115,232,0.25) !important; }
-        .sn-th.sn-valid { background: rgba(0,230,118,0.15); color: var(--success); }
-        .sn-th.sn-cutoff { background: rgba(26,115,232,0.4) !important; color: #fff; font-weight: 900; outline: 2px solid var(--accent); }
-        .sn-th.sn-invalid { opacity: 0.3; }
+        .sn-th:hover { background: rgba(26,115,232,0.18) !important; }
+        .sn-th.sn-valid { background: rgba(67,160,71,0.18); color: #1b5e20; }
+        .sn-th.sn-cutoff { background: var(--accent) !important; color: #fff !important; font-weight: 900; outline: 2px solid #0d47a1; }
+        .sn-th.sn-invalid { opacity: 0.4; }
 
         /* 手動入力モード */
         .btn-manual-toggle { background: transparent; color: #ff9800; border: 2px solid #ff9800; padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
@@ -104,35 +107,35 @@
         .mode-lbl { font-size: 0.7rem; font-weight: bold; color: var(--text-dim); transition: color 0.2s; }
         .toggle-switch { position: relative; display: inline-block; width: 44px; height: 22px; flex-shrink: 0; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .toggle-track { position: absolute; cursor: pointer; inset: 0; background: #37474f; border-radius: 22px; transition: 0.25s; }
+        .toggle-track { position: absolute; cursor: pointer; inset: 0; background: #b0bec5; border-radius: 22px; transition: 0.25s; }
         .toggle-track::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: 0.25s; }
         .toggle-switch input:checked + .toggle-track { background: #ff9800; }
         .toggle-switch input:checked + .toggle-track::before { transform: translateX(22px); }
         /* セル直接編集（手動モード） */
-        .manual-cell { color: #ff9800; font-weight: bold; cursor: default; outline: none; }
-        .manual-cell:focus { background: rgba(255,152,0,0.25) !important; box-shadow: 0 0 0 1px #ff9800 inset; border-radius: 3px; }
-        .manual-cell.null-val { color: rgba(255,152,0,0.35); font-weight: normal; }
+        .manual-cell { color: #e65100; font-weight: bold; cursor: default; outline: none; background: #fff8f0 !important; }
+        .manual-cell:focus { background: rgba(255,152,0,0.20) !important; box-shadow: 0 0 0 2px #ff9800 inset; border-radius: 3px; }
+        .manual-cell.null-val { color: rgba(230,81,0,0.4); font-weight: normal; }
         /* 行ごとの小型トグル */
         .toggle-col { padding: 3px !important; vertical-align: middle; background: transparent !important; }
         .toggle-switch-sm { position: relative; display: inline-block; width: 30px; height: 16px; }
         .toggle-switch-sm input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .track-sm { position: absolute; cursor: pointer; inset: 0; background: #37474f; border-radius: 16px; transition: 0.2s; }
+        .track-sm { position: absolute; cursor: pointer; inset: 0; background: #b0bec5; border-radius: 16px; transition: 0.2s; }
         .track-sm::before { content: ''; position: absolute; width: 12px; height: 12px; left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.2s; }
         .toggle-switch-sm input:checked + .track-sm { background: #ff9800; }
         .toggle-switch-sm input:checked + .track-sm::before { transform: translateX(14px); }
         /* ToF/HD モード切替ボタン */
-        .btn-th-mode { float: right; background: transparent; border: 1px solid #37474f; color: #78909c; padding: 1px 5px; border-radius: 3px; font-size: 0.6rem; cursor: pointer; transition: 0.15s; margin-left: 4px; }
+        .btn-th-mode { float: right; background: transparent; border: 1px solid #90a4ae; color: #607d8b; padding: 1px 5px; border-radius: 3px; font-size: 0.6rem; cursor: pointer; transition: 0.15s; margin-left: 4px; }
         .btn-th-mode.manual { border-color: #ff9800; color: #ff9800; }
         /* D情報行（申請・実施・DD） */
-        .d-info-row th { font-size: 0.9rem; color: var(--text-dim); background: rgba(26,115,232,0.06); font-weight: normal; }
-        .d-info-row.d-confirmed th { background: rgba(0,230,118,0.08); color: var(--success); }
+        .d-info-row th { font-size: 0.9rem; color: var(--text-dim); background: rgba(26,115,232,0.07); font-weight: normal; border-color: rgba(26,115,232,0.15) !important; }
+        .d-info-row.d-confirmed th { background: rgba(67,160,71,0.1); color: var(--success); }
         /* D確定バッジ */
-        .d-badge { font-size: 0.72rem; background: var(--success); color: #000; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
+        .d-badge { font-size: 0.72rem; background: #43a047; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
         /* DD合計セル（ボーナス内訳を2行表示するため折り返しを許可） */
         #dd-total-cell { white-space: normal; line-height: 1.3; }
         /* D手動入力セル */
-        .d-manual-cell { color: #ff9800 !important; font-weight: bold !important; cursor: text; border-radius: 3px; }
-        .d-manual-cell:focus { background: rgba(255,152,0,0.2) !important; outline: 1px solid #ff9800; }
+        .d-manual-cell { color: #e65100 !important; font-weight: bold !important; cursor: text; border-radius: 3px; background: #fff8f0 !important; }
+        .d-manual-cell:focus { background: rgba(255,152,0,0.15) !important; outline: 2px solid #ff9800; }
     </style>
 </head>
 <body>
@@ -151,7 +154,7 @@
     <div class="top-bar">
         <div id="panel-role-label" style="font-size: 0.8rem; font-weight: bold; color: var(--accent);">PANEL - | ROLE -</div>
         <div></div>
-        <button onclick="fillDummyData()" style="background:transparent;border:1px solid #37474f;color:#546e7a;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
+        <button onclick="fillDummyData()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
     </div>
 
@@ -201,7 +204,7 @@
                     <th class="sn-th" id="sn-th-1"  onclick="setValidCount(1)" >S1</th><th class="sn-th" id="sn-th-2"  onclick="setValidCount(2)" >S2</th><th class="sn-th" id="sn-th-3"  onclick="setValidCount(3)" >S3</th><th class="sn-th" id="sn-th-4"  onclick="setValidCount(4)" >S4</th><th class="sn-th" id="sn-th-5"  onclick="setValidCount(5)" >S5</th>
                     <th class="sn-th" id="sn-th-6"  onclick="setValidCount(6)" >S6</th><th class="sn-th" id="sn-th-7"  onclick="setValidCount(7)" >S7</th><th class="sn-th" id="sn-th-8"  onclick="setValidCount(8)" >S8</th><th class="sn-th" id="sn-th-9"  onclick="setValidCount(9)" >S9</th><th class="sn-th" id="sn-th-10" onclick="setValidCount(10)">S10</th>
                     <th>Ln</th><th>Total</th>
-                    <th style="width:36px;font-size:0.55rem;color:#78909c;line-height:1.2">手動<br>入力</th>
+                    <th style="width:36px;font-size:0.55rem;color:var(--th-text);opacity:0.7;line-height:1.2">手動<br>入力</th>
                 </tr>
             </thead>
             <tbody id="judge-rows"></tbody>
