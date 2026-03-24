@@ -220,7 +220,7 @@
                     <th>Judge</th>
                     <th class="sn-th" id="sn-th-1"  onclick="setValidCount(1)" >S1</th><th class="sn-th" id="sn-th-2"  onclick="setValidCount(2)" >S2</th><th class="sn-th" id="sn-th-3"  onclick="setValidCount(3)" >S3</th><th class="sn-th" id="sn-th-4"  onclick="setValidCount(4)" >S4</th><th class="sn-th" id="sn-th-5"  onclick="setValidCount(5)" >S5</th>
                     <th class="sn-th" id="sn-th-6"  onclick="setValidCount(6)" >S6</th><th class="sn-th" id="sn-th-7"  onclick="setValidCount(7)" >S7</th><th class="sn-th" id="sn-th-8"  onclick="setValidCount(8)" >S8</th><th class="sn-th" id="sn-th-9"  onclick="setValidCount(9)" >S9</th><th class="sn-th" id="sn-th-10" onclick="setValidCount(10)">S10</th>
-                    <th>Bonus</th><th>Total</th>
+                    <th>Ln</th><th>Total</th>
                     <th style="width:36px;font-size:0.55rem;color:var(--th-text);opacity:0.7;line-height:1.2">手動<br>入力</th>
                 </tr>
             </thead>
@@ -266,7 +266,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, onSnapshot, getDoc, getDocs, collection, query, where, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, onSnapshot, getDoc, getDocs, collection, query, where, setDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
@@ -567,6 +567,18 @@
         }, { merge: true });
     };
 
+    // D確定トグル（確定 ↔ 未確定）
+    window.toggleDConfirmed = async function() {
+        if (!athleteId) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        const isConfirmed = !!latestData.verifiedAt;
+        if (isConfirmed) {
+            await setDoc(doc(db, "results", resId), { verifiedAt: deleteField() }, { merge: true });
+        } else {
+            await setDoc(doc(db, "results", resId), { verifiedAt: serverTimestamp() }, { merge: true });
+        }
+    };
+
     // ---- セル色クラス決定（2段階）----
     // v: 0.0-1.0 形式の減点値, sr: skillResult, jIdx: 審判インデックス, i: 技番号, vLimit: 有効本数
     function cellColorCls(v, sr, jIdx, i, vLimit) {
@@ -760,15 +772,15 @@
             });
         }
 
-        // D確定バッジ・緑枠
+        // D確定バッジ・緑枠（クリックで切り替え）
         const badge = document.getElementById('d-confirmed-badge');
         const dInfoRows = document.querySelectorAll('.d-info-row');
         if (data.verifiedAt) {
-            badge.textContent = '✓ D確定';
+            badge.innerHTML = '<span onclick="toggleDConfirmed()" style="cursor:pointer" title="クリックで未確定に戻す">✓ D確定</span>';
             badge.className = 'd-badge';
             dInfoRows.forEach(r => r.classList.add('d-confirmed'));
         } else {
-            badge.textContent = '';
+            badge.innerHTML = '<span onclick="toggleDConfirmed()" style="cursor:pointer;opacity:0.55;font-size:0.68rem" title="クリックでD確定">未確定</span>';
             badge.className = '';
             dInfoRows.forEach(r => r.classList.remove('d-confirmed'));
         }
@@ -877,17 +889,24 @@
                     row += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
                 }
             }
-            // Bonus列（E審判には関係しないので空欄）
-            row += `<td style="opacity:0.2">-</td>`;
-            // Total列
+            // 着地(Ln)列
+            const lv = jData.landing ?? null;
             if (isManual) {
-                const curLv = pe?.landing ?? null;
+                const curLv    = pe?.landing ?? null;
+                const valLv    = curLv !== null ? curLv : '0';
+                const vFloatLv = curLv !== null ? curLv / 10 : null;
+                const nullLvCls = curLv === null ? ' null-val' : '';
+                const colorLvCls = landingColorCls(vFloatLv, landingResult, jIdx, vLimit);
+                const disAttrs = vLimit < 10 ? ' tabindex="-1" style="opacity:0.3;"' : ` tabindex="0"`;
+                row += `<td class="manual-cell manual-landing-cell${nullLvCls} ${colorLvCls}" data-jkey="${jKey}"${disAttrs}>${vLimit < 10 ? '-' : valLv}</td>`;
                 const manualDedSum = Array.from({length: vLimit}, (_, i) => {
                     const d = pe?.deductions?.[i] ?? null;
                     return d !== null ? d / 10 : 0;
                 }).reduce((a, b) => a + b, 0) + (vLimit === 10 && curLv !== null ? curLv / 10 : 0);
                 row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
             } else {
+                const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit);
+                row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
                 row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
             }
             // 行ごとのトグルスイッチ（Total右）
@@ -905,7 +924,8 @@
                 ? `<td>${hasVal ? Math.round(skillResults[i].sum * 10) : '-'}</td>`
                 : `<td style="opacity:0.15">-</td>`;
         }
-        m2Row += `<td style="opacity:0.2">-</td>`;
+        const hasLanding = hasJudgeData && landingResult.indices.size > 0;
+        m2Row += `<td>${vLimit === 10 && hasLanding ? Math.round(landingResult.sum * 10) : '-'}</td>`;
         m2Row += `<td class="ded-total">${hasJudgeData ? ec.execution.toFixed(1) : '-'}</td><td></td></tr>`;
         tbody.innerHTML += m2Row;
 
