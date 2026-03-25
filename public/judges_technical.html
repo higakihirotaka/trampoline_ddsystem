@@ -281,7 +281,7 @@
 
     let athletes = [], submissions = {}, results = {}, currentTour = null;
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
-    let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null;
+    let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null, unsubscribeSub = null;
     let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
     let isLocked = false;
     let skillMasterMap = {};  // skillId → { symbol, dd, ... }
@@ -489,6 +489,9 @@
     window.switchAthlete = async function(aid, rid) {
         if (aid === athleteId && rid === round) return;
 
+        // 旧リスナー解除
+        if (unsubscribeSub) { unsubscribeSub(); unsubscribeSub = null; }
+
         // 変数更新
         athleteId = aid;
         round = rid;
@@ -544,7 +547,17 @@
         // サイドバー更新 → スコア監視開始
         renderSidebar();
         watchScores();
+        watchSubmission();
     };
+
+    function watchSubmission() {
+        if (unsubscribeSub) unsubscribeSub();
+        const resId = `${eventId}_${athleteId}_${round}`;
+        unsubscribeSub = onSnapshot(doc(db, "submissions", resId), snap => {
+            submissions[resId] = snap.exists() ? snap.data() : null;
+            renderScores(latestData);
+        });
+    }
 
     function watchScores() {
         if (unsubscribeScores) unsubscribeScores();
