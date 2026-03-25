@@ -136,7 +136,9 @@
         .btn-th-mode { float: right; background: transparent; border: 1px solid #90a4ae; color: #607d8b; padding: 1px 5px; border-radius: 3px; font-size: 0.6rem; cursor: pointer; transition: 0.15s; margin-left: 4px; }
         .btn-th-mode.manual { border-color: #ff9800; color: #ff9800; }
         /* 審判ヘッダー行 - 文字大きめ */
-        .monitor-table thead tr:last-child th { font-size: 0.82rem; }
+        .monitor-table thead th { font-size: 0.82rem; }
+        /* tfoot(申請・実施・DD)の区切り線 */
+        .monitor-table tfoot tr:first-child th { border-top: 2px solid var(--border) !important; }
         /* 実施技行 背景色 — 確定状態で切り替え */
         #skill-symbols-row th { background: #e1f5fe !important; color: #01579b; transition: opacity 0.3s, filter 0.3s; }
         #skill-symbols-row th.skill-header { background: #e1f5fe !important; color: #01579b; transition: opacity 0.3s, filter 0.3s; }
@@ -203,6 +205,17 @@
                 <col style="width:36px"><!-- toggle: 固定 -->
             </colgroup>
             <thead>
+                <!-- 審判ヘッダー行 -->
+                <tr>
+                    <th>Judge</th>
+                    <th class="sn-th" id="sn-th-1"  onclick="setValidCount(1)" >S1</th><th class="sn-th" id="sn-th-2"  onclick="setValidCount(2)" >S2</th><th class="sn-th" id="sn-th-3"  onclick="setValidCount(3)" >S3</th><th class="sn-th" id="sn-th-4"  onclick="setValidCount(4)" >S4</th><th class="sn-th" id="sn-th-5"  onclick="setValidCount(5)" >S5</th>
+                    <th class="sn-th" id="sn-th-6"  onclick="setValidCount(6)" >S6</th><th class="sn-th" id="sn-th-7"  onclick="setValidCount(7)" >S7</th><th class="sn-th" id="sn-th-8"  onclick="setValidCount(8)" >S8</th><th class="sn-th" id="sn-th-9"  onclick="setValidCount(9)" >S9</th><th class="sn-th" id="sn-th-10" onclick="setValidCount(10)">S10</th>
+                    <th>Ln</th><th>Total</th>
+                    <th style="width:36px;font-size:0.55rem;color:var(--th-text);opacity:0.7;line-height:1.2">手動<br>入力</th>
+                </tr>
+            </thead>
+            <tbody id="judge-rows"></tbody>
+            <tfoot>
                 <!-- 申請行 -->
                 <tr class="d-info-row" id="declared-row">
                     <th style="width:70px;">申請</th>
@@ -224,16 +237,7 @@
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
                     <th id="dd-bonus-cell">-</th><th id="dd-total-cell">-</th><th class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" id="d-mode-toggle" onchange="toggleDMode(this.checked)"><span class="track-sm"></span></label></th>
                 </tr>
-                <!-- 審判ヘッダー行 -->
-                <tr>
-                    <th>Judge</th>
-                    <th class="sn-th" id="sn-th-1"  onclick="setValidCount(1)" >S1</th><th class="sn-th" id="sn-th-2"  onclick="setValidCount(2)" >S2</th><th class="sn-th" id="sn-th-3"  onclick="setValidCount(3)" >S3</th><th class="sn-th" id="sn-th-4"  onclick="setValidCount(4)" >S4</th><th class="sn-th" id="sn-th-5"  onclick="setValidCount(5)" >S5</th>
-                    <th class="sn-th" id="sn-th-6"  onclick="setValidCount(6)" >S6</th><th class="sn-th" id="sn-th-7"  onclick="setValidCount(7)" >S7</th><th class="sn-th" id="sn-th-8"  onclick="setValidCount(8)" >S8</th><th class="sn-th" id="sn-th-9"  onclick="setValidCount(9)" >S9</th><th class="sn-th" id="sn-th-10" onclick="setValidCount(10)">S10</th>
-                    <th>Ln</th><th>Total</th>
-                    <th style="width:36px;font-size:0.55rem;color:var(--th-text);opacity:0.7;line-height:1.2">手動<br>入力</th>
-                </tr>
-            </thead>
-            <tbody id="judge-rows"></tbody>
+            </tfoot>
         </table>
         </div>
 
