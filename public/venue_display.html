@@ -450,6 +450,17 @@
       color: var(--text-muted);
       letter-spacing: 0.1cqw;
     }
+    .rk-event-name{
+      font-size: 0.8cqw; font-weight: 700; letter-spacing: 0.3cqw;
+      color: var(--text-muted); text-transform: uppercase;
+      white-space: nowrap; flex-shrink: 0;
+      margin-bottom: 0.15cqw;
+    }
+    .rk-footer{
+      font-size: 0.55cqw; font-weight: 700; letter-spacing: 0.2em;
+      color: rgba(255,255,255,0.2); text-transform: uppercase;
+      text-align: center; flex-shrink: 0; padding-top: 0.4cqw;
+    }
   /* ===== 会場画面オーバーレイ（タイトル / 表彰式 / 会場練習） ===== */
   .venue-screen{
     position:fixed; inset:0;
@@ -1213,11 +1224,13 @@
     const totalHead = show2 ? scoreModeLabel : 'TOTAL';
 
     overlay.innerHTML = `
+      <div class="rk-event-name">${tournamentName}</div>
       <div class="rk-title">${heading} — STANDINGS ${pageIndicator}</div>
       <div class="rk-col-head">
         <span>#</span><span>NAME</span><span>R1</span>${r2head}<span>${totalHead}</span>
       </div>
-      <div class="rk-table">${rowsHTML}</div>`;
+      <div class="rk-table">${rowsHTML}</div>
+      <div class="rk-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>`;
     overlay.classList.add('visible');
   }
 
