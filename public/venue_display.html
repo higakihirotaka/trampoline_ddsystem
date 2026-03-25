@@ -954,8 +954,12 @@
         <div class="routine-totals">${routineTotalsHTML}</div>
         <div class="final-results">
           <div class="score-unit">
-            <label>${isPublished ? 'TOTAL' : 'TOTAL*'}</label>
-            <div class="total-val num">${fmt3(totalScore)}</div>
+            ${(() => {
+              const isBestMode = numPre2 >= 2 && sMode2 === 'best' && (resData.round === 'pre1' || resData.round === 'pre2');
+              const lbl  = isBestMode ? 'BEST' : 'TOTAL';
+              const disp = isBestMode ? qualTotal : totalScore;
+              return `<label>${isPublished ? lbl : lbl + '*'}</label><div class="total-val num">${fmt3(disp)}</div>`;
+            })()}
           </div>
           <div class="score-unit">
             <label>RANK</label>
