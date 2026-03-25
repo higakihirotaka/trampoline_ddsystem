@@ -771,6 +771,8 @@
     const seenIds = new Set();
     let baseDD = 0, tripleCount = 0, hasAnyDiff = false;
 
+    const hasManualDDValues = !!(resData.officialDDValues && resData.officialDDValues.length > 0);
+
     const skillCols = [];
     for (let i = 0; i < 10; i++) {
       if (i >= vLimit) {
@@ -798,19 +800,27 @@
       const isRepeat= !!(skill && seenIds.has(String(offId)));
       if (isDiff) hasAnyDiff = true;
 
-      let displayDD = 0;
-      if (skill && !isRepeat) {
-        displayDD = skill.dd;
-        baseDD   += skill.dd;
-        if (skill.isTriple) tripleCount++;
-        seenIds.add(String(offId));
+      let displayDD = 0, dCodeTxt, dValTxt;
+      if (hasManualDDValues) {
+        // 手動入力: officialDDValues から各技の DD 値を復元
+        displayDD = Number(resData.officialDDValues[i]) || 0;
+        if (!isRepeat && offId) baseDD += displayDD;
+        dCodeTxt = offId || '-';
+        dValTxt  = displayDD.toFixed(1);
+      } else {
+        if (skill && !isRepeat) {
+          displayDD = skill.dd;
+          baseDD   += skill.dd;
+          if (skill.isTriple) tripleCount++;
+          seenIds.add(String(offId));
+        }
+        dCodeTxt = skill ? skill.symbol : '-';
+        dValTxt  = skill ? (isRepeat ? '0.0' : displayDD.toFixed(1)) : '-';
       }
 
       const eDedVal  = getSkillEDed(panelJudges, i, synchro);
       const eDisplay = eDedVal !== null ? Math.round(eDedVal * 10) : '--';
       const hasAlert = isDiff || isRepeat;
-      const dCodeTxt = skill ? skill.symbol : '-';
-      const dValTxt  = skill ? (isRepeat ? '0.0' : displayDD.toFixed(1)) : '-';
 
       skillCols.push(`
         <div class="skill-stack">
@@ -824,8 +834,8 @@
     }
 
     // ---- ボーナス計算 ----
-    const bonus = calcBonus(ath.gender, tripleCount);
-    const finalDD = baseDD + bonus;
+    const bonus   = hasManualDDValues ? (resData.officialDDBonus || 0) : calcBonus(ath.gender, tripleCount);
+    const finalDD = hasManualDDValues ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
 
     // LAN列
     const landDed = getLandingDed(panelJudges, synchro);
