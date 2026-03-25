@@ -154,6 +154,8 @@
         .d-badge { font-size: 0.72rem; background: #43a047; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
         /* DD合計セル（ボーナス内訳を2行表示するため折り返しを許可） */
         #dd-total-cell { white-space: normal; line-height: 1.3; }
+        /* 重複技ハイライト（薄い黄色） */
+        .d-dup { background: rgba(255, 193, 7, 0.22) !important; }
         /* D手動入力セル */
         .d-manual-cell { color: #e65100 !important; font-weight: bold !important; cursor: text; border-radius: 3px; background: #fff8f0 !important; }
         .d-manual-cell:focus { background: rgba(255,152,0,0.15) !important; outline: 2px solid #ff9800; }
@@ -282,7 +284,8 @@
     let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
     let isLocked = false;
     let skillMasterMap = {};  // skillId → { symbol, dd, ... }
-    let dMode = 'auto';       // 'auto' | 'manual'
+    let dMode = 'auto';           // 'auto' | 'manual'
+    let dModeAutoExplicit = false; // ユーザーが明示的にautoを選択した場合true（手動復元を抑制）
 
     async function init() {
         if (!eventId) return;
@@ -496,6 +499,7 @@
 
         // D mode リセット
         dMode = 'auto';
+        dModeAutoExplicit = false;
         const dToggle = document.getElementById('d-mode-toggle');
         if (dToggle) dToggle.checked = false;
         document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
@@ -736,37 +740,36 @@
                 }
                 el.textContent = sym || rawVal;
                 declaredSkillIds.push(skillId);
-                // 申請内での重複のみ赤（実施との差異は赤くしない）
+                el.classList.remove('d-dup');
+                // 申請内での重複 → 黄色ハイライト
                 if (skillId && seenIds.has(skillId)) {
-                    el.style.color = 'var(--danger)';
+                    el.classList.add('d-dup');
                 } else if (skillId) {
                     seenIds.add(skillId);
                 }
             });
         }
 
-        // 実施行（officialSkills → skillMasterMap でシンボル取得、重複・申請差異は赤）
+        // 実施行（officialSkills → skillMasterMap でシンボル取得、重複は黄色・申請差異は赤）
         if (dMode === 'auto') {
             const seenIds = new Set();
             document.querySelectorAll('.skill-header').forEach((el, i) => {
                 el.style.color = '';
-                el.style.opacity = '';
+                el.classList.remove('d-dup');
                 const id = execSkills[i];
                 if (i >= vLimitD || !id) { el.textContent = '-'; return; }
                 const skill = skillMasterMap[id];
                 if (!skill) { el.textContent = id; return; }
                 el.textContent = skill.symbol;
                 if (seenIds.has(id)) {
-                    el.style.color = 'var(--danger)';
-                    el.style.opacity = '1';
+                    el.classList.add('d-dup'); // 重複は黄色
                 } else {
                     seenIds.add(id);
                 }
-                // 申請との差異 → 実施行のセルを赤に（未確定でもはっきり表示）
+                // 申請との差異 → 実施行のセルを赤に（濃淡は確定状態のみで制御）
                 const declId = declaredSkillIds[i];
                 if (i < vLimitD && declId && String(id) !== String(declId)) {
                     el.style.color = 'var(--danger)';
-                    el.style.opacity = '1';
                     hasDeclaredMismatch = true;
                 }
             });
@@ -803,14 +806,16 @@
                 document.getElementById('dd-total-cell').textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
                 document.getElementById('res-d').innerText = totalDD > 0 ? totalDD.toFixed(1) : '0.0';
                 document.getElementById('dd-label').innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : '0.0'}`;
-                // 手動モードに切り替え（再読み込み後の復元）
-                dMode = 'manual';
-                const dToggle = document.getElementById('d-mode-toggle');
-                if (dToggle) dToggle.checked = true;
-                document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
-                document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
-                const dBonusCellM = document.getElementById('dd-bonus-cell');
-                if (dBonusCellM) { dBonusCellM.contentEditable = 'true'; dBonusCellM.classList.add('d-manual-cell'); }
+                // 手動モードに切り替え（再読み込み後の復元。ユーザーがautoを明示選択中は除く）
+                if (!dModeAutoExplicit) {
+                    dMode = 'manual';
+                    const dToggleM = document.getElementById('d-mode-toggle');
+                    if (dToggleM) dToggleM.checked = true;
+                    document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+                    document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+                    const dBonusCellM = document.getElementById('dd-bonus-cell');
+                    if (dBonusCellM) { dBonusCellM.contentEditable = 'true'; dBonusCellM.classList.add('d-manual-cell'); }
+                }
             } else {
                 const ath = athletes.find(a => a.id === athleteId);
                 const gender = ath?.gender || '';
@@ -1059,6 +1064,7 @@
 
     window.toggleDMode = function(on) {
         dMode = on ? 'manual' : 'auto';
+        dModeAutoExplicit = !on; // autoに切り替えたら手動復元を抑制
         const ddCells    = document.querySelectorAll('.d-dd');
         const execCells  = document.querySelectorAll('.skill-header');
         const bonusCell  = document.getElementById('dd-bonus-cell');
