@@ -880,8 +880,8 @@
     const numPre2 = rule2.qualifyingRoutines ?? 1;
     const sMode2  = rule2.scoreMode || 'best';
     if (numPre2 >= 2 && (resData.round === 'pre1' || resData.round === 'pre2')) {
-      const p1 = resData.round === 'pre1' ? totalScore : (athResults['pre1']?.officialTotal ?? null);
-      const p2 = resData.round === 'pre2' ? totalScore : (athResults['pre2']?.officialTotal ?? null);
+      const p1 = resData.round === 'pre1' ? totalScore : (athResults['pre1'] ?? null);
+      const p2 = resData.round === 'pre2' ? totalScore : (athResults['pre2'] ?? null);
       if (p1 != null && p2 != null) qualTotal = sMode2 === 'total' ? p1 + p2 : Math.max(p1, p2);
       else qualTotal = p1 ?? p2;
     }
