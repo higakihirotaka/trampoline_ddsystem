@@ -555,13 +555,13 @@
     return labels[rid] || rid.toUpperCase();
   }
 
-  // ---- 中間1名×2（個人用）: 3名→中央値×2、5名→中央値×2 ----
+  // ---- 中間2名合計（個人用）: CJP の middle2 と同じ計算式 ----
   function mid2sum(vals) {
     const filled = vals.filter(v => v !== null && v !== undefined);
     if (filled.length < 2) return 0;
     filled.sort((a, b) => a - b);
-    const mid = Math.floor(filled.length / 2);
-    return filled[mid] * 2;
+    const mid = Math.floor((filled.length - 2) / 2);
+    return filled[mid] + filled[mid + 1];
   }
 
   // ---- 中央値1名（3人から真ん中） ----
@@ -929,7 +929,7 @@
         </div>
         <div class="athlete-identity-group">
           ${ath.type === 'synchro' && ath.name2
-            ? `<h1 class="athlete-name" style="font-size:0.78em">${ath.name1 || '---'}<br>${ath.name2}</h1>
+            ? `<h1 class="athlete-name" style="font-size:3.8cqw;line-height:1.15;white-space:normal">${ath.name1 || '---'}<br>${ath.name2}</h1>
                <div class="athlete-team">${[ath.club1, ath.club2].filter(Boolean).join(' / ') || '---'}</div>`
             : `<h1 class="athlete-name">${ath.name1 || '---'}</h1>
                <div class="athlete-team">${ath.club1 || '---'}</div>`
