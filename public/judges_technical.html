@@ -784,51 +784,63 @@
 
         // DD行（重複=0.0赤、ボーナス計算）
         if (dMode === 'auto') {
-            const ath = athletes.find(a => a.id === athleteId);
-            const gender = ath?.gender || '';
-            const seenIds = new Set();
-            let baseDD = 0, tripleCount = 0;
+            if (data.officialDDValues && data.officialDDValues.length > 0) {
+                // 手動入力で保存されたDD値を復元
+                document.querySelectorAll('.d-dd').forEach((el, i) => {
+                    el.style.color = '';
+                    el.style.fontWeight = '';
+                    const val = data.officialDDValues[i];
+                    el.textContent = (val !== undefined && val !== null) ? Number(val).toFixed(1) : '-';
+                });
+                const bonus = data.officialDDBonus || 0;
+                const bonusCell = document.getElementById('dd-bonus-cell');
+                if (bonusCell) bonusCell.textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
+                const totalDD = data.officialTotalDD || 0;
+                document.getElementById('dd-total-cell').textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
+                document.getElementById('res-d').innerText = totalDD > 0 ? totalDD.toFixed(1) : '0.0';
+                document.getElementById('dd-label').innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : '0.0'}`;
+            } else {
+                const ath = athletes.find(a => a.id === athleteId);
+                const gender = ath?.gender || '';
+                const seenIds = new Set();
+                let baseDD = 0, tripleCount = 0;
 
-            document.querySelectorAll('.d-dd').forEach((el, i) => {
-                el.style.color = '';
-                el.style.fontWeight = '';
-                const id = execSkills[i];
-                if (i >= vLimitD || !id) { el.textContent = i >= vLimitD ? '' : '-'; return; }
-                const skill = skillMasterMap[id];
-                if (!skill) { el.textContent = '-'; return; }
-                if (seenIds.has(id)) {
-                    el.textContent = '0.0';
-                    el.style.color = 'var(--danger)';
-                    el.style.fontWeight = 'bold';
-                } else {
-                    el.textContent = skill.dd.toFixed(1);
-                    baseDD += skill.dd;
-                    if (skill.isTriple) tripleCount++;
-                    seenIds.add(id);
-                }
-            });
+                document.querySelectorAll('.d-dd').forEach((el, i) => {
+                    el.style.color = '';
+                    el.style.fontWeight = '';
+                    const id = execSkills[i];
+                    if (i >= vLimitD || !id) { el.textContent = i >= vLimitD ? '' : '-'; return; }
+                    const skill = skillMasterMap[id];
+                    if (!skill) { el.textContent = '-'; return; }
+                    if (seenIds.has(id)) {
+                        el.textContent = '0.0';
+                        el.style.color = 'var(--danger)';
+                        el.style.fontWeight = 'bold';
+                    } else {
+                        el.textContent = skill.dd.toFixed(1);
+                        baseDD += skill.dd;
+                        if (skill.isTriple) tripleCount++;
+                        seenIds.add(id);
+                    }
+                });
 
-            // ボーナス計算（男子:6本目以降のトリプル×0.3、女子:3本目以降のトリプル×0.3）
-            let bonus = 0;
-            if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-            else if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+                // ボーナス計算（男子:6本目以降のトリプル×0.3、女子:3本目以降のトリプル×0.3）
+                let bonus = 0;
+                if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
+                else if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
-            const totalDD = baseDD + bonus;
-            const ddTotalCell = document.getElementById('dd-total-cell');
-            ddTotalCell.textContent = (baseDD + bonus) > 0 ? (baseDD + bonus).toFixed(1) : '-';
-            // Bonus列にボーナス値を表示（手動モードでなければ上書き）
-            const bonusCell = document.getElementById('dd-bonus-cell');
-            if (bonusCell && dMode === 'auto') {
-                bonusCell.textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
+                const totalDD = baseDD + bonus;
+                document.getElementById('dd-total-cell').textContent = (baseDD + bonus) > 0 ? (baseDD + bonus).toFixed(1) : '-';
+                const bonusCell = document.getElementById('dd-bonus-cell');
+                if (bonusCell) bonusCell.textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
+
+                const resDEl = document.getElementById('res-d');
+                resDEl.innerText = totalDD > 0 ? totalDD.toFixed(1) : "0.0";
+                resDEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
+                const ddLabelEl = document.getElementById('dd-label');
+                ddLabelEl.innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : "0.0"}`;
+                ddLabelEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
             }
-
-            // 青い箱のD・dd-label も更新（申請と実施が異なる技があれば赤）
-            const resDEl = document.getElementById('res-d');
-            resDEl.innerText = totalDD > 0 ? totalDD.toFixed(1) : "0.0";
-            resDEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
-            const ddLabelEl = document.getElementById('dd-label');
-            ddLabelEl.innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : "0.0"}`;
-            ddLabelEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
         }
 
         // pendingEdits を Firestore フォーマットに変換してマージ（中間2名計算用）
@@ -1090,14 +1102,20 @@
             officialD: d, officialE: e, officialTH: th, officialTotal: total
         };
 
-        // D手動入力モードの場合、officialSkills と officialTotalDD も保存
+        // D手動入力モードの場合、officialSkills・officialDDValues・officialDDBonus・officialTotalDD を保存
         if (dMode === 'manual') {
             const manualSymbols = [...document.querySelectorAll('.skill-header')].map(el =>
                 (el.textContent === '-' || el.textContent === '') ? '' : el.textContent.trim());
             const manualDDs = [...document.querySelectorAll('.d-dd')].map(el => parseFloat(el.textContent) || 0);
             const manualBonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
-            saveData.officialSkills = manualSymbols;
-            saveData.officialTotalDD = manualDDs.reduce((a, b) => a + b, 0) + manualBonus;
+            saveData.officialSkills   = manualSymbols;
+            saveData.officialDDValues = manualDDs;   // 各技のDD値（再読み込み復元用）
+            saveData.officialDDBonus  = manualBonus;
+            saveData.officialTotalDD  = manualDDs.reduce((a, b) => a + b, 0) + manualBonus;
+        } else {
+            // autoモードで再確定する場合は手動DD値をクリア
+            saveData.officialDDValues = deleteField();
+            saveData.officialDDBonus  = deleteField();
         }
 
         // 手動入力行がある場合、execution.judges を手動値＋既存値でマージして保存
