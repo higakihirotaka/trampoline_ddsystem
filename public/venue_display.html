@@ -929,8 +929,8 @@
         </div>
         <div class="athlete-identity-group">
           ${ath.type === 'synchro' && ath.name2
-            ? `<h1 class="athlete-name" style="font-size:3.8cqw;line-height:1.15;white-space:normal">${ath.name1 || '---'}<br>${ath.name2}</h1>
-               <div class="athlete-team">${[ath.club1, ath.club2].filter(Boolean).join(' / ') || '---'}</div>`
+            ? `<h1 class="athlete-name" style="font-size:5cqw">${ath.name1 || '---'} <span style="opacity:0.5;font-weight:400;letter-spacing:0">/</span> ${ath.name2}</h1>
+               <div class="athlete-team">${ath.club1 || '---'}</div>`
             : `<h1 class="athlete-name">${ath.name1 || '---'}</h1>
                <div class="athlete-team">${ath.club1 || '---'}</div>`
           }
@@ -1186,8 +1186,7 @@
         <div class="rk-rank num">${rank}</div>
         <div class="rk-name-group">
           ${e.a.type === 'synchro' && e.a.name2
-            ? `<div class="rk-name" style="font-size:0.82em;line-height:1.2">${e.a.name1}<br>${e.a.name2}</div>
-               <div class="rk-team">${[e.a.club1, e.a.club2].filter(Boolean).join(' / ')}</div>`
+            ? `<div class="rk-name">${e.a.name1} <span style="opacity:0.45;font-weight:400">/</span> ${e.a.name2}</div>`
             : `<div class="rk-name">${e.a.name1 || '---'}</div>
                <div class="rk-team">${e.a.club1 || ''}</div>`
           }
