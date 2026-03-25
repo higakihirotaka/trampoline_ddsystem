@@ -506,6 +506,11 @@
   .vs-timer.warning{ color:#ff6b35; text-shadow:0 0 100px rgba(255,107,53,0.4); }
   .vs-timer.done   { color:var(--accent-gold); text-shadow:0 0 100px rgba(255,215,0,0.4); animation:pulse 1s ease-in-out infinite; }
   @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .vs-footer{
+    position:absolute; bottom:1.2vw; left:0; width:100%; text-align:center;
+    font-size:0.6vw; font-weight:700; letter-spacing:0.22em;
+    color:rgba(255,255,255,0.22); text-transform:uppercase; pointer-events:none;
+  }
   </style>
 </head>
 <body>
@@ -524,18 +529,21 @@
   <div id="vs-title" class="venue-screen">
     <div class="vs-label">COMPETITION</div>
     <div class="vs-title-name" id="vs-title-name">---</div>
+    <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
   <!-- 表彰式画面 -->
   <div id="vs-ceremony" class="venue-screen">
     <div class="vs-cer-name" id="vs-cer-name">---</div>
     <div class="vs-ceremony-label">表彰式</div>
+    <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
   <!-- 会場練習画面 -->
   <div id="vs-warmup" class="venue-screen">
     <div class="vs-class-names" id="vs-class-names">---</div>
     <div class="vs-timer num done" id="vs-timer">--:--</div>
+    <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
 <script type="module">
