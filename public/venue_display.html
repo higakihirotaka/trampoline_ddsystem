@@ -1335,7 +1335,8 @@
         }
         // 以後: 新規追加分のみキューに入れる
         snap.docChanges().forEach(change => {
-          if (change.type === 'added') {
+          // 新規公開(added)と再公開(modified)の両方を表示
+          if (change.type === 'added' || change.type === 'modified') {
             // スコア更新時: 会場画面を自動解除してスコア表示へ
             updateDoc(doc(db, 'tournaments', eventId), { venueScreen: 'score' }).catch(console.error);
             enqueueResult(change.doc);
