@@ -141,9 +141,10 @@
         #skill-symbols-row th { background: #e1f5fe !important; color: #01579b; transition: opacity 0.3s, filter 0.3s; }
         #skill-symbols-row th.skill-header { background: #e1f5fe !important; color: #01579b; transition: opacity 0.3s, filter 0.3s; }
         /* 未確定時: 薄く・グレーがかった表示 */
-        #skill-symbols-row:not(.d-confirmed) th { opacity: 0.35; filter: grayscale(0.5); }
-        /* 確定時: くっきり */
-        #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; }
+        /* 未確定: やや薄め */
+        #skill-symbols-row:not(.d-confirmed) th { opacity: 0.65; filter: grayscale(0.2); }
+        /* 確定: くっきり・強調 */
+        #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; font-weight: bold; color: #003c8f !important; }
         /* dd-bonus-cell 手動時 */
         #dd-bonus-cell.d-manual-cell { color: #e65100 !important; font-weight: bold !important; cursor: text; background: #fff8f0 !important; }
         #dd-bonus-cell.d-manual-cell:focus { background: rgba(255,152,0,0.15) !important; outline: 2px solid #ff9800; }
