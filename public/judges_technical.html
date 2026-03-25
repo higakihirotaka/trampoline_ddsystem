@@ -604,32 +604,64 @@
 
 
     // ---- セル色クラス決定（2段階）----
-    // v: 0.0-1.0 形式の減点値, sr: skillResult, jIdx: 審判インデックス, i: 技番号, vLimit: 有効本数
+    // v: 0.0-1.0 形式の減点値, sr: skillResult, jIdx: 審判インデックス（jKeys中の位置）
+    // i: 技番号, vLimit: 有効本数
+    function _resolveRange(sr, jIdx) {
+        // シンクロ: jIdx偶数=奇数グループ(E1,E3,E5), jIdx奇数=偶数グループ(E2,E4,E6)
+        if (sr.groupData) {
+            const gr = jIdx % 2 === 0 ? sr.groupData.oddResult : sr.groupData.evenResult;
+            return { midMin: gr.midMin, midMax: gr.midMax, isMiddle: gr.indices.has(jIdx) };
+        }
+        return { midMin: sr.midMin, midMax: sr.midMax, isMiddle: sr.indices.has(jIdx) };
+    }
     function cellColorCls(v, sr, jIdx, i, vLimit) {
-        if (i >= vLimit || v === null || sr.midMin === null) return v !== null ? 'val-filled' : '';
-        if (sr.indices.has(jIdx)) return 'val-filled'; // 採用審判は無色
-        if (v < sr.midMin - 1e-9) {
-            const diff = Math.round((sr.midMin - v) * 10);
+        if (i >= vLimit || v === null) return v !== null ? 'val-filled' : '';
+        const { midMin, midMax, isMiddle } = _resolveRange(sr, jIdx);
+        if (midMin === null) return v !== null ? 'val-filled' : '';
+        if (isMiddle) return 'val-filled'; // 採用審判は無色
+        if (v < midMin - 1e-9) {
+            const diff = Math.round((midMin - v) * 10);
             return diff >= 2 ? 'low-cell' : 'low-cell-mild';
         }
-        if (v > sr.midMax + 1e-9) {
-            const diff = Math.round((v - sr.midMax) * 10);
+        if (v > midMax + 1e-9) {
+            const diff = Math.round((v - midMax) * 10);
             return diff >= 2 ? 'high-cell' : 'high-cell-mild';
         }
         return 'val-filled';
     }
     function landingColorCls(lv, lr, jIdx, vLimit) {
-        if (vLimit < 10 || lv === null || lr.midMin === null) return lv !== null ? 'val-filled' : '';
-        if (lr.indices.has(jIdx)) return 'val-filled';
-        if (lv < lr.midMin - 1e-9) {
-            const diff = Math.round((lr.midMin - lv) * 10);
+        if (vLimit < 10 || lv === null) return lv !== null ? 'val-filled' : '';
+        const { midMin, midMax, isMiddle } = _resolveRange(lr, jIdx);
+        if (midMin === null) return lv !== null ? 'val-filled' : '';
+        if (isMiddle) return 'val-filled';
+        if (lv < midMin - 1e-9) {
+            const diff = Math.round((midMin - lv) * 10);
             return diff >= 2 ? 'low-cell' : 'low-cell-mild';
         }
-        if (lv > lr.midMax + 1e-9) {
-            const diff = Math.round((lv - lr.midMax) * 10);
+        if (lv > midMax + 1e-9) {
+            const diff = Math.round((lv - midMax) * 10);
             return diff >= 2 ? 'high-cell' : 'high-cell-mild';
         }
         return 'val-filled';
+    }
+
+    // ---- 中間2名ルール（グループインデックス付き） ----
+    // groupIdxs: 例 [0,2,4] → 全審判配列中のインデックス
+    function middle2Synchro(allVals, groupIdxs) {
+        const groupVals = groupIdxs.map(gi => allVals[gi]);
+        const filled = groupVals.map((v, li) => ({ v, gi: groupIdxs[li] }))
+                                .filter(x => x.v !== null && x.v !== undefined);
+        if (filled.length < 2) return { sum: 0, indices: new Set(), midMin: null, midMax: null };
+        const sorted = [...filled].sort((a, b) => a.v - b.v);
+        const n = sorted.length;
+        const mid = Math.floor((n - 2) / 2);
+        const v0 = sorted[mid].v, v1 = sorted[mid + 1].v;
+        return {
+            sum: v0 + v1,
+            indices: new Set([sorted[mid].gi, sorted[mid + 1].gi]),
+            midMin: Math.min(v0, v1),
+            midMax: Math.max(v0, v1)
+        };
     }
 
     // ---- 中間2名ルール（個人用） ----
@@ -711,14 +743,30 @@
             return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges, isSynchro };
         } else {
             // ---- シンクロ: 審判数に応じた平均計算 ----
+            // numE===6 のとき奇数審判(E1,E3,E5)と偶数審判(E2,E4,E6)でグループ分け
+            const _synchroGroup = numE >= 6
+                ? (vals) => {
+                    const odd  = middle2Synchro(vals, [0, 2, 4]);
+                    const even = middle2Synchro(vals, [1, 3, 5]);
+                    const allIdx = new Set([...odd.indices, ...even.indices]);
+                    return { groupData: { oddResult: odd, evenResult: even }, indices: allIdx };
+                }
+                : () => ({ groupData: null, indices: new Set() });
+
             const skillResults = Array.from({ length: 10 }, (_, si) => {
                 const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
                 const r = synchroEDed(vals, numE);
-                return { sum: r.avg, indices: new Set(), hasData: r.hasData };
+                const g = _synchroGroup(vals);
+                return { sum: r.avg, indices: g.indices, midMin: null, midMax: null, hasData: r.hasData, groupData: g.groupData };
             });
             const landingResult = vLimit === 10
-                ? (() => { const r = synchroEDed(jKeys.map(k => judges[k]?.landing ?? null), numE); return { sum: r.avg, indices: new Set(), hasData: r.hasData }; })()
-                : { sum: 0, indices: new Set(), hasData: false };
+                ? (() => {
+                    const lVals = jKeys.map(k => judges[k]?.landing ?? null);
+                    const r = synchroEDed(lVals, numE);
+                    const g = _synchroGroup(lVals);
+                    return { sum: r.avg, indices: g.indices, midMin: null, midMax: null, hasData: r.hasData, groupData: g.groupData };
+                  })()
+                : { sum: 0, indices: new Set(), hasData: false, groupData: null };
             const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
                             + landingResult.sum;
             const execution = (vLimit * 1.0) - totalDed;  // シンクロ: 有効技数 × 1.0
