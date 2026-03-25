@@ -286,6 +286,7 @@
     let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null, unsubscribeSub = null;
     let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
     let isLocked = false;
+    let lockedOfficialSkills = null; // 確定時にスナップショットした実施技（D審判の更新を遮断）
     let skillMasterMap = {};  // skillId → { symbol, dd, ... }
     let dMode = 'auto';           // 'auto' | 'manual'
     let dModeAutoExplicit = false; // ユーザーが明示的にautoを選択した場合true（手動復元を抑制）
@@ -586,13 +587,16 @@
 
     window.unlock = async function() {
         applyLock(false);
+        lockedOfficialSkills = null;
         const resId = `${eventId}_${athleteId}_${round}`;
         await Promise.all([
             setDoc(doc(db, 'tournaments', eventId), {
                 liveState: { [panel]: { locked: false } }
             }, { merge: true }),
-            // verifiedAt を削除して未確定に戻す
-            athleteId ? setDoc(doc(db, 'results', resId), { verifiedAt: deleteField() }, { merge: true }) : Promise.resolve()
+            athleteId ? setDoc(doc(db, 'results', resId), {
+                verifiedAt: deleteField(),
+                published: false   // D審判の修正を許可
+            }, { merge: true }) : Promise.resolve()
         ]);
     };
 

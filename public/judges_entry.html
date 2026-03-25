@@ -72,6 +72,10 @@
         .btn-submit { background: var(--ok-green); color: white; box-shadow: 0 8px 20px rgba(46, 125, 50, 0.2); }
         .btn-modify { background: white; color: var(--warn-orange); border: 3px solid var(--warn-orange); }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .status-badge { display: inline-block; font-size: 0.75em; font-weight: bold; padding: 4px 12px; border-radius: 20px; }
+        .badge-locked { background: #e8f5e9; color: var(--ok-green); border: 1px solid #c8e6c9; }
+        .badge-cjp-locked { background: #ffebee; color: var(--danger); border: 1px solid #ffcdd2; }
+        .cjp-lock-msg { color: var(--danger); font-weight: bold; padding: 14px; text-align: center; background: #ffebee; border-radius: 10px; border: 2px solid #ffcdd2; }
     </style>
 </head>
 <body>
@@ -102,6 +106,7 @@
     let athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
+    let cjpConfirmed = false; // CJPが公式スコアを確定済（published:true）かどうか
     let unsubValidCount = null;
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
 
@@ -306,11 +311,33 @@
     function watchValidCount(resId) {
         if (unsubValidCount) { unsubValidCount(); unsubValidCount = null; }
         unsubValidCount = onSnapshot(doc(db, 'results', resId), snap => {
-            const vc = (snap.exists() ? snap.data().validCount : null) ?? 10;
+            const data = snap.exists() ? snap.data() : null;
+            const vc = (data?.validCount) ?? 10;
             const el = document.getElementById('valid-count');
             const disp = document.getElementById('valid-count-display');
             if (el) el.value = vc;
             if (disp) disp.innerText = `${vc}本`;
+
+            // CJP確定状態のリアルタイム反映
+            const newCjpConf = data?.published === true;
+            if (newCjpConf !== cjpConfirmed) {
+                cjpConfirmed = newCjpConf;
+                if (data) results[resId] = data;
+                const actionArea = document.getElementById('action-area');
+                if (actionArea) {
+                    if (cjpConfirmed) {
+                        document.querySelectorAll('select').forEach(s => s.disabled = true);
+                        actionArea.innerHTML = `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`;
+                    } else {
+                        // CJP解除 → 修正するボタンを表示（セレクトはまだ無効のまま）
+                        const dSaved = !!data;
+                        actionArea.innerHTML = dSaved
+                            ? `<button id="btn-save" class="btn btn-modify" onclick="enableEditing()">修正する</button>`
+                            : `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">確定・保存</button>`;
+                    }
+                }
+            }
+
             calcTotal();
         });
     }
@@ -319,8 +346,10 @@
         const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId], resData = results[subId], ath = athletes.find(a => a.id === athleteId);
         if (!ath) { document.getElementById('main-content').innerHTML = `<div style="margin-top:150px;text-align:center;color:var(--danger);">選手データが見つかりません</div>`; return; }
         const noSub = !sub;
-        const isLocked = !!resData;
-        const initialData = (isLocked ? resData.officialSkills : sub?.skills) || [];
+        const dSaved = !!resData;
+        cjpConfirmed = resData?.published === true;
+        const isLocked = dSaved; // D審判側のソフトロック（修正するで解除可）
+        const initialData = (dSaved ? resData.officialSkills : sub?.skills) || [];
         const validCount = (isLocked && resData.validCount !== undefined) ? resData.validCount : 10;
 
         const initialIds = initialData.map(s => {
@@ -334,7 +363,7 @@
                 <div class="header-info">
                     <div style="display:flex; justify-content:space-between;">
                         <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
-                        ${isLocked ? '<span class="status-badge badge-locked">✓ 公式スコア確定済</span>' : ''}
+                        ${cjpConfirmed ? '<span class="status-badge badge-cjp-locked">🔒 CJP確定済</span>' : dSaved ? '<span class="status-badge badge-locked">✓ D確定済</span>' : ''}
                         ${noSub ? '<span style="font-size:0.85em; font-weight:bold; color:var(--warn-orange); background:#fff3e0; padding:4px 10px; border-radius:6px; border:1px solid #ffcc80;">⚠ 選手未申告</span>' : ''}
                     </div>
                     <h2>No.${ath.order} ${ath.name1} <span style="font-size:0.5em; color:#666;">(${ath.kana1 || ""})</span></h2>
@@ -351,7 +380,11 @@
                 </div>
                 <div class="footer-stats"><span id="total-dd" class="total-official">0.0</span></div>
                 <div class="action-area" id="action-area">
-                    <button id="btn-save" class="btn ${isLocked?'btn-modify':'btn-submit'}" onclick="${isLocked?'enableEditing()':'saveOfficialScore()'}">${isLocked?'修正する':'確定・保存'}</button>
+                    ${cjpConfirmed
+                        ? `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`
+                        : `<button id="btn-save" class="btn ${dSaved?'btn-modify':'btn-submit'}" onclick="${dSaved?'enableEditing()':'saveOfficialScore()'}">
+                            ${dSaved?'修正する':'確定・保存'}</button>`
+                    }
                 </div>
             </div>`;
 
@@ -364,11 +397,11 @@
 
             const tr = document.createElement('tr'); tr.id = `row-${i}`;
             tr.innerHTML = `<td class="col-num">${i}</td><td class="col-sub">${subSkill?.symbol || "-"}</td><td class="col-sub-dd">${subSkill?.dd.toFixed(1) || '0.0'}</td>
-                <td><select id="dir-${i}" onchange="updateOptions(${i})" ${isLocked ? 'disabled' : ''}>
+                <td><select id="dir-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}>
                     <option value="">--</option><option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
                     <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option><option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option>
                 </select></td>
-                <td><select id="skill-${i}" onchange="calcTotal()" ${isLocked ? 'disabled' : ''}></select></td>
+                <td><select id="skill-${i}" onchange="calcTotal()" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}></select></td>
                 <td><span id="dd-${i}">0.0</span></td>`;
             tbody.appendChild(tr);
             updateOptions(i, currentId, false);
@@ -436,6 +469,7 @@
     };
 
     window.enableEditing = () => {
+        if (cjpConfirmed) return; // CJP確定済のため修正不可
         document.querySelectorAll('select').forEach(s => s.disabled = false);
         document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">修正を保存</button>`;
     };
