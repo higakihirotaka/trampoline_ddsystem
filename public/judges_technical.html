@@ -571,9 +571,14 @@
 
     window.unlock = async function() {
         applyLock(false);
-        await setDoc(doc(db, 'tournaments', eventId), {
-            liveState: { [panel]: { locked: false } }
-        }, { merge: true });
+        const resId = `${eventId}_${athleteId}_${round}`;
+        await Promise.all([
+            setDoc(doc(db, 'tournaments', eventId), {
+                liveState: { [panel]: { locked: false } }
+            }, { merge: true }),
+            // verifiedAt を削除して未確定に戻す
+            athleteId ? setDoc(doc(db, 'results', resId), { verifiedAt: deleteField() }, { merge: true }) : Promise.resolve()
+        ]);
     };
 
 
