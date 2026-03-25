@@ -723,58 +723,57 @@
         const execSkills = data.officialSkills || [];
         const vLimitD = data.validCount ?? 10;
 
-        // 申請行（重複は赤、実施との差異は申請行では赤くしない→実施行で表示）
+        // 申請行（重複は黄色、実施との差異は申請行では赤くしない→実施行で表示）
         let hasDeclaredMismatch = false;
-        const declaredSkillIds = [];
+        const declaredSymbols = []; // シンボルベースで比較するため格納
         {
-            const seenIds = new Set();
+            const seenSymbols = new Set();
             document.querySelectorAll('.d-declared').forEach((el, i) => {
                 const s = subSkills[i];
                 el.style.color = '';
                 el.style.fontWeight = '';
-                if (!s) { el.textContent = '-'; declaredSkillIds.push(null); return; }
+                el.classList.remove('d-dup');
+                if (!s) { el.textContent = '-'; declaredSymbols.push(null); return; }
                 const rawVal = typeof s === 'string' ? s : (s.skill || '');
-                if (!rawVal) { el.textContent = '-'; declaredSkillIds.push(null); return; }
-                let sym, skillId;
+                if (!rawVal) { el.textContent = '-'; declaredSymbols.push(null); return; }
+                let sym;
                 if (!isNaN(rawVal) && rawVal !== '' && skillMasterMap[rawVal]) {
                     sym = skillMasterMap[rawVal].symbol;
-                    skillId = rawVal;
                 } else {
-                    sym = rawVal;
-                    const found = Object.entries(skillMasterMap).find(([_, v]) => v.symbol === sym);
-                    skillId = found ? found[0] : null;
+                    sym = rawVal; // シンボル文字列そのまま
                 }
                 el.textContent = sym || rawVal;
-                declaredSkillIds.push(skillId);
-                el.classList.remove('d-dup');
+                declaredSymbols.push(sym || rawVal);
                 // 申請内での重複 → 黄色ハイライト
-                if (skillId && seenIds.has(skillId)) {
+                if (sym && seenSymbols.has(sym)) {
                     el.classList.add('d-dup');
-                } else if (skillId) {
-                    seenIds.add(skillId);
+                } else if (sym) {
+                    seenSymbols.add(sym);
                 }
             });
         }
 
         // 実施行（officialSkills → skillMasterMap でシンボル取得、重複は黄色・申請差異は赤）
         if (dMode === 'auto') {
-            const seenIds = new Set();
+            const seenSymbols = new Set();
             document.querySelectorAll('.skill-header').forEach((el, i) => {
                 el.style.color = '';
                 el.classList.remove('d-dup');
                 const id = execSkills[i];
                 if (i >= vLimitD || !id) { el.textContent = '-'; return; }
-                const skill = skillMasterMap[id];
-                if (!skill) { el.textContent = id; return; }
-                el.textContent = skill.symbol;
-                if (seenIds.has(id)) {
+                // IDでもシンボルでも検索できるよう正規化
+                const skill = skillMasterMap[id]
+                    || Object.values(skillMasterMap).find(v => v.symbol === id);
+                const execSymbol = skill ? skill.symbol : String(id);
+                el.textContent = execSymbol;
+                if (seenSymbols.has(execSymbol)) {
                     el.classList.add('d-dup'); // 重複は黄色
                 } else {
-                    seenIds.add(id);
+                    seenSymbols.add(execSymbol);
                 }
                 // 申請との差異 → 実施行のセルを赤に（濃淡は確定状態のみで制御）
-                const declId = declaredSkillIds[i];
-                if (i < vLimitD && declId && String(id) !== String(declId)) {
+                const declSym = declaredSymbols[i];
+                if (i < vLimitD && declSym && execSymbol !== declSym) {
                     el.style.color = 'var(--danger)';
                     hasDeclaredMismatch = true;
                 }
