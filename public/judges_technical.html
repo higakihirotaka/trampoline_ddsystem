@@ -328,7 +328,8 @@
         if (athleteId) {
             const ath = athletes.find(a => a.id === athleteId);
             if (ath) {
-                document.getElementById('ath-name').innerText = `No.${ath.order} ${ath.name1}`;
+                const dispName = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
+                document.getElementById('ath-name').innerText = `No.${ath.order} ${dispName}`;
                 document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${round.toUpperCase()}`;
 
                 // E審判が自動追従するために liveState を更新（パネルごとに分離）
@@ -336,7 +337,7 @@
                     liveState: {
                         [panel]: {
                             athleteId,
-                            athleteName: `No.${ath.order} ${ath.name1}`,
+                            athleteName: `No.${ath.order} ${dispName}`,
                             athleteClass: ath.class || ath.category || '',
                             round,
                             updatedAt: serverTimestamp()
@@ -521,14 +522,15 @@
         // バナー更新
         const ath = athletes.find(a => a.id === aid);
         if (ath) {
-            document.getElementById('ath-name').innerText = `No.${ath.order} ${ath.name1}`;
+            const dispName2 = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
+            document.getElementById('ath-name').innerText = `No.${ath.order} ${dispName2}`;
             document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${rid.toUpperCase()}`;
 
             // liveState 更新（選手切り替え時は必ずロック解除）
             await setDoc(doc(db, 'tournaments', eventId), {
                 liveState: { [panel]: {
                     athleteId: aid,
-                    athleteName: `No.${ath.order} ${ath.name1}`,
+                    athleteName: `No.${ath.order} ${dispName2}`,
                     athleteClass: ath.class || ath.category || '',
                     round: rid, updatedAt: serverTimestamp(),
                     locked: false

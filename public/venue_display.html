@@ -702,9 +702,11 @@
     if (qualTotal === null || qualTotal === undefined) return null;
     const classVal  = ath.class  || '';
     const genderVal = ath.gender || '';
+    const typeVal   = ath.type   || 'individual';
     const rule      = getClassRule(ath);
     const numPre    = rule.qualifyingRoutines ?? 1;
     const scoreMode = rule.scoreMode || 'best';
+    const sameGroup = a => a?.class === classVal && a?.gender === genderVal && (a?.type || 'individual') === typeVal;
     try {
       let rank = 1;
       if (round === 'final') {
@@ -712,14 +714,14 @@
         const snap = await getDocs(query(collection(db,"results"), where("eventId","==",eventId), where("round","==","final"), where("published","==",true)));
         snap.docs.forEach(d => {
           const data = d.data(); const a = athleteMap[data.athleteId];
-          if (a?.class === classVal && a?.gender === genderVal && (data.officialTotal ?? 0) > qualTotal + 1e-9) rank++;
+          if (sameGroup(a) && (data.officialTotal ?? 0) > qualTotal + 1e-9) rank++;
         });
       } else if (numPre <= 1) {
         // 予選1ラウンドのみ: pre1スコアで比較
         const snap = await getDocs(query(collection(db,"results"), where("eventId","==",eventId), where("round","==","pre1"), where("published","==",true)));
         snap.docs.forEach(d => {
           const data = d.data(); const a = athleteMap[data.athleteId];
-          if (a?.class === classVal && a?.gender === genderVal && (data.officialTotal ?? 0) > qualTotal + 1e-9) rank++;
+          if (sameGroup(a) && (data.officialTotal ?? 0) > qualTotal + 1e-9) rank++;
         });
       } else {
         // 予選2ラウンド: 両ラウンド取得し予選合計で比較
@@ -732,7 +734,7 @@
         pre2Snap.docs.forEach(d => { const r=d.data(); if (!sc[r.athleteId]) sc[r.athleteId]={}; sc[r.athleteId].pre2 = r.officialTotal ?? null; });
         Object.entries(sc).forEach(([aid, s]) => {
           const a = athleteMap[aid];
-          if (!a || a.class !== classVal || a.gender !== genderVal) return;
+          if (!sameGroup(a)) return;
           let other = (s.pre1 != null && s.pre2 != null)
             ? (scoreMode === 'total' ? s.pre1 + s.pre2 : Math.max(s.pre1, s.pre2))
             : (s.pre1 ?? s.pre2);
@@ -926,8 +928,12 @@
           ${sessionLine2}
         </div>
         <div class="athlete-identity-group">
-          <h1 class="athlete-name">${ath.name1 || '---'}</h1>
-          <div class="athlete-team">${ath.club1 || '---'}</div>
+          ${ath.type === 'synchro' && ath.name2
+            ? `<h1 class="athlete-name" style="font-size:0.78em">${ath.name1 || '---'}<br>${ath.name2}</h1>
+               <div class="athlete-team">${[ath.club1, ath.club2].filter(Boolean).join(' / ') || '---'}</div>`
+            : `<h1 class="athlete-name">${ath.name1 || '---'}</h1>
+               <div class="athlete-team">${ath.club1 || '---'}</div>`
+          }
         </div>
       </div>
 
@@ -1083,6 +1089,7 @@
         if (!a) return;
         if ((a.class || a.category || '') !== classVal) return;
         if ((a.gender || '') !== genderVal) return;
+        if ((a.type || 'individual') !== selType) return;
         if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null, final: null, tb1: null, tb2: null };
         if (r.round === 'pre1')  { byAth[r.athleteId].pre1 = r.officialTotal ?? null; byAth[r.athleteId].tb1 = getTbScores(r); }
         if (r.round === 'pre2')  { byAth[r.athleteId].pre2 = r.officialTotal ?? null; byAth[r.athleteId].tb2 = getTbScores(r); }
@@ -1178,8 +1185,12 @@
       return `<div class="rk-row${cur ? ' rk-current' : ''}">
         <div class="rk-rank num">${rank}</div>
         <div class="rk-name-group">
-          <div class="rk-name">${e.a.name1 || '---'}</div>
-          <div class="rk-team">${e.a.club1 || ''}</div>
+          ${e.a.type === 'synchro' && e.a.name2
+            ? `<div class="rk-name" style="font-size:0.82em;line-height:1.2">${e.a.name1}<br>${e.a.name2}</div>
+               <div class="rk-team">${[e.a.club1, e.a.club2].filter(Boolean).join(' / ')}</div>`
+            : `<div class="rk-name">${e.a.name1 || '---'}</div>
+               <div class="rk-team">${e.a.club1 || ''}</div>`
+          }
         </div>
         <div class="rk-sc num">${f(e.pre1)}</div>
         ${r2col}
