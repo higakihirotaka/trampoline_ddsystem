@@ -713,17 +713,18 @@
         const execSkills = data.officialSkills || [];
         const vLimitD = data.validCount ?? 10;
 
-        // 申請行（数値IDはシンボルへ変換、重複は赤、実施と異なれば赤）
+        // 申請行（重複は赤、実施との差異は申請行では赤くしない→実施行で表示）
         let hasDeclaredMismatch = false;
+        const declaredSkillIds = [];
         {
             const seenIds = new Set();
             document.querySelectorAll('.d-declared').forEach((el, i) => {
                 const s = subSkills[i];
                 el.style.color = '';
                 el.style.fontWeight = '';
-                if (!s) { el.textContent = '-'; return; }
+                if (!s) { el.textContent = '-'; declaredSkillIds.push(null); return; }
                 const rawVal = typeof s === 'string' ? s : (s.skill || '');
-                if (!rawVal) { el.textContent = '-'; return; }
+                if (!rawVal) { el.textContent = '-'; declaredSkillIds.push(null); return; }
                 let sym, skillId;
                 if (!isNaN(rawVal) && rawVal !== '' && skillMasterMap[rawVal]) {
                     sym = skillMasterMap[rawVal].symbol;
@@ -734,27 +735,22 @@
                     skillId = found ? found[0] : null;
                 }
                 el.textContent = sym || rawVal;
-                // 重複チェック
+                declaredSkillIds.push(skillId);
+                // 申請内での重複のみ赤（実施との差異は赤くしない）
                 if (skillId && seenIds.has(skillId)) {
                     el.style.color = 'var(--danger)';
                 } else if (skillId) {
                     seenIds.add(skillId);
                 }
-                // 実施技との比較：異なれば赤
-                const execId = execSkills[i];
-                if (i < vLimitD && skillId && execId && String(skillId) !== String(execId)) {
-                    el.style.color = 'var(--danger)';
-                    el.style.fontWeight = 'bold';
-                    hasDeclaredMismatch = true;
-                }
             });
         }
 
-        // 実施行（officialSkills → skillMasterMap でシンボル取得、重複は赤）
+        // 実施行（officialSkills → skillMasterMap でシンボル取得、重複・申請差異は赤）
         if (dMode === 'auto') {
             const seenIds = new Set();
             document.querySelectorAll('.skill-header').forEach((el, i) => {
                 el.style.color = '';
+                el.style.opacity = '';
                 const id = execSkills[i];
                 if (i >= vLimitD || !id) { el.textContent = '-'; return; }
                 const skill = skillMasterMap[id];
@@ -762,8 +758,16 @@
                 el.textContent = skill.symbol;
                 if (seenIds.has(id)) {
                     el.style.color = 'var(--danger)';
+                    el.style.opacity = '1';
                 } else {
                     seenIds.add(id);
+                }
+                // 申請との差異 → 実施行のセルを赤に（未確定でもはっきり表示）
+                const declId = declaredSkillIds[i];
+                if (i < vLimitD && declId && String(id) !== String(declId)) {
+                    el.style.color = 'var(--danger)';
+                    el.style.opacity = '1';
+                    hasDeclaredMismatch = true;
                 }
             });
         }
@@ -799,6 +803,14 @@
                 document.getElementById('dd-total-cell').textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
                 document.getElementById('res-d').innerText = totalDD > 0 ? totalDD.toFixed(1) : '0.0';
                 document.getElementById('dd-label').innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : '0.0'}`;
+                // 手動モードに切り替え（再読み込み後の復元）
+                dMode = 'manual';
+                const dToggle = document.getElementById('d-mode-toggle');
+                if (dToggle) dToggle.checked = true;
+                document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+                document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+                const dBonusCellM = document.getElementById('dd-bonus-cell');
+                if (dBonusCellM) { dBonusCellM.contentEditable = 'true'; dBonusCellM.classList.add('d-manual-cell'); }
             } else {
                 const ath = athletes.find(a => a.id === athleteId);
                 const gender = ath?.gender || '';
