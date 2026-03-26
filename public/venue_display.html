@@ -479,6 +479,16 @@
     padding:4vw;
   }
   .venue-screen.active{ opacity:1; pointer-events:auto; }
+  /* 集計中画面 */
+  .vs-calculating-text{
+    font-size:6.5vw; font-weight:900; letter-spacing:0.6em;
+    color:rgba(255,255,255,0.9);
+    text-shadow:0 0 50px rgba(180,200,255,0.4);
+    animation: calcPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes calcPulse{
+    0%,100%{ opacity:1; } 50%{ opacity:0.45; }
+  }
   .vs-label{
     font-size:1.0vw; font-weight:700; letter-spacing:0.4em;
     color:var(--text-muted); text-transform:uppercase;
@@ -551,6 +561,12 @@
   <div id="vs-ceremony" class="venue-screen">
     <div class="vs-cer-name" id="vs-cer-name">---</div>
     <div class="vs-ceremony-label">表彰式</div>
+    <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
+  </div>
+
+  <!-- 集計中画面 -->
+  <div id="vs-calculating" class="venue-screen">
+    <div class="vs-calculating-text">集 計 中</div>
     <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
@@ -1276,11 +1292,17 @@
     document.getElementById('vs-class-names').textContent = classes.join('\n') || '---';
 
     // 全画面を一旦非表示
-    ['vs-title','vs-ceremony','vs-warmup'].forEach(id => {
-      document.getElementById(id).classList.remove('active');
+    ['vs-title','vs-ceremony','vs-warmup','vs-calculating'].forEach(id => {
+      document.getElementById(id)?.classList.remove('active');
     });
     clearInterval(warmupTimerInterval);
     warmupTimerInterval = null;
+
+    // 集計中は最優先（他の画面より前面）
+    if (tourData.calculating) {
+      document.getElementById('vs-calculating').classList.add('active');
+      return;
+    }
 
     if (screen === 'title') {
       document.getElementById('vs-title').classList.add('active');

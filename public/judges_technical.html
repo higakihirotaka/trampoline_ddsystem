@@ -620,12 +620,10 @@
         }, { merge: true });
     };
 
-    // 集計中表示: モニターのスコアを非表示（誤確定時の緊急消去）
+    // 集計中表示: 会場ディスプレイに「集計中」画面を出す（審判側は変更なし）
     window.showCalculating = async function() {
-        if (!athleteId) return;
-        const resId = `${eventId}_${athleteId}_${round}`;
-        await setDoc(doc(db, 'results', resId), {
-            published: false
+        await setDoc(doc(db, 'tournaments', eventId), {
+            calculating: true
         }, { merge: true });
     };
 
@@ -1262,7 +1260,10 @@
         }
 
         try {
-            await setDoc(doc(db, "results", resId), saveData, { merge: true });
+            await Promise.all([
+                setDoc(doc(db, "results", resId), saveData, { merge: true }),
+                setDoc(doc(db, 'tournaments', eventId), { calculating: false }, { merge: true })
+            ]);
             if (!results[resId]) results[resId] = {};
             results[resId].published = true;
             renderSidebar();
