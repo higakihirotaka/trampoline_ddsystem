@@ -60,16 +60,16 @@
         /* 審判値ハイライト（明るい背景向け）— 2段階 */
         .middle-cell      { background: #c8e6c9 !important; color: #1b5e20 !important; font-weight: 900; outline: 2px solid #66bb6a; }
         /* 甘すぎる（低減点）: mild=薄青, strong=やや濃青+白文字 */
-        .low-cell-mild    { background: #bbdefb !important; color: #0d47a1 !important; font-weight: 900; outline: 2px solid #42a5f5; }
-        .low-cell         { background: #4a90d9 !important; color: #ffffff !important; font-weight: 900; outline: 2px solid #1e6bb8; }
-        /* 厳しすぎる（高減点）: mild=薄赤, strong=やや濃赤+白文字 */
-        .high-cell-mild   { background: #ffcdd2 !important; color: #b71c1c !important; font-weight: 900; outline: 2px solid #ef5350; }
-        .high-cell        { background: #e05555 !important; color: #ffffff !important; font-weight: 900; outline: 2px solid #c62828; }
+        .low-cell-mild    { background: #e8f1fb !important; color: #2c5fa8 !important; font-weight: 700; outline: 1px solid #a8c4e8; }
+        .low-cell         { background: #cfe0f7 !important; color: #1a3d7a !important; font-weight: 900; outline: 2px solid #7aaee0; }
+        /* 厳しすぎる（高減点）: mild=薄赤, strong=やや濃赤 */
+        .high-cell-mild   { background: #fdf0f0 !important; color: #a83232 !important; font-weight: 700; outline: 1px solid #e8a8a8; }
+        .high-cell        { background: #f7d5d5 !important; color: #7a1a1a !important; font-weight: 900; outline: 2px solid #e07a7a; }
         /* 手動入力セルにアウトライアー色を重ねる */
-        .manual-cell.low-cell-mild  { background: #bbdefb !important; color: #0d47a1 !important; }
-        .manual-cell.low-cell       { background: #4a90d9 !important; color: #ffffff !important; }
-        .manual-cell.high-cell-mild { background: #ffcdd2 !important; color: #b71c1c !important; }
-        .manual-cell.high-cell      { background: #e05555 !important; color: #ffffff !important; }
+        .manual-cell.low-cell-mild  { background: #e8f1fb !important; color: #2c5fa8 !important; }
+        .manual-cell.low-cell       { background: #cfe0f7 !important; color: #1a3d7a !important; }
+        .manual-cell.high-cell-mild { background: #fdf0f0 !important; color: #a83232 !important; }
+        .manual-cell.high-cell      { background: #f7d5d5 !important; color: #7a1a1a !important; }
         .middle-row td { background: rgba(67,160,71,0.08) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(67,160,71,0.3) !important; }
         .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
 
@@ -86,10 +86,14 @@
         .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 5px; font-weight: bold; }
         .score-box div { font-size: 2.2rem; font-weight: 900; font-family: monospace; color: var(--text); }
 
-        .btn-confirm { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 1.1rem; font-weight: 900; cursor: pointer; width: 100%; box-shadow: 0 2px 8px rgba(26,115,232,0.3); }
-        .lock-banner { display: none; background: #e8f5e9; border: 2px solid #43a047; border-radius: 10px; padding: 16px 20px; align-items: center; justify-content: space-between; gap: 16px; }
-        .lock-banner span { color: #2e7d32; font-weight: 900; font-size: 1rem; }
-        .btn-unlock { background: #fff3e0; color: #e65100; border: 2px solid #ff9800; padding: 12px 24px; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 0.95rem; white-space: nowrap; }
+        /* ── アクションボタン行 ── */
+        .action-row { display: flex; gap: 8px; margin-top: 4px; }
+        .btn-action { flex: 1; padding: 14px 6px; border-radius: 10px; font-size: 0.88rem; font-weight: 900; cursor: pointer; border: 2px solid transparent; transition: opacity 0.15s, filter 0.15s; white-space: nowrap; }
+        .btn-action:disabled { opacity: 0.28; cursor: not-allowed; filter: grayscale(0.4); }
+        .btn-confirm   { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,0.25); }
+        .btn-unlock    { background: #fff3e0; color: #e65100; border-color: #ff9800; }
+        .btn-republish { background: #e8f5e9; color: #2e7d32; border-color: #66bb6a; }
+        .btn-calculating { background: #f3f3f3; color: #607d8b; border-color: #b0bec5; }
 
         /* S1-S10 有効本数クリック */
         .sn-th { cursor: pointer; user-select: none; transition: background 0.15s, color 0.15s; }
@@ -269,11 +273,12 @@
             <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
         </div>
 
-        <div class="lock-banner" id="lock-banner">
-            <span>✅ 公式スコア確定済み</span>
-            <button class="btn-unlock" onclick="unlock()">修正する</button>
+        <div class="action-row">
+            <button class="btn-action btn-confirm"     id="btn-confirm"     onclick="publish()">確定&amp;表示</button>
+            <button class="btn-action btn-unlock"      id="btn-unlock"      onclick="unlock()">修正</button>
+            <button class="btn-action btn-republish"   id="btn-republish"   onclick="republish()">再表示</button>
+            <button class="btn-action btn-calculating" id="btn-calculating" onclick="showCalculating()">集計中表示</button>
         </div>
-        <button class="btn-confirm" id="btn-confirm" onclick="publish()">公式スコアを確定してモニターへ送信</button>
     </div>
 </div>
 
@@ -587,8 +592,8 @@
 
     function applyLock(locked) {
         isLocked = locked;
-        document.getElementById('lock-banner').style.display = locked ? 'flex' : 'none';
-        document.getElementById('btn-confirm').style.display = locked ? 'none' : 'block';
+        document.getElementById('btn-confirm').disabled   =  locked;  // 確定済みは再確定不可
+        document.getElementById('btn-unlock').disabled    = !locked;  // 未確定時は修正不要
     }
 
     window.unlock = async function() {
@@ -604,6 +609,24 @@
                 published: false   // D審判の修正を許可
             }, { merge: true }) : Promise.resolve()
         ]);
+    };
+
+    // 再表示: publishedAtを更新して会場ディスプレイに再アニメーション
+    window.republish = async function() {
+        if (!athleteId) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        await setDoc(doc(db, 'results', resId), {
+            publishedAt: serverTimestamp()
+        }, { merge: true });
+    };
+
+    // 集計中表示: モニターのスコアを非表示（誤確定時の緊急消去）
+    window.showCalculating = async function() {
+        if (!athleteId) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        await setDoc(doc(db, 'results', resId), {
+            published: false
+        }, { merge: true });
     };
 
 
