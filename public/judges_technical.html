@@ -1262,10 +1262,7 @@
         }
 
         try {
-            await Promise.all([
-                setDoc(doc(db, "results", resId), saveData, { merge: true }),
-                setDoc(doc(db, 'tournaments', eventId), { calculating: false }, { merge: true })
-            ]);
+            await setDoc(doc(db, "results", resId), saveData, { merge: true });
             if (!results[resId]) results[resId] = {};
             results[resId].published = true;
             renderSidebar();

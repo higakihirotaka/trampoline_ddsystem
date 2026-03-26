@@ -1480,15 +1480,19 @@
         snap.docChanges().forEach(change => {
           // 新規公開(added)と再公開(modified)の両方を表示
           if (change.type === 'added' || change.type === 'modified') {
-            // 集計中画面が出ていたら即座にローカルで消す（tournament snapshot到着を待たない）
-            // キューも空にして違う人のデータが一瞬でも出ないようにする
+            // 集計中画面が出ていたらローカルで即消し＋Firestoreも更新＆キューリセット
+            // calculating が実際に active のときだけ書き込む（余分な snapshot 発火を防ぐ）
             const calcEl = document.getElementById('vs-calculating');
             if (calcEl?.classList.contains('active')) {
               calcEl.classList.remove('active');
               displayQueue.length = 0;
+              updateDoc(doc(db, 'tournaments', eventId), { calculating: false }).catch(console.error);
             }
-            // スコア更新時: 会場画面を自動解除してスコア表示へ
-            updateDoc(doc(db, 'tournaments', eventId), { venueScreen: 'score' }).catch(console.error);
+            // 会場画面（title/ceremony/warmup）はローカルのみ解除
+            // updateDoc(venueScreen:'score') は余分な tournament snapshot を引き起こすため廃止
+            ['vs-title','vs-ceremony','vs-warmup'].forEach(id => {
+              document.getElementById(id)?.classList.remove('active');
+            });
             enqueueResult(change.doc);
           }
         });
