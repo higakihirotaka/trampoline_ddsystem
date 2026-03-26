@@ -11,10 +11,11 @@
             --border: #d4dce8; --th-bg: #1e3a5f; --th-text: #e8f0fa;
             --cell-bg: #ffffff; --cell-alt: #f5f8fc;
         }
-        body, html { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; display: flex; overflow: hidden; }
+        html { height: 100%; }
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100%; display: flex; overflow: hidden; }
         
         /* サイドバー */
-        .sidebar { width: 320px; background: var(--sidebar-bg); border-right: 1px solid #333; display: flex; flex-direction: column; flex-shrink: 0; color: #333; }
+        .sidebar { width: 320px; min-height: 0; background: var(--sidebar-bg); border-right: 1px solid #333; display: flex; flex-direction: column; flex-shrink: 0; color: #333; }
         .sidebar-header { padding: 16px 20px; background: var(--primary); color: white; flex-shrink: 0; }
         .sidebar-filters { background: #eceff1; border-bottom: 2px solid #cfd8dc; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
         .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
@@ -42,12 +43,12 @@
         .r-dot.current { border: 2px solid #000; background: #fff; color: var(--accent); }
 
         /* メインコンソール */
-        .console-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .console-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
         .top-bar { background: var(--primary); padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; }
         .btn-exit { color: #ffb3b3; text-decoration: none; border: 1px solid #ff8a80; padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 
         .athlete-banner { background: var(--card-bg); padding: 15px 25px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
-        .main-content { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .main-content { flex: 1; min-height: 0; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 20px; }
 
         /* テーブル */
         /* table-layout:fixed でセル幅固定。width:100% で画面幅を使い切り、
