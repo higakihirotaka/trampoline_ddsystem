@@ -1112,6 +1112,7 @@
   let lastShownAth     = null;   // 最後に表示した選手情報
   let currentRankingPage = 0;
   let allRankingEntries  = [];
+  let savedVenueScreen = null;  // スコア表示中に退避した会場画面（warmup等）
 
   function enqueueResult(resultDoc) {
     displayQueue.push(resultDoc);
@@ -1131,7 +1132,19 @@
 
   function onScoreDisplayDone() {
     // スコア表示完了 → キューに次があれば続行、なければ順位表へ
+    // 順位表も終わったら退避していた会場画面（warmup等）を復元
     processQueue();
+  }
+
+  function restoreSavedVenueScreen() {
+    if (savedVenueScreen === 'warmup') {
+      document.getElementById('vs-warmup')?.classList.add('active');
+      // タイマーはintervalが残っていれば継続中、止まっていれば再起動
+      if (!warmupTimerInterval && tournamentData?.warmupSettings) {
+        startWarmupDisplay(tournamentData.warmupSettings);
+      }
+    }
+    savedVenueScreen = null;
   }
 
   // ---- 順位表ループ ----
@@ -1247,7 +1260,14 @@
     renderRankingOverlay(pageEntries, start, totalPages, page);
     rankingPageTimer = setTimeout(() => {
       currentRankingPage++;
-      showRankingPage();
+      // warmup退避中かつ1周完了 → 順位表を終了してwarmupを復元
+      if (savedVenueScreen && currentRankingPage >= totalPages) {
+        stopRankingLoop();
+        currentMode = 'idle';
+        restoreSavedVenueScreen();
+      } else {
+        showRankingPage();
+      }
     }, displaySettings.rankingPageSec * 1000);
   }
 
@@ -1358,8 +1378,11 @@
     ['vs-title','vs-ceremony','vs-warmup','vs-calculating'].forEach(id => {
       document.getElementById(id)?.classList.remove('active');
     });
-    clearInterval(warmupTimerInterval);
-    warmupTimerInterval = null;
+    // スコア表示中にwarmupを退避している場合はタイマーを止めない
+    if (!savedVenueScreen) {
+      clearInterval(warmupTimerInterval);
+      warmupTimerInterval = null;
+    }
 
     // 集計中は最優先（他の画面より前面）
     if (tourData.calculating) {
@@ -1501,8 +1524,11 @@
               displayQueue.length = 0;
               // calculating:false はCJPのpublish()側で書き込む（venue_displayは非ログインのため不可）
             }
-            // 会場画面（title/ceremony/warmup）はローカルのみ解除
-            // updateDoc(venueScreen:'score') は余分な tournament snapshot を引き起こすため廃止
+            // 会場画面をローカルのみ解除（warmupが出ていた場合は退避して後で復元）
+            const warmupEl = document.getElementById('vs-warmup');
+            if (warmupEl?.classList.contains('active')) {
+              savedVenueScreen = 'warmup'; // タイマーは止めずに退避
+            }
             ['vs-title','vs-ceremony','vs-warmup'].forEach(id => {
               document.getElementById(id)?.classList.remove('active');
             });
