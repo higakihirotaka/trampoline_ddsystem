@@ -564,6 +564,11 @@
     color:var(--accent-gold);
     text-shadow:0 0 80px rgba(255,215,0,0.35);
   }
+  .vs-warmup-event{
+    font-size:1.1vw; font-weight:700; letter-spacing:0.5em;
+    color:var(--text-muted); text-transform:uppercase;
+    margin-bottom:0.6rem;
+  }
   .vs-class-names{
     font-size:var(--vs-class-fs,4.5vw); font-weight:900;
     color:var(--accent-cyan);
@@ -624,6 +629,8 @@
 
   <!-- 会場練習画面 -->
   <div id="vs-warmup" class="venue-screen">
+    <div class="vs-warmup-event" id="vs-warmup-event">---</div>
+    <div class="vs-label" style="letter-spacing:0.6em;margin-bottom:2rem;">会場練習</div>
     <div class="vs-class-names" id="vs-class-names">---</div>
     <div class="vs-timer num done" id="vs-timer">--:--</div>
     <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
@@ -1373,6 +1380,7 @@
     // クラス名（2クラスまで）
     const classes = [warmup.class1, warmup.class2].filter(Boolean);
     document.getElementById('vs-class-names').textContent = classes.join('\n') || '---';
+    document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
     // 全画面を一旦非表示
     ['vs-title','vs-ceremony','vs-warmup','vs-calculating'].forEach(id => {
