@@ -233,7 +233,8 @@
                 <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="font-size:0.72rem;font-weight:700;color:#90a4ae;min-width:40px;">1行目</span>
-                        <input type="text" id="title-line1" placeholder="（大会名から自動取得）" style="flex:1;padding:8px 10px;border:1.5px solid #cfd8dc;border-radius:8px;font-size:0.9rem;">
+                        <input type="text" id="title-line1" placeholder="（未入力なら大会名を使用）" style="flex:1;padding:8px 10px;border:1.5px solid #cfd8dc;border-radius:8px;font-size:0.9rem;">
+                        <button id="btn-autofill-name" style="white-space:nowrap;padding:7px 12px;border:1.5px solid #b0bec5;border-radius:8px;background:#f5f5f5;font-size:0.75rem;font-weight:700;cursor:pointer;color:#546e7a;">大会名を入力</button>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="font-size:0.72rem;font-weight:700;color:#90a4ae;min-width:40px;">2行目</span>
@@ -649,7 +650,11 @@
         if (!tourSnap.exists()) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
 
         const tourData = tourSnap.data();
-        document.getElementById('event-name').textContent = tourData.name || eventId;
+        const tournamentName = tourData.name || '';
+        document.getElementById('event-name').textContent = tournamentName || eventId;
+        document.getElementById('btn-autofill-name').addEventListener('click', () => {
+            document.getElementById('title-line1').value = tournamentName;
+        });
         if (tourData.displaySettings) applyDispToUI(tourData.displaySettings);
         document.getElementById('save-settings-btn').disabled = false;
 
