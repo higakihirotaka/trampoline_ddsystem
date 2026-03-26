@@ -1480,6 +1480,13 @@
         snap.docChanges().forEach(change => {
           // 新規公開(added)と再公開(modified)の両方を表示
           if (change.type === 'added' || change.type === 'modified') {
+            // 集計中画面が出ていたら即座にローカルで消す（tournament snapshot到着を待たない）
+            // キューも空にして違う人のデータが一瞬でも出ないようにする
+            const calcEl = document.getElementById('vs-calculating');
+            if (calcEl?.classList.contains('active')) {
+              calcEl.classList.remove('active');
+              displayQueue.length = 0;
+            }
             // スコア更新時: 会場画面を自動解除してスコア表示へ
             updateDoc(doc(db, 'tournaments', eventId), { venueScreen: 'score' }).catch(console.error);
             enqueueResult(change.doc);
