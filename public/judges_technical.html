@@ -1262,7 +1262,11 @@
         }
 
         try {
-            await setDoc(doc(db, "results", resId), saveData, { merge: true });
+            await Promise.all([
+                setDoc(doc(db, "results", resId), saveData, { merge: true }),
+                // calculating:false はログイン済みCJPが書く（venue_displayは非ログインのため書けない）
+                setDoc(doc(db, 'tournaments', eventId), { calculating: false }, { merge: true })
+            ]);
             if (!results[resId]) results[resId] = {};
             results[resId].published = true;
             renderSidebar();

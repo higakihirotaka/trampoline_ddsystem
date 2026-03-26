@@ -1486,7 +1486,7 @@
             if (calcEl?.classList.contains('active')) {
               calcEl.classList.remove('active');
               displayQueue.length = 0;
-              updateDoc(doc(db, 'tournaments', eventId), { calculating: false }).catch(console.error);
+              // calculating:false はCJPのpublish()側で書き込む（venue_displayは非ログインのため不可）
             }
             // 会場画面（title/ceremony/warmup）はローカルのみ解除
             // updateDoc(venueScreen:'score') は余分な tournament snapshot を引き起こすため廃止
