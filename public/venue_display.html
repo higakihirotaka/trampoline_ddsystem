@@ -480,14 +480,15 @@
   }
   .venue-screen.active{ opacity:1; pointer-events:auto; }
   /* 集計中画面 */
-  .vs-calculating-text{
-    font-size:6.5vw; font-weight:900; letter-spacing:0.6em;
-    color:rgba(255,255,255,0.9);
-    text-shadow:0 0 50px rgba(180,200,255,0.4);
+  #vs-calculating{ container-type:size; justify-content:flex-start; padding:0; }
+  .calc-status{
+    font-size:2.8cqw; font-weight:900; letter-spacing:0.35em;
+    color:rgba(255,255,255,0.55); text-align:center;
+    padding: 4cqh 0 0;
     animation: calcPulse 1.8s ease-in-out infinite;
   }
   @keyframes calcPulse{
-    0%,100%{ opacity:1; } 50%{ opacity:0.45; }
+    0%,100%{ opacity:1; } 50%{ opacity:0.35; }
   }
   .vs-label{
     font-size:1.0vw; font-weight:700; letter-spacing:0.4em;
@@ -564,11 +565,8 @@
     <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
-  <!-- 集計中画面 -->
-  <div id="vs-calculating" class="venue-screen">
-    <div class="vs-calculating-text">集 計 中</div>
-    <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
-  </div>
+  <!-- 集計中画面（内容はJS動的生成） -->
+  <div id="vs-calculating" class="venue-screen"></div>
 
   <!-- 会場練習画面 -->
   <div id="vs-warmup" class="venue-screen">
@@ -1300,7 +1298,26 @@
 
     // 集計中は最優先（他の画面より前面）
     if (tourData.calculating) {
-      document.getElementById('vs-calculating').classList.add('active');
+      const calcEl = document.getElementById('vs-calculating');
+      const ath = athleteMap[tourData.calculatingAthleteId || ''] || {};
+      const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
+      const orderPart   = ath.order ? ` / No.${ath.order}` : '';
+      const roundLbl    = tourData.calculatingRound ? getRoundLabel(tourData.calculatingRound) : '';
+      const namePart    = ath.type === 'synchro' && ath.name2
+        ? `<h1 class="athlete-name" style="font-size:5cqw">${ath.name1||'---'} <span style="opacity:0.5;font-weight:400;letter-spacing:0">/</span> ${ath.name2}</h1>
+           <div class="athlete-team">${ath.club1||''}</div>`
+        : `<h1 class="athlete-name">${ath.name1||'---'}</h1>
+           <div class="athlete-team">${ath.club1||''}</div>`;
+      calcEl.innerHTML = `
+        <div class="convention-header" style="opacity:1">${tournamentName}</div>
+        <div class="athlete-section" style="padding-bottom:3cqh">
+          <div class="class-no">${classGender}${orderPart}</div>
+          <div class="session-info">${roundLbl}</div>
+          <div class="athlete-identity-group">${namePart}</div>
+        </div>
+        <div class="calc-status">得点集計中</div>
+        <footer class="footer-credits" style="opacity:1;position:absolute;bottom:1.5cqh;left:0;right:0;text-align:center">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
+      calcEl.classList.add('active');
       return;
     }
 

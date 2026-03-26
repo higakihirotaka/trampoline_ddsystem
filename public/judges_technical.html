@@ -620,10 +620,12 @@
         }, { merge: true });
     };
 
-    // 集計中表示: 会場ディスプレイに「集計中」画面を出す（審判側は変更なし）
+    // 集計中表示: 会場ディスプレイに選手情報付きの「得点集計中」画面を出す（審判側は変更なし）
     window.showCalculating = async function() {
         await setDoc(doc(db, 'tournaments', eventId), {
-            calculating: true
+            calculating: true,
+            calculatingAthleteId: athleteId || null,
+            calculatingRound:     round     || null
         }, { merge: true });
     };
 
