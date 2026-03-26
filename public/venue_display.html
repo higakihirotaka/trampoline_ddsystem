@@ -479,16 +479,68 @@
     padding:4vw;
   }
   .venue-screen.active{ opacity:1; pointer-events:auto; }
-  /* 集計中画面 */
-  #vs-calculating{ container-type:size; justify-content:flex-start; padding:0; }
+  /* ===== 集計中画面 ===== */
+  #vs-calculating{ container-type:size; padding:0; align-items:stretch; justify-content:flex-start; }
+  .calc-layout{
+    width:100%; height:100%;
+    display:flex; flex-direction:column;
+    padding: 0 6cqw;
+    box-sizing:border-box;
+  }
+  /* 大会名ヘッダー */
+  .calc-conv{
+    flex-shrink:0;
+    font-size:1.1cqw; font-weight:700; letter-spacing:0.7cqw;
+    color:rgba(255,200,70,0.85); text-transform:uppercase; text-align:center;
+    border-bottom:1.5px solid rgba(255,255,255,0.1);
+    padding: 2.8cqh 0 2.2cqh;
+  }
+  /* クラス・ラウンド行 */
+  .calc-meta{
+    flex-shrink:0;
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding-top:3cqh;
+  }
+  .calc-class{
+    font-size:1.8cqw; font-weight:800; color:rgba(255,200,70,0.9);
+  }
+  .calc-round{
+    font-size:1.1cqw; font-weight:600; letter-spacing:0.15em;
+    color:rgba(255,255,255,0.42); text-transform:uppercase;
+  }
+  /* 選手名ブロック（画面の縦中央付近に配置） */
+  .calc-name-block{
+    flex:1; display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-start;
+  }
+  .calc-name{
+    font-size:5.5cqw; font-weight:900; line-height:0.9;
+    letter-spacing:-2px; color:#ffffff;
+    white-space:nowrap;
+  }
+  .calc-team{
+    font-size:2.2cqw; font-weight:700;
+    color:rgba(255,255,255,0.65);
+    margin-top:1.8cqh; letter-spacing:0.1cqw;
+    white-space:nowrap;
+  }
+  /* 得点集計中 */
   .calc-status{
-    font-size:2.8cqw; font-weight:900; letter-spacing:0.35em;
-    color:rgba(255,255,255,0.55); text-align:center;
-    padding: 4cqh 0 0;
-    animation: calcPulse 1.8s ease-in-out infinite;
+    flex-shrink:0;
+    font-size:2.5cqw; font-weight:900; letter-spacing:0.45em;
+    color:rgba(255,255,255,0.42);
+    padding-bottom:5cqh;
+    animation:calcPulse 1.8s ease-in-out infinite;
+  }
+  /* クレジット */
+  .calc-credit{
+    flex-shrink:0;
+    font-size:0.68cqw; font-weight:700; letter-spacing:0.25em;
+    color:rgba(255,255,255,0.25); text-align:center;
+    padding-bottom:2cqh;
   }
   @keyframes calcPulse{
-    0%,100%{ opacity:1; } 50%{ opacity:0.35; }
+    0%,100%{ opacity:1; } 50%{ opacity:0.3; }
   }
   .vs-label{
     font-size:1.0vw; font-weight:700; letter-spacing:0.4em;
@@ -1303,20 +1355,23 @@
       const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
       const orderPart   = ath.order ? ` / No.${ath.order}` : '';
       const roundLbl    = tourData.calculatingRound ? getRoundLabel(tourData.calculatingRound) : '';
-      const namePart    = ath.type === 'synchro' && ath.name2
-        ? `<h1 class="athlete-name" style="font-size:5cqw">${ath.name1||'---'} <span style="opacity:0.5;font-weight:400;letter-spacing:0">/</span> ${ath.name2}</h1>
-           <div class="athlete-team">${ath.club1||''}</div>`
-        : `<h1 class="athlete-name">${ath.name1||'---'}</h1>
-           <div class="athlete-team">${ath.club1||''}</div>`;
+      const nameHtml = ath.type === 'synchro' && ath.name2
+        ? `<div class="calc-name" style="font-size:4.8cqw">${ath.name1||'---'} <span style="opacity:0.45;font-weight:400">/</span> ${ath.name2}</div>`
+        : `<div class="calc-name">${ath.name1||'---'}</div>`;
       calcEl.innerHTML = `
-        <div class="convention-header" style="opacity:1">${tournamentName}</div>
-        <div class="athlete-section" style="padding-bottom:3cqh">
-          <div class="class-no">${classGender}${orderPart}</div>
-          <div class="session-info">${roundLbl}</div>
-          <div class="athlete-identity-group">${namePart}</div>
-        </div>
-        <div class="calc-status">得点集計中</div>
-        <footer class="footer-credits" style="opacity:1;position:absolute;bottom:1.5cqh;left:0;right:0;text-align:center">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
+        <div class="calc-layout">
+          <div class="calc-conv">${tournamentName}</div>
+          <div class="calc-meta">
+            <div class="calc-class">${classGender}${orderPart}</div>
+            <div class="calc-round">${roundLbl}</div>
+          </div>
+          <div class="calc-name-block">
+            ${nameHtml}
+            <div class="calc-team">${ath.club1||''}</div>
+          </div>
+          <div class="calc-status">得点集計中</div>
+          <div class="calc-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>
+        </div>`;
       calcEl.classList.add('active');
       return;
     }
