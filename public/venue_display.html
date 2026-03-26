@@ -606,7 +606,9 @@
   <!-- 大会タイトル画面 -->
   <div id="vs-title" class="venue-screen">
     <div class="vs-label">COMPETITION</div>
-    <div class="vs-title-name" id="vs-title-name">---</div>
+    <div class="vs-title-name" id="vs-title-line1"></div>
+    <div class="vs-title-name" id="vs-title-line2" style="display:none"></div>
+    <div class="vs-title-name" id="vs-title-line3" style="display:none"></div>
     <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
@@ -1334,7 +1336,18 @@
     document.documentElement.style.setProperty('--vs-timer-fs',    (warmup.timerFontSize || 16)  + 'vw');
 
     // 大会名を各画面に反映
-    document.getElementById('vs-title-name').textContent = name;
+    // タイトル3行表示（line1未設定なら大会名をフォールバック）
+    const lines = [
+        ts.line1 || name,
+        ts.line2 || '',
+        ts.line3 || ''
+    ];
+    ['vs-title-line1','vs-title-line2','vs-title-line3'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = lines[i];
+        el.style.display = lines[i] ? '' : 'none';
+    });
     document.getElementById('vs-cer-name').textContent   = name;
 
     // クラス名（2クラスまで）

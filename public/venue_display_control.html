@@ -229,9 +229,23 @@
 
             <!-- タイトル設定 -->
             <div id="panel-title" class="screen-panel">
-                <div class="panel-title">🏟️ タイトル画面 — 文字サイズ</div>
+                <div class="panel-title">🏟️ タイトル画面</div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#90a4ae;min-width:40px;">1行目</span>
+                        <input type="text" id="title-line1" placeholder="（大会名から自動取得）" style="flex:1;padding:8px 10px;border:1.5px solid #cfd8dc;border-radius:8px;font-size:0.9rem;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#90a4ae;min-width:40px;">2行目</span>
+                        <input type="text" id="title-line2" placeholder="（空白=非表示）" style="flex:1;padding:8px 10px;border:1.5px solid #cfd8dc;border-radius:8px;font-size:0.9rem;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#90a4ae;min-width:40px;">3行目</span>
+                        <input type="text" id="title-line3" placeholder="（空白=非表示）" style="flex:1;padding:8px 10px;border:1.5px solid #cfd8dc;border-radius:8px;font-size:0.9rem;">
+                    </div>
+                </div>
                 <div class="fs-row">
-                    <span class="fs-label">大会名</span>
+                    <span class="fs-label">文字サイズ</span>
                     <input type="range" id="title-fs" min="2" max="16" step="0.5" value="6.5">
                     <input type="number" id="title-fs-val" class="val-box" min="2" max="16" step="0.5" value="6.5">
                     <span class="unit">vw</span>
@@ -446,6 +460,12 @@
             const v = document.getElementById('title-fs-val');
             if (r) r.value = ts.fontSize || 6.5;
             if (v) v.value = ts.fontSize || 6.5;
+            const l1 = document.getElementById('title-line1');
+            const l2 = document.getElementById('title-line2');
+            const l3 = document.getElementById('title-line3');
+            if (l1) l1.value = ts.line1 || '';
+            if (l2) l2.value = ts.line2 || '';
+            if (l3) l3.value = ts.line3 || '';
         }
         if (cs) {
             setSlider('cer-name-fs', cs.nameFontSize  || 3.5);
@@ -505,7 +525,10 @@
         st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
-                'titleSettings.fontSize': Number(document.getElementById('title-fs-val').value)
+                'titleSettings.fontSize': Number(document.getElementById('title-fs-val').value),
+                'titleSettings.line1': document.getElementById('title-line1').value.trim(),
+                'titleSettings.line2': document.getElementById('title-line2').value.trim(),
+                'titleSettings.line3': document.getElementById('title-line3').value.trim()
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
