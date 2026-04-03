@@ -390,6 +390,11 @@
     #ranking-overlay.visible{
       opacity: 1; transform: translateY(0); pointer-events: auto;
     }
+    /* 巡回モード: 全画面固定でvenue screensより前面に */
+    #ranking-overlay.carousel-mode{
+      position: fixed; inset: 0; z-index: 150;
+      container-type: size;
+    }
     .rk-title{
       font-size: 1.3cqw; font-weight: 800; line-height: 1.0;
       letter-spacing: 0.45cqw; color: var(--accent-gold);
@@ -564,35 +569,105 @@
     color:var(--accent-gold);
     text-shadow:0 0 80px rgba(255,215,0,0.35);
   }
+  /* ===== システムロゴ画面 ===== */
+  #vs-logo{
+    background: radial-gradient(ellipse at 50% 48%, #07111f 0%, #020810 100%);
+    justify-content: center; gap: 0;
+  }
+  .vs-logo-wrap{
+    display: flex; flex-direction: column; align-items: center;
+  }
+  /* TRAvaults + SYSTEM を横並びで1ユニット */
+  .vs-logo-brand{
+    display: flex; align-items: flex-end; gap: 1.8vw; line-height: 1;
+  }
+  .vs-logo-tra{
+    font-size: 10vw; font-weight: 900;
+    letter-spacing: 0.08em;
+    color: var(--accent-cyan);
+    text-shadow:
+      0 0 50px rgba(0,242,255,0.5),
+      0 0 130px rgba(0,242,255,0.2);
+  }
+  .vs-logo-system{
+    font-size: 3.8vw; font-weight: 700; letter-spacing: 0.45em;
+    color: rgba(255,255,255,0.55);
+    padding-bottom: 1.4vw; /* ベースラインをTRAvaultsに合わせる */
+  }
+  .vs-logo-rule{
+    width: 100%; height: 1px; margin-top: 2.2vw;
+    background: linear-gradient(90deg,
+      transparent 0%, rgba(0,242,255,0.4) 30%,
+      rgba(0,242,255,0.4) 70%, transparent 100%);
+  }
+  .vs-logo-tagline{
+    font-size: 1.8vw; font-weight: 600; letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.32); text-transform: uppercase;
+    margin-top: 2.2vw; line-height: 2.0; text-align: center;
+  }
+  .vs-logo-credit{
+    font-size: 2vw; font-weight: 700; letter-spacing: 0.18em;
+    color: rgba(255,255,255,0.75); text-transform: uppercase;
+    margin-top: 3vw;
+  }
+  /* ===== 会場練習画面 専用レイアウト ===== */
+  #vs-warmup{
+    justify-content: flex-start;
+    align-items: center;
+    padding: 4.5vh 6vw 4vh;
+  }
+  .vs-warmup-top{
+    width:100%; text-align:center;
+    flex-shrink:0;
+  }
   .vs-warmup-event{
-    font-size:1.1vw; font-weight:700; letter-spacing:0.5em;
-    color:var(--text-muted); text-transform:uppercase;
-    margin-bottom:0.6rem;
+    font-size:1.4vw; font-weight:700; letter-spacing:0.55em;
+    color:rgba(255,255,255,0.3); text-transform:uppercase;
+  }
+  /* ラベル+クラス名+タイマーをまとめるラッパー：残り空間を使って全体を上下中央に */
+  .vs-warmup-main{
+    flex:1; width:100%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:4vh;
+  }
+  /* 会場練習ラベル + クラス名 エリア */
+  .vs-warmup-info{
+    flex-shrink:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:3vh;
+  }
+  .vs-warmup-label{
+    font-size:5.5vw; font-weight:800; letter-spacing:0.5em;
+    color:var(--accent-gold); text-transform:uppercase;
+    line-height:1;
   }
   .vs-class-names{
     font-size:var(--vs-class-fs,4.5vw); font-weight:900;
-    color:var(--accent-cyan);
-    letter-spacing:0.05em;
-    margin-bottom:1.5rem;
-    text-shadow:0 0 50px rgba(0,242,255,0.3);
-    white-space:pre-line;
+    color:rgba(255,255,255,0.9);
+    letter-spacing:0.04em;
+    white-space:pre-line; text-align:center;
+    line-height:1.2;
   }
+  /* タイマー */
   .vs-timer{
-    font-size:var(--vs-timer-fs,16vw); font-weight:900; line-height:0.95;
-    letter-spacing:-0.02em;
+    font-size:var(--vs-timer-fs,24vw); font-weight:900; line-height:0.85;
+    letter-spacing:-0.04em;
     color:var(--text-white);
-    text-shadow:0 0 100px rgba(255,255,255,0.1);
+    text-shadow:0 0 160px rgba(255,255,255,0.08);
     font-variant-numeric:tabular-nums;
     font-feature-settings:"tnum" 1;
     transition: color 0.5s, text-shadow 0.5s;
+    flex-shrink:0;
   }
-  .vs-timer.warning{ color:#ff6b35; text-shadow:0 0 100px rgba(255,107,53,0.4); }
-  .vs-timer.done   { color:var(--accent-gold); text-shadow:0 0 100px rgba(255,215,0,0.4); animation:pulse 1s ease-in-out infinite; }
-  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .vs-timer.warning{ color:#ff6b35; text-shadow:0 0 120px rgba(255,107,53,0.4); }
+  .vs-timer.done   { color:var(--accent-gold); text-shadow:0 0 120px rgba(255,215,0,0.45); animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.55} }
   .vs-footer{
-    position:absolute; bottom:1.2vw; left:0; width:100%; text-align:center;
-    font-size:0.6vw; font-weight:700; letter-spacing:0.22em;
-    color:rgba(255,255,255,0.22); text-transform:uppercase; pointer-events:none;
+    position:absolute; bottom:1.5vw; left:0; width:100%; text-align:center;
+    font-size:0.9vw; font-weight:700; letter-spacing:0.22em;
+    color:rgba(255,255,255,0.28); text-transform:uppercase; pointer-events:none;
   }
   </style>
 </head>
@@ -606,6 +681,19 @@
     <div class="breakdown-row" style="opacity:1;"></div>
     <div class="result-section" style="opacity:1;"></div>
     <footer class="footer-credits" style="opacity:1;">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
+  </div>
+
+  <!-- システムロゴ画面 -->
+  <div id="vs-logo" class="venue-screen">
+    <div class="vs-logo-wrap">
+      <div class="vs-logo-brand">
+        <span class="vs-logo-tra">TRAvaults</span>
+        <span class="vs-logo-system">SYSTEM</span>
+      </div>
+      <div class="vs-logo-rule"></div>
+      <div class="vs-logo-tagline">Online Score Management System for Trampoline Gymnastics</div>
+      <div class="vs-logo-credit">BUILT BY HIROTAKA.HIGAKI</div>
+    </div>
   </div>
 
   <!-- 大会タイトル画面 -->
@@ -629,10 +717,17 @@
 
   <!-- 会場練習画面 -->
   <div id="vs-warmup" class="venue-screen">
-    <div class="vs-warmup-event" id="vs-warmup-event">---</div>
-    <div class="vs-label" style="letter-spacing:0.6em;margin-bottom:2rem;">会場練習</div>
-    <div class="vs-class-names" id="vs-class-names">---</div>
-    <div class="vs-timer num done" id="vs-timer">--:--</div>
+    <div class="vs-warmup-top">
+      <div class="vs-warmup-event" id="vs-warmup-event">---</div>
+    </div>
+    <!-- ラベル+クラス名+タイマーをまとめて上下中央 -->
+    <div class="vs-warmup-main">
+      <div class="vs-warmup-info">
+        <div class="vs-warmup-label">会場練習</div>
+        <div class="vs-class-names" id="vs-class-names">---</div>
+      </div>
+      <div class="vs-timer num done" id="vs-timer">--:--</div>
+    </div>
     <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
@@ -1113,7 +1208,7 @@
 
   let rankingTimer     = null;   // スコア表示→順位表遷移タイマー
   let rankingPageTimer = null;   // 順位表ページ切替タイマー
-  let currentMode      = 'idle'; // 'idle' | 'score' | 'ranking'
+  let currentMode      = 'idle'; // 'idle' | 'score' | 'ranking' | 'carousel'
   let displayQueue     = [];     // 表示待ちの resultDoc キュー
   let lastShownResData = null;   // 最後に表示したスコアのデータ（順位表用）
   let lastShownAth     = null;   // 最後に表示した選手情報
@@ -1121,7 +1216,17 @@
   let allRankingEntries  = [];
   let savedVenueScreen = null;  // スコア表示中に退避した会場画面（warmup等）
 
+  // ---- 順位表 巡回モード ----
+  let carouselActive   = false;
+  let carouselItems    = [];   // [{classVal, gender, type}]
+  let carouselIndex    = 0;
+  let carouselShowLogo = false;
+  let carouselPageIdx  = 0;
+  let carouselEntries  = [];
+  let carouselTimer    = null;
+
   function enqueueResult(resultDoc) {
+    invalidateRankingCache();
     displayQueue.push(resultDoc);
     if (currentMode !== 'score') processQueue();
   }
@@ -1175,26 +1280,28 @@
     return (classRules[selType] || {})[classVal] || {};
   }
 
-  async function fetchRankingEntries() {
-    if (!lastShownResData) return [];
-    const ath       = lastShownAth || {};
-    const classVal  = ath.class  || ath.category || '';
-    const genderVal = ath.gender || '';
-    const selType   = ath.type || 'individual';
+  // ---- 順位表クエリキャッシュ（巡回中の重複Firestoreクエリ防止）----
+  let _rankingCache = null;   // { docs: [], time: number }
+  const RANKING_CACHE_MS = 60_000;
+  function invalidateRankingCache() { _rankingCache = null; }
+  async function _getPublishedResultDocs() {
+    const now = Date.now();
+    if (_rankingCache && now - _rankingCache.time < RANKING_CACHE_MS) return _rankingCache.docs;
+    const snap = await getDocs(query(collection(db, "results"),
+      where("eventId", "==", eventId), where("published", "==", true)));
+    _rankingCache = { docs: snap.docs, time: now };
+    return snap.docs;
+  }
 
-    // クラスルールからscoreModeとnumPreを取得
-    const rule      = getClassRule(ath);
+  // クラス指定でランキングエントリを取得（巡回モード・通常モード共用）
+  async function fetchRankingEntriesFor(classVal, genderVal, selType) {
+    const rule      = getClassRule({ class: classVal, type: selType });
     const numPre    = rule.qualifyingRoutines || 1;
     const scoreMode = rule.scoreMode || 'best';
-
     try {
-      const snap = await getDocs(
-        query(collection(db, "results"),
-          where("eventId", "==", eventId),
-          where("published", "==", true))
-      );
+      const resultDocs = await _getPublishedResultDocs();
       const byAth = {};
-      snap.docs.forEach(d => {
+      resultDocs.forEach(d => {
         const r = d.data();
         const a = athleteMap[r.athleteId];
         if (!a) return;
@@ -1208,20 +1315,15 @@
       });
       return Object.entries(byAth)
         .map(([id, s]) => {
-          // 予選スコア計算: best=高い方、total=合計
           let qualScore = null;
           if (numPre === 1) {
             qualScore = s.pre1;
           } else {
             if (s.pre1 != null && s.pre2 != null) {
               qualScore = scoreMode === 'total' ? s.pre1 + s.pre2 : Math.max(s.pre1, s.pre2);
-            } else if (s.pre1 != null) {
-              qualScore = s.pre1;
-            } else if (s.pre2 != null) {
-              qualScore = s.pre2;
-            }
+            } else if (s.pre1 != null) { qualScore = s.pre1; }
+            else if (s.pre2 != null)   { qualScore = s.pre2; }
           }
-          // タイブレーク: bestモードは選ばれた方のルーティン、totalは合計
           let tb;
           if (scoreMode === 'best' && numPre >= 2 && s.pre1 != null && s.pre2 != null) {
             tb = s.pre1 >= s.pre2 ? (s.tb1 || {}) : (s.tb2 || {});
@@ -1238,13 +1340,11 @@
           const sa = a.total ?? -Infinity, sb = b.total ?? -Infinity;
           const diff = sb - sa;
           if (Math.abs(diff) > 1e-9) return diff;
-          // bestモード: 同点なら2本の合計で比較
           if (scoreMode === 'best' && numPre >= 2) {
             const ca = (a.pre1 ?? 0) + (a.pre2 ?? 0);
             const cb = (b.pre1 ?? 0) + (b.pre2 ?? 0);
             if (Math.abs(ca - cb) > 1e-9) return cb - ca;
           }
-          // タイブレーク: 個人=T→H→D, シンクロ=S→H→D
           const keys = ['tof', 'hd', 'diff'];
           for (const k of keys) {
             const va = a._tb[k], vb = b._tb[k];
@@ -1255,40 +1355,56 @@
     } catch(e) { console.error(e); return []; }
   }
 
+  async function fetchRankingEntries() {
+    if (!lastShownResData) return [];
+    const ath = lastShownAth || {};
+    return fetchRankingEntriesFor(
+      ath.class || ath.category || '',
+      ath.gender || '',
+      ath.type || 'individual'
+    );
+  }
+
   function showRankingPage() {
     if (allRankingEntries.length === 0) return;
+    const ath = lastShownAth || {};
     const rowsPerPage = displaySettings.rankingRows;
     const totalPages = Math.ceil(allRankingEntries.length / rowsPerPage);
     const page  = currentRankingPage % totalPages;
     const start = page * rowsPerPage;
     let pageEntries = allRankingEntries.slice(start, start + rowsPerPage);
-    // 空行でpadして全ページ同じ行数にする（レイアウトを1ページ目と揃える）
     while (pageEntries.length < rowsPerPage) pageEntries.push(null);
-    renderRankingOverlay(pageEntries, start, totalPages, page);
+    renderRankingOverlay(pageEntries, start, totalPages, page,
+      ath.class || ath.category || '', ath.gender || '', ath.type || 'individual');
     rankingPageTimer = setTimeout(() => {
       currentRankingPage++;
-      // warmup退避中かつ1周完了 → 順位表を終了してwarmupを復元
-      if (savedVenueScreen && currentRankingPage >= totalPages) {
+      // 1周完了: warmup復元 or 巡回再開
+      if (currentRankingPage >= totalPages) {
         stopRankingLoop();
         currentMode = 'idle';
-        restoreSavedVenueScreen();
+        if (savedVenueScreen) restoreSavedVenueScreen();
+        if (carouselActive) carouselNext();
       } else {
         showRankingPage();
       }
     }, displaySettings.rankingPageSec * 1000);
   }
 
-  function renderRankingOverlay(entries, startOffset, totalPages, currentPage) {
+  function renderRankingOverlay(entries, startOffset, totalPages, currentPage, classVal, genderVal, selType) {
     const overlay = document.getElementById('ranking-overlay');
     if (!overlay) return;
-    const ath       = lastShownAth || {};
-    const classVal  = ath.class  || ath.category || '';
-    const genderVal = ath.gender || '';
+    // 引数未指定時は lastShownAth からフォールバック（通常の確定表示）
+    if (classVal === undefined) {
+      const ath = lastShownAth || {};
+      classVal  = ath.class || ath.category || '';
+      genderVal = ath.gender || '';
+      selType   = ath.type || 'individual';
+    }
     const heading   = [classVal, genderVal].filter(Boolean).join(' ');
     const f = v => v !== null && v !== undefined ? Number(v).toFixed(3) : '--';
-    const curAthId = lastShownResData?.athleteId;
+    const curAthId = currentMode === 'carousel' ? null : lastShownResData?.athleteId;
 
-    const rule      = getClassRule(ath);
+    const rule      = getClassRule({ class: classVal, type: selType });
     const numPre    = rule.qualifyingRoutines || 1;
     const scoreMode = rule.scoreMode || 'best';
     const scoreModeLabel = scoreMode === 'total' ? 'TOTAL' : 'BEST';
@@ -1333,6 +1449,84 @@
     overlay.classList.add('visible');
   }
 
+  // ---- 順位表 巡回モード ----
+  function carouselStop() {
+    if (carouselTimer) { clearTimeout(carouselTimer); carouselTimer = null; }
+    const overlay = document.getElementById('ranking-overlay');
+    if (overlay) overlay.classList.remove('carousel-mode');
+    stopRankingLoop();
+    document.getElementById('vs-logo')?.classList.remove('active');
+    currentMode = 'idle';
+  }
+
+  async function carouselLoadItem() {
+    if (!carouselActive || carouselItems.length === 0) return;
+    // 表示すべきエントリがあるクラスを探す（スキップ対応）
+    let tries = 0;
+    while (tries < carouselItems.length) {
+      const item = carouselItems[carouselIndex % carouselItems.length];
+      carouselEntries = await fetchRankingEntriesFor(item.classVal, item.gender, item.type);
+      if (carouselEntries.length > 0) break;
+      carouselIndex++;
+      tries++;
+    }
+    if (carouselEntries.length === 0) { carouselStop(); return; }
+    carouselPageIdx = 0;
+    currentMode = 'carousel';
+    carouselShowPage();
+  }
+
+  function carouselShowPage() {
+    if (!carouselActive || currentMode === 'score' || currentMode === 'ranking') return;
+    const item = carouselItems[carouselIndex % carouselItems.length];
+    const rowsPerPage = displaySettings.rankingRows;
+    const totalPages  = Math.ceil(carouselEntries.length / rowsPerPage);
+    const start = carouselPageIdx * rowsPerPage;
+    let pageEntries = carouselEntries.slice(start, start + rowsPerPage);
+    while (pageEntries.length < rowsPerPage) pageEntries.push(null);
+    renderRankingOverlay(pageEntries, start, totalPages, carouselPageIdx,
+      item.classVal, item.gender, item.type);
+    carouselTimer = setTimeout(async () => {
+      carouselPageIdx++;
+      if (carouselPageIdx >= totalPages) {
+        await carouselNext();
+      } else {
+        carouselShowPage();
+      }
+    }, displaySettings.rankingPageSec * 1000);
+  }
+
+  async function carouselNext() {
+    if (carouselTimer) { clearTimeout(carouselTimer); carouselTimer = null; }
+    if (!carouselActive) return;
+    carouselIndex++;
+    if (carouselIndex >= carouselItems.length) {
+      // 全クラス終了
+      carouselIndex = 0;
+      if (carouselShowLogo) {
+        // ロゴ画面を一定時間表示してからループ
+        stopRankingLoop();
+        document.getElementById('vs-logo')?.classList.add('active');
+        carouselTimer = setTimeout(async () => {
+          document.getElementById('vs-logo')?.classList.remove('active');
+          await carouselLoadItem();
+        }, displaySettings.rankingPageSec * 2 * 1000);
+        return;
+      }
+    }
+    await carouselLoadItem();
+  }
+
+  async function carouselStart() {
+    if (!carouselActive || carouselItems.length === 0) return;
+    if (currentMode === 'score' || currentMode === 'ranking') return;
+    // overlay を全画面固定・即表示（venue screens / score 画面を隠す）
+    const overlay = document.getElementById('ranking-overlay');
+    if (overlay) { overlay.classList.add('carousel-mode', 'visible'); overlay.innerHTML = ''; }
+    carouselIndex = 0;
+    await carouselLoadItem();
+  }
+
   // ---- アニメーション設定をCSS変数で適用 ----
   // animTotalSec から duration / stagger を比率（元の 2600:1400 = 13:7）で自動計算
   // 5要素分の stagger + duration = animTotal なので:
@@ -1360,7 +1554,7 @@
     document.documentElement.style.setProperty('--vs-cer-name-fs', (cs.nameFontSize  || 3.5) + 'vw');
     document.documentElement.style.setProperty('--vs-cer-label-fs',(cs.labelFontSize || 10)  + 'vw');
     document.documentElement.style.setProperty('--vs-class-fs',    (warmup.classFontSize || 4.5) + 'vw');
-    document.documentElement.style.setProperty('--vs-timer-fs',    (warmup.timerFontSize || 16)  + 'vw');
+    document.documentElement.style.setProperty('--vs-timer-fs',    (warmup.timerFontSize || 24)  + 'vw');
 
     // 大会名を各画面に反映
     // タイトル3行表示（line1未設定なら大会名をフォールバック）
@@ -1383,7 +1577,7 @@
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
     // 全画面を一旦非表示
-    ['vs-title','vs-ceremony','vs-warmup','vs-calculating'].forEach(id => {
+    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-calculating'].forEach(id => {
       document.getElementById(id)?.classList.remove('active');
     });
     // スコア表示中にwarmupを退避している場合はタイマーを止めない
@@ -1420,7 +1614,27 @@
       return;
     }
 
-    if (screen === 'title') {
+    // ---- 巡回モード制御 ----
+    const carousel = tourData.rankingCarousel || {};
+    const wasCarousel = carouselActive;
+    carouselActive   = !!carousel.active;
+    carouselItems    = carousel.items    || [];
+    carouselShowLogo = !!carousel.showLogo;
+
+    if (carouselActive && !wasCarousel) {
+      // 巡回開始
+      carouselStart();
+      return; // 通常の venue screen 表示はしない
+    }
+    if (!carouselActive && wasCarousel) {
+      // 巡回停止 → 通常画面を再適用（fall through）
+      carouselStop();
+    }
+    if (carouselActive) return; // 巡回中は venueScreen 表示に干渉しない（stopされるまで）
+
+    if (screen === 'logo') {
+      document.getElementById('vs-logo').classList.add('active');
+    } else if (screen === 'title') {
       document.getElementById('vs-title').classList.add('active');
     } else if (screen === 'ceremony') {
       document.getElementById('vs-ceremony').classList.add('active');
@@ -1516,8 +1730,7 @@
       onSnapshot(q, snap => {
         if (initialLoad) {
           initialLoad = false;
-          // 初回: 最新1件のみ表示
-          if (!snap.empty) enqueueResult(snap.docs[0]);
+          // 初回発火は無視（リロード時に前回のスコアが再表示されるのを防ぐ）
           return;
         }
         // 以後: 新規追加分のみキューに入れる
@@ -1537,7 +1750,7 @@
             if (warmupEl?.classList.contains('active')) {
               savedVenueScreen = 'warmup'; // タイマーは止めずに退避
             }
-            ['vs-title','vs-ceremony','vs-warmup'].forEach(id => {
+            ['vs-logo','vs-title','vs-ceremony','vs-warmup'].forEach(id => {
               document.getElementById(id)?.classList.remove('active');
             });
             enqueueResult(change.doc);

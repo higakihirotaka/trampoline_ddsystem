@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>審判構成設定 - Trampoline System</title>
+    <style>
+        :root {
+            --accent: #1a73e8; --bg: #f0f2f5; --card: #ffffff;
+            --text-main: #263238; --text-sub: #546e7a;
+            --green: #2e7d32; --green-light: #e8f5e9;
+            --blue-light: #e3f2fd;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text-main); }
+        .container { max-width: 860px; margin: 0 auto; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
+        .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
+        .auth-info span { font-weight: bold; color: var(--text-main); }
+        .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--accent); cursor: pointer; font-size: 0.9em; margin-left: 12px; padding: 3px 8px; }
+
+        /* カード共通 */
+        .card { background: var(--card); border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .card-title { font-size: 1.05rem; font-weight: 900; margin: 0 0 18px; border-left: 5px solid var(--accent); padding-left: 12px; }
+        .card-title.synchro { border-left-color: var(--green); }
+
+        /* セクション見出し */
+        .section-heading { font-size: 1rem; font-weight: 900; margin: 32px 0 12px 4px; color: var(--text-sub); display: flex; align-items: center; gap: 8px; }
+        .section-badge { font-size: 0.75rem; font-weight: 800; padding: 2px 10px; border-radius: 10px; letter-spacing: 0.3px; }
+        .section-badge.individual { background: var(--blue-light); color: #1565c0; }
+        .section-badge.synchro { background: var(--green-light); color: var(--green); }
+
+        /* 大会スタッフ */
+        .staff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .field-group { display: flex; flex-direction: column; gap: 5px; }
+        .field-label { font-size: 0.75rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.4px; }
+        .field-input { padding: 9px 12px; border: 1.5px solid #d0d7de; border-radius: 8px; font-size: 0.95rem; background: #f8fbff; transition: border-color 0.2s; }
+        .field-input:focus { border-color: var(--accent); outline: none; background: #fff; }
+
+        /* 審判フィールド */
+        .judge-section { margin-bottom: 16px; }
+        .judge-section-title { font-size: 0.75rem; font-weight: 800; color: var(--text-sub); letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid #eef0f3; }
+        .judge-grid { display: grid; gap: 10px; }
+        .judge-grid.cols-1 { grid-template-columns: 1fr; }
+        .judge-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .judge-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .judge-field { display: flex; flex-direction: column; gap: 4px; }
+        .judge-field label { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); }
+        .judge-field input { padding: 7px 10px; border: 1.5px solid #d0d7de; border-radius: 8px; font-size: 0.9rem; background: #f8fbff; transition: border-color 0.2s; width: 100%; box-sizing: border-box; }
+        .judge-field input:focus { border-color: var(--accent); outline: none; background: #fff; }
+
+        /* カード下部ボタン行 */
+        .card-actions { display: flex; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f0f0f0; flex-wrap: wrap; }
+        .btn { padding: 8px 18px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: 0.15s; }
+        .btn-copy { background: #f0f4ff; color: var(--accent); border: 1.5px solid #c5d8ff; }
+        .btn-copy:hover { background: #dce8ff; }
+        .btn-copy.copied { background: var(--accent); color: white; border-color: var(--accent); }
+        .btn-paste { background: #f0fff4; color: var(--green); border: 1.5px solid #b2dfbd; }
+        .btn-paste:hover:not(:disabled) { background: #d4f5de; }
+        .btn-paste:disabled { opacity: 0.35; cursor: default; }
+        .btn-save-card { background: var(--accent); color: white; border: none; margin-left: auto; }
+        .btn-save-card:hover { background: #1251a3; }
+        .btn-save-card:disabled { background: #b0bec5; cursor: not-allowed; }
+        .btn-save-card.synchro { background: var(--green); }
+        .btn-save-card.synchro:hover { background: #1b5e20; }
+
+        /* 全体保存 */
+        .btn-save-all { background: var(--accent); color: white; display: block; width: 100%; padding: 13px; margin-top: 8px; font-size: 1rem; border-radius: 12px; border: none; font-weight: 900; cursor: pointer; transition: background 0.2s; letter-spacing: 0.3px; }
+        .btn-save-all:hover { background: #1251a3; }
+        .btn-save-all:disabled { background: #b0bec5; cursor: not-allowed; }
+
+        /* 保存ボタン（大会スタッフ） */
+        .btn-save-staff { background: var(--accent); color: white; display: block; width: 100%; padding: 11px; margin-top: 16px; font-size: 0.95rem; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn-save-staff:hover { background: #1251a3; }
+        .btn-save-staff:disabled { background: #b0bec5; cursor: not-allowed; }
+
+        .empty-msg { color: var(--text-sub); font-size: 0.9rem; text-align: center; padding: 24px; background: var(--card); border-radius: 12px; }
+
+        /* トースト */
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #263238; color: white; padding: 12px 28px; border-radius: 30px; font-size: 0.95rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; white-space: nowrap; }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #d32f2f; }
+
+        @media (max-width: 600px) {
+            .staff-grid { grid-template-columns: 1fr; }
+            .judge-grid.cols-3 { grid-template-columns: 1fr 1fr; }
+            .btn-save-card { margin-left: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-bar">
+        <a href="#" id="back-link" class="btn-back">← 管理メニューに戻る</a>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
+    </div>
+
+    <!-- 大会スタッフ -->
+    <div class="card">
+        <div class="card-title">🏅 大会スタッフ</div>
+        <div class="staff-grid">
+            <div class="field-group">
+                <span class="field-label">審判長</span>
+                <input type="text" class="field-input" id="chief-judge" placeholder="氏名">
+            </div>
+            <div class="field-group">
+                <span class="field-label">記録主任</span>
+                <input type="text" class="field-input" id="chief-recorder" placeholder="氏名">
+            </div>
+            <div class="field-group">
+                <span class="field-label">上級審判 1</span>
+                <input type="text" class="field-input" id="senior-judge-1" placeholder="氏名">
+            </div>
+            <div class="field-group">
+                <span class="field-label">上級審判 2</span>
+                <input type="text" class="field-input" id="senior-judge-2" placeholder="氏名">
+            </div>
+        </div>
+        <button class="btn-save-staff" id="btn-save-staff">大会スタッフを保存</button>
+    </div>
+
+    <!-- クラス別審判（動的生成） -->
+    <div id="classes-container">
+        <div class="empty-msg" id="no-class-msg">クラスが設定されていません。先に大会設定でクラスを追加してください。</div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+    import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from './auth.js';
+    import { db } from "./firebase-config.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+
+    let judgeConfig = {};
+    let copiedData  = null; // コピー中のデータ
+
+    ensureAdmin(user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+        initPage();
+    });
+
+    async function initPage() {
+        if (!eventId) { location.href = 'admin_index.html'; return; }
+        document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+
+        const tDoc = await getDoc(doc(db, 'tournaments', eventId));
+        if (!tDoc.exists()) { showToast('大会データが見つかりません', true); return; }
+
+        const d = tDoc.data();
+        judgeConfig = d.judgeConfig || {};
+
+        // 大会スタッフ
+        const staff = judgeConfig.staff || {};
+        document.getElementById('chief-judge').value    = staff.chiefJudge    || '';
+        document.getElementById('chief-recorder').value = staff.chiefRecorder || '';
+        document.getElementById('senior-judge-1').value = staff.seniorJudge1  || '';
+        document.getElementById('senior-judge-2').value = staff.seniorJudge2  || '';
+
+        // クラス一覧
+        const cls = d.classes || {};
+        const individual = [];
+        const synchro    = [];
+        if (cls.individual?.length || cls.synchro?.length) {
+            (cls.individual || []).forEach(c => individual.push(c.name));
+            (cls.synchro    || []).forEach(c => synchro.push(c.name));
+        } else if (Array.isArray(cls) && cls.length) {
+            cls.forEach(c => individual.push(c.name || c));
+        }
+
+        const container = document.getElementById('classes-container');
+        if (individual.length === 0 && synchro.length === 0) return;
+
+        document.getElementById('no-class-msg').remove();
+
+        // 個人
+        if (individual.length > 0) {
+            const heading = document.createElement('div');
+            heading.className = 'section-heading';
+            heading.innerHTML = '<span class="section-badge individual">個人</span>';
+            container.appendChild(heading);
+            individual.forEach(name => container.appendChild(buildClassCard(name, 'individual')));
+        }
+
+        // シンクロ
+        if (synchro.length > 0) {
+            const heading = document.createElement('div');
+            heading.className = 'section-heading';
+            heading.innerHTML = '<span class="section-badge synchro">シンクロ</span>';
+            container.appendChild(heading);
+            synchro.forEach(name => container.appendChild(buildClassCard(name, 'synchro')));
+        }
+
+        // 一括保存
+        const saveAllBtn = document.createElement('button');
+        saveAllBtn.className = 'btn-save-all';
+        saveAllBtn.id = 'btn-save-all';
+        saveAllBtn.textContent = '全クラスの審判構成を一括保存';
+        saveAllBtn.addEventListener('click', saveAll);
+        container.appendChild(saveAllBtn);
+    }
+
+    // ---- カード生成 ----
+    function buildClassCard(className, type) {
+        const data = (judgeConfig.classes || {})[className] || {};
+        const isSynchro = type === 'synchro';
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.cls = className;
+        card.dataset.type = type;
+
+        card.innerHTML = `
+            <div class="card-title${isSynchro ? ' synchro' : ''}">${escHtml(className)}</div>
+            <div class="judge-section">
+                <div class="judge-section-title">CJP</div>
+                <div class="judge-grid cols-1">
+                    ${jf('cjp', 'CJP', data.cjp)}
+                </div>
+            </div>
+            <div class="judge-section">
+                <div class="judge-section-title">E 審判（E1 〜 E6）</div>
+                <div class="judge-grid cols-3">
+                    ${jf('e1','E1',data.e1)}${jf('e2','E2',data.e2)}${jf('e3','E3',data.e3)}
+                    ${jf('e4','E4',data.e4)}${jf('e5','E5',data.e5)}${jf('e6','E6',data.e6)}
+                </div>
+            </div>
+            <div class="judge-section">
+                <div class="judge-section-title">D 審判（D7・D8）</div>
+                <div class="judge-grid cols-2">
+                    ${jf('d7','D7',data.d7)}${jf('d8','D8',data.d8)}
+                </div>
+            </div>
+            <div class="card-actions">
+                <button class="btn btn-copy">📋 コピー</button>
+                <button class="btn btn-paste" disabled>📌 貼り付け</button>
+                <button class="btn btn-save-card${isSynchro ? ' synchro' : ''}">保存</button>
+            </div>
+        `;
+
+        // コピーボタン
+        const copyBtn = card.querySelector('.btn-copy');
+        copyBtn.addEventListener('click', () => {
+            copiedData = readCard(card);
+            // 全貼り付けボタンを有効化
+            document.querySelectorAll('.btn-paste').forEach(btn => btn.disabled = false);
+            // コピー元を一時的にハイライト
+            copyBtn.classList.add('copied');
+            copyBtn.textContent = '✓ コピー済み';
+            setTimeout(() => {
+                copyBtn.classList.remove('copied');
+                copyBtn.textContent = '📋 コピー';
+            }, 2000);
+        });
+
+        // 貼り付けボタン
+        const pasteBtn = card.querySelector('.btn-paste');
+        pasteBtn.addEventListener('click', () => {
+            if (!copiedData) return;
+            writeCard(card, copiedData);
+            pasteBtn.textContent = '✓ 貼り付け済み';
+            setTimeout(() => { pasteBtn.textContent = '📌 貼り付け'; }, 1500);
+        });
+
+        // カード単体保存
+        const saveBtn = card.querySelector('.btn-save-card');
+        saveBtn.addEventListener('click', async () => {
+            saveBtn.disabled = true; saveBtn.textContent = '保存中…';
+            try {
+                collectCard(card);
+                await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+                showToast(`「${className}」を保存しました`);
+            } catch (e) {
+                showToast('保存に失敗: ' + e.message, true);
+            } finally {
+                saveBtn.disabled = false; saveBtn.textContent = '保存';
+            }
+        });
+
+        return card;
+    }
+
+    function jf(key, label, value) {
+        return `<div class="judge-field"><label>${label}</label><input type="text" data-key="${key}" placeholder="氏名" value="${escHtml(value || '')}"></div>`;
+    }
+
+    // カードのinputを読んでオブジェクト返す
+    function readCard(card) {
+        const data = {};
+        card.querySelectorAll('input[data-key]').forEach(inp => {
+            data[inp.dataset.key] = inp.value.trim();
+        });
+        return data;
+    }
+
+    // オブジェクトをカードに書き込む
+    function writeCard(card, data) {
+        card.querySelectorAll('input[data-key]').forEach(inp => {
+            if (data[inp.dataset.key] !== undefined) inp.value = data[inp.dataset.key];
+        });
+    }
+
+    // カードのデータをjudgeConfigに収集
+    function collectCard(card) {
+        const cls = card.dataset.cls;
+        if (!judgeConfig.classes) judgeConfig.classes = {};
+        judgeConfig.classes[cls] = readCard(card);
+    }
+
+    // 全クラス一括保存
+    async function saveAll() {
+        const btn = document.getElementById('btn-save-all');
+        btn.disabled = true; btn.textContent = '保存中…';
+        try {
+            document.querySelectorAll('.card[data-cls]').forEach(card => collectCard(card));
+            await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+            showToast('全クラスの審判構成を保存しました');
+        } catch (e) {
+            showToast('保存に失敗: ' + e.message, true);
+        } finally {
+            btn.disabled = false; btn.textContent = '全クラスの審判構成を一括保存';
+        }
+    }
+
+    // 大会スタッフ保存
+    document.getElementById('btn-save-staff').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-save-staff');
+        btn.disabled = true; btn.textContent = '保存中…';
+        try {
+            judgeConfig.staff = {
+                chiefJudge:    document.getElementById('chief-judge').value.trim(),
+                chiefRecorder: document.getElementById('chief-recorder').value.trim(),
+                seniorJudge1:  document.getElementById('senior-judge-1').value.trim(),
+                seniorJudge2:  document.getElementById('senior-judge-2').value.trim(),
+            };
+            await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+            showToast('大会スタッフを保存しました');
+        } catch (e) {
+            showToast('保存に失敗: ' + e.message, true);
+        } finally {
+            btn.disabled = false; btn.textContent = '大会スタッフを保存';
+        }
+    });
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast' + (isError ? ' error' : '');
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+</script>
+</body>
+</html>

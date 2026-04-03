@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>スコア確認 - Trampoline System</title>
+    <style>
+        :root {
+            --bg: #edf1f7; --card-bg: #ffffff; --accent: #1a73e8;
+            --success: #2e7d32; --danger: #c62828; --text: #1a2a3a; --text-dim: #607d8b;
+            --sidebar-bg: #f4f7fb; --primary: #1e3a5f;
+            --border: #d4dce8; --th-bg: #1e3a5f; --th-text: #e8f0fa;
+            --cell-bg: #ffffff; --cell-alt: #f5f8fc;
+        }
+        html { height: 100%; }
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100%; display: flex; overflow: hidden; }
+
+        /* ===== サイドバー ===== */
+        .sidebar { width: 300px; min-height: 0; flex-shrink: 0; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: 2px 0 8px rgba(0,0,0,0.06); }
+        .sidebar-header { background: var(--primary); padding: 14px 20px 12px; flex-shrink: 0; }
+        .sidebar-header::after { content: ''; display: block; height: 3px; margin-top: 12px; background: linear-gradient(90deg, var(--accent) 0%, rgba(30,115,232,0) 100%); border-radius: 2px; }
+        .sb-system-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.18em; color: rgba(255,255,255,0.45); text-transform: uppercase; margin-bottom: 5px; }
+        .sb-event-name { font-size: 0.98rem; font-weight: 900; color: #fff; line-height: 1.25; }
+        .sb-back-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.68rem; color: rgba(255,255,255,0.5); text-decoration: none; }
+        .sb-back-link:hover { color: rgba(255,255,255,0.85); }
+
+        /* パネル選択 */
+        .panel-selector { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: #f8fafc; flex-shrink: 0; align-items: center; }
+        .panel-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; color: #94a3b8; text-transform: uppercase; margin-right: 4px; }
+        .panel-btn { flex: 1; padding: 5px 0; border: 1.5px solid #dde3ec; background: #fff; color: #64748b; font-size: 0.78rem; font-weight: 700; cursor: pointer; border-radius: 8px; transition: 0.12s; }
+        .panel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .panel-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+        /* フィルター */
+        .sidebar-filters { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; }
+        .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+        .filter-label { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #94a3b8; min-width: 28px; margin-right: 2px; }
+        .tab-btn { padding: 3px 9px; border-radius: 20px; border: 1.5px solid #dde3ec; background: #fff; color: #64748b; font-size: 0.68rem; font-weight: 700; cursor: pointer; transition: all 0.12s; white-space: nowrap; line-height: 1.6; }
+        .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        /* 選手リスト */
+        .sidebar-list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 20px; }
+        .cat-group { padding: 7px 16px 5px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); background: #f0f5ff; border-top: 1px solid #dde6f7; border-bottom: 1px solid #dde6f7; }
+        .gender-group { padding: 4px 16px; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; background: #f8fafc; }
+        .athlete-row { padding: 7px 14px 7px 12px; border-bottom: 1px solid #f0f4f8; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.1s; border-left: 3px solid transparent; }
+        .athlete-row:hover { background: #f5f8ff; }
+        .active-athlete { background: #eef4ff !important; border-left-color: var(--accent) !important; }
+        .ath-name-text { font-size: 0.82rem; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1e293b; }
+        .ath-order { color: var(--accent); margin-right: 4px; font-family: monospace; font-size: 0.75rem; font-weight: 900; }
+        .active-athlete .ath-name-text { color: var(--accent); }
+        .round-box { display: flex; gap: 3px; flex-shrink: 0; margin-left: 6px; }
+        .r-dot { min-width: 28px; height: 22px; border-radius: 5px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; text-decoration: none; font-weight: 800; border: 1.5px solid transparent; transition: all 0.1s; cursor: pointer; letter-spacing: -0.02em; }
+        .r-dot.has-sub { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+        .r-dot.has-res { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+        .r-dot.current { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+
+        /* ===== メインエリア ===== */
+        .console-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+        .top-bar { background: var(--primary); padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; flex-shrink: 0; }
+        .readonly-badge { background: #43a047; color: #fff; font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.1em; }
+        .panel-indicator { color: var(--accent); font-size: 0.82rem; font-weight: 800; }
+        .athlete-banner { background: var(--card-bg); padding: 12px 22px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.06); flex-shrink: 0; }
+        .main-content { flex: 1; min-height: 0; padding: 16px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 16px; }
+
+        /* テーブル */
+        .monitor-table { width: 100%; min-width: 680px; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
+        .monitor-table th, .monitor-table td { padding: 8px 6px; text-align: center; border-radius: 4px; background: var(--cell-bg); font-size: 1.1rem; overflow: hidden; white-space: nowrap; color: var(--text); border: 1px solid transparent; }
+        .monitor-table th { background: var(--th-bg); font-size: 0.65rem; color: var(--th-text); border-color: #0d2440; font-weight: 700; letter-spacing: 0.03em; }
+        .monitor-table thead th { font-size: 0.82rem; }
+        .val-filled { color: #2e7d32; font-weight: bold; }
+        .middle-cell { background: #c8e6c9 !important; color: #1b5e20 !important; font-weight: 900; outline: 2px solid #66bb6a; }
+        .low-cell-mild { background: #e8f1fb !important; color: #2c5fa8 !important; font-weight: 700; outline: 1px solid #a8c4e8; }
+        .low-cell { background: #cfe0f7 !important; color: #1a3d7a !important; font-weight: 900; outline: 2px solid #7aaee0; }
+        .high-cell-mild { background: #fdf0f0 !important; color: #a83232 !important; font-weight: 700; outline: 1px solid #e8a8a8; }
+        .high-cell { background: #f7d5d5 !important; color: #7a1a1a !important; font-weight: 900; outline: 2px solid #e07a7a; }
+        .middle-row td { background: rgba(67,160,71,0.08) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(67,160,71,0.3) !important; }
+        .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
+        .sn-th { user-select: none; }
+        .sn-th.sn-valid { background: rgba(67,160,71,0.18); color: #1b5e20; }
+        .sn-th.sn-cutoff { background: var(--accent) !important; color: #fff !important; font-weight: 900; outline: 2px solid #0d47a1; }
+        .sn-th.sn-invalid { opacity: 0.4; }
+        .d-info-row th { font-size: 0.9rem; color: var(--text-dim); background: rgba(26,115,232,0.07); font-weight: normal; border-color: rgba(26,115,232,0.15) !important; }
+        .d-info-row.d-confirmed th { background: rgba(67,160,71,0.1); color: var(--success); }
+        .d-badge { font-size: 0.72rem; background: #43a047; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
+        #dd-total-cell { white-space: normal; line-height: 1.3; }
+        .d-dup { background: rgba(255, 193, 7, 0.22) !important; }
+        #skill-symbols-row:not(.d-confirmed) th { opacity: 0.65; filter: grayscale(0.2); }
+        #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; font-weight: bold; color: #003c8f !important; }
+        #skill-symbols-row th.d-mismatch { color: var(--danger) !important; opacity: 1 !important; filter: none !important; }
+
+        /* スコア集計 */
+        .score-summary { background: var(--card-bg); padding: 16px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,0.12); }
+        .score-box { text-align: center; }
+        .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 4px; font-weight: bold; }
+        .score-box div { font-size: 2rem; font-weight: 900; font-family: monospace; color: var(--text); }
+        .info-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+        .info-card { background: var(--card-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border); text-align: center; }
+        .info-card label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 6px; font-weight: bold; }
+        .info-card .val { font-size: 1.5rem; font-weight: 900; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div class="sb-system-label">Score View · TRAvaults</div>
+        <div class="sb-event-name" id="event-name-sidebar">Loading...</div>
+        <a href="#" id="menu-back" class="sb-back-link">← 審判メニューに戻る</a>
+    </div>
+
+    <!-- パネル選択 -->
+    <div class="panel-selector">
+        <span class="panel-label">Panel</span>
+        <button class="panel-btn active" id="panel-btn-A" onclick="switchPanel('A')">A</button>
+        <button class="panel-btn"        id="panel-btn-B" onclick="switchPanel('B')">B</button>
+    </div>
+
+    <div id="sidebar-filters" class="sidebar-filters"></div>
+    <div id="sidebar-list" class="sidebar-list"></div>
+</div>
+
+<div class="console-wrapper">
+    <div class="top-bar">
+        <span class="panel-indicator" id="panel-indicator">PANEL A</span>
+        <span class="readonly-badge">閲覧専用</span>
+    </div>
+
+    <div class="athlete-banner">
+        <div>
+            <div style="font-size:1.5rem;font-weight:900;" id="ath-name">選手を選択してください</div>
+            <div id="ath-meta" style="color:var(--text-dim);font-size:0.88rem;">— / —</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+            <div id="dd-label" style="font-size:1.2rem;font-weight:900;color:var(--accent);">DD: 0.0</div>
+            <div id="confirmed-badge-banner" style="font-size:0.78rem;margin-top:2px;"></div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;">
+        <table class="monitor-table">
+            <colgroup>
+                <col style="width:70px">
+                <col><col><col><col><col><col><col><col><col><col>
+                <col><col style="width:62px">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>Judge</th>
+                    <th class="sn-th" id="sn-th-1">S1</th><th class="sn-th" id="sn-th-2">S2</th><th class="sn-th" id="sn-th-3">S3</th><th class="sn-th" id="sn-th-4">S4</th><th class="sn-th" id="sn-th-5">S5</th>
+                    <th class="sn-th" id="sn-th-6">S6</th><th class="sn-th" id="sn-th-7">S7</th><th class="sn-th" id="sn-th-8">S8</th><th class="sn-th" id="sn-th-9">S9</th><th class="sn-th" id="sn-th-10">S10</th>
+                    <th>Ln</th><th>Total</th>
+                </tr>
+            </thead>
+            <tbody id="judge-rows"></tbody>
+            <tfoot>
+                <tr class="d-info-row" id="declared-row">
+                    <th>申請</th>
+                    <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
+                    <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
+                    <th>-</th><th>-</th>
+                </tr>
+                <tr class="d-info-row" id="skill-symbols-row">
+                    <th style="white-space:normal;line-height:1.4;">実施<br><span id="d-confirmed-badge"></span></th>
+                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
+                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
+                    <th>Bonus</th><th id="dd-total-cell">-</th>
+                </tr>
+                <tr class="d-info-row" id="dd-row">
+                    <th>DD</th>
+                    <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
+                    <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
+                    <th id="dd-bonus-cell">-</th><th>-</th>
+                </tr>
+            </tfoot>
+        </table>
+        </div>
+
+        <!-- 補足情報 -->
+        <div class="info-grid">
+            <div class="info-card"><label>VALID</label><div class="val" id="info-valid">—</div></div>
+            <div class="info-card"><label>ToF</label><div class="val" id="info-tof">—</div></div>
+            <div class="info-card"><label>HD</label><div class="val" id="info-hd">—</div></div>
+            <div class="info-card"><label>Penalty</label><div class="val" id="info-pen">—</div></div>
+        </div>
+
+        <!-- スコア集計 -->
+        <div class="score-summary">
+            <div class="score-box"><label>Difficulty</label><div id="res-d">0.0</div></div>
+            <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
+            <div class="score-box"><label>T</label><div id="res-t">0.000</div></div>
+            <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
+            <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { doc, onSnapshot, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    let athleteId = params.get('athlete');
+    let round     = params.get('round') || 'pre1';
+    let panel     = 'A';
+
+    let athletes = {}, submissions = {}, results = {}, currentTour = null;
+    let skillMasterMap = {};
+    let latestData = {};
+    let fType = 'individual', fClass = '', fGender = '';
+    let unsubscribeScores = null, unsubscribeSub = null;
+
+    // ---- パネル切り替え ----
+    window.switchPanel = function(p) {
+        panel = p;
+        document.getElementById('panel-btn-A').classList.toggle('active', p === 'A');
+        document.getElementById('panel-btn-B').classList.toggle('active', p === 'B');
+        document.getElementById('panel-indicator').textContent = `PANEL ${p}`;
+        renderScores(latestData);
+    };
+
+    // ---- 初期化 ----
+    async function init() {
+        if (!eventId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">大会IDが見つかりません</p>'; return; }
+        document.getElementById('menu-back').href = `judge_menu.html?event=${eventId}`;
+
+        const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await Promise.all([
+            getDoc(doc(db, 'tournaments', eventId)),
+            getDocs(collection(db, 'tournaments', eventId, 'athletes')),
+            getDocs(query(collection(db, 'submissions'), where('eventId','==',eventId))),
+            getDocs(query(collection(db, 'results'),     where('eventId','==',eventId))),
+            getDocs(collection(db, 'skillMaster'))
+        ]);
+
+        smSnap.forEach(d => {
+            skillMasterMap[d.id] = { id: d.id, symbol: d.data().symbol, dd: parseFloat(d.data().dd) || 0 };
+        });
+        currentTour = tourSnap.data();
+        document.getElementById('event-name-sidebar').textContent = currentTour?.name || '';
+
+        athSnap.docs.forEach(d => { athletes[d.id] = { id: d.id, ...d.data() }; });
+        subSnap.forEach(d => { submissions[d.id] = d.data(); });
+        resSnap.forEach(d => { results[d.id] = d.data(); });
+
+        renderSidebar();
+        renderScores({});
+
+        if (athleteId) {
+            const ath = athletes[athleteId];
+            if (ath) {
+                setAthleteBanner(ath, round);
+                watchScores();
+                watchSub();
+            }
+        }
+    }
+
+    // ---- サイドバー ----
+    function renderSidebar() {
+        const filtered  = Object.values(athletes).filter(a => (a.type || 'individual') === fType);
+        const tourClassDefs = (currentTour?.classes?.[fType] || []).slice().sort((a,b) => (a.display_order??99)-(b.display_order??99)).map(c => c.name);
+        const rawClasses = [...new Set(filtered.map(a => a.class || a.category || ''))];
+        const classes = [...tourClassDefs.filter(c => rawClasses.includes(c)), ...rawClasses.filter(c => !tourClassDefs.includes(c))];
+        const genders   = [...new Set(filtered.map(a => a.gender || ''))].filter(Boolean);
+
+        // フィルターUI
+        const filtersEl = document.getElementById('sidebar-filters');
+        let fHtml = `<div class="filter-row"><span class="filter-label">種目</span>
+            <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
+            <button class="tab-btn ${fType==='synchro'?'active':''}"    onclick="setFilter('type','synchro')">シンクロ</button>
+        </div>`;
+        if (classes.length > 1) {
+            fHtml += `<div class="filter-row"><span class="filter-label">CLS</span>
+                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">ALL</button>
+                ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c.replace(/'/g,"\\'")}')">${c}</button>`).join('')}
+            </div>`;
+        }
+        if (genders.length > 1) {
+            fHtml += `<div class="filter-row"><span class="filter-label">性別</span>
+                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">ALL</button>
+                ${genders.map(g => `<button class="tab-btn ${fGender===g?'active':''}" onclick="setFilter('gender','${g}')">${g}</button>`).join('')}
+            </div>`;
+        }
+        filtersEl.innerHTML = fHtml;
+
+        // 選手リスト
+        let listHtml = '';
+        const display = filtered
+            .filter(a => (!fClass  || (a.class||a.category||'') === fClass))
+            .filter(a => (!fGender || a.gender === fGender))
+            .sort((a, b) => (a.order||0) - (b.order||0));
+
+        const byClass = {};
+        display.forEach(a => {
+            const c = a.class || a.category || '—';
+            if (!byClass[c]) byClass[c] = {};
+            const g = a.gender || '—';
+            if (!byClass[c][g]) byClass[c][g] = [];
+            byClass[c][g].push(a);
+        });
+
+        Object.entries(byClass).forEach(([cls, genderMap]) => {
+            listHtml += `<div class="cat-group">${cls}</div>`;
+            Object.entries(genderMap).forEach(([gnd, athl]) => {
+                if (Object.keys(genderMap).length > 1) listHtml += `<div class="gender-group">${gnd}</div>`;
+                athl.forEach(a => {
+                    const dispName = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
+                    const isActive = a.id === athleteId;
+                    const rounds = getRoundsForAth(a);
+                    const dotsHtml = rounds.map(r => {
+                        const key = `${eventId}_${a.id}_${r.key}`;
+                        const cls2 = (results[key]?.published ? 'has-res' : submissions[key] ? 'has-sub' : '') +
+                            (a.id === athleteId && r.key === round ? ' current' : '');
+                        return `<span class="r-dot ${cls2}" onclick="selectAthlete('${a.id}','${r.key}');event.stopPropagation()">${r.label}</span>`;
+                    }).join('');
+                    listHtml += `<div class="athlete-row ${isActive?'active-athlete':''}" onclick="selectAthlete('${a.id}','${round}')">
+                        <div style="flex:1;min-width:0;">
+                            <div class="ath-name-text"><span class="ath-order">${a.order||''}</span>${dispName}</div>
+                        </div>
+                        <div class="round-box">${dotsHtml}</div>
+                    </div>`;
+                });
+            });
+        });
+        document.getElementById('sidebar-list').innerHTML = listHtml || '<div style="padding:20px;color:#94a3b8;font-size:0.8rem;text-align:center;">選手なし</div>';
+    }
+
+    function getRoundsForAth(a) {
+        const rule = currentTour?.classRules?.[a.type||'individual']?.[a.class||a.category||''] || {};
+        const n = rule.qualifyingRoutines || 2;
+        const rounds = Array.from({length:n}, (_, i) => ({ key:`pre${i+1}`, label:`P${i+1}` }));
+        if (rule.semifinalEnabled) rounds.push({ key:'semi', label:'SF' });
+        if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
+        return rounds;
+    }
+
+    window.setFilter = function(key, val) {
+        if (key === 'type') { fType = val; fClass = ''; fGender = ''; }
+        if (key === 'class') fClass = val;
+        if (key === 'gender') fGender = val;
+        renderSidebar();
+    };
+
+    window.selectAthlete = function(aid, rid) {
+        athleteId = aid;
+        round = rid;
+        const ath = athletes[aid];
+        if (ath) {
+            setAthleteBanner(ath, rid);
+            watchScores();
+            watchSub();
+        }
+        renderSidebar();
+        history.replaceState({}, '', `score_view.html?event=${eventId}&athlete=${aid}&round=${rid}`);
+    };
+
+    function setAthleteBanner(ath, rid) {
+        const dispName = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
+        document.getElementById('ath-name').textContent = `No.${ath.order} ${dispName}`;
+        document.getElementById('ath-meta').textContent = `${ath.class || ath.category || '-'} / ${rid.toUpperCase()}`;
+    }
+
+    // ---- Firestore監視 ----
+    function watchScores() {
+        if (unsubscribeScores) { unsubscribeScores(); unsubscribeScores = null; }
+        const resId = `${eventId}_${athleteId}_${round}`;
+        unsubscribeScores = onSnapshot(doc(db, 'results', resId), snap => {
+            latestData = snap.exists() ? snap.data() : {};
+            results[resId] = latestData;
+            renderScores(latestData);
+        });
+    }
+    function watchSub() {
+        if (unsubscribeSub) { unsubscribeSub(); unsubscribeSub = null; }
+        const resId = `${eventId}_${athleteId}_${round}`;
+        unsubscribeSub = onSnapshot(doc(db, 'submissions', resId), snap => {
+            submissions[resId] = snap.exists() ? snap.data() : null;
+            renderScores(latestData);
+        });
+    }
+
+    // ---- スコア描画 ----
+    function renderScores(data) {
+        const vLimit = data.validCount ?? 10;
+
+        // valid count ヘッダー色
+        for (let i = 1; i <= 10; i++) {
+            const th = document.getElementById(`sn-th-${i}`);
+            if (!th) continue;
+            th.classList.toggle('sn-valid',   i < vLimit);
+            th.classList.toggle('sn-cutoff',  i === vLimit);
+            th.classList.toggle('sn-invalid', i > vLimit);
+        }
+        document.getElementById('info-valid').textContent = vLimit;
+
+        // ---- D情報 ----
+        const resId = `${eventId}_${athleteId}_${round}`;
+        const subSkills  = submissions[resId]?.skills || [];
+        const execSkills = data.officialSkills || [];
+
+        // 申請行
+        const declaredCells = document.querySelectorAll('.d-declared');
+        const declaredSymbols = [];
+        const seenSub = new Set();
+        declaredCells.forEach((el, i) => {
+            const s = subSkills[i];
+            el.style.color = ''; el.classList.remove('d-dup');
+            if (!s) { el.textContent = '-'; declaredSymbols.push(null); return; }
+            const raw = typeof s === 'string' ? s : (s.skill || '');
+            const sym = skillMasterMap[raw]?.symbol || raw;
+            el.textContent = sym || '-';
+            declaredSymbols.push(sym || null);
+            if (sym && seenSub.has(sym)) el.classList.add('d-dup');
+            else if (sym) seenSub.add(sym);
+        });
+
+        // 実施行
+        const skillHeaders = document.querySelectorAll('.skill-header');
+        const seenExec = new Set();
+        skillHeaders.forEach((el, i) => {
+            el.style.color = ''; el.classList.remove('d-dup','d-mismatch');
+            const id = execSkills[i];
+            if (i >= vLimit || !id) { el.textContent = '-'; return; }
+            const skill = skillMasterMap[id] || Object.values(skillMasterMap).find(v => v.symbol === id);
+            const sym = skill?.symbol || String(id);
+            el.textContent = sym;
+            if (seenExec.has(sym)) el.classList.add('d-dup');
+            else seenExec.add(sym);
+            if (i < vLimit && declaredSymbols[i] && sym !== declaredSymbols[i]) el.classList.add('d-mismatch');
+        });
+
+        // D確定バッジ
+        const badge = document.getElementById('d-confirmed-badge');
+        const skillsRow = document.getElementById('skill-symbols-row');
+        if (data.verifiedAt) {
+            badge.textContent = '確定'; badge.className = 'd-badge';
+            skillsRow.classList.add('d-confirmed');
+        } else {
+            badge.textContent = '未確定'; badge.style.cssText = 'font-size:0.68rem;color:#90a4ae;font-weight:normal;margin-left:4px;';
+            badge.className = '';
+            skillsRow.classList.remove('d-confirmed');
+        }
+
+        // DD行
+        const totalDD = data.officialTotalDD || 0;
+        const bonus   = data.officialDDBonus || 0;
+        const ddCells = document.querySelectorAll('.d-dd');
+        if (data.officialDDValues?.length > 0) {
+            ddCells.forEach((el, i) => { el.textContent = data.officialDDValues[i] != null ? Number(data.officialDDValues[i]).toFixed(1) : '-'; });
+        } else {
+            const seen = new Set();
+            ddCells.forEach((el, i) => {
+                const id = execSkills[i];
+                if (i >= vLimit || !id) { el.textContent = '-'; return; }
+                const skill = skillMasterMap[id];
+                if (!skill) { el.textContent = '-'; return; }
+                el.textContent = seen.has(id) ? '0.0' : skill.dd.toFixed(1);
+                seen.add(id);
+            });
+        }
+        document.getElementById('dd-bonus-cell').textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
+        document.getElementById('dd-total-cell').textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
+        document.getElementById('dd-label').textContent = `DD: ${totalDD.toFixed(1)}`;
+        document.getElementById('res-d').textContent = totalDD.toFixed(1);
+        const bannerBadge = document.getElementById('confirmed-badge-banner');
+        bannerBadge.textContent = data.published ? '✓ 確定済み' : '';
+        bannerBadge.style.color = data.published ? '#43a047' : '';
+
+        // ---- E審判テーブル ----
+        const numE  = currentTour?.numExecJudges || 6;
+        const jKeys = Array.from({length: numE}, (_, i) => `E${i+1}`);
+        const allJudges   = data.execution?.judges || {};
+        const panelPrefix = `${panel}_`;
+        const judges = Object.fromEntries(
+            Object.entries(allJudges)
+                .filter(([k]) => k.startsWith(panelPrefix))
+                .map(([k, v]) => [k.slice(panelPrefix.length), v])
+        );
+
+        const isSynchro = (athletes[athleteId]?.type || fType) === 'synchro';
+        const { skillResults, landingResult, execution } = calcExecution(data, judges, numE, jKeys, vLimit, isSynchro);
+
+        const tbody = document.getElementById('judge-rows');
+        let rows = '';
+        jKeys.forEach((jKey, jIdx) => {
+            const jData = judges[jKey] || { deductions: Array(10).fill(null), landing: null };
+            rows += `<tr><td>${jKey}</td>`;
+            for (let i = 0; i < 10; i++) {
+                const v = jData.deductions?.[i] ?? null;
+                const dimStyle = i >= vLimit ? 'opacity:0.15;' : '';
+                const sr = skillResults[i];
+                const colorCls = cellColorCls(v, sr, jIdx, i, vLimit, isSynchro);
+                rows += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
+            }
+            const lv = jData.landing ?? null;
+            const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit, isSynchro);
+            rows += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
+            rows += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
+            rows += `</tr>`;
+        });
+
+        // Med行
+        const hasData = Object.keys(judges).length > 0;
+        rows += `<tr class="middle-row"><td>Med</td>`;
+        for (let i = 0; i < 10; i++) {
+            const hasVal = hasData && skillResults[i].indices.size > 0;
+            rows += i < vLimit
+                ? `<td>${hasVal ? Math.round(skillResults[i].sum * 10) : '-'}</td>`
+                : `<td style="opacity:0.15">-</td>`;
+        }
+        const hasLn = hasData && landingResult.indices.size > 0;
+        rows += `<td>${vLimit === 10 && hasLn ? Math.round(landingResult.sum * 10) : '-'}</td>`;
+        rows += `<td class="ded-total">${hasData ? execution.toFixed(1) : '-'}</td></tr>`;
+        tbody.innerHTML = rows;
+
+        // スコア集計
+        const t = data.tofByPanel?.[panel] ?? data.tof ?? 0;
+        const h = data.hdByPanel?.[panel]  ?? data.hd?.total ?? 0;
+        const p = data.penalty || 0;
+        document.getElementById('info-tof').textContent = t ? Number(t).toFixed(3) : '—';
+        document.getElementById('info-hd').textContent  = h ? Number(h).toFixed(3) : '—';
+        document.getElementById('info-pen').textContent = p ? Number(p).toFixed(1) : '—';
+        document.getElementById('res-e').textContent    = hasData ? execution.toFixed(1) : '0.0';
+        document.getElementById('res-t').textContent    = t ? Number(t).toFixed(3) : '0.000';
+        document.getElementById('res-hd').textContent   = h ? Number(h).toFixed(3) : '0.000';
+        document.getElementById('res-total').textContent = Math.max(0, totalDD + (hasData ? execution : 0) + Number(t) + Number(h) - p).toFixed(3);
+    }
+
+    // ---- 演技点計算 ----
+    function calcExecution(data, judges, numE, jKeys, vLimit, isSynchro) {
+        if (!isSynchro) {
+            const skillResults = Array.from({length:10}, (_, si) => {
+                const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
+                return middle2(vals);
+            });
+            const landingResult = vLimit === 10 ? middle2(jKeys.map(k => judges[k]?.landing ?? null)) : { sum:0, indices:new Set() };
+            const totalDed = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0) + landingResult.sum;
+            return { skillResults, landingResult, execution: (vLimit * 2.0) - totalDed };
+        } else {
+            const _group = numE >= 6
+                ? (vals) => { const odd = middle2Synchro(vals,[0,2,4]); const even = middle2Synchro(vals,[1,3,5]); return { groupData:{oddResult:odd,evenResult:even}, indices:new Set([...odd.indices,...even.indices]) }; }
+                : () => ({ groupData:null, indices:new Set() });
+            const skillResults = Array.from({length:10}, (_, si) => {
+                const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
+                const r = synchroEDed(vals, numE); const g = _group(vals);
+                return { sum:r.avg, indices:g.indices, midMin:null, midMax:null, hasData:r.hasData, groupData:g.groupData };
+            });
+            const landingResult = vLimit === 10 ? (() => {
+                const lv = jKeys.map(k => judges[k]?.landing ?? null);
+                const r = synchroEDed(lv, numE); const g = _group(lv);
+                return { sum:r.avg, indices:g.indices, midMin:null, midMax:null, hasData:r.hasData, groupData:g.groupData };
+            })() : { sum:0, indices:new Set(), hasData:false, groupData:null };
+            const totalDed = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0) + landingResult.sum;
+            return { skillResults, landingResult, execution: (vLimit * 1.0) - totalDed };
+        }
+    }
+
+    function middle2(values) {
+        const filled = values.map((v,i) => ({v,i})).filter(x => x.v !== null && x.v !== undefined);
+        if (filled.length < 2) return { sum:0, indices:new Set(), midMin:null, midMax:null };
+        const sorted = [...filled].sort((a,b) => a.v - b.v);
+        const n = sorted.length, mid = Math.floor((n-2)/2);
+        const v0 = sorted[mid].v, v1 = sorted[mid+1].v;
+        return { sum:v0+v1, indices:new Set([sorted[mid].i, sorted[mid+1].i]), midMin:Math.min(v0,v1), midMax:Math.max(v0,v1) };
+    }
+    function middle2Synchro(allVals, groupIdxs) {
+        const filled = groupIdxs.map(gi => ({v:allVals[gi],gi})).filter(x => x.v !== null && x.v !== undefined);
+        if (filled.length < 2) return { sum:0, indices:new Set(), midMin:null, midMax:null };
+        const sorted = [...filled].sort((a,b) => a.v - b.v);
+        const n = sorted.length, mid = Math.floor((n-2)/2);
+        const v0 = sorted[mid].v, v1 = sorted[mid+1].v;
+        return { sum:v0+v1, indices:new Set([sorted[mid].gi, sorted[mid+1].gi]), midMin:Math.min(v0,v1), midMax:Math.max(v0,v1) };
+    }
+    function median1(values) {
+        const f = values.filter(v => v !== null && v !== undefined).sort((a,b) => a-b);
+        if (!f.length) return null;
+        return f.length < 3 ? (f[0]+f[f.length-1])/2 : f[Math.floor(f.length/2)];
+    }
+    function synchroEDed(values, numE) {
+        const filled = values.filter(v => v !== null && v !== undefined);
+        if (!filled.length) return { avg:0, hasData:false };
+        if (numE <= 4) return { avg: filled.reduce((a,b) => a+b, 0)/filled.length, hasData:true };
+        const m1 = median1([values[0],values[2],values[4]]);
+        const m2 = median1([values[1],values[3],values[5]]);
+        if (m1 === null && m2 === null) return { avg:0, hasData:false };
+        if (m1 === null) return { avg:m2, hasData:true };
+        if (m2 === null) return { avg:m1, hasData:true };
+        return { avg:(m1+m2)/2, hasData:true };
+    }
+
+    function _resolveRange(sr, jIdx) {
+        if (sr.groupData) {
+            const gr = jIdx % 2 === 0 ? sr.groupData.oddResult : sr.groupData.evenResult;
+            return { midMin:gr.midMin, midMax:gr.midMax, isMiddle:gr.indices.has(jIdx) };
+        }
+        return { midMin:sr.midMin, midMax:sr.midMax, isMiddle:sr.indices.has(jIdx) };
+    }
+    function cellColorCls(v, sr, jIdx, i, vLimit) {
+        if (i >= vLimit || v === null) return v !== null ? 'val-filled' : '';
+        const { midMin, midMax, isMiddle } = _resolveRange(sr, jIdx);
+        if (midMin === null) return v !== null ? 'val-filled' : '';
+        if (isMiddle) return 'val-filled';
+        if (v < midMin - 1e-9) { const d = Math.round((midMin-v)*10); return d >= 2 ? 'low-cell' : 'low-cell-mild'; }
+        if (v > midMax + 1e-9) { const d = Math.round((v-midMax)*10); return d >= 2 ? 'high-cell' : 'high-cell-mild'; }
+        return 'val-filled';
+    }
+    function landingColorCls(lv, lr, jIdx, vLimit) {
+        if (vLimit < 10 || lv === null) return lv !== null ? 'val-filled' : '';
+        const { midMin, midMax, isMiddle } = _resolveRange(lr, jIdx);
+        if (midMin === null) return lv !== null ? 'val-filled' : '';
+        if (isMiddle) return 'val-filled';
+        if (lv < midMin - 1e-9) { const d = Math.round((midMin-lv)*10); return d >= 2 ? 'low-cell' : 'low-cell-mild'; }
+        if (lv > midMax + 1e-9) { const d = Math.round((lv-midMax)*10); return d >= 2 ? 'high-cell' : 'high-cell-mild'; }
+        return 'val-filled';
+    }
+
+    init();
+</script>
+</body>
+</html>

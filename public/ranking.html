@@ -183,7 +183,9 @@
       const fType = document.getElementById('sel-type').value;
       const byType = athletes.filter(a => (a.type || 'individual') === fType);
       const genders = [...new Set(byType.map(a => a.gender || '').filter(Boolean))];
-      const classes = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
+      const tourClassDefs = (tourData?.classes?.[fType] || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+      const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
+      const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
       document.getElementById('sel-gender').innerHTML =
         '<option value="">（全て）</option>' + genders.map(g => `<option>${g}</option>`).join('');
       document.getElementById('sel-class').innerHTML =

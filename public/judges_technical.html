@@ -412,6 +412,12 @@
         document.getElementById('exit-link').href = `judge_role_select.html?event=${eventId}`;
         document.getElementById('panel-role-label').innerText = `PANEL ${panel} | ROLE ${role}`;
 
+        // 初期化完了前はアクションボタンを無効化
+        ['btn-confirm','btn-unlock','btn-republish','btn-calculating'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.disabled = true;
+        });
+
+        try {
         const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await Promise.all([
             getDoc(doc(db, "tournaments", eventId)),
             getDocs(collection(db, "tournaments", eventId, "athletes")),
@@ -472,6 +478,11 @@
                 if ((cRule.hdDefaultMode  || cRule.tofHdDefaultMode) === 'manual') toggleHdMode();
             }
         }
+        } catch(e) {
+            console.error('初期化エラー:', e);
+            document.getElementById('ath-name').innerText = '読み込みに失敗しました';
+            document.getElementById('ath-meta').innerText = e.message || 'ネットワークエラー';
+        }
     }
 
     function renderSidebar() {
@@ -481,7 +492,9 @@
         const byType = athletes.filter(a => (a.type || 'individual') === fType);
 
         // クラス一覧（表示順を維持）
-        const classes = [...new Set(byType.map(a => a.class || a.category || ''))];
+        const tourClassDefs = (currentTour?.classes?.[fType] || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+        const rawClasses = [...new Set(byType.map(a => a.class || a.category || ''))];
+        const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
 
         // 性別一覧（個人・シンクロ共通）
         const genders = [...new Set(byType.map(a => a.gender || ''))].filter(Boolean);
@@ -548,17 +561,17 @@
         }
 
         const listEl = document.getElementById('sidebar-list');
-        listEl.innerHTML = "";
+        const parts = [];
         let lastCat = "", lastGender = "";
 
         filtered.forEach(ath => {
             const cls = ath.class || ath.category || '';
             if (cls !== lastCat) {
-                listEl.innerHTML += `<div class="cat-group">${cls}</div>`;
+                parts.push(`<div class="cat-group">${cls}</div>`);
                 lastCat = cls; lastGender = "";
             }
             if (!fFinalOnly && (ath.gender || '') !== lastGender) {
-                listEl.innerHTML += `<div class="gender-group">${ath.gender || ''}</div>`;
+                parts.push(`<div class="gender-group">${ath.gender || ''}</div>`);
                 lastGender = ath.gender || '';
             }
 
@@ -581,12 +594,13 @@
                 ? `<span class="ath-order">${ath.order}.</span>${ath.name1} / ${ath.name2 || ''}`
                 : `<span class="ath-order">${ath.order}.</span>${ath.name1}`;
 
-            listEl.innerHTML += `
+            parts.push(`
                 <div class="athlete-row ${isActive ? 'active-athlete' : ''}">
                     <div class="ath-name-text">${nameHtml}</div>
                     <div class="round-box">${dotsHtml}</div>
-                </div>`;
+                </div>`);
         });
+        listEl.innerHTML = parts.join('');
     }
 
     window.setFilter = (key, val) => {

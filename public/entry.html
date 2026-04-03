@@ -95,12 +95,15 @@
 
     let skillMaster = [];
     let currentAthlete = null;
+    let tourData = {};
+    let subDocRef = null;   // submissionDoc の存在確認用
 
     async function init() {
         if (!eventId || !athleteId || !round) return;
         document.getElementById('back-link').href = `event.html?event=${eventId}`;
         if (isAdmin) document.getElementById('admin-clear-btn').style.display = "block";
-        
+        document.getElementById('submit-btn').disabled = true;
+
         const roundMap = {'pre1': '予選1', 'pre2': '予選2', 'final': '決勝'};
         document.getElementById('round-display').textContent = roundMap[round] || round;
 
@@ -109,10 +112,13 @@
             .map(d => ({ id: d.id, ...d.data() }))
             .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)));
 
-        const [athDoc, subDoc] = await Promise.all([
+        const [tourDoc, athDoc, subDocResult] = await Promise.all([
+            getDoc(doc(db, "tournaments", eventId)),
             getDoc(doc(db, "tournaments", eventId, "athletes", athleteId)),
             getDoc(doc(db, "submissions", `${eventId}_${athleteId}_${round}`))
         ]);
+        tourData = tourDoc.exists() ? tourDoc.data() : {};
+        subDocRef = subDocResult;
 
         if (athDoc.exists()) {
             currentAthlete = athDoc.data();
@@ -128,7 +134,7 @@
             document.getElementById('ath-flight-group').textContent = currentAthlete.flightGroup ? `G${currentAthlete.flightGroup}` : '-';
         }
 
-        const skillsData = subDoc.exists() ? subDoc.data().skills : [];
+        const skillsData = subDocResult.exists() ? subDocResult.data().skills : [];
         const savedSkillIds = skillsData.map(s => {
             if (s === null || s === undefined) return "";
             if (typeof s === 'object') {
@@ -159,10 +165,12 @@
         };
         calcTotal();
 
-        if (subDoc.exists()) {
+        if (subDocResult.exists()) {
             lockInputs(true);
             document.getElementById('submit-btn').style.display = "none";
             document.getElementById('modify-btn').style.display = "block";
+        } else {
+            document.getElementById('submit-btn').disabled = false;
         }
     }
 
@@ -252,6 +260,20 @@
     };
 
     window.submitRoutine = async () => {
+        // 期限チェック
+        const now = new Date();
+        const isFinal = round === 'final';
+        const deadlineKey = isFinal ? 'finalSubmissionDeadline'
+                          : subDocRef?.exists?.() ? 'revisionDeadline' : 'submissionDeadline';
+        const deadlineStr = tourData?.[deadlineKey];
+        if (deadlineStr) {
+            const deadline = new Date(deadlineStr);
+            if (now > deadline) {
+                const labels = { submissionDeadline:'提出締切', revisionDeadline:'修正締切', finalSubmissionDeadline:'決勝締切' };
+                alert(`${labels[deadlineKey] || '締切'}を過ぎているため送信できません。`);
+                return;
+            }
+        }
         const skills = [];
         for (let i = 1; i <= 10; i++) {
             const skillId = document.getElementById(`skill-${i}`).value;

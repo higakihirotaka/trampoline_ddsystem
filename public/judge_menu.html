@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>審判用メニュー - Trampoline System</title>
+    <style>
+        :root { --accent: #1a73e8; --bg: #f4f5f7; --card: #fff; --text: #1a1a1a; --sub: #6b7280; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, 'Helvetica Neue', 'Hiragino Sans', sans-serif; background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
+
+        /* タイマーバー */
+        .timer-bar { background: #111; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+        .timer-label { font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.35); letter-spacing: 0.3px; }
+        .timer-classes { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.55); flex: 1; text-align: center; }
+        .timer-val { font-size: 1.8rem; font-weight: 900; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.85); line-height: 1; min-width: 5ch; text-align: right; }
+        .timer-val.running { color: #69f0ae; }
+        .timer-val.warning { color: #ff6b35; }
+        .timer-val.done    { color: #f9a825; animation: pulse 1s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        /* ヘッダー */
+        .header { padding: 20px 16px 12px; text-align: center; }
+        .event-name { font-size: 1.1rem; font-weight: 800; line-height: 1.3; }
+        .event-sub { font-size: 0.72rem; color: var(--sub); font-weight: 600; margin-top: 2px; }
+
+        /* ナビリスト */
+        .nav-list { padding: 0 12px 32px; display: flex; flex-direction: column; gap: 10px; }
+        .nav-card {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--card); border-radius: 14px; padding: 16px;
+            text-decoration: none; color: inherit;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            transition: transform 0.12s, box-shadow 0.12s;
+            -webkit-user-select: none; user-select: none;
+        }
+        .nav-card:active { transform: scale(0.97); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+        .nav-icon {
+            width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+        }
+        .nav-icon.blue   { background: #e3f2fd; }
+        .nav-icon.green  { background: #e8f5e9; }
+        .nav-icon.purple { background: #f3e5f5; }
+        .nav-icon.orange { background: #fff3e0; }
+        .nav-icon.teal   { background: #e0f2f1; }
+        .nav-title { font-size: 0.95rem; font-weight: 700; }
+        .nav-desc  { font-size: 0.7rem; color: var(--sub); margin-top: 1px; }
+        .nav-arrow { margin-left: auto; color: #ccc; font-size: 1.1rem; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+
+<div class="timer-bar">
+    <span class="timer-label">練習</span>
+    <span class="timer-classes" id="bar-classes"></span>
+    <span class="timer-val" id="timer-val">00:00</span>
+</div>
+
+<div class="header">
+    <div class="event-name" id="event-name">読み込み中…</div>
+    <div class="event-sub">審判用メニュー</div>
+</div>
+
+<div class="nav-list">
+    <a class="nav-card" id="nav-info" href="#">
+        <div class="nav-icon blue">🏟️</div>
+        <div><div class="nav-title">大会情報</div><div class="nav-desc">日程・会場・クラス</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
+    <a class="nav-card" id="nav-roster" href="#">
+        <div class="nav-icon orange">👥</div>
+        <div><div class="nav-title">審判構成</div><div class="nav-desc">スタッフ・担当一覧</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
+    <a class="nav-card" id="nav-input" href="#">
+        <div class="nav-icon green">✏️</div>
+        <div><div class="nav-title">審判入力</div><div class="nav-desc">役割を選んで採点</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
+    <a class="nav-card" id="nav-score" href="#">
+        <div class="nav-icon purple">📊</div>
+        <div><div class="nav-title">スコア確認</div><div class="nav-desc">各審判の得点確認</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
+    <a class="nav-card" id="nav-display" href="#" target="_blank">
+        <div class="nav-icon teal">📺</div>
+        <div><div class="nav-title">会場ディスプレイ</div><div class="nav-desc">モニター用表示画面</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
+</div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const eventId = new URLSearchParams(location.search).get('event');
+    if (!eventId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">大会IDが見つかりません。</p>'; throw new Error(); }
+
+    document.getElementById('nav-info').href    = `tournament_info.html?event=${eventId}`;
+    document.getElementById('nav-roster').href  = `judge_roster.html?event=${eventId}`;
+    document.getElementById('nav-input').href   = `judge_role_select.html?event=${eventId}`;
+    document.getElementById('nav-score').href   = `score_view.html?event=${eventId}`;
+    document.getElementById('nav-display').href = `venue_display.html?event=${eventId}`;
+
+    let timerInterval = null, warmupData = {};
+    function startTimerTick() {
+        clearInterval(timerInterval);
+        const el = document.getElementById('timer-val');
+        function tick() {
+            const wu = warmupData;
+            let ms, running;
+            if (wu.timerPaused || !wu.timerEndTime) { ms = wu.timerRemainingMs ?? 0; running = false; }
+            else { ms = Math.max(0, wu.timerEndTime - Date.now()); running = true; }
+            const s = Math.ceil(ms / 1000);
+            el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+            el.className = 'timer-val' + (ms === 0 ? ' done' : ms < 60000 ? ' warning' : running ? ' running' : '');
+        }
+        tick(); timerInterval = setInterval(tick, 500);
+    }
+
+    onSnapshot(doc(db, 'tournaments', eventId), snap => {
+        if (!snap.exists()) return;
+        const d = snap.data();
+        document.getElementById('event-name').textContent = d.name || '—';
+        document.title = `${d.name || ''} 審判用メニュー`;
+        warmupData = d.warmupSettings || {};
+        const cls = [warmupData.class1, warmupData.class2].filter(Boolean).join(' / ');
+        document.getElementById('bar-classes').textContent = cls;
+        startTimerTick();
+    });
+</script>
+</body>
+</html>

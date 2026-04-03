@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>審判構成 - Trampoline System</title>
+    <style>
+        :root { --accent: #1a73e8; --bg: #f0f2f5; --card: #fff; --text-main: #263238; --text-sub: #546e7a; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; color: var(--text-main); }
+        .header { background: #1e3a5f; padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+        .btn-back { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.85rem; font-weight: 700; }
+        .btn-back:hover { color: #fff; }
+        .header-title { color: #fff; font-size: 1rem; font-weight: 900; margin: 0; flex: 1; text-align: center; }
+        .container { max-width: 560px; margin: 0 auto; padding: 24px 16px 48px; }
+
+        .card { background: var(--card); border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px; }
+        .card-title { font-size: 0.72rem; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 1px solid #eef0f3; }
+
+        /* スタッフグリッド */
+        .staff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .staff-field { display: flex; flex-direction: column; gap: 3px; }
+        .staff-label { font-size: 0.68rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.3px; }
+        .staff-value { font-size: 0.95rem; font-weight: 700; color: var(--text-main); }
+        .staff-value.empty { color: #b0bec5; font-weight: 400; font-size: 0.85rem; }
+
+        /* クラスカード */
+        .cls-card { background: var(--card); border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 10px; }
+        .cls-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .cls-badge { font-size: 0.68rem; font-weight: 800; padding: 2px 9px; border-radius: 8px; }
+        .cls-badge.individual { background: #e3f2fd; color: #1565c0; }
+        .cls-badge.synchro    { background: #e8f5e9; color: #2e7d32; }
+        .cls-name { font-size: 1rem; font-weight: 900; }
+
+        /* 審判テーブル */
+        .judge-table { width: 100%; border-collapse: collapse; }
+        .judge-table tr { border-bottom: 1px solid #f0f0f0; }
+        .judge-table tr:last-child { border-bottom: none; }
+        .judge-table td { padding: 6px 4px; font-size: 0.88rem; }
+        .judge-table td.role { width: 44px; font-weight: 800; font-size: 0.75rem; color: var(--text-sub); }
+        .judge-table td.name { font-weight: 700; color: var(--text-main); }
+        .judge-table td.name.empty { color: #b0bec5; font-weight: 400; }
+
+        .section-heading { font-size: 0.72rem; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin: 24px 0 10px 2px; display: flex; align-items: center; gap: 8px; }
+        .section-heading::after { content:''; flex:1; height:1px; background:#dde3ec; }
+
+        .empty-msg { color: #b0bec5; font-size: 0.88rem; padding: 8px 0; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <a href="#" id="btn-back" class="btn-back">← 戻る</a>
+    <h1 class="header-title">審判構成</h1>
+    <div style="width:40px"></div>
+</div>
+
+<div class="container">
+    <!-- 大会スタッフ -->
+    <div class="card">
+        <div class="card-title">大会スタッフ</div>
+        <div class="staff-grid" id="staff-grid">
+            <div class="staff-field"><span class="staff-label">審判長</span><span class="staff-value empty" id="s-chief">—</span></div>
+            <div class="staff-field"><span class="staff-label">記録主任</span><span class="staff-value empty" id="s-recorder">—</span></div>
+            <div class="staff-field"><span class="staff-label">上級審判 1</span><span class="staff-value empty" id="s-senior1">—</span></div>
+            <div class="staff-field"><span class="staff-label">上級審判 2</span><span class="staff-value empty" id="s-senior2">—</span></div>
+        </div>
+    </div>
+
+    <!-- クラス別 -->
+    <div id="classes-container"></div>
+</div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    document.getElementById('btn-back').href = `judge_menu.html?event=${eventId}`;
+
+    async function init() {
+        if (!eventId) return;
+        const snap = await getDoc(doc(db, 'tournaments', eventId));
+        if (!snap.exists()) return;
+        const d = snap.data();
+
+    document.title = `${d.name || '大会'} — 審判構成`;
+
+    // スタッフ
+    const staff = d.judgeConfig?.staff || {};
+    const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (val) { el.textContent = val; el.classList.remove('empty'); }
+        else { el.textContent = '—'; }
+    };
+    set('s-chief',    staff.chiefJudge);
+    set('s-recorder', staff.chiefRecorder);
+    set('s-senior1',  staff.seniorJudge1);
+    set('s-senior2',  staff.seniorJudge2);
+
+    // クラス別
+    const cls          = d.classes || {};
+    const individual   = (cls.individual || []).map(c => ({ name: c.name, type: 'individual' }));
+    const synchro      = (cls.synchro    || []).map(c => ({ name: c.name, type: 'synchro' }));
+    const judgeConfig  = d.judgeConfig?.classes || {};
+    const container    = document.getElementById('classes-container');
+
+    const ROLES = [
+        ['cjp','CJP'],
+        ['e1','E1'],['e2','E2'],['e3','E3'],['e4','E4'],['e5','E5'],['e6','E6'],
+        ['d7','D7'],['d8','D8'],
+    ];
+
+    function buildSection(list, type) {
+        if (list.length === 0) return;
+        const label = type === 'synchro' ? 'シンクロ' : '個人';
+        const heading = document.createElement('div');
+        heading.className = 'section-heading';
+        heading.textContent = label;
+        container.appendChild(heading);
+
+        list.forEach(({ name }) => {
+            const data = judgeConfig[name] || {};
+            const hasAny = ROLES.some(([key]) => data[key]);
+
+            const card = document.createElement('div');
+            card.className = 'cls-card';
+
+            let rows = '';
+            if (hasAny) {
+                ROLES.forEach(([key, label]) => {
+                    const val = data[key] || '';
+                    rows += `<tr>
+                        <td class="role">${label}</td>
+                        <td class="name${val ? '' : ' empty'}">${val || '—'}</td>
+                    </tr>`;
+                });
+            } else {
+                rows = `<tr><td colspan="2" class="name empty">未設定</td></tr>`;
+            }
+
+            card.innerHTML = `
+                <div class="cls-header">
+                    <span class="cls-badge ${type}">${label}</span>
+                    <span class="cls-name">${name}</span>
+                </div>
+                <table class="judge-table"><tbody>${rows}</tbody></table>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+        buildSection(individual, 'individual');
+        buildSection(synchro,    'synchro');
+
+        if (individual.length === 0 && synchro.length === 0) {
+            container.innerHTML = '<p class="empty-msg">クラスが設定されていません。</p>';
+        }
+    }
+    init();
+</script>
+</body>
+</html>

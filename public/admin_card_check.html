@@ -141,7 +141,7 @@
                         finalHtml += '<div class="section-header ' + headerClass + '">🏆 決勝 — ' + (athType === 'synchro' ? 'シンクロ' : '個人') + '</div>';
                     }
                     const athName = ath.type === 'synchro' ? ath.name1 + ' / ' + ath.name2 : ath.name1;
-                    const clubName = ath.type === 'synchro' ? ath.club1 : '(' + ath.club1 + ')';
+                    const clubName = ath.type === 'synchro' ? (ath.club1 === ath.club2 ? ath.club1 : ath.club1 + ' / ' + ath.club2) : '(' + ath.club1 + ')';
                     const itemStyle = ath.id === currentSelection.athleteId ? 'background:#f0f7ff; border-left: 4px solid var(--accent);' : '';
                     const dot = createDot(ath.id, 'final', 'F');
                     finalHtml += '<div class="athlete-item" style="' + itemStyle + '">' +
@@ -196,7 +196,7 @@
                 if(rules.hasFinal) dots += createDot(ath.id, 'final', 'F');
 
                 const athName = ath.type === 'synchro' ? ath.name1 + ' / ' + ath.name2 : ath.name1;
-                const clubName = ath.type === 'synchro' ? ath.club1 : '(' + ath.club1 + ')';
+                const clubName = ath.type === 'synchro' ? (ath.club1 === ath.club2 ? ath.club1 : ath.club1 + ' / ' + ath.club2) : '(' + ath.club1 + ')';
                 const itemStyle = ath.id === currentSelection.athleteId ? 'background:#f0f7ff; border-left: 4px solid var(--accent);' : '';
 
                 finalHtml += '<div class="athlete-item" style="' + itemStyle + '">' +
@@ -323,8 +323,7 @@
         } catch (e) {
             console.error("Update error: ", e);
             alert("更新に失敗しました。");
-            if(approveBtn) approveBtn.disabled = false;
-            if(rejectBtn) rejectBtn.disabled = false;
+            document.querySelectorAll('.btn-status').forEach(b => b.disabled = false);
         }
     };
     

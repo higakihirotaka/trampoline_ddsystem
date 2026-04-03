@@ -168,7 +168,9 @@
         const byType = athletes.filter(a => (a.type || 'individual') === fType);
 
         // クラス一覧
-        const classes = [...new Set(byType.map(a => a.class || a.category || ''))];
+        const tourClassDefs = (currentTour?.classes?.[fType] || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+        const rawClasses = [...new Set(byType.map(a => a.class || a.category || ''))];
+        const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
 
         // 性別一覧
         const genders = [...new Set(byType.map(a => a.gender || ''))].filter(Boolean);
@@ -396,7 +398,7 @@
             const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
 
             const tr = document.createElement('tr'); tr.id = `row-${i}`;
-            tr.innerHTML = `<td class="col-num">${i}</td><td class="col-sub">${subSkill?.symbol || "-"}</td><td class="col-sub-dd">${subSkill?.dd.toFixed(1) || '0.0'}</td>
+            tr.innerHTML = `<td class="col-num">${i}</td><td class="col-sub">${subSkill?.symbol || "-"}</td><td class="col-sub-dd">${subSkill?.dd?.toFixed(1) || '0.0'}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}>
                     <option value="">--</option><option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
                     <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option><option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option>
