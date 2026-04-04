@@ -1009,7 +1009,7 @@
           if (skill.isTriple) tripleCount++;
           seenIds.add(String(offId));
         }
-        dCodeTxt = skill ? skill.symbol : '-';
+        dCodeTxt = skill ? (skill.displaySymbol || skill.symbol) : '-';
         dValTxt  = skill ? (isRepeat ? '0.0' : displayDD.toFixed(1)) : '-';
       }
 
@@ -1686,12 +1686,13 @@
       skillMaster = smSnap.docs
         .sort((a, b) => (a.data().displayOrder ?? parseInt(a.id)) - (b.data().displayOrder ?? parseInt(b.id)))
         .map(d => ({
-          id      : d.id,
-          symbol  : d.data().symbol,
-          dd      : parseFloat(d.data().dd) || 0,
-          isTriple: d.data().isTriple === true,
-          direction: d.data().direction || '',
-          displayOrder: d.data().displayOrder ?? parseInt(d.id)
+          id            : d.id,
+          symbol        : d.data().symbol,
+          displaySymbol : d.data().displaySymbol || d.data().symbol,
+          dd            : parseFloat(d.data().dd) || 0,
+          isTriple      : d.data().isTriple === true,
+          direction     : d.data().direction || '',
+          displayOrder  : d.data().displayOrder ?? parseInt(d.id)
         }));
 
       athSnap.forEach(d => athleteMap[d.id] = d.data());
