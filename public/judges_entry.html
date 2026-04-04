@@ -132,6 +132,7 @@
                     dd: parseFloat(d.data().dd) || 0,
                     isTriple: d.data().isTriple === true,
                     direction: d.data().direction || '',
+                    somersaultType: d.data().somersaultType || '',
                     displayOrder: d.data().displayOrder ?? parseInt(d.id)
                 }));
 
@@ -371,7 +372,7 @@
                     <h2>No.${ath.order} ${ath.name1} <span style="font-size:0.5em; color:#666;">(${ath.kana1 || ""})</span></h2>
                 </div>
                 <table class="comparison-table">
-                    <thead><tr><th class="col-num">#</th><th class="col-sub">選手申告</th><th class="col-sub-dd">DD</th><th>系統</th><th>記号</th><th class="col-dd">DD</th></tr></thead>
+                    <thead><tr><th class="col-num">#</th><th class="col-sub">選手申告</th><th class="col-sub-dd">DD</th><th>系統</th><th>宙系</th><th>記号</th><th class="col-dd">DD</th></tr></thead>
                     <tbody id="skill-rows"></tbody>
                 </table>
                 <div class="valid-count-area">
@@ -398,10 +399,17 @@
             const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
 
             const tr = document.createElement('tr'); tr.id = `row-${i}`;
+            const hasSoma = skill.direction && skill.direction !== '基礎技';
             tr.innerHTML = `<td class="col-num">${i}</td><td class="col-sub">${subSkill?.symbol || "-"}</td><td class="col-sub-dd">${subSkill?.dd?.toFixed(1) || '0.0'}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}>
                     <option value="">--</option><option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
                     <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option><option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option>
+                </select></td>
+                <td><select id="soma-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''} style="${hasSoma ? '' : 'visibility:hidden'}">
+                    <option value="">--</option><option value="1回宙" ${skill.somersaultType==='1回宙'?'selected':''}>1回宙</option>
+                    <option value="2回宙" ${skill.somersaultType==='2回宙'?'selected':''}>2回宙</option>
+                    <option value="3回宙" ${skill.somersaultType==='3回宙'?'selected':''}>3回宙</option>
+                    <option value="4回宙" ${skill.somersaultType==='4回宙'?'selected':''}>4回宙</option>
                 </select></td>
                 <td><select id="skill-${i}" onchange="calcTotal()" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}></select></td>
                 <td><span id="dd-${i}">0.0</span></td>`;
@@ -414,14 +422,23 @@
 
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
         const dir = document.getElementById(`dir-${idx}`).value;
+        const somaEl = document.getElementById(`soma-${idx}`);
         const sel = document.getElementById(`skill-${idx}`);
-        if(!sel) return;
+        if (!sel) return;
+        // 基礎技は宙系不要
+        if (somaEl) {
+            const showSoma = dir && dir !== '基礎技';
+            somaEl.style.visibility = showSoma ? '' : 'hidden';
+            if (!showSoma) somaEl.value = '';
+        }
+        const soma = somaEl?.value || '';
         sel.innerHTML = '<option value="">選択</option>';
-        if (dir) skillMaster.filter(s => s.direction === dir).sort((a, b) => a.displayOrder - b.displayOrder).forEach(s => {
-            const opt = document.createElement('option'); opt.value = s.id; opt.innerText = s.symbol;
-            if (s.id === selectedId) opt.selected = true;
-            sel.appendChild(opt);
-        });
+        if (dir) skillMaster.filter(s => s.direction === dir && (!soma || s.somersaultType === soma))
+            .sort((a, b) => a.displayOrder - b.displayOrder).forEach(s => {
+                const opt = document.createElement('option'); opt.value = s.id; opt.innerText = s.symbol;
+                if (s.id === selectedId) opt.selected = true;
+                sel.appendChild(opt);
+            });
         if (doCalc) calcTotal();
     };
 

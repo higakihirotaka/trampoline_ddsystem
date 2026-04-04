@@ -64,7 +64,7 @@
     </div>
     <input type="hidden" id="ath-gender">
     <table id="skill-table">
-        <thead><tr><th style="width:40px;">#</th><th style="width:30%;">系統</th><th>Symbol</th><th style="width:65px;">DD</th></tr></thead>
+        <thead><tr><th style="width:40px;">#</th><th style="width:22%;">系統</th><th style="width:20%;">宙系</th><th>Symbol</th><th style="width:65px;">DD</th></tr></thead>
         <tbody id="skill-rows"></tbody>
     </table>
     <div class="total-display">
@@ -151,11 +151,19 @@
         for (let i = 1; i <= 10; i++) {
             const skillId = savedSkillIds[i-1] || "";
             const skill = skillMaster.find(s => s.id === skillId) || {};
+            const hasSoma = skill.direction && skill.direction !== '基礎技';
             rows += `<tr id="row-${i}"><td>${i}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
                     <option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
                     <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option>
                     <option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option></select></td>
+                <td><select id="soma-${i}" onchange="updateOptions(${i})" style="${hasSoma ? '' : 'visibility:hidden'}">
+                    <option value="">--</option>
+                    <option value="1回宙" ${skill.somersaultType==='1回宙'?'selected':''}>1回宙</option>
+                    <option value="2回宙" ${skill.somersaultType==='2回宙'?'selected':''}>2回宙</option>
+                    <option value="3回宙" ${skill.somersaultType==='3回宙'?'selected':''}>3回宙</option>
+                    <option value="4回宙" ${skill.somersaultType==='4回宙'?'selected':''}>4回宙</option>
+                </select></td>
                 <td><select id="skill-${i}" onchange="calcTotal()"></select></td>
                 <td><span id="dd-${i}">0.0</span></td></tr>`;
         }
@@ -176,11 +184,19 @@
 
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
         const dir = document.getElementById(`dir-${idx}`).value;
+        const somaEl = document.getElementById(`soma-${idx}`);
         const sel = document.getElementById(`skill-${idx}`);
         const currentVal = sel.value;
+        // 基礎技は宙系不要
+        if (somaEl) {
+            const showSoma = dir && dir !== '基礎技';
+            somaEl.style.visibility = showSoma ? '' : 'hidden';
+            if (!showSoma) somaEl.value = '';
+        }
+        const soma = somaEl?.value || '';
         sel.innerHTML = '<option value="">選択してください</option>';
         if (dir) {
-            skillMaster.filter(s => s.direction === dir).forEach(s => {
+            skillMaster.filter(s => s.direction === dir && (!soma || s.somersaultType === soma)).forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
                 opt.textContent = s.symbol;
@@ -188,7 +204,7 @@
                 sel.appendChild(opt);
             });
         }
-        if(!selectedId && currentVal) sel.value = currentVal;
+        if (!selectedId && currentVal) sel.value = currentVal;
         if (doCalc) calcTotal();
     };
 
