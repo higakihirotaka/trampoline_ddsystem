@@ -165,7 +165,13 @@
         <button class="filter-btn" data-dir="後方系" onclick="setDir(this)">後方系</button>
         <button class="filter-btn" data-dir="基礎技" onclick="setDir(this)">基礎技</button>
         <button class="filter-btn" id="triple-btn" onclick="setTriple(this)">3回転のみ</button>
-        <button class="filter-btn" onclick="autoAssignSoma()" title="Symbolの先頭数字から宙系を自動割り当て">🔄 宙系を自動割り当て</button>
+        <span style="width:1px; background:#ddd; align-self:stretch; margin:0 4px;"></span>
+        <button class="filter-btn active" data-soma="" onclick="setSoma(this)">宙系: 全て</button>
+        <button class="filter-btn" data-soma="1回宙" onclick="setSoma(this)">1回宙</button>
+        <button class="filter-btn" data-soma="2回宙" onclick="setSoma(this)">2回宙</button>
+        <button class="filter-btn" data-soma="3回宙" onclick="setSoma(this)">3回宙</button>
+        <button class="filter-btn" data-soma="4回宙" onclick="setSoma(this)">4回宙</button>
+        <button class="filter-btn" onclick="autoAssignSoma()" title="Symbolの先頭数字から宙系を自動割り当て">🔄 自動割り当て</button>
         <span class="count-label" id="count-label"></span>
     </div>
 
@@ -203,6 +209,7 @@
     let editingId = null;   // 現在編集中の行ID
     let currentDir = '';
     let tripleOnly = false;
+    let currentSoma = '';
     let orderDirty = false; // 順序変更フラグ
     let savedOrder = [];    // 保存前の順序（元に戻す用）
 
@@ -308,6 +315,13 @@
         render();
     };
 
+    window.setSoma = function(btn) {
+        document.querySelectorAll('[data-soma]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSoma = btn.dataset.soma;
+        render();
+    };
+
     window.startEdit = function(id) {
         editingId = id;
         render();
@@ -326,6 +340,7 @@
         const q = document.getElementById('search').value.trim().toLowerCase();
         const filtered = skills.filter(s => {
             if (currentDir && s.direction !== currentDir) return false;
+            if (currentSoma && s.somersaultType !== currentSoma) return false;
             if (tripleOnly && !s.isTriple) return false;
             if (q && !s.symbol.toLowerCase().includes(q)) return false;
             return true;
@@ -339,7 +354,7 @@
             document.getElementById('empty-msg').style.display = '';
         } else {
             document.getElementById('empty-msg').style.display = 'none';
-            const isFiltered = currentDir || tripleOnly || q;
+            const isFiltered = currentDir || currentSoma || tripleOnly || q;
             tbody.innerHTML = filtered.map((s, fi) => {
                 // skills配列内のインデックス（フィルタなしの全体順序）
                 const globalIdx = skills.indexOf(s);
