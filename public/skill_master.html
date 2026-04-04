@@ -98,6 +98,8 @@
         .btn-save-row:disabled { background: #ccc; cursor: not-allowed; }
         .btn-cancel-row { padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; background: white; color: #777; font-size: 0.8rem; cursor: pointer; margin-left: 4px; }
         .btn-cancel-row:hover { background: #f5f5f5; }
+        .btn-delete { padding: 4px 8px; border-radius: 6px; border: 1px solid #ffcdd2; background: white; color: #e53935; font-size: 0.8rem; cursor: pointer; margin-left: 4px; transition: 0.15s; }
+        .btn-delete:hover { background: #ffebee; border-color: #e53935; }
         .save-ok { color: var(--ok); font-size: 0.78rem; font-weight: bold; }
 
         .empty { text-align: center; padding: 60px; color: var(--gray); }
@@ -203,7 +205,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { collection, getDocs, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { collection, getDocs, setDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     let skills = [];
     let editingId = null;   // 現在編集中の行ID
@@ -426,6 +428,7 @@
                         <td class="col-note">${noteText}</td>
                         <td class="col-act">
                             <button class="btn-edit" onclick="startEdit('${s.id}')">編集</button>
+                            <button class="btn-delete" onclick="deleteSkill('${s.id}')">削除</button>
                         </td>
                     </tr>`;
                 }
@@ -575,6 +578,20 @@
             console.error('Save error:', e);
             alert('保存に失敗しました。');
             if (saveBtn) saveBtn.disabled = false;
+        }
+    };
+
+    window.deleteSkill = async function(id) {
+        const skill = skills.find(s => s.id === id);
+        if (!skill) return;
+        if (!confirm(`「${skill.symbol}」を削除しますか？\n選手の申告データには影響しません。`)) return;
+        try {
+            await deleteDoc(doc(db, 'skillMaster', id));
+            skills = skills.filter(s => s.id !== id);
+            render();
+        } catch (e) {
+            console.error('Delete error:', e);
+            alert('削除に失敗しました: ' + e.message);
         }
     };
 
