@@ -545,7 +545,8 @@
         // active = 現在会場に表示中（緑）
         document.querySelectorAll('.screen-btn').forEach(b => b.classList.toggle('active', b.dataset.screen === effectiveScreen));
         // 選択中（pending）でないときのみパネルをスナップショット側で切り替える
-        if (!pendingScreen) showScreenPanel(effectiveScreen);
+        if (pinnedPanel) showScreenPanel(pinnedPanel);
+        else if (!pendingScreen) showScreenPanel(effectiveScreen);
 
         // 各画面の設定値を反映
         if (ts) {
@@ -606,14 +607,17 @@
 
     // 画面切り替え: 選択→「表示する」で確定の2ステップ
     let pendingScreen = null;
+    let pinnedPanel   = null; // data-noshow パネルを開いている間ピン留め
 
     document.querySelectorAll('.screen-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             if (btn.hasAttribute('data-noshow')) {
                 // タイマー操作など画面切替不要なパネルはパネルを開くだけ（選択状態・表示するボタンは変えない）
+                pinnedPanel = btn.dataset.screen;
                 showScreenPanel(btn.dataset.screen);
                 return;
             }
+            pinnedPanel   = null;
             pendingScreen = btn.dataset.screen;
             // selected クラスを付け替え（active=現在表示中 は触らない）
             document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
