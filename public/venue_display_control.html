@@ -125,6 +125,14 @@
         .carousel-item input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); flex-shrink:0; cursor:pointer; }
         .carousel-logo-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-top:1.5px solid #e0e0e0; margin-top:4px; font-size:0.88rem; font-weight:600; color:var(--text-main); cursor:pointer; }
         .carousel-logo-row input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; }
+        /* 選手紹介パネル */
+        .intro-athlete-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:10px; background:#f8fbff; border:1.5px solid #e3eaf5; font-size:0.85rem; font-weight:600; color:var(--text-main); cursor:pointer; transition:0.15s; }
+        .intro-athlete-item:hover { border-color:var(--accent); background:#eef4ff; }
+        .intro-athlete-item input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); flex-shrink:0; cursor:pointer; }
+        .intro-class-header { font-size:0.78rem; font-weight:900; color:var(--text-sub); letter-spacing:0.06em; padding:8px 4px 4px; border-top:1px solid #e0e0e0; margin-top:4px; }
+        .intro-class-header:first-child { border-top:none; margin-top:0; padding-top:0; }
+        .intro-run-status { text-align:center; font-size:0.85rem; font-weight:700; color:var(--text-sub); padding:6px 0; min-height:1.4em; }
+        .intro-run-status.running { color:var(--green); }
     </style>
 </head>
 <body>
@@ -245,6 +253,10 @@
                     <span class="btn-icon">🔄</span>順位表 巡回
                     <span class="btn-sub">クラス順に順位表を表示</span>
                 </button>
+                <button class="screen-btn" data-screen="intro">
+                    <span class="btn-icon">👤</span>選手紹介
+                    <span class="btn-sub">選手を順番に紹介</span>
+                </button>
                 <button class="screen-btn" data-screen="timer" data-noshow>
                     <span class="btn-icon">⏱️</span>タイマー操作
                     <span class="btn-sub">会場練習タイマー設定</span>
@@ -348,6 +360,24 @@
                     <input type="checkbox" id="carousel-show-logo">
                     全クラス終了後にシステムロゴ画面を差し込む
                 </label>
+            </div>
+
+            <!-- 選手紹介設定 -->
+            <div id="panel-intro" class="screen-panel">
+                <div class="panel-title">👤 選手紹介 — 設定</div>
+                <div class="panel-row">
+                    <span class="panel-label">表示時間</span>
+                    <input type="range" id="intro-duration" min="3" max="30" step="1" value="5" style="flex:1;accent-color:var(--accent);">
+                    <input type="number" id="intro-duration-val" class="val-box" min="3" max="30" value="5">
+                    <span class="unit">秒</span>
+                </div>
+                <div style="display:flex;gap:8px;margin:8px 0;">
+                    <button id="intro-select-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">全選択</button>
+                    <button id="intro-clear-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">全解除</button>
+                </div>
+                <div id="intro-athlete-list" style="display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto;margin-bottom:8px;"></div>
+                <div class="intro-run-status" id="intro-run-status"></div>
+                <button id="intro-stop-btn" style="display:none;width:100%;padding:10px;border:none;border-radius:10px;background:#c62828;color:white;font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:4px;">■ 紹介を停止</button>
             </div>
 
             <!-- タイマー操作パネル -->
@@ -468,6 +498,7 @@
     linkSlider('cer-label-fs','cer-label-fs-val');
     linkSlider('wu-class-fs','wu-class-fs-val');
     linkSlider('wu-timer-fs','wu-timer-fs-val');
+    linkSlider('intro-duration','intro-duration-val');
 
     // ---- タブ2: 画面切り替え ----
     let currentScreen = 'score';
@@ -479,7 +510,8 @@
         score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
         title:'🏟️ 大会タイトル画面',
         ceremony:'🏅 表彰式画面', warmup:'🏃 会場練習画面',
-        carousel:'🔄 巡回表示中'
+        carousel:'🔄 巡回表示中',
+        intro:'👤 選手紹介中'
     };
 
     // クラス一覧をselect要素に追加
@@ -599,6 +631,19 @@
                     'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type })),
                     'rankingCarousel.showLogo': showLogo
                 });
+            } else if (pendingScreen === 'intro') {
+                const sel = getSelectedIntroAthletes();
+                if (sel.length === 0) { alert('表示する選手を選択してください'); return; }
+                const durMs = Number(document.getElementById('intro-duration-val').value) * 1000;
+                await updateDoc(doc(db,'tournaments',eventId), {
+                    venueScreen: 'intro',
+                    'rankingCarousel.active': false,
+                    'introSettings.athletes': sel,
+                    'introSettings.durationMs': durMs,
+                    'introSettings.currentIndex': 0,
+                    'introSettings.isRunning': true
+                });
+                startIntroSequence(sel, durMs);
             } else {
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: pendingScreen,
@@ -679,6 +724,99 @@
     }
 
     // （巡回の開始・停止は btn-show-screen / applyScreenState で統合管理）
+
+    // ---- 選手紹介 ----
+    let introAthletes = [];
+    let introTimerItv = null;
+    let introCurIdx   = 0;
+    let introAthList  = [];
+
+    function renderIntroAthleteList(athletes) {
+        const list = document.getElementById('intro-athlete-list');
+        if (!list) return;
+        list.innerHTML = '';
+        let lastGroup = null;
+        athletes.forEach(a => {
+            const group = `${a.class} ${a.gender}`.trim();
+            if (group !== lastGroup) {
+                const h = document.createElement('div');
+                h.className = 'intro-class-header';
+                h.textContent = group;
+                list.appendChild(h);
+                lastGroup = group;
+            }
+            const lbl = document.createElement('label');
+            lbl.className = 'intro-athlete-item';
+            const name = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
+            lbl.innerHTML = `<input type="checkbox" data-id="${a.id}" checked><span>${a.order ? 'No.' + a.order + '&nbsp;' : ''}${name}${a.club1 ? ' (' + a.club1 + ')' : ''}</span>`;
+            list.appendChild(lbl);
+        });
+    }
+
+    document.getElementById('intro-select-all').addEventListener('click', () => {
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => cb.checked = true);
+    });
+    document.getElementById('intro-clear-all').addEventListener('click', () => {
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => cb.checked = false);
+    });
+
+    function getSelectedIntroAthletes() {
+        const sel = [];
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]:checked').forEach(cb => {
+            const a = introAthletes.find(x => x.id === cb.dataset.id);
+            if (a) sel.push(a);
+        });
+        return sel;
+    }
+
+    function updateIntroStatus(idx, total) {
+        const st = document.getElementById('intro-run-status');
+        if (!st) return;
+        st.textContent = `紹介中: ${idx + 1} / ${total} 人目`;
+        st.className = 'intro-run-status running';
+    }
+
+    function stopIntroSequence() {
+        if (introTimerItv) { clearInterval(introTimerItv); introTimerItv = null; }
+        const st = document.getElementById('intro-run-status');
+        if (st) { st.textContent = ''; st.className = 'intro-run-status'; }
+        const stopBtn = document.getElementById('intro-stop-btn');
+        if (stopBtn) stopBtn.style.display = 'none';
+    }
+
+    function startIntroSequence(athletes, durationMs) {
+        stopIntroSequence();
+        introAthList = athletes;
+        introCurIdx  = 0;
+        updateIntroStatus(0, athletes.length);
+        document.getElementById('intro-stop-btn').style.display = '';
+        introTimerItv = setInterval(async () => {
+            introCurIdx++;
+            if (introCurIdx >= introAthList.length) {
+                clearInterval(introTimerItv); introTimerItv = null;
+                document.getElementById('intro-stop-btn').style.display = 'none';
+                const st = document.getElementById('intro-run-status');
+                if (st) { st.textContent = '紹介完了'; st.className = 'intro-run-status'; }
+                await updateDoc(doc(db,'tournaments',eventId), {
+                    'introSettings.isRunning': false,
+                    venueScreen: 'score'
+                }).catch(() => {});
+                return;
+            }
+            await updateDoc(doc(db,'tournaments',eventId), {
+                'introSettings.currentIndex': introCurIdx
+            }).catch(() => {});
+            updateIntroStatus(introCurIdx, introAthList.length);
+        }, durationMs);
+    }
+
+    document.getElementById('intro-stop-btn').addEventListener('click', async () => {
+        stopIntroSequence();
+        await updateDoc(doc(db,'tournaments',eventId), {
+            'introSettings.isRunning': false,
+            venueScreen: 'score'
+        }).catch(e => alert('失敗: ' + e.message));
+    });
 
     // ---- タイマー制御 ----
     function syncCtrlTimer() {
@@ -838,6 +976,25 @@
         carouselCombos.sort((a, b) => a.label.localeCompare(b.label, 'ja'));
         buildClassOptions(classCombos);
         buildCarouselList(carouselCombos);
+
+        // 選手紹介用リスト
+        athSnap.forEach(d => {
+            const a = d.data();
+            if (a.name1) introAthletes.push({
+                id: d.id, name1: a.name1||'', name2: a.name2||'',
+                kana1: a.kana1||'', kana2: a.kana2||'',
+                club1: a.club1||'', club2: a.club2||'',
+                type: a.type||'individual', class: a.class||'',
+                gender: a.gender||'', order: a.order||''
+            });
+        });
+        introAthletes.sort((a, b) => {
+            const ga = (a.class + ' ' + a.gender).trim();
+            const gb = (b.class + ' ' + b.gender).trim();
+            if (ga !== gb) return ga.localeCompare(gb, 'ja');
+            return (parseInt(a.order)||0) - (parseInt(b.order)||0);
+        });
+        renderIntroAthleteList(introAthletes);
 
         // リアルタイム監視
         onSnapshot(doc(db,'tournaments',eventId), snap => {
