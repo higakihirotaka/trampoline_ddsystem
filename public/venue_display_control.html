@@ -609,12 +609,16 @@
 
     document.querySelectorAll('.screen-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+            if (btn.hasAttribute('data-noshow')) {
+                // タイマー操作など画面切替不要なパネルはパネルを開くだけ（選択状態・表示するボタンは変えない）
+                showScreenPanel(btn.dataset.screen);
+                return;
+            }
             pendingScreen = btn.dataset.screen;
             // selected クラスを付け替え（active=現在表示中 は触らない）
             document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
-            // data-noshow ボタン（タイマー操作）は「表示する」を無効化
-            document.getElementById('btn-show-screen').disabled = btn.hasAttribute('data-noshow');
+            document.getElementById('btn-show-screen').disabled = false;
             // 選択に応じてサブパネルを開く（既存ロジック流用）
             showScreenPanel(pendingScreen);
         });
