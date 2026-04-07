@@ -736,7 +736,7 @@
     let introCurIdx     = 0;
     let introAthList    = [];
     let introClassDefs  = [];
-    let introFilterKey  = '';          // '' = 全員, 'class|gender' = 絞り込み
+    let introFilterKey  = '';          // '' = 全員, 'class|gender|type' = 絞り込み
     let introCheckedIds = new Set();   // フィルターをまたいでチェック状態を保持
 
     function getIntroSorted() {
@@ -788,7 +788,7 @@
         saveCheckedState();
         const all = getIntroSorted();
         const filtered = introFilterKey
-            ? all.filter(a => `${a.class}|${a.gender}` === introFilterKey)
+            ? all.filter(a => `${a.class}|${a.gender}|${a.type}` === introFilterKey)
             : all;
         renderIntroAthleteList(filtered);
     }
@@ -804,12 +804,13 @@
         wrap.appendChild(allBtn);
         const seen = new Set();
         getIntroSorted().forEach(a => {
-            const key = `${a.class}|${a.gender}`;
+            const key = `${a.class}|${a.gender}|${a.type}`;
             if (!seen.has(key)) {
                 seen.add(key);
                 const btn = document.createElement('button');
                 btn.className = 'intro-filter-btn';
-                btn.textContent = [a.class, a.gender].filter(Boolean).join(' ');
+                const typeLabel = a.type === 'synchro' ? 'シンクロ' : '個人';
+                btn.textContent = [a.class, a.gender, typeLabel].filter(Boolean).join(' ');
                 btn.dataset.key = key;
                 wrap.appendChild(btn);
             }
