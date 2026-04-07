@@ -133,9 +133,10 @@
         .intro-class-header:first-child { border-top:none; margin-top:0; padding-top:0; }
         .intro-run-status { text-align:center; font-size:0.85rem; font-weight:700; color:var(--text-sub); padding:6px 0; min-height:1.4em; }
         .intro-run-status.running { color:var(--green); }
-        .intro-sort-btn { padding:4px 12px; border:1.5px solid #b0bec5; border-radius:20px; background:white; font-size:0.75rem; font-weight:700; cursor:pointer; color:var(--text-sub); transition:0.15s; }
-        .intro-sort-btn:hover { border-color:var(--accent); color:var(--accent); }
-        .intro-sort-btn.active { border-color:var(--accent); background:var(--accent); color:white; }
+        .intro-filter-wrap { display:flex; flex-wrap:wrap; gap:5px; margin:0 0 10px; }
+        .intro-filter-btn { padding:5px 14px; border:1.5px solid #b0bec5; border-radius:8px; background:white; font-size:0.8rem; font-weight:700; cursor:pointer; color:var(--text-sub); transition:0.15s; white-space:nowrap; }
+        .intro-filter-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .intro-filter-btn.active { border-color:var(--accent); background:var(--accent); color:white; }
     </style>
 </head>
 <body>
@@ -378,11 +379,7 @@
                     <button id="intro-select-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">全選択</button>
                     <button id="intro-clear-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">全解除</button>
                 </div>
-                <div style="display:flex;align-items:center;gap:6px;margin:0 0 8px;flex-wrap:wrap;">
-                    <span style="font-size:0.75rem;font-weight:700;color:var(--text-sub);">並び順:</span>
-                    <button class="intro-sort-btn active" data-sort="class">クラス順</button>
-                    <button class="intro-sort-btn" data-sort="gender">男女別</button>
-                </div>
+                <div id="intro-filter-wrap" class="intro-filter-wrap"></div>
                 <div id="intro-athlete-list" style="display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto;margin-bottom:8px;"></div>
                 <div class="intro-run-status" id="intro-run-status"></div>
                 <button id="intro-stop-btn" style="display:none;width:100%;padding:10px;border:none;border-radius:10px;background:#c62828;color:white;font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:4px;">■ 紹介を停止</button>
@@ -734,27 +731,23 @@
     // （巡回の開始・停止は btn-show-screen / applyScreenState で統合管理）
 
     // ---- 選手紹介 ----
-    let introAthletes  = [];
-    let introTimerItv  = null;
-    let introCurIdx    = 0;
-    let introAthList   = [];
-    let introClassDefs = [];  // display_order順のクラス名配列
-    let introSortMode  = 'class';
+    let introAthletes   = [];
+    let introTimerItv   = null;
+    let introCurIdx     = 0;
+    let introAthList    = [];
+    let introClassDefs  = [];
+    let introFilterKey  = '';          // '' = 全員, 'class|gender' = 絞り込み
+    let introCheckedIds = new Set();   // フィルターをまたいでチェック状態を保持
 
-    function sortIntroAthletes(mode) {
+    function getIntroSorted() {
         const gScore = g => g.includes('女') ? 0 : g.includes('男') ? 1 : 2;
         return introAthletes.slice().sort((a, b) => {
             const ia = introClassDefs.indexOf(a.class);
             const ib = introClassDefs.indexOf(b.class);
             const ca = ia >= 0 ? ia : 99, cb = ib >= 0 ? ib : 99;
+            if (ca !== cb) return ca - cb;
             const gd = gScore(a.gender || '') - gScore(b.gender || '');
-            if (mode === 'gender') {
-                if (gd !== 0) return gd;
-                if (ca !== cb) return ca - cb;
-            } else {
-                if (ca !== cb) return ca - cb;
-                if (gd !== 0) return gd;
-            }
+            if (gd !== 0) return gd;
             return (parseInt(a.order)||0) - (parseInt(b.order)||0);
         });
     }
@@ -776,39 +769,75 @@
             const lbl = document.createElement('label');
             lbl.className = 'intro-athlete-item';
             const name = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
-            lbl.innerHTML = `<input type="checkbox" data-id="${a.id}" checked><span>${a.order ? 'No.' + a.order + '&nbsp;' : ''}${name}${a.club1 ? ' (' + a.club1 + ')' : ''}</span>`;
+            lbl.innerHTML = `<input type="checkbox" data-id="${a.id}"><span>${a.order ? 'No.' + a.order + '&nbsp;' : ''}${name}${a.club1 ? ' (' + a.club1 + ')' : ''}</span>`;
             list.appendChild(lbl);
+        });
+        list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = introCheckedIds.has(cb.dataset.id);
+        });
+    }
+
+    function saveCheckedState() {
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => {
+            if (cb.checked) introCheckedIds.add(cb.dataset.id);
+            else introCheckedIds.delete(cb.dataset.id);
+        });
+    }
+
+    function applyIntroFilter() {
+        saveCheckedState();
+        const all = getIntroSorted();
+        const filtered = introFilterKey
+            ? all.filter(a => `${a.class}|${a.gender}` === introFilterKey)
+            : all;
+        renderIntroAthleteList(filtered);
+    }
+
+    function buildIntroFilterBtns() {
+        const wrap = document.getElementById('intro-filter-wrap');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        const allBtn = document.createElement('button');
+        allBtn.className = 'intro-filter-btn active';
+        allBtn.textContent = '全員';
+        allBtn.dataset.key = '';
+        wrap.appendChild(allBtn);
+        const seen = new Set();
+        getIntroSorted().forEach(a => {
+            const key = `${a.class}|${a.gender}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                const btn = document.createElement('button');
+                btn.className = 'intro-filter-btn';
+                btn.textContent = [a.class, a.gender].filter(Boolean).join(' ');
+                btn.dataset.key = key;
+                wrap.appendChild(btn);
+            }
+        });
+        wrap.querySelectorAll('.intro-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                wrap.querySelectorAll('.intro-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                introFilterKey = btn.dataset.key;
+                applyIntroFilter();
+            });
         });
     }
 
     document.getElementById('intro-select-all').addEventListener('click', () => {
-        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => cb.checked = true);
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => {
+            cb.checked = true; introCheckedIds.add(cb.dataset.id);
+        });
     });
     document.getElementById('intro-clear-all').addEventListener('click', () => {
-        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => cb.checked = false);
-    });
-
-    document.querySelectorAll('.intro-sort-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.intro-sort-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            introSortMode = btn.dataset.sort;
-            // チェック状態を保持して再描画
-            const checked = new Set([...document.querySelectorAll('#intro-athlete-list input[type="checkbox"]:checked')].map(c => c.dataset.id));
-            renderIntroAthleteList(sortIntroAthletes(introSortMode));
-            document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(c => {
-                c.checked = checked.has(c.dataset.id);
-            });
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => {
+            cb.checked = false; introCheckedIds.delete(cb.dataset.id);
         });
     });
 
     function getSelectedIntroAthletes() {
-        const sel = [];
-        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]:checked').forEach(cb => {
-            const a = introAthletes.find(x => x.id === cb.dataset.id);
-            if (a) sel.push(a);
-        });
-        return sel;
+        saveCheckedState();
+        return getIntroSorted().filter(a => introCheckedIds.has(a.id));
     }
 
     function updateIntroStatus(idx, total) {
@@ -1035,7 +1064,9 @@
                 gender: a.gender||'', order: a.order||''
             });
         });
-        renderIntroAthleteList(sortIntroAthletes(introSortMode));
+        introAthletes.forEach(a => introCheckedIds.add(a.id));
+        buildIntroFilterBtns();
+        applyIntroFilter();
 
         // リアルタイム監視
         onSnapshot(doc(db,'tournaments',eventId), snap => {
