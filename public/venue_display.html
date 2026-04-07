@@ -1573,7 +1573,7 @@
 
     // クラス名（2クラスまで）
     const classes = [warmup.class1, warmup.class2].filter(Boolean);
-    document.getElementById('vs-class-names').textContent = classes.join('\n') || '---';
+    document.getElementById('vs-class-names').textContent = classes.join('\n');
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
     // 全画面を一旦非表示
