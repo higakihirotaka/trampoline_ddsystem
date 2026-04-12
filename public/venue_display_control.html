@@ -861,15 +861,7 @@
         introTimerItv = setInterval(async () => {
             introCurIdx++;
             if (introCurIdx >= introAthList.length) {
-                clearInterval(introTimerItv); introTimerItv = null;
-                document.getElementById('intro-stop-btn').style.display = 'none';
-                const st = document.getElementById('intro-run-status');
-                if (st) { st.textContent = '紹介完了'; st.className = 'intro-run-status'; }
-                await updateDoc(doc(db,'tournaments',eventId), {
-                    'introSettings.isRunning': false,
-                    venueScreen: 'score'
-                }).catch(() => {});
-                return;
+                introCurIdx = 0; // ループ: 先頭に戻る
             }
             await updateDoc(doc(db,'tournaments',eventId), {
                 'introSettings.currentIndex': introCurIdx

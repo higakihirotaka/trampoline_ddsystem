@@ -672,14 +672,40 @@
   /* ===== 選手紹介画面 ===== */
   #vs-intro{
     container-type:size; padding:0;
-    background: radial-gradient(circle at 50% 15%, #001e3d 0%, #000810 100%);
+    background: radial-gradient(circle at 50% 20%, #001430 0%, #000810 100%);
   }
   .intro-layout{
     width:100%; height:100%;
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
-    padding: 6cqh 6cqw 8cqh; box-sizing:border-box;
-    position:relative;
+    padding: 6cqh 6cqw; box-sizing:border-box;
+    position:relative; overflow:hidden;
+  }
+  /* フラッシュ演出用疑似レイヤー */
+  .intro-layout::before{
+    content:'';
+    position:absolute; inset:0;
+    background: radial-gradient(ellipse at 50% 45%, rgba(0,180,255,0.18) 0%, transparent 65%);
+    opacity:0; pointer-events:none;
+  }
+  .intro-layout.intro-flash::before{
+    animation: intro-flash-glow 900ms ease-out forwards;
+  }
+  @keyframes intro-flash-glow{
+    0%  { opacity:1; }
+    100%{ opacity:0; }
+  }
+  /* ライン装飾 */
+  .intro-divider{
+    width:0; height:1px;
+    background:linear-gradient(90deg, transparent, rgba(0,242,255,0.6), transparent);
+  }
+  .intro-anim .intro-divider{
+    animation: intro-line-expand 600ms 350ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes intro-line-expand{
+    from{ width:0; }
+    to  { width:30cqw; }
   }
   .intro-top-bar{
     position:absolute; top:0; left:0; right:0;
@@ -700,12 +726,43 @@
     gap:1.8cqh; text-align:center;
     opacity:0;
   }
+  /* カード全体は即表示（子要素が個別にアニメ） */
   .intro-card.intro-anim{
-    animation: intro-slide-in 650ms cubic-bezier(0.22,1,0.36,1) forwards;
+    opacity:1;
   }
-  @keyframes intro-slide-in{
-    from{ opacity:0; transform:translateY(3cqh); filter:blur(6px); }
-    to  { opacity:1; transform:translateY(0);    filter:blur(0);   }
+  /* クラスラベル: 左からスライド */
+  .intro-anim .intro-class-lbl{
+    animation: intro-from-left 600ms 0ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes intro-from-left{
+    from{ opacity:0; transform:translateX(-4cqw); }
+    to  { opacity:1; transform:translateX(0); }
+  }
+  /* 順番ラベル */
+  .intro-anim .intro-order-lbl{
+    animation: intro-fade-up 500ms 80ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  /* 名前: 最派手 — 拡縮＋ブラー */
+  .intro-anim .intro-name-lbl{
+    animation: intro-name-burst 800ms 150ms cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes intro-name-burst{
+    0%  { opacity:0; transform:scale(1.18) translateY(1.5cqh); filter:blur(18px); }
+    55% { opacity:1; filter:blur(0); }
+    100%{ opacity:1; transform:scale(1) translateY(0); filter:blur(0);
+          text-shadow: 0 0 120px rgba(255,255,255,0.35), 0 0 40px rgba(0,242,255,0.2); }
+  }
+  /* かな */
+  .intro-anim .intro-kana-lbl{
+    animation: intro-fade-up 500ms 380ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  /* 所属 */
+  .intro-anim .intro-club-lbl{
+    animation: intro-fade-up 500ms 500ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes intro-fade-up{
+    from{ opacity:0; transform:translateY(2cqh); }
+    to  { opacity:1; transform:translateY(0); }
   }
   .intro-class-lbl{
     font-size:1.5cqw; font-weight:800; letter-spacing:0.4em;
@@ -730,11 +787,11 @@
   }
   .intro-progress-wrap{
     position:absolute; bottom:0; left:0; right:0;
-    height:4px; background:rgba(255,255,255,0.08); overflow:hidden;
+    height:3px; background:rgba(255,255,255,0.06); overflow:hidden;
   }
   .intro-progress-fill{
     height:100%; width:0%;
-    background:linear-gradient(90deg, var(--accent-gold) 0%, rgba(255,215,0,0.5) 100%);
+    background:linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-gold) 100%);
     transition:none;
   }
   </style>
@@ -802,7 +859,7 @@
 
   <!-- 選手紹介画面 -->
   <div id="vs-intro" class="venue-screen">
-    <div class="intro-layout">
+    <div class="intro-layout" id="intro-layout">
       <div class="intro-top-bar">
         <div class="intro-event-lbl" id="intro-event-lbl"></div>
         <div class="intro-counter-lbl" id="intro-counter-lbl"></div>
@@ -810,6 +867,7 @@
       <div class="intro-card" id="intro-card">
         <div class="intro-class-lbl" id="intro-class-lbl"></div>
         <div class="intro-order-lbl" id="intro-order-lbl"></div>
+        <div class="intro-divider"></div>
         <div class="intro-name-lbl" id="intro-name-lbl"></div>
         <div class="intro-kana-lbl" id="intro-kana-lbl"></div>
         <div class="intro-club-lbl" id="intro-club-lbl"></div>
@@ -818,7 +876,6 @@
         <div class="intro-progress-fill" id="intro-progress-fill"></div>
       </div>
     </div>
-    <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
 <script type="module">
@@ -1805,10 +1862,13 @@
     document.getElementById('intro-kana-lbl').textContent  = kana;
     document.getElementById('intro-club-lbl').textContent  = club;
 
-    // カードアニメーション
-    const card = document.getElementById('intro-card');
+    // カードアニメーション（フラッシュ＋子要素個別アニメ）
+    const layout = document.getElementById('intro-layout');
+    const card   = document.getElementById('intro-card');
+    layout.classList.remove('intro-flash');
     card.classList.remove('intro-anim');
     void card.offsetWidth;
+    layout.classList.add('intro-flash');
     card.classList.add('intro-anim');
 
     // プログレスバー（durationMs かけて 0→100% で残り時間を表示）
