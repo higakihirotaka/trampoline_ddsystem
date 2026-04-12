@@ -749,6 +749,7 @@
     <div class="breakdown-row" style="opacity:1;"></div>
     <div class="result-section" style="opacity:1;"></div>
     <footer class="footer-credits" style="opacity:1;">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
+    <div id="ranking-overlay"></div>
   </div>
 
   <!-- システムロゴ画面 -->
@@ -1278,7 +1279,8 @@
 
     // オーバーレイを再アタッチ（innerHTML で消えるため）
     if (!overlay) { overlay = document.createElement('div'); overlay.id = 'ranking-overlay'; }
-    overlay.className = 'ranking-overlay';
+    // carousel-mode クラスを保持しつつリセット（巡回中にスコアが割り込んだ場合も carousel-mode を維持）
+    overlay.className = carouselActive ? 'carousel-mode' : '';
     overlay.innerHTML = '';
     monitor.appendChild(overlay);
 
@@ -1569,6 +1571,9 @@
       tries++;
     }
     if (carouselEntries.length === 0) { carouselStop(); return; }
+    // carousel-mode が消えていた場合（スコア割り込み後など）に再適用
+    const _ov = document.getElementById('ranking-overlay');
+    if (_ov) _ov.classList.add('carousel-mode');
     carouselPageIdx = 0;
     currentMode = 'carousel';
     carouselShowPage();
