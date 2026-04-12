@@ -433,7 +433,7 @@
         // D確定バッジ
         const badge = document.getElementById('d-confirmed-badge');
         const skillsRow = document.getElementById('skill-symbols-row');
-        if (data.verifiedAt) {
+        if (data.dConfirmedAt) {
             badge.textContent = '確定'; badge.className = 'd-badge';
             skillsRow.classList.add('d-confirmed');
         } else {

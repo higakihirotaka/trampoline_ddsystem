@@ -44,6 +44,7 @@
         .nav-icon.purple { background: #f3e5f5; }
         .nav-icon.orange { background: #fff3e0; }
         .nav-icon.teal   { background: #e0f2f1; }
+        .nav-icon.red    { background: #fce4ec; }
         .nav-title { font-size: 0.95rem; font-weight: 700; }
         .nav-desc  { font-size: 0.7rem; color: var(--sub); margin-top: 1px; }
         .nav-arrow { margin-left: auto; color: #ccc; font-size: 1.1rem; flex-shrink: 0; }
@@ -73,6 +74,11 @@
         <div><div class="nav-title">審判構成</div><div class="nav-desc">スタッフ・担当一覧</div></div>
         <span class="nav-arrow">›</span>
     </a>
+    <a class="nav-card" id="nav-cardcheck" href="#">
+        <div class="nav-icon red">🔎</div>
+        <div><div class="nav-title">競技カードチェック</div><div class="nav-desc">全選手のカード提出状況と内容を確認</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
     <a class="nav-card" id="nav-input" href="#">
         <div class="nav-icon green">✏️</div>
         <div><div class="nav-title">審判入力</div><div class="nav-desc">役割を選んで採点</div></div>
@@ -97,9 +103,10 @@
     const eventId = new URLSearchParams(location.search).get('event');
     if (!eventId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">大会IDが見つかりません。</p>'; throw new Error(); }
 
-    document.getElementById('nav-info').href    = `tournament_info.html?event=${eventId}`;
-    document.getElementById('nav-roster').href  = `judge_roster.html?event=${eventId}`;
-    document.getElementById('nav-input').href   = `judge_role_select.html?event=${eventId}`;
+    document.getElementById('nav-info').href      = `tournament_info.html?event=${eventId}`;
+    document.getElementById('nav-roster').href    = `judge_roster.html?event=${eventId}`;
+    document.getElementById('nav-cardcheck').href = `admin_card_check.html?event=${eventId}&from=judge`;
+    document.getElementById('nav-input').href     = `judge_role_select.html?event=${eventId}`;
     document.getElementById('nav-score').href   = `score_view.html?event=${eventId}`;
     document.getElementById('nav-display').href = `venue_display.html?event=${eventId}`;
 

@@ -1125,7 +1125,7 @@
     const landDed = getLandingDed(panelJudges, synchro);
     const isLanValid = vLimit === 10;
     const bonusCol = `
-      <div class="skill-stack bonus-style" style="${isLanValid ? '' : 'opacity:0.25;'}">
+      <div class="skill-stack bonus-style" style="${(isLanValid || bonus > 0) ? '' : 'opacity:0.25;'}">
         <div class="col-idx">LAN</div>
         <div class="card e-card"><div class="e-val num">${isLanValid && landDed !== null ? Math.round(landDed * 10) : '--'}</div></div>
         <div class="bonus-note-block">
@@ -1470,10 +1470,16 @@
       ath.class || ath.category || '', ath.gender || '', ath.type || 'individual');
     rankingPageTimer = setTimeout(() => {
       currentRankingPage++;
-      // 1周完了: warmup復元 or 巡回再開
+      // 1周完了: 1位からの画面に戻って静止（オーバーレイは出したまま）
       if (currentRankingPage >= totalPages) {
-        stopRankingLoop();
+        rankingPageTimer = null;
         currentMode = 'idle';
+        currentRankingPage = 0;
+        // 1ページ目を再描画してタイマーなしで静止
+        let p1entries = allRankingEntries.slice(0, rowsPerPage);
+        while (p1entries.length < rowsPerPage) p1entries.push(null);
+        renderRankingOverlay(p1entries, 0, totalPages, 0,
+          ath.class || ath.category || '', ath.gender || '', ath.type || 'individual');
         if (savedVenueScreen) restoreSavedVenueScreen();
         if (carouselActive) carouselNext();
       } else {

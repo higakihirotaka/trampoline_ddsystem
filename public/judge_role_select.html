@@ -19,6 +19,7 @@
         .btn-tech { border-color: #546e7a; }
         .btn-exec { border-color: #00e676; }
         .section-title { font-size: 0.7rem; color: #777; margin-bottom: 10px; text-transform: uppercase; }
+        .badge-auth { display: block; font-size: 0.55rem; font-weight: 700; color: #ff1744; background: rgba(255,23,68,0.12); border: 1px solid rgba(255,23,68,0.35); border-radius: 4px; padding: 1px 5px; margin-top: 4px; letter-spacing: 0.03em; }
         @media (max-width: 800px) { .panels { flex-direction: column; } }
     </style>
 </head>
@@ -29,7 +30,7 @@
             <div class="label-a">PANEL A</div>
             <div class="section-title">Superior & Technical</div>
             <div class="grid">
-                <a href="#" class="btn btn-cjp" onclick="go('A','CJP')">CJP</a>
+                <a href="#" class="btn btn-cjp" onclick="go('A','CJP')">CJP<span class="badge-auth">要権限</span></a>
                 <a href="#" class="btn btn-tech" onclick="go('A','D')">D</a>
                 <a href="#" class="btn btn-tech" onclick="go('A','HD')">HD</a>
                 <a href="#" class="btn btn-tech" onclick="go('A','T')">T</a>

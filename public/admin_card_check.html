@@ -91,7 +91,14 @@
 
     async function init() {
         if (!eventId) { document.body.innerHTML = "<h1>大会IDが見つかりません</h1><a href=\"admin_index.html\">大会選択に戻る</a>"; return; }
-        document.getElementById('menu-back').href = 'admin_menu.html?event=' + eventId;
+        const fromJudge = params.get('from') === 'judge';
+        const backEl = document.getElementById('menu-back');
+        if (fromJudge) {
+            backEl.href = `judge_menu.html?event=${eventId}`;
+            backEl.textContent = '← 審判用メニューへ';
+        } else {
+            backEl.href = `admin_menu.html?event=${eventId}`;
+        }
         document.getElementById('sidebar-list').innerHTML = '<div style="padding:20px; color:#90a4ae; font-size:0.9rem;">読み込み中...</div>';
 
         const [tourSnap, athSnap, subSnap, skillSnap] = await Promise.all([

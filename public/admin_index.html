@@ -68,6 +68,7 @@
             const newRef = doc(collection(db, 'tournaments'));
             await setDoc(newRef, {
                 name: name.trim(),
+                startDate: '',
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             });

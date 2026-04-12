@@ -500,7 +500,7 @@
             const skills = []; for (let i = 1; i <= 10; i++) skills.push(document.getElementById(`skill-${i}`).value);
             const validCount = parseInt(document.getElementById('valid-count').value);
             const totalVal = parseFloat(document.getElementById('total-dd').innerText.split(' ')[0]);
-            await setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, verifiedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
+            await setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
             init(); 
         } catch (e) { console.error(e); btn.disabled = false; }
     };

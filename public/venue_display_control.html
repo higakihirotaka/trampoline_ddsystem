@@ -261,10 +261,6 @@
                     <span class="btn-icon">👤</span>選手紹介
                     <span class="btn-sub">選手を順番に紹介</span>
                 </button>
-                <button class="screen-btn" data-screen="timer" data-noshow>
-                    <span class="btn-icon">⏱️</span>タイマー操作
-                    <span class="btn-sub">会場練習タイマー設定</span>
-                </button>
             </div>
             <button class="btn-show-screen" id="btn-show-screen" disabled>表示する</button>
             <div id="show-screen-err" style="font-size:0.82rem;font-weight:700;color:#c62828;min-height:1.2em;margin-top:6px;text-align:center;"></div>
@@ -385,39 +381,40 @@
                 <button id="intro-stop-btn" style="display:none;width:100%;padding:10px;border:none;border-radius:10px;background:#c62828;color:white;font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:4px;">■ 紹介を停止</button>
             </div>
 
-            <!-- タイマー操作パネル -->
-            <div id="panel-timer" class="screen-panel">
-                <div class="panel-title">⏱️ 会場練習タイマー</div>
-                <div class="timer-display num" id="ctrl-timer">--:--</div>
-                <div class="timer-btns">
-                    <button class="timer-btn timer-btn-start" id="timer-start-btn">▶ 開始</button>
-                    <button class="timer-btn timer-btn-pause" id="timer-pause-btn" disabled>⏸ 一時停止</button>
-                    <button class="timer-btn timer-btn-reset" id="timer-reset-btn">↺ リセット</button>
-                </div>
-                <div class="timer-preset">
-                    <span class="preset-label">プリセット:</span>
-                    <button class="preset-btn" data-min="3">3分</button>
-                    <button class="preset-btn" data-min="5">5分</button>
-                    <button class="preset-btn" data-min="8">8分</button>
-                    <button class="preset-btn" data-min="10">10分</button>
-                    <button class="preset-btn" data-min="15">15分</button>
-                </div>
-                <!-- 手入力 -->
-                <div class="timer-manual">
-                    <span class="timer-manual-label">手入力:</span>
-                    <div class="timer-manual-inputs">
-                        <input type="number" id="timer-manual-min" class="timer-manual-input" min="0" max="99" step="1" placeholder="MM">
-                        <span class="timer-manual-sep">:</span>
-                        <input type="number" id="timer-manual-sec" class="timer-manual-input" min="0" max="59" step="1" placeholder="SS">
-                    </div>
-                    <button class="timer-manual-set" id="timer-manual-set-btn">更新</button>
-                </div>
-                <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-size:0.88rem;font-weight:700;color:var(--text-main);cursor:pointer;border-top:1px solid #f0f0f0;padding-top:12px;">
-                    <input type="checkbox" id="timer-repeat" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;">
-                    繰り返し（0になったら自動で再スタート）
-                </label>
-            </div>
         </div>
+    </div>
+
+    <!-- ⏱️ タイマー操作（常時表示カード） -->
+    <div class="section-title">⏱️ 会場練習タイマー</div>
+    <div class="card">
+        <div class="timer-display num" id="ctrl-timer">--:--</div>
+        <div class="timer-btns">
+            <button class="timer-btn timer-btn-start" id="timer-start-btn">▶ 開始</button>
+            <button class="timer-btn timer-btn-pause" id="timer-pause-btn" disabled>⏸ 一時停止</button>
+            <button class="timer-btn timer-btn-reset" id="timer-reset-btn">↺ リセット</button>
+        </div>
+        <div class="timer-preset">
+            <span class="preset-label">プリセット:</span>
+            <button class="preset-btn" data-min="3">3分</button>
+            <button class="preset-btn" data-min="5">5分</button>
+            <button class="preset-btn" data-min="8">8分</button>
+            <button class="preset-btn" data-min="10">10分</button>
+            <button class="preset-btn" data-min="15">15分</button>
+        </div>
+        <!-- 手入力 -->
+        <div class="timer-manual">
+            <span class="timer-manual-label">手入力:</span>
+            <div class="timer-manual-inputs">
+                <input type="number" id="timer-manual-min" class="timer-manual-input" min="0" max="99" step="1" placeholder="MM">
+                <span class="timer-manual-sep">:</span>
+                <input type="number" id="timer-manual-sec" class="timer-manual-input" min="0" max="59" step="1" placeholder="SS">
+            </div>
+            <button class="timer-manual-set" id="timer-manual-set-btn">更新</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-size:0.88rem;font-weight:700;color:var(--text-main);cursor:pointer;border-top:1px solid #f0f0f0;padding-top:12px;">
+            <input type="checkbox" id="timer-repeat" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;">
+            繰り返し（0になったら自動で再スタート）
+        </label>
     </div>
 </div>
 
@@ -545,8 +542,7 @@
         // active = 現在会場に表示中（緑）
         document.querySelectorAll('.screen-btn').forEach(b => b.classList.toggle('active', b.dataset.screen === effectiveScreen));
         // 選択中（pending）でないときのみパネルをスナップショット側で切り替える
-        if (pinnedPanel) showScreenPanel(pinnedPanel);
-        else if (!pendingScreen) showScreenPanel(effectiveScreen);
+        if (!pendingScreen) showScreenPanel(effectiveScreen);
 
         // 各画面の設定値を反映
         if (ts) {
@@ -607,17 +603,9 @@
 
     // 画面切り替え: 選択→「表示する」で確定の2ステップ
     let pendingScreen = null;
-    let pinnedPanel   = null; // data-noshow パネルを開いている間ピン留め
 
     document.querySelectorAll('.screen-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            if (btn.hasAttribute('data-noshow')) {
-                // タイマー操作など画面切替不要なパネルはパネルを開くだけ（選択状態・表示するボタンは変えない）
-                pinnedPanel = btn.dataset.screen;
-                showScreenPanel(btn.dataset.screen);
-                return;
-            }
-            pinnedPanel   = null;
             pendingScreen = btn.dataset.screen;
             // selected クラスを付け替え（active=現在表示中 は触らない）
             document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));

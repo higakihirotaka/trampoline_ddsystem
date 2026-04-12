@@ -271,6 +271,14 @@
         #dd-total-cell { white-space: normal; line-height: 1.3; }
         /* 重複技ハイライト（薄い黄色） */
         .d-dup { background: rgba(255, 193, 7, 0.22) !important; }
+        /* skill-symbolsヘッダーは高specificity青を上書き */
+        #skill-symbols-row th.skill-header.d-dup { background: rgba(255, 193, 7, 0.55) !important; color: #7c5e00 !important; }
+        /* DD行：重複=黄色bg＋暗黄文字 / 申告相違=赤文字太字（!importantでインラインstyleに勝つ） */
+        #dd-row th.d-dup      { background: rgba(255, 193, 7, 0.55) !important; color: #7c5e00 !important; }
+        #dd-row th.d-mismatch { color: var(--danger) !important; font-weight: 900 !important; }
+        /* 両方同時：黄色bg＋赤文字 */
+        #skill-symbols-row th.skill-header.d-dup.d-mismatch { background: rgba(255, 193, 7, 0.55) !important; color: var(--danger) !important; }
+        #dd-row th.d-dup.d-mismatch { background: rgba(255, 193, 7, 0.55) !important; color: var(--danger) !important; }
         /* D手動入力セル */
         .d-manual-cell { color: #e65100 !important; font-weight: bold !important; cursor: text; border-radius: 3px; background: #fff8f0 !important; }
         .d-manual-cell:focus { background: rgba(255,152,0,0.15) !important; outline: 2px solid #ff9800; }
@@ -391,6 +399,7 @@
 <script type="module">
     import { db } from "./firebase-config.js";
     import { doc, onSnapshot, getDoc, getDocs, collection, query, where, setDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin } from "./auth.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
@@ -482,6 +491,12 @@
             console.error('初期化エラー:', e);
             document.getElementById('ath-name').innerText = '読み込みに失敗しました';
             document.getElementById('ath-meta').innerText = e.message || 'ネットワークエラー';
+        } finally {
+            // 選手選択に依存しないボタンは初期化完了後に常に有効化
+            const elCalc = document.getElementById('btn-calculating');
+            const elRepub = document.getElementById('btn-republish');
+            if (elCalc) elCalc.disabled = false;
+            if (elRepub) elRepub.disabled = false;
         }
     }
 
@@ -712,8 +727,10 @@
 
     function applyLock(locked) {
         isLocked = locked;
-        document.getElementById('btn-confirm').disabled   =  locked;  // 確定済みは再確定不可
-        document.getElementById('btn-unlock').disabled    = !locked;  // 未確定時は修正不要
+        document.getElementById('btn-confirm').disabled     =  locked;  // 確定済みは再確定不可
+        document.getElementById('btn-unlock').disabled      = !locked;  // 未確定時は修正不要
+        document.getElementById('btn-republish').disabled   = false;    // 選手選択後は常に有効
+        document.getElementById('btn-calculating').disabled = false;    // 選手選択後は常に有効
     }
 
     window.unlock = async function() {
@@ -726,6 +743,7 @@
             }, { merge: true }),
             athleteId ? setDoc(doc(db, 'results', resId), {
                 verifiedAt: deleteField(),
+                dConfirmedAt: deleteField(),
                 published: false   // D審判の修正を許可
             }, { merge: true }) : Promise.resolve()
         ]);
@@ -971,27 +989,35 @@
 
         // 実施行（officialSkills → skillMasterMap でシンボル取得、重複は黄色・申請差異は赤）
         if (dMode === 'auto') {
-            const seenSymbols = new Set();
+            const ddCells = [...document.querySelectorAll('.d-dd')];
+            // Pass1: シンボル収集 & クラスリセット（skill-header と d-dd 両方）
+            const execSymbols = [];
             document.querySelectorAll('.skill-header').forEach((el, i) => {
                 el.style.color = '';
-                el.classList.remove('d-dup');
-                el.classList.remove('d-mismatch');
+                el.classList.remove('d-dup', 'd-mismatch');
+                if (ddCells[i]) ddCells[i].classList.remove('d-dup', 'd-mismatch');
                 const id = execSkills[i];
-                if (i >= vLimitD || !id) { el.textContent = '-'; return; }
-                // IDでもシンボルでも検索できるよう正規化
+                if (i >= vLimitD || !id) { el.textContent = '-'; execSymbols.push(null); return; }
                 const skill = skillMasterMap[id]
                     || Object.values(skillMasterMap).find(v => v.symbol === id);
-                const execSymbol = skill ? skill.symbol : String(id);
-                el.textContent = execSymbol;
-                if (seenSymbols.has(execSymbol)) {
-                    el.classList.add('d-dup'); // 重複は黄色
-                } else {
-                    seenSymbols.add(execSymbol);
+                const sym = skill ? skill.symbol : String(id);
+                el.textContent = sym;
+                execSymbols.push(sym);
+            });
+            const symCount = {};
+            execSymbols.forEach(sym => { if (sym) symCount[sym] = (symCount[sym] || 0) + 1; });
+            // Pass2: 重複（両方）と申告差異をハイライト（skill-header と d-dd 両方に適用）
+            document.querySelectorAll('.skill-header').forEach((el, i) => {
+                const sym = execSymbols[i];
+                if (!sym) return;
+                if (symCount[sym] > 1) {
+                    el.classList.add('d-dup'); // 重複は黄色（初回も含む全て）
+                    if (ddCells[i]) ddCells[i].classList.add('d-dup');
                 }
-                // 申請との差異 → d-mismatch クラスで赤（!important で確定色を上書き）
                 const declSym = declaredSymbols[i];
-                if (i < vLimitD && declSym && execSymbol !== declSym) {
+                if (i < vLimitD && declSym && sym !== declSym) {
                     el.classList.add('d-mismatch');
+                    if (ddCells[i]) ddCells[i].classList.add('d-mismatch');
                     hasDeclaredMismatch = true;
                 }
             });
@@ -1000,7 +1026,7 @@
         // D確定バッジ・緑枠（クリックで切り替え）
         const badge = document.getElementById('d-confirmed-badge');
         const dInfoRows = document.querySelectorAll('.d-info-row');
-        if (data.verifiedAt) {
+        if (data.dConfirmedAt) {
             badge.textContent = '確定';
             badge.className = 'd-badge';
             dInfoRows.forEach(r => r.classList.add('d-confirmed'));
@@ -1543,7 +1569,7 @@
         return null;
     }
 
-    init();
+    ensureAdmin(() => init());
 </script>
 </body>
 </html>

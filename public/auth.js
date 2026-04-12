@@ -63,9 +63,19 @@ export function ensureAdmin(callback) {
 // --- Firestore & Data Functions ---
 
 export async function getTournaments() {
-    const q = query(collection(db, "tournaments"), orderBy("startDate", "desc"));
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const snap = await getDocs(collection(db, "tournaments"));
+    return snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => {
+            const da = a.startDate || '';
+            const db_ = b.startDate || '';
+            if (da > db_) return -1;
+            if (da < db_) return 1;
+            // startDateが同じ or 両方なし → 作成日時の新しい順
+            const ca = a.createdAt?.seconds ?? 0;
+            const cb = b.createdAt?.seconds ?? 0;
+            return cb - ca;
+        });
 }
 
 export async function getTournamentDetails(tournamentId) {
