@@ -753,9 +753,11 @@
     window.republish = async function() {
         if (!athleteId) return;
         const resId = `${eventId}_${athleteId}_${round}`;
-        await setDoc(doc(db, 'results', resId), {
-            publishedAt: serverTimestamp()
-        }, { merge: true });
+        await Promise.all([
+            setDoc(doc(db, 'results', resId), { publishedAt: serverTimestamp() }, { merge: true }),
+            // 再表示で別の画面が出るので集計中表示を解除
+            setDoc(doc(db, 'tournaments', eventId), { calculating: false }, { merge: true })
+        ]);
     };
 
     // 集計中表示: 会場ディスプレイに選手情報付きの「得点集計中」画面を出す（審判側は変更なし）
