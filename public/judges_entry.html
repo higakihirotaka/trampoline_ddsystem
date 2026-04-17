@@ -84,7 +84,8 @@
     <div class="sidebar-header">
         <div style="font-size: 0.8em; opacity: 0.8;">JUDGE CONSOLE</div>
         <div id="event-name" style="font-weight: 900; font-size: 1.2em; margin-top: 5px;">Loading...</div>
-        <a href="#" id="menu-back" style="color: white; font-size: 0.75em; text-decoration: none; display: block; margin-top: 15px; opacity: 0.7;">← 管理メニューに戻る</a>
+        <div id="panel-role-label" style="font-size: 0.75em; opacity: 0.85; margin-top: 6px; letter-spacing: 0.05em;"></div>
+        <a href="#" id="menu-back" style="color: white; font-size: 0.75em; text-decoration: none; display: block; margin-top: 10px; opacity: 0.7;">← 管理メニューに戻る</a>
     </div>
     <div id="sidebar-filters" class="sidebar-filters"></div>
     <div id="sidebar-list" class="sidebar-list"></div>
@@ -103,6 +104,8 @@
     
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim();
+    const panel   = params.get('panel')?.trim() || '';
+    const role    = params.get('role')?.trim()  || '';
     let athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
@@ -113,6 +116,10 @@
     async function init() {
         if (!eventId) return;
         document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
+        if (panel || role) {
+            const parts = [panel && `PANEL ${panel}`, role && `ROLE ${role}`].filter(Boolean);
+            document.getElementById('panel-role-label').textContent = parts.join(' | ');
+        }
 
         try {
             const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await Promise.all([
