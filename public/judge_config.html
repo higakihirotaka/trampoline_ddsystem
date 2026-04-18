@@ -181,13 +181,15 @@
 
         document.getElementById('no-class-msg').remove();
 
+        const numE = d.numExecJudges || 6;   // E審判人数（大会設定に合わせる）
+
         // 個人
         if (individual.length > 0) {
             const heading = document.createElement('div');
             heading.className = 'section-heading';
             heading.innerHTML = '<span class="section-badge individual">個人</span>';
             container.appendChild(heading);
-            individual.forEach(name => container.appendChild(buildClassCard(name, 'individual')));
+            individual.forEach(name => container.appendChild(buildClassCard(name, 'individual', numE)));
         }
 
         // シンクロ
@@ -196,7 +198,7 @@
             heading.className = 'section-heading';
             heading.innerHTML = '<span class="section-badge synchro">シンクロ</span>';
             container.appendChild(heading);
-            synchro.forEach(name => container.appendChild(buildClassCard(name, 'synchro')));
+            synchro.forEach(name => container.appendChild(buildClassCard(name, 'synchro', numE)));
         }
 
         // 一括保存
@@ -209,13 +211,19 @@
     }
 
     // ---- カード生成 ----
-    function buildClassCard(className, type) {
+    function buildClassCard(className, type, numE = 6) {
         const data = (judgeConfig.classes || {})[className] || {};
         const isSynchro = type === 'synchro';
 
+        // E審判フィールドを numE 人分動的生成
+        const eCols  = numE <= 2 ? 'cols-2' : numE <= 4 ? 'cols-2' : 'cols-3';
+        const eLabel = `E 審判（E1 〜 E${numE}）`;
+        let eFields  = '';
+        for (let i = 1; i <= numE; i++) eFields += jf(`e${i}`, `E${i}`, data[`e${i}`]);
+
         const card = document.createElement('div');
         card.className = 'card';
-        card.dataset.cls = className;
+        card.dataset.cls  = className;
         card.dataset.type = type;
 
         card.innerHTML = `
@@ -227,10 +235,9 @@
                 </div>
             </div>
             <div class="judge-section">
-                <div class="judge-section-title">E 審判（E1 〜 E6）</div>
-                <div class="judge-grid cols-3">
-                    ${jf('e1','E1',data.e1)}${jf('e2','E2',data.e2)}${jf('e3','E3',data.e3)}
-                    ${jf('e4','E4',data.e4)}${jf('e5','E5',data.e5)}${jf('e6','E6',data.e6)}
+                <div class="judge-section-title">${eLabel}</div>
+                <div class="judge-grid ${eCols}">
+                    ${eFields}
                 </div>
             </div>
             <div class="judge-section">
