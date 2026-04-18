@@ -1303,8 +1303,18 @@
 
             const tofVal = r.timeOfFlightInSeconds;
             const hdVal  = r.horizontalDisplacement;
+            const vcVal  = r.elementCount;
             const label  = data.maturity === 'confirmed' ? '確定' : '暫定';
 
+            // 有効本数をセット
+            if (vcVal != null) {
+                const vcSelect = document.getElementById('valid-count');
+                if (vcSelect) {
+                    vcSelect.value = String(vcVal);
+                    updateValidHeaders(vcVal);
+                    await updateValid(vcVal);
+                }
+            }
             // ToF を手動モードにして値をセット
             if (tofVal != null) {
                 if (tofMode !== 'manual') toggleTofMode();
@@ -1316,7 +1326,7 @@
                 document.getElementById('hd').value  = hdVal.toFixed(1);  calc();
             }
             statusEl.style.color = '#66bb6a';
-            statusEl.textContent = `[${label}] ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}`;
+            statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}`;
         } catch(e) {
             statusEl.style.color = '#e57373';
             statusEl.textContent = 'QIRAに接続できません（起動確認）';
