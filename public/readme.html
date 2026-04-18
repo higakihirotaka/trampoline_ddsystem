@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Readme - Trampoline Scoring System</title>
+    <style>
+        :root {
+            --primary: #263238;
+            --accent:  #1a73e8;
+            --bg:      #f8f9fa;
+            --text:    #263238;
+            --sub:     #546e7a;
+            --border:  #e1e7eb;
+            --code-bg: #f1f3f4;
+            --sidebar-w: 230px;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg);
+               margin: 0; color: var(--text); display: flex; min-height: 100vh; }
+
+        /* ---- サイドバー ---- */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: white;
+            border-right: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            flex-shrink: 0;
+            padding: 24px 0 40px;
+        }
+        .sidebar-logo {
+            font-size: 0.72rem;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--sub);
+            padding: 0 20px 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .sidebar-logo span { display: block; font-size: 1.1rem; color: var(--primary); letter-spacing: 0; }
+        .sidebar-section { font-size: 0.68rem; font-weight: 900; color: var(--sub);
+                           letter-spacing: 0.07em; text-transform: uppercase;
+                           padding: 16px 20px 6px; }
+        .sidebar a {
+            display: block;
+            padding: 6px 20px;
+            text-decoration: none;
+            color: var(--sub);
+            font-size: 0.84rem;
+            border-left: 3px solid transparent;
+            transition: 0.12s;
+            line-height: 1.4;
+        }
+        .sidebar a.sub { padding-left: 34px; font-size: 0.78rem; }
+        .sidebar a:hover { color: var(--accent); background: #f0f5ff; }
+        .sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: #eef3ff; font-weight: 600; }
+
+        /* ---- メインコンテンツ ---- */
+        .main { flex: 1; max-width: 800px; padding: 40px 52px 80px; }
+
+        .top-nav { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; }
+        .back-link { color: var(--sub); text-decoration: none; font-size: 0.85rem;
+                     border: 1px solid var(--border); padding: 5px 14px; border-radius: 6px; transition: 0.12s; }
+        .back-link:hover { background: #eee; }
+        .page-title { margin: 0 0 6px; font-size: 2rem; font-weight: 900; }
+        .page-sub { color: var(--sub); font-size: 0.88rem; margin: 0 0 48px; }
+
+        /* ---- セクション ---- */
+        .section { margin-bottom: 60px; scroll-margin-top: 28px; }
+        h2 { font-size: 1.25rem; font-weight: 800; color: var(--primary);
+             border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin: 0 0 22px; }
+        h3 { font-size: 0.95rem; font-weight: 700; margin: 28px 0 10px;
+             color: var(--primary); scroll-margin-top: 28px; }
+        p { line-height: 1.8; margin: 0 0 14px; font-size: 0.9rem; }
+        a { color: var(--accent); }
+
+        /* ---- ステップリスト ---- */
+        .steps { list-style: none; margin: 0; padding: 0; }
+        .steps li { display: flex; gap: 14px; margin-bottom: 20px; align-items: flex-start; }
+        .step-num {
+            width: 26px; height: 26px; border-radius: 50%;
+            background: var(--accent); color: white;
+            font-size: 0.78rem; font-weight: 900;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; margin-top: 2px;
+        }
+        .step-body { flex: 1; font-size: 0.9rem; line-height: 1.75; }
+        .step-body strong { color: var(--primary); }
+
+        /* ---- コード ---- */
+        code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+               font-family: 'Consolas', 'Courier New', monospace; font-size: 0.86em; color: #c62828; }
+        .path-block {
+            background: var(--code-bg);
+            border-left: 3px solid var(--accent);
+            padding: 10px 16px; border-radius: 0 8px 8px 0;
+            font-family: 'Consolas', monospace; font-size: 0.87rem;
+            margin: 10px 0; color: #1565c0;
+        }
+
+        /* ---- コールアウト ---- */
+        .callout { border-radius: 8px; padding: 12px 16px; margin: 16px 0;
+                   font-size: 0.88rem; line-height: 1.7; }
+        .callout-info { background: #e8f0fe; border-left: 4px solid var(--accent); }
+        .callout-warn { background: #fff3e0; border-left: 4px solid #f57c00; }
+        .callout-ok   { background: #e8f5e9; border-left: 4px solid #388e3c; }
+
+        /* ---- 画像プレースホルダー ---- */
+        .img-caption { font-size: 0.78rem; color: var(--sub); margin-top: 4px; text-align: center; }
+
+        @media (max-width: 720px) {
+            .sidebar { display: none; }
+            .main { padding: 24px 20px 60px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ========== サイドバー ========== -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        Trampoline<span>Scoring System</span>
+    </div>
+
+    <div class="sidebar-section">はじめに</div>
+    <a href="#google-account">Googleアカウントの追加</a>
+    <a href="#google-account-how" class="sub">仕組み</a>
+    <a href="#google-account-steps" class="sub">追加手順（詳細）</a>
+    <a href="#google-account-remove" class="sub">権限の削除</a>
+</nav>
+
+<!-- ========== メインコンテンツ ========== -->
+<main class="main" id="main">
+    <nav class="top-nav">
+        <a href="admin_index.html" class="back-link">← 管理画面へ</a>
+    </nav>
+
+    <h1 class="page-title">📘 Readme</h1>
+    <p class="page-sub">Trampoline Scoring System — 運用マニュアル</p>
+
+
+    <!-- ====================================================== -->
+    <!-- Section: Googleアカウントの追加                         -->
+    <!-- ====================================================== -->
+    <section class="section" id="google-account">
+        <h2>Googleアカウントの追加（管理者の追加）</h2>
+
+        <h3 id="google-account-how">仕組み</h3>
+        <p>
+            管理者ログインには Google アカウントを使用します。
+            ログイン時に Firestore の <code>admins</code> コレクションへ
+            そのアカウントの UID が登録されているかを確認し、
+            登録済みの場合のみ管理者として認可されます。
+        </p>
+        <div class="callout callout-info">
+            ℹ️　<strong>UID</strong> とは、Firebase が各 Google アカウントに割り当てる固有のIDです。
+            Firebase コンソールの <strong>Authentication → Users</strong> で確認できます。
+        </div>
+
+        <h3 id="google-account-steps">追加手順（詳細）</h3>
+        <ol class="steps">
+            <li>
+                <span class="step-num">1</span>
+                <div class="step-body">
+                    <strong>追加したい人に一度ログインを試みてもらう</strong><br>
+                    以下のURLにアクセスし、「Googleでログイン」を押してGoogleアカウントでサインインしてもらいます。
+                    <div class="path-block">https://travaults-system.web.app/admin_login.html</div>
+                    「<strong>管理者権限がありません。</strong>」と表示されますが、これは正常です。
+                    この操作によってそのアカウントが Firebase Authentication に登録され、
+                    UID が発行されます。
+                </div>
+            </li>
+            <li>
+                <span class="step-num">2</span>
+                <div class="step-body">
+                    <strong>Firebase Console を開く</strong><br>
+                    <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a>
+                    にアクセスし、プロジェクト <code>trampoline-dd-test</code> を選択します。
+                </div>
+            </li>
+            <li>
+                <span class="step-num">3</span>
+                <div class="step-body">
+                    <strong>UID を確認する</strong><br>
+                    左メニューの <strong>Authentication</strong> → <strong>Users</strong> タブを開きます。<br>
+                    一覧からステップ1でログインを試みたアカウントを探し、
+                    <strong>ユーザーUID</strong> 列の値をコピーします。<br>
+                    <span style="font-size:0.82rem; color:#888;">（例: <code>aBcD1234EfGh5678IjKl</code> のような英数字の文字列）</span>
+                </div>
+            </li>
+            <li>
+                <span class="step-num">4</span>
+                <div class="step-body">
+                    <strong>Firestore の admins コレクションにドキュメントを追加する</strong><br>
+                    左メニューの <strong>Firestore Database</strong> を開き、データタブを選択します。<br>
+                    <code>admins</code> コレクションをクリックし、
+                    <strong>「＋ ドキュメントを追加」</strong> をクリックします。
+                    <div class="path-block">admins　→　＋ ドキュメントを追加</div>
+                    <strong>ドキュメントID</strong> の欄に、コピーした UID をそのまま貼り付けます。<br>
+                    フィールドは空でも動作しますが、管理のため
+                    <code>name</code>（文字列）に氏名を入れておくと便利です。<br><br>
+                    入力例：
+                    <div class="path-block">ドキュメントID: aBcD1234EfGh5678IjKl<br>フィールド: name = "山田 太郎"</div>
+                    最後に <strong>「保存」</strong> をクリックします。
+                </div>
+            </li>
+            <li>
+                <span class="step-num">5</span>
+                <div class="step-body">
+                    <strong>追加した人にログインし直してもらう</strong><br>
+                    再度 <code>admin_login.html</code> から Google でログインすると、
+                    管理者として認可され管理画面（<code>admin_index.html</code>）に入れるようになります。
+                </div>
+            </li>
+        </ol>
+
+        <div class="callout callout-warn">
+            ⚠️　<code>admins</code> コレクションへの追加・変更は、
+            Firebase Console の操作権限（プロジェクトオーナーまたは編集者）を持つアカウントのみ行えます。
+            コンソールへのアクセス権限は Google Cloud IAM で別途管理してください。
+        </div>
+
+        <h3 id="google-account-remove">権限の削除</h3>
+        <p>
+            管理者権限を失効させるには、
+            Firestore の <code>admins</code> コレクションから対象の UID のドキュメントを削除します。
+            次回ログイン時から管理者として認可されなくなります。
+        </p>
+        <div class="callout callout-ok">
+            ✅　Firebase Authentication 側のアカウント（Users）を削除しなくても、
+            <code>admins</code> コレクションからドキュメントを消すだけで権限は失効します。
+        </div>
+    </section>
+
+</main>
+
+<script>
+    // スクロールに合わせてサイドバーのアクティブリンクを更新
+    const headings = document.querySelectorAll('section[id], h3[id]');
+    const sideLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+            if (!e.isIntersecting) return;
+            sideLinks.forEach(l => l.classList.remove('active'));
+            const link = document.querySelector(`.sidebar a[href="#${e.target.id}"]`);
+            if (link) link.classList.add('active');
+        });
+    }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+
+    headings.forEach(h => observer.observe(h));
+</script>
+</body>
+</html>
