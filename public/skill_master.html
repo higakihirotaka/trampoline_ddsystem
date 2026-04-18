@@ -41,6 +41,8 @@
         /* テーブル */
         .skill-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         .skill-table thead tr { background: #37474f; color: white; }
+        /* 列クラスのcolor指定がthにも適用されるため明示的に上書き */
+        .skill-table thead th { color: white !important; }
         .skill-table th { padding: 11px 10px; text-align: left; font-size: 0.73rem; font-weight: bold; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
         .skill-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; vertical-align: middle; }
         .skill-table tbody tr:last-child td { border-bottom: none; }
@@ -186,6 +188,8 @@
         <button class="filter-btn" data-soma="4回宙" onclick="setSoma(this)">4回宙</button>
         <button class="filter-btn" onclick="autoAssignSoma()" title="Symbolの先頭数字から宙系を自動割り当て">🔄 宙系自動割当</button>
         <button class="filter-btn" onclick="bulkCopySymbolToDisplay()" title="未設定の表示用にSymbolを一括コピー">📋 表示用一括コピー</button>
+        <span style="width:1px; background:#ddd; align-self:stretch; margin:0 4px;"></span>
+        <button class="filter-btn" onclick="sortByDD()" title="難度点の低い順に並べ替え（保存が必要）" style="border-color:#7e57c2; color:#7e57c2;">📊 難度順に並替</button>
         <span class="count-label" id="count-label"></span>
     </div>
 
@@ -652,6 +656,20 @@
         await Promise.all(updates);
         alert(`${skills.length}件を更新しました`);
         render();
+    };
+
+    // ---- 難度順ソート ----
+    window.sortByDD = function() {
+        if (!confirm('難度点の低い順（同点はSymbol名順）に並べ替えます。\n※保存バーから「順序を保存」してください。\nよろしいですか？')) return;
+        skills.sort((a, b) => {
+            const da = Number(a.dd) || 0, db = Number(b.dd) || 0;
+            if (Math.abs(da - db) > 1e-9) return da - db;
+            return (a.symbol || '').localeCompare(b.symbol || '', 'ja');
+        });
+        reindexOrder();
+        markOrderDirty();
+        render();
+        showToast('📊 難度順に並べ替えました（保存してください）');
     };
 
     window.deleteSkill = async function(id) {
