@@ -372,7 +372,7 @@
                 </tr>
                 <!-- HDTS 技別 HD 行 -->
                 <tr class="d-info-row hdts-row" id="hdts-hd-row">
-                    <th class="hdts-label">HDTS<br>HD</th>
+                    <th class="hdts-label">HDTS<br>HD(減)</th>
                     <th id="hdts-hd-1">-</th><th id="hdts-hd-2">-</th><th id="hdts-hd-3">-</th><th id="hdts-hd-4">-</th><th id="hdts-hd-5">-</th>
                     <th id="hdts-hd-6">-</th><th id="hdts-hd-7">-</th><th id="hdts-hd-8">-</th><th id="hdts-hd-9">-</th><th id="hdts-hd-10">-</th>
                     <th>-</th><th class="hdts-sum" id="hdts-hd-sum">-</th><th class="toggle-col"></th>
@@ -1377,17 +1377,26 @@
             }
             // 技別データを HDTS 行に表示
             if (r.elements && r.elements.length > 0) {
+                let hdDedTotal = 0;
                 r.elements.forEach((el, i) => {
                     if (i >= 10) return;
                     const tofCell = document.getElementById(`hdts-tof-${i + 1}`);
                     const hdCell  = document.getElementById(`hdts-hd-${i + 1}`);
                     if (tofCell) tofCell.textContent = el.timeOfFlightInSeconds != null ? el.timeOfFlightInSeconds.toFixed(3) : '-';
-                    if (hdCell)  hdCell.textContent  = el.horizontalDisplacement  != null ? el.horizontalDisplacement.toFixed(1)  : '-';
+                    if (hdCell) {
+                        if (el.horizontalDisplacement != null) {
+                            const ded = Math.round((1.0 - el.horizontalDisplacement) * 10);
+                            hdCell.textContent = ded;
+                            hdDedTotal += ded;
+                        } else {
+                            hdCell.textContent = '-';
+                        }
+                    }
                 });
                 const tofSumEl = document.getElementById('hdts-tof-sum');
                 const hdSumEl  = document.getElementById('hdts-hd-sum');
                 if (tofSumEl && tofVal != null) tofSumEl.textContent = tofVal.toFixed(3);
-                if (hdSumEl  && hdVal  != null) hdSumEl.textContent  = hdVal.toFixed(1);
+                if (hdSumEl) hdSumEl.textContent = hdDedTotal;
             }
             statusEl.style.color = '#66bb6a';
             statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}`;
