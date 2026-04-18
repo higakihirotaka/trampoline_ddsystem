@@ -11,16 +11,17 @@
             --border: #d4dce8; --th-bg: #1e3a5f; --th-text: #e8f0fa;
             --cell-bg: #ffffff; --cell-alt: #f5f8fc;
         }
-        html { height: 100%; }
-        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100%; display: flex; overflow: hidden; }
+        html { min-height: 100%; }
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; align-items: flex-start; overflow-x: hidden; }
         
         /* ===== サイドバー ===== */
         .sidebar {
-            width: 300px; min-height: 0; flex-shrink: 0;
+            width: 300px; flex-shrink: 0;
             background: #fff;
             border-right: 1px solid var(--border);
             display: flex; flex-direction: column;
             box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+            position: sticky; top: 0; height: 100vh;
         }
 
         /* ヘッダー */
@@ -148,12 +149,12 @@
         }
 
         /* メインコンソール */
-        .console-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-        .top-bar { background: var(--primary); padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; }
+        .console-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .top-bar { background: var(--primary); padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; position: sticky; top: 0; z-index: 10; }
         .btn-exit { color: #ffb3b3; text-decoration: none; border: 1px solid #ff8a80; padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 
         .athlete-banner { background: var(--card-bg); padding: 15px 25px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
-        .main-content { flex: 1; min-height: 0; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 20px; }
+        .main-content { padding: 20px; display: flex; flex-direction: column; gap: 20px; padding-bottom: 40px; }
 
         /* テーブル */
         /* table-layout:fixed でセル幅固定。width:100% で画面幅を使い切り、
@@ -363,14 +364,14 @@
                     <th id="dd-bonus-cell">-</th><th id="dd-total-cell">-</th><th class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" id="d-mode-toggle" onchange="toggleDMode(this.checked)"><span class="track-sm"></span></label></th>
                 </tr>
                 <!-- HDTS 技別 ToF 行 -->
-                <tr class="d-info-row hdts-row" id="hdts-tof-row" style="display:none">
+                <tr class="d-info-row hdts-row" id="hdts-tof-row">
                     <th class="hdts-label">HDTS<br>ToF(s)</th>
                     <th id="hdts-tof-1">-</th><th id="hdts-tof-2">-</th><th id="hdts-tof-3">-</th><th id="hdts-tof-4">-</th><th id="hdts-tof-5">-</th>
                     <th id="hdts-tof-6">-</th><th id="hdts-tof-7">-</th><th id="hdts-tof-8">-</th><th id="hdts-tof-9">-</th><th id="hdts-tof-10">-</th>
                     <th>-</th><th class="hdts-sum" id="hdts-tof-sum">-</th><th class="toggle-col"></th>
                 </tr>
                 <!-- HDTS 技別 HD 行 -->
-                <tr class="d-info-row hdts-row" id="hdts-hd-row" style="display:none">
+                <tr class="d-info-row hdts-row" id="hdts-hd-row">
                     <th class="hdts-label">HDTS<br>HD</th>
                     <th id="hdts-hd-1">-</th><th id="hdts-hd-2">-</th><th id="hdts-hd-3">-</th><th id="hdts-hd-4">-</th><th id="hdts-hd-5">-</th>
                     <th id="hdts-hd-6">-</th><th id="hdts-hd-7">-</th><th id="hdts-hd-8">-</th><th id="hdts-hd-9">-</th><th id="hdts-hd-10">-</th>
@@ -1319,8 +1320,6 @@
         ['hdts-tof-sum','hdts-hd-sum'].forEach(id => {
             const el = document.getElementById(id); if (el) el.textContent = '-';
         });
-        document.getElementById('hdts-tof-row').style.display = 'none';
-        document.getElementById('hdts-hd-row').style.display  = 'none';
         const st = document.getElementById('qira-status');
         if (st) { st.textContent = ''; st.style.color = '#90a4ae'; }
     }
@@ -1389,8 +1388,6 @@
                 const hdSumEl  = document.getElementById('hdts-hd-sum');
                 if (tofSumEl && tofVal != null) tofSumEl.textContent = tofVal.toFixed(3);
                 if (hdSumEl  && hdVal  != null) hdSumEl.textContent  = hdVal.toFixed(1);
-                document.getElementById('hdts-tof-row').style.display = '';
-                document.getElementById('hdts-hd-row').style.display  = '';
             }
             statusEl.style.color = '#66bb6a';
             statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}`;
