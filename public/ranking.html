@@ -414,7 +414,13 @@
         </div>
         <div class="event-name">${tourData.name || ''}</div>
         <div class="sheet-title">${sheetTitle}</div>
-        <div class="sheet-sub">出力日時：${new Date().toLocaleString('ja-JP')}</div>
+        <div class="sheet-sub">${(() => {
+          const venue = tourData.venue || '';
+          const s = tourData.start_date || tourData.startDate || '';
+          const e = tourData.end_date   || tourData.endDate   || '';
+          const dateStr = s && e && s !== e ? `${s} ～ ${e}` : (s || e);
+          return [venue, dateStr].filter(Boolean).join('　　');
+        })()}</div>
       </div>
       <div style="overflow-x:auto">
         <table class="score-table">${colgroup}${thead}<tbody>${tbodyHtml}</tbody></table>
