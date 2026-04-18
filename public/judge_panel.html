@@ -85,7 +85,7 @@
         <div style="font-size: 0.8em; opacity: 0.8;">JUDGE CONSOLE</div>
         <div id="event-name" style="font-weight: 900; font-size: 1.2em; margin-top: 5px;">Loading...</div>
         <div id="panel-role-label" style="font-size: 0.75em; opacity: 0.85; margin-top: 6px; letter-spacing: 0.05em;"></div>
-        <a href="#" id="menu-back" style="color: white; font-size: 0.75em; text-decoration: none; display: block; margin-top: 10px; opacity: 0.7;">← 管理メニューに戻る</a>
+        <a href="#" id="menu-back" style="color: white; font-size: 0.75em; text-decoration: none; display: block; margin-top: 10px; opacity: 0.7;">← 役割選択に戻る</a>
     </div>
     <div id="sidebar-filters" class="sidebar-filters"></div>
     <div id="sidebar-list" class="sidebar-list"></div>
@@ -115,7 +115,7 @@
 
     async function init() {
         if (!eventId) return;
-        document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
+        document.getElementById('menu-back').href = `judge_role_select.html?event=${eventId}`;
         if (panel || role) {
             const parts = [panel && `PANEL ${panel}`, role && `ROLE ${role}`].filter(Boolean);
             document.getElementById('panel-role-label').textContent = parts.join(' | ');
