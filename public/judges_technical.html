@@ -270,6 +270,10 @@
         .d-info-row.d-confirmed th { background: rgba(67,160,71,0.1); color: var(--success); }
         /* D確定バッジ */
         .d-badge { font-size: 0.72rem; background: #43a047; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
+        /* HDTS 技別データ行 */
+        .hdts-row th { background: rgba(38,166,154,0.10) !important; color: #00695c !important; border-color: rgba(38,166,154,0.22) !important; font-size: 0.78rem !important; font-family: monospace; }
+        .hdts-row .hdts-label { font-size: 0.63rem !important; font-family: inherit; white-space: normal; line-height: 1.4; }
+        .hdts-row .hdts-sum { font-weight: bold; }
         /* DD合計セル（ボーナス内訳を2行表示するため折り返しを許可） */
         #dd-total-cell { white-space: normal; line-height: 1.3; }
         /* 重複技ハイライト（薄い黄色） */
@@ -357,6 +361,20 @@
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
                     <th id="dd-bonus-cell">-</th><th id="dd-total-cell">-</th><th class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" id="d-mode-toggle" onchange="toggleDMode(this.checked)"><span class="track-sm"></span></label></th>
+                </tr>
+                <!-- HDTS 技別 ToF 行 -->
+                <tr class="d-info-row hdts-row" id="hdts-tof-row" style="display:none">
+                    <th class="hdts-label">HDTS<br>ToF(s)</th>
+                    <th id="hdts-tof-1">-</th><th id="hdts-tof-2">-</th><th id="hdts-tof-3">-</th><th id="hdts-tof-4">-</th><th id="hdts-tof-5">-</th>
+                    <th id="hdts-tof-6">-</th><th id="hdts-tof-7">-</th><th id="hdts-tof-8">-</th><th id="hdts-tof-9">-</th><th id="hdts-tof-10">-</th>
+                    <th>-</th><th class="hdts-sum" id="hdts-tof-sum">-</th><th class="toggle-col"></th>
+                </tr>
+                <!-- HDTS 技別 HD 行 -->
+                <tr class="d-info-row hdts-row" id="hdts-hd-row" style="display:none">
+                    <th class="hdts-label">HDTS<br>HD</th>
+                    <th id="hdts-hd-1">-</th><th id="hdts-hd-2">-</th><th id="hdts-hd-3">-</th><th id="hdts-hd-4">-</th><th id="hdts-hd-5">-</th>
+                    <th id="hdts-hd-6">-</th><th id="hdts-hd-7">-</th><th id="hdts-hd-8">-</th><th id="hdts-hd-9">-</th><th id="hdts-hd-10">-</th>
+                    <th>-</th><th class="hdts-sum" id="hdts-hd-sum">-</th><th class="toggle-col"></th>
                 </tr>
             </tfoot>
         </table>
@@ -666,6 +684,9 @@
         // ToF/HD mode リセット（auto に戻す）
         if (tofMode === 'manual') toggleTofMode();
         if (hdMode === 'manual') toggleHdMode();
+
+        // HDTS 技別行リセット
+        resetHdtsRows();
 
         // バナー更新
         const ath = athletes.find(a => a.id === aid);
@@ -1287,6 +1308,23 @@
         }
     };
 
+    // ---- HDTS 技別行リセット ----
+    function resetHdtsRows() {
+        for (let i = 1; i <= 10; i++) {
+            const t = document.getElementById(`hdts-tof-${i}`);
+            const h = document.getElementById(`hdts-hd-${i}`);
+            if (t) t.textContent = '-';
+            if (h) h.textContent = '-';
+        }
+        ['hdts-tof-sum','hdts-hd-sum'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.textContent = '-';
+        });
+        document.getElementById('hdts-tof-row').style.display = 'none';
+        document.getElementById('hdts-hd-row').style.display  = 'none';
+        const st = document.getElementById('qira-status');
+        if (st) { st.textContent = ''; st.style.color = '#90a4ae'; }
+    }
+
     // ---- QIRA 取得 ----
     // プロキシ（server.js）→ 直接接続（localhost:8080）の順で試みる
     async function tryFetchQira() {
@@ -1337,6 +1375,22 @@
             if (hdVal != null) {
                 if (hdMode !== 'manual') toggleHdMode();
                 document.getElementById('hd').value  = hdVal.toFixed(1);  calc();
+            }
+            // 技別データを HDTS 行に表示
+            if (r.elements && r.elements.length > 0) {
+                r.elements.forEach((el, i) => {
+                    if (i >= 10) return;
+                    const tofCell = document.getElementById(`hdts-tof-${i + 1}`);
+                    const hdCell  = document.getElementById(`hdts-hd-${i + 1}`);
+                    if (tofCell) tofCell.textContent = el.timeOfFlightInSeconds != null ? el.timeOfFlightInSeconds.toFixed(3) : '-';
+                    if (hdCell)  hdCell.textContent  = el.horizontalDisplacement  != null ? el.horizontalDisplacement.toFixed(1)  : '-';
+                });
+                const tofSumEl = document.getElementById('hdts-tof-sum');
+                const hdSumEl  = document.getElementById('hdts-hd-sum');
+                if (tofSumEl && tofVal != null) tofSumEl.textContent = tofVal.toFixed(3);
+                if (hdSumEl  && hdVal  != null) hdSumEl.textContent  = hdVal.toFixed(1);
+                document.getElementById('hdts-tof-row').style.display = '';
+                document.getElementById('hdts-hd-row').style.display  = '';
             }
             statusEl.style.color = '#66bb6a';
             statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}`;
