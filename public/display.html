@@ -1445,7 +1445,7 @@
   }
 
   // クラス指定でランキングエントリを取得（巡回モード・通常モード共用）
-  async function fetchRankingEntriesFor(classVal, genderVal, selType) {
+  async function fetchRankingEntriesFor(classVal, genderVal, selType, round) {
     const rule      = getClassRule({ class: classVal, type: selType });
     const numPre    = rule.qualifyingRoutines || 1;
     const scoreMode = rule.scoreMode || 'best';
@@ -1464,7 +1464,19 @@
         if (r.round === 'pre2')  { byAth[r.athleteId].pre2 = r.officialTotal ?? null; byAth[r.athleteId].tb2 = getTbScores(r); }
         if (r.round === 'final') byAth[r.athleteId].final = r.officialTotal ?? null;
       });
-      return Object.entries(byAth)
+
+      // 決勝判定: round='final'明示 or 自動検出（finalスコアあり＆finalOrder設定済みの選手がいる）
+      const hasFinalResults = Object.values(byAth).some(s => s.final !== null);
+      const hasFinalOrder   = Object.keys(byAth).some(id => athleteMap[id]?.finalOrder != null);
+      const isFinal = round === 'final' || (round == null && hasFinalResults && hasFinalOrder);
+
+      // 決勝モード: finalOrder確定済み選手のみ
+      let entries = Object.entries(byAth);
+      if (isFinal) {
+        entries = entries.filter(([id]) => athleteMap[id]?.finalOrder != null);
+      }
+
+      return entries
         .map(([id, s]) => {
           let qualScore = null;
           if (numPre === 1) {
@@ -1485,13 +1497,15 @@
               diff: (s.tb1?.diff ?? 0) + (s.tb2?.diff ?? 0)
             };
           }
-          return { id, ...s, total: qualScore, _tb: tb };
+          // 決勝はfinalスコア優先、未確定時はqualScore
+          const total = isFinal ? (s.final ?? qualScore) : qualScore;
+          return { id, ...s, total, _tb: tb, _isFinal: isFinal };
         })
         .sort((a, b) => {
           const sa = a.total ?? -Infinity, sb = b.total ?? -Infinity;
           const diff = sb - sa;
           if (Math.abs(diff) > 1e-9) return diff;
-          if (scoreMode === 'best' && numPre >= 2) {
+          if (!isFinal && scoreMode === 'best' && numPre >= 2) {
             const ca = (a.pre1 ?? 0) + (a.pre2 ?? 0);
             const cb = (b.pre1 ?? 0) + (b.pre2 ?? 0);
             if (Math.abs(ca - cb) > 1e-9) return cb - ca;
@@ -1509,10 +1523,12 @@
   async function fetchRankingEntries() {
     if (!lastShownResData) return [];
     const ath = lastShownAth || {};
+    const round = lastShownResData.round === 'final' ? 'final' : null;
     return fetchRankingEntriesFor(
       ath.class || ath.category || '',
       ath.gender || '',
-      ath.type || 'individual'
+      ath.type || 'individual',
+      round
     );
   }
 
@@ -1567,12 +1583,17 @@
     const scoreModeLabel = scoreMode === 'total' ? 'TOTAL' : 'BEST';
     const show2     = numPre >= 2;
 
+    // 決勝モード判定（entriesの_isFinalフラグから取得）
+    const isFinal = entries.find(e => e !== null)?._isFinal || false;
+
     const rowsHTML = entries.map((e, i) => {
       if (!e) return `<div class="rk-row" style="visibility:hidden;"></div>`;
       const rank   = startOffset + i + 1;
       const cur    = e.id === curAthId;
-      const hasAny = e.pre1 !== null || e.pre2 !== null;
-      const r2col  = show2 ? `<div class="rk-sc num">${f(e.pre2)}</div>` : '';
+      const hasAny = isFinal ? (e.final !== null || e.pre1 !== null) : (e.pre1 !== null || e.pre2 !== null);
+      // 決勝: R1列にfinalスコア・R2列非表示 / 予選: 従来通り
+      const r1val  = isFinal ? e.final : e.pre1;
+      const r2col  = (!isFinal && show2) ? `<div class="rk-sc num">${f(e.pre2)}</div>` : '';
       return `<div class="rk-row${cur ? ' rk-current' : ''}">
         <div class="rk-rank num">${rank}</div>
         <div class="rk-name-group">
@@ -1582,7 +1603,7 @@
                <div class="rk-team">${e.a.club1 || ''}</div>`
           }
         </div>
-        <div class="rk-sc num">${f(e.pre1)}</div>
+        <div class="rk-sc num">${f(r1val)}</div>
         ${r2col}
         <div class="rk-tot num">${hasAny ? f(e.total) : '--'}</div>
       </div>`;
@@ -1592,14 +1613,15 @@
       ? `<span class="rk-page-info">${currentPage + 1} / ${totalPages}</span>`
       : '';
 
-    const r2head = show2 ? '<span>R2</span>' : '';
-    const totalHead = show2 ? scoreModeLabel : 'TOTAL';
+    const r2head = (!isFinal && show2) ? '<span>R2</span>' : '';
+    const r1head = isFinal ? '<span>FINAL</span>' : '<span>R1</span>';
+    const totalHead = isFinal ? 'TOTAL' : (show2 ? scoreModeLabel : 'TOTAL');
 
     overlay.innerHTML = `
       <div class="rk-event-name">${tournamentName}</div>
-      <div class="rk-title">${heading} — STANDINGS ${pageIndicator}</div>
+      <div class="rk-title">${heading} — ${isFinal ? 'FINAL ' : ''}STANDINGS ${pageIndicator}</div>
       <div class="rk-col-head">
-        <span>#</span><span>NAME</span><span>R1</span>${r2head}<span>${totalHead}</span>
+        <span>#</span><span>NAME</span>${r1head}${r2head}<span>${totalHead}</span>
       </div>
       <div class="rk-table">${rowsHTML}</div>
       <div class="rk-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>`;

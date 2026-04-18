@@ -243,11 +243,13 @@
     document.getElementById('output').innerHTML = '<div class="loading">読み込み中...</div>';
 
     const classRules = normalizeClassRules(tourData.classRules);
-    const filtered = athletes.filter(a =>
+    let filtered = athletes.filter(a =>
       (a.type || 'individual') === fType &&
       (!fGender || (a.gender || '') === fGender) &&
       (!fClass  || (a.class || a.category || '') === fClass)
     );
+    // 決勝は試技順が確定した選手のみ表示
+    if (fRound === 'final') filtered = filtered.filter(a => a.finalOrder != null);
     if (!filtered.length) { document.getElementById('output').innerHTML = '<div class="no-data">該当する選手がいません</div>'; return; }
 
     // published な結果取得
