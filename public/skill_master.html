@@ -51,7 +51,7 @@
         .col-order   { width: 60px; text-align: center; }
         .col-id      { width: 40px; text-align: center; color: #aaa; font-size: 0.78rem; }
         .col-sym     { width: 130px; font-family: monospace; font-size: 0.95rem; font-weight: bold; color: #202124; }
-        .col-disp    { width: 150px; font-size: 0.9rem; color: #37474f; }
+        .col-disp    { width: 150px; font-size: 0.9rem; color: #202124; font-weight: bold; }
         .col-dd      { width: 60px; text-align: center; }
         .col-triple  { width: 52px; text-align: center; }
         .col-dir     { width: 70px; }
@@ -105,6 +105,12 @@
 
         .empty { text-align: center; padding: 60px; color: var(--gray); }
         .loading { text-align: center; padding: 60px; color: var(--gray); font-size: 1.1rem; }
+
+        /* トースト通知 */
+        .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: #323232; color: white; padding: 10px 22px; border-radius: 8px;
+            font-size: 0.9rem; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 200; white-space: nowrap; }
+        .toast.show { opacity: 1; }
     </style>
 </head>
 <body>
@@ -209,6 +215,7 @@
         <button class="btn-reset-order" onclick="resetOrder()">元に戻す</button>
     </div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script type="module">
     import { db } from "./firebase-config.js";
@@ -348,15 +355,18 @@
         render();
     };
 
+    function passesFilter(s) {
+        if (currentDir && s.direction !== currentDir) return false;
+        if (currentSoma && s.somersaultType !== currentSoma) return false;
+        if (tripleOnly && !s.isTriple) return false;
+        const q = document.getElementById('search').value.trim().toLowerCase();
+        if (q && !s.symbol.toLowerCase().includes(q)) return false;
+        return true;
+    }
+
     window.render = function() {
         const q = document.getElementById('search').value.trim().toLowerCase();
-        const filtered = skills.filter(s => {
-            if (currentDir && s.direction !== currentDir) return false;
-            if (currentSoma && s.somersaultType !== currentSoma) return false;
-            if (tripleOnly && !s.isTriple) return false;
-            if (q && !s.symbol.toLowerCase().includes(q)) return false;
-            return true;
-        });
+        const filtered = skills.filter(passesFilter);
 
         const dirLabel = { '前方系': '前方', '後方系': '後方', '基礎技': '基礎' };
 
@@ -366,12 +376,13 @@
             document.getElementById('empty-msg').style.display = '';
         } else {
             document.getElementById('empty-msg').style.display = 'none';
-            const isFiltered = currentDir || currentSoma || tripleOnly || q;
+            const isFiltered = !!(currentDir || currentSoma || tripleOnly || q);
             tbody.innerHTML = filtered.map((s, fi) => {
                 // skills配列内のインデックス（フィルタなしの全体順序）
                 const globalIdx = skills.indexOf(s);
-                const isFirst = globalIdx === 0;
-                const isLast  = globalIdx === skills.length - 1;
+                // フィルタ中は表示リスト内での先頭/末尾、未フィルタは全体での先頭/末尾
+                const isFirst = fi === 0;
+                const isLast  = fi === filtered.length - 1;
 
                 if (editingId === s.id) {
                     // 編集モード行
@@ -428,10 +439,10 @@
                                 ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)" ondragend="onDragEnd(event)">
                         <td class="col-order">
                             <span class="order-num">${globalIdx + 1}</span>
-                            ${!isFiltered ? `<div class="order-btns">
+                            <div class="order-btns">
                                 <button class="order-btn" onclick="moveSkill('${s.id}',-1)" ${isFirst ? 'disabled' : ''} title="上へ">▲</button>
                                 <button class="order-btn" onclick="moveSkill('${s.id}',1)" ${isLast ? 'disabled' : ''} title="下へ">▼</button>
-                            </div>` : ''}
+                            </div>
                         </td>
                         <td class="col-id">${s.id}</td>
                         <td class="col-sym">${isFiltered ? '' : '<span class="drag-handle">☰ </span>'}${s.symbol}</td>
@@ -456,9 +467,20 @@
     window.moveSkill = function(id, direction) {
         const idx = skills.findIndex(s => s.id === id);
         if (idx < 0) return;
-        const newIdx = idx + direction;
-        if (newIdx < 0 || newIdx >= skills.length) return;
-        [skills[idx], skills[newIdx]] = [skills[newIdx], skills[idx]];
+        const isFiltered = !!(currentDir || currentSoma || tripleOnly || document.getElementById('search').value.trim());
+        if (isFiltered) {
+            // フィルタ中は表示されている隣のアイテムと入れ替え
+            const visible = skills.filter(passesFilter);
+            const vi = visible.findIndex(s => s.id === id);
+            const neighbor = visible[vi + direction];
+            if (!neighbor) return;
+            const neighborIdx = skills.findIndex(s => s.id === neighbor.id);
+            [skills[idx], skills[neighborIdx]] = [skills[neighborIdx], skills[idx]];
+        } else {
+            const newIdx = idx + direction;
+            if (newIdx < 0 || newIdx >= skills.length) return;
+            [skills[idx], skills[newIdx]] = [skills[newIdx], skills[idx]];
+        }
         reindexOrder();
         markOrderDirty();
         render();
@@ -474,6 +496,14 @@
         document.getElementById('order-save-bar').classList.toggle('visible', orderDirty);
     }
 
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
     window.saveOrder = async function() {
         try {
             const batch = [];
@@ -484,10 +514,10 @@
             savedOrder = skills.map(s => s.id);
             orderDirty = false;
             document.getElementById('order-save-bar').classList.remove('visible');
-            alert('表示順を保存しました。');
+            showToast('✅ 表示順を保存しました');
         } catch (e) {
             console.error('Order save error:', e);
-            alert('保存に失敗しました: ' + e.message);
+            showToast('❌ 保存に失敗しました: ' + e.message);
         }
     };
 
