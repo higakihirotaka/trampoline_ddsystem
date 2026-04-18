@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -210,7 +210,7 @@
     const judges = Object.values(result.execution?.judges || {});
     if (judges.length === 0) return { skills: Array(10).fill(null), land: null };
 
-    // judges_technical.html と同じ中央値計算（3人→index1, 5人→index2）
+    // judge_cjp.html と同じ中央値計算（3人→index1, 5人→index2）
     function median(vals) {
       const filled = vals.filter(v => v !== null && v !== undefined);
       if (filled.length === 0) return null;

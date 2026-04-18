@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -427,7 +427,7 @@
     const eventId = params.get('event');
 
     document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
-    const venueUrl = `${location.origin}/venue_display.html?event=${eventId}`;
+    const venueUrl = `${location.origin}/display.html?event=${eventId}`;
     const venueLink = document.getElementById('venue-link');
     venueLink.href = venueUrl;
     venueLink.textContent = venueUrl;

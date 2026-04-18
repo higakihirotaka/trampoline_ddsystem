@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -76,10 +76,10 @@
     }
     window.go = (p, r) => {
         let url;
-        if (r.startsWith('E'))       url = "judges_execution.html";
-        else if (r === 'D')          url = "judges_entry.html";
-        else if (r === 'T' || r === 'HD') url = "judges_tof_hd.html";
-        else                         url = "judges_technical.html";
+        if (r.startsWith('E'))       url = "judge_e.html";
+        else if (r === 'D')          url = "judge_panel.html";
+        else if (r === 'T' || r === 'HD') url = "judge_tof_hd.html";
+        else                         url = "judge_cjp.html";
         location.href = `${url}?event=${eventId}&panel=${p}&role=${r}`;
     };
     init();

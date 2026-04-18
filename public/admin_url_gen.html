@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -86,7 +86,7 @@
 
         const base = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
         setupLink('qr-judge-menu', 'url-judge-menu', `${base}/judge_menu.html?event=${eventId}`);
-        setupLink('qr-venue',      'url-venue',      `${base}/venue_display.html?event=${eventId}`);
+        setupLink('qr-venue',      'url-venue',      `${base}/display.html?event=${eventId}`);
     }
 
     function setupLink(canvasId, boxId, url) {
