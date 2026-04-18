@@ -109,8 +109,22 @@
         .callout-warn { background: #fff3e0; border-left: 4px solid #f57c00; }
         .callout-ok   { background: #e8f5e9; border-left: 4px solid #388e3c; }
 
-        /* ---- 画像プレースホルダー ---- */
-        .img-caption { font-size: 0.78rem; color: var(--sub); margin-top: 4px; text-align: center; }
+        /* ---- URLコピーボタン ---- */
+        .copy-btn {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--accent);
+            background: white;
+            color: var(--accent);
+            font-size: 0.84rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.12s;
+            margin-top: 4px;
+        }
+        .copy-btn:hover { background: #e8f0fe; }
+        .copy-btn.copied { border-color: #388e3c; color: #388e3c; background: #e8f5e9; }
 
         @media (max-width: 720px) {
             .sidebar { display: none; }
@@ -128,8 +142,10 @@
 
     <div class="sidebar-section">はじめに</div>
     <a href="#google-account">Googleアカウントの追加</a>
-    <a href="#google-account-how" class="sub">仕組み</a>
-    <a href="#google-account-steps" class="sub">追加手順（詳細）</a>
+    <a href="#google-account-how"    class="sub">仕組み</a>
+    <a href="#google-account-share"  class="sub">① 相手に送るURL</a>
+    <a href="#google-account-add"    class="sub">② Firestoreに追加</a>
+    <a href="#google-account-done"   class="sub">③ 完了を伝える</a>
     <a href="#google-account-remove" class="sub">権限の削除</a>
 </nav>
 
@@ -140,7 +156,7 @@
     </nav>
 
     <h1 class="page-title">📘 Readme</h1>
-    <p class="page-sub">Trampoline Scoring System — 運用マニュアル</p>
+    <p class="page-sub">Trampoline Scoring System — 運用マニュアル（管理者向け）</p>
 
 
     <!-- ====================================================== -->
@@ -153,29 +169,30 @@
         <p>
             管理者ログインには Google アカウントを使用します。
             ログイン時に Firestore の <code>admins</code> コレクションへ
-            そのアカウントの UID が登録されているかを確認し、
+            そのアカウントの <strong>UID</strong> が登録されているかを確認し、
             登録済みの場合のみ管理者として認可されます。
         </p>
         <div class="callout callout-info">
-            ℹ️　<strong>UID</strong> とは、Firebase が各 Google アカウントに割り当てる固有のIDです。
-            Firebase コンソールの <strong>Authentication → Users</strong> で確認できます。
+            ℹ️　<strong>UID</strong> とは Firebase が各 Google アカウントに割り当てる固有IDです。
+            追加される人には専用ページでUID取得・送付を依頼します（次の手順）。
         </div>
 
-        <h3 id="google-account-steps">追加手順（詳細）</h3>
+        <h3 id="google-account-share">① 追加したい人に専用URLを送る</h3>
+        <p>
+            以下の URL を LINEやメールなどで相手に送ってください。<br>
+            相手はそのページを開き、Googleでログインするだけで自分のUIDを確認・コピーできます。
+        </p>
+        <div class="path-block" id="share-url">https://travaults-system.web.app/request_access.html</div>
+        <button class="copy-btn" onclick="copyShareUrl()">📋 URLをコピー</button>
+        <p style="margin-top:14px;">
+            相手が操作を完了すると、<strong>メールアドレス</strong> と <strong>UID</strong> を送ってくれます。<br>
+            それを受け取ったら次のステップへ進みます。
+        </p>
+
+        <h3 id="google-account-add">② 受け取った UID を Firestore に追加する</h3>
         <ol class="steps">
             <li>
                 <span class="step-num">1</span>
-                <div class="step-body">
-                    <strong>追加したい人に一度ログインを試みてもらう</strong><br>
-                    以下のURLにアクセスし、「Googleでログイン」を押してGoogleアカウントでサインインしてもらいます。
-                    <div class="path-block">https://travaults-system.web.app/admin_login.html</div>
-                    「<strong>管理者権限がありません。</strong>」と表示されますが、これは正常です。
-                    この操作によってそのアカウントが Firebase Authentication に登録され、
-                    UID が発行されます。
-                </div>
-            </li>
-            <li>
-                <span class="step-num">2</span>
                 <div class="step-body">
                     <strong>Firebase Console を開く</strong><br>
                     <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a>
@@ -183,51 +200,41 @@
                 </div>
             </li>
             <li>
-                <span class="step-num">3</span>
+                <span class="step-num">2</span>
                 <div class="step-body">
-                    <strong>UID を確認する</strong><br>
-                    左メニューの <strong>Authentication</strong> → <strong>Users</strong> タブを開きます。<br>
-                    一覧からステップ1でログインを試みたアカウントを探し、
-                    <strong>ユーザーUID</strong> 列の値をコピーします。<br>
-                    <span style="font-size:0.82rem; color:#888;">（例: <code>aBcD1234EfGh5678IjKl</code> のような英数字の文字列）</span>
+                    <strong>Firestore Database → admins コレクションを開く</strong><br>
+                    左メニューの <strong>Firestore Database</strong> → データタブを開き、
+                    <code>admins</code> コレクションを選択します。
+                    <div class="path-block">Firestore Database → データ → admins</div>
                 </div>
             </li>
             <li>
-                <span class="step-num">4</span>
+                <span class="step-num">3</span>
                 <div class="step-body">
-                    <strong>Firestore の admins コレクションにドキュメントを追加する</strong><br>
-                    左メニューの <strong>Firestore Database</strong> を開き、データタブを選択します。<br>
-                    <code>admins</code> コレクションをクリックし、
-                    <strong>「＋ ドキュメントを追加」</strong> をクリックします。
-                    <div class="path-block">admins　→　＋ ドキュメントを追加</div>
-                    <strong>ドキュメントID</strong> の欄に、コピーした UID をそのまま貼り付けます。<br>
-                    フィールドは空でも動作しますが、管理のため
-                    <code>name</code>（文字列）に氏名を入れておくと便利です。<br><br>
-                    入力例：
-                    <div class="path-block">ドキュメントID: aBcD1234EfGh5678IjKl<br>フィールド: name = "山田 太郎"</div>
+                    <strong>ドキュメントを追加する</strong><br>
+                    <strong>「＋ ドキュメントを追加」</strong> をクリックし、
+                    <strong>ドキュメントID</strong> の欄に受け取った UID を貼り付けます。<br>
+                    管理のため <code>name</code>（文字列型）フィールドに氏名を入れておくと便利です。
+                    <div class="path-block">ドキュメントID: &lt;受け取ったUID&gt;<br>フィールド（任意）: name = "氏名"</div>
                     最後に <strong>「保存」</strong> をクリックします。
                 </div>
             </li>
-            <li>
-                <span class="step-num">5</span>
-                <div class="step-body">
-                    <strong>追加した人にログインし直してもらう</strong><br>
-                    再度 <code>admin_login.html</code> から Google でログインすると、
-                    管理者として認可され管理画面（<code>admin_index.html</code>）に入れるようになります。
-                </div>
-            </li>
         </ol>
-
         <div class="callout callout-warn">
-            ⚠️　<code>admins</code> コレクションへの追加・変更は、
-            Firebase Console の操作権限（プロジェクトオーナーまたは編集者）を持つアカウントのみ行えます。
-            コンソールへのアクセス権限は Google Cloud IAM で別途管理してください。
+            ⚠️　Firestore Console の操作には Firebase プロジェクトの編集権限が必要です。
         </div>
+
+        <h3 id="google-account-done">③ 相手に完了を伝える</h3>
+        <p>
+            Firestore への追加が完了したら、相手に連絡してください。<br>
+            以下のURLからログインできるようになります。
+        </p>
+        <div class="path-block">https://travaults-system.web.app/admin_login.html</div>
 
         <h3 id="google-account-remove">権限の削除</h3>
         <p>
-            管理者権限を失効させるには、
-            Firestore の <code>admins</code> コレクションから対象の UID のドキュメントを削除します。
+            管理者権限を失効させるには、Firestore の <code>admins</code> コレクションから
+            対象の UID のドキュメントを削除します。
             次回ログイン時から管理者として認可されなくなります。
         </p>
         <div class="callout callout-ok">
@@ -253,6 +260,21 @@
     }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
 
     headings.forEach(h => observer.observe(h));
+
+    // 共有URLコピー
+    function copyShareUrl() {
+        const url = document.getElementById('share-url').textContent.trim();
+        const btn = document.querySelector('.copy-btn');
+        navigator.clipboard.writeText(url).then(() => {
+            btn.textContent = '✓ コピーしました';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = '📋 URLをコピー';
+                btn.classList.remove('copied');
+            }, 2200);
+        });
+    }
+    window.copyShareUrl = copyShareUrl;
 </script>
 </body>
 </html>

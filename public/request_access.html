@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者登録の手続き - Trampoline Scoring System</title>
+    <style>
+        :root { --primary: #263238; --accent: #1a73e8; --ok: #1e8e3e; }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            border-top: 6px solid var(--primary);
+            padding: 40px 36px 36px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.10);
+        }
+        .sys-label {
+            font-size: 0.7rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #90a4ae;
+            margin-bottom: 4px;
+        }
+        h1 { font-size: 1.35rem; font-weight: 900; margin: 0 0 8px; color: var(--primary); }
+        .lead { font-size: 0.88rem; color: #546e7a; line-height: 1.65; margin-bottom: 28px; }
+
+        /* ---- ステップバッジ ---- */
+        .step-badge {
+            font-size: 0.65rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: #e8f0fe;
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+        .step-title { font-size: 0.92rem; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+        .step-desc  { font-size: 0.86rem; color: #546e7a; line-height: 1.65; margin-bottom: 20px; }
+
+        /* ---- Googleログインボタン ---- */
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+            background: white;
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: var(--primary);
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .btn-google:hover { background: #f5f5f5; border-color: #bbb; }
+        .btn-google:disabled { opacity: 0.5; cursor: not-allowed; }
+        .google-icon { width: 20px; height: 20px; }
+
+        /* ---- 情報パネル（ログイン後） ---- */
+        #phase-info { display: none; }
+        .success-banner {
+            background: #e8f5e9;
+            border-left: 4px solid var(--ok);
+            border-radius: 0 8px 8px 0;
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            color: #1b5e20;
+            margin-bottom: 24px;
+        }
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .info-table th {
+            text-align: left;
+            font-size: 0.72rem;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #90a4ae;
+            padding: 0 0 4px;
+        }
+        .info-table td { padding-bottom: 14px; }
+        .info-val {
+            font-family: 'Consolas', monospace;
+            font-size: 0.88rem;
+            background: #f1f3f4;
+            padding: 8px 12px;
+            border-radius: 8px;
+            word-break: break-all;
+            color: #263238;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .info-val span { flex: 1; }
+        .btn-copy {
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: white;
+            font-size: 0.78rem;
+            cursor: pointer;
+            white-space: nowrap;
+            color: #555;
+            transition: 0.12s;
+            flex-shrink: 0;
+        }
+        .btn-copy:hover { background: #f0f0f0; }
+        .btn-copy.copied { border-color: var(--ok); color: var(--ok); }
+
+        .next-note {
+            background: #fff8e1;
+            border-left: 4px solid #f9a825;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            color: #5d4037;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .btn-login-page {
+            display: block;
+            text-align: center;
+            padding: 12px;
+            border-radius: 10px;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: 0.15s;
+        }
+        .btn-login-page:hover { background: #1a252b; }
+
+        .divider { border: none; border-top: 1px solid #eee; margin: 24px 0; }
+        .err-msg { color: #c62828; font-size: 0.85rem; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="sys-label">Trampoline Scoring System</div>
+    <h1>管理者登録の手続き</h1>
+    <p class="lead">
+        管理者からこのURLを受け取った方向けのページです。<br>
+        以下の手順で操作し、表示された情報を管理者に送ってください。
+    </p>
+
+    <!-- ===== STEP 1: ログイン ===== -->
+    <div id="phase-login">
+        <div class="step-badge">Step 1</div>
+        <div class="step-title">Googleアカウントでログイン</div>
+        <div class="step-desc">
+            このシステムで使用するGoogleアカウントでログインしてください。<br>
+            「管理者権限がありません」と表示されますが問題ありません。
+        </div>
+        <button class="btn-google" id="btn-login" onclick="doLogin()">
+            <svg class="google-icon" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+            Googleでログイン
+        </button>
+        <div class="err-msg" id="err-msg"></div>
+    </div>
+
+    <!-- ===== STEP 2: 情報表示 ===== -->
+    <div id="phase-info">
+        <div class="success-banner">✅ ログイン情報を取得しました</div>
+
+        <div class="step-badge">Step 2</div>
+        <div class="step-title">以下の情報を管理者に送る</div>
+        <div class="step-desc">
+            メールアドレスと UID をコピーして管理者に伝えてください。
+        </div>
+
+        <table class="info-table">
+            <tr>
+                <th>メールアドレス</th>
+            </tr>
+            <tr>
+                <td>
+                    <div class="info-val">
+                        <span id="user-email">—</span>
+                        <button class="btn-copy" onclick="copyText('user-email', this)">コピー</button>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th>UID（管理者に伝える番号）</th>
+            </tr>
+            <tr>
+                <td>
+                    <div class="info-val">
+                        <span id="user-uid">—</span>
+                        <button class="btn-copy" onclick="copyText('user-uid', this)">コピー</button>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="next-note">
+            ⏳ 管理者がシステムにあなたのアカウントを登録するまでお待ちください。<br>
+            登録完了の連絡を受けたら、下のボタンからログインできます。
+        </div>
+        <a class="btn-login-page" href="admin_login.html">ログインページへ →</a>
+    </div>
+</div>
+
+<script type="module">
+    import { auth } from "./firebase-config.js";
+    import {
+        GoogleAuthProvider,
+        signInWithPopup,
+        signOut,
+        onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    function showInfo(user) {
+        document.getElementById('user-email').textContent = user.email || '—';
+        document.getElementById('user-uid').textContent   = user.uid   || '—';
+        document.getElementById('phase-login').style.display = 'none';
+        document.getElementById('phase-info').style.display  = '';
+        // このページではサインイン状態を保持しない
+        signOut(auth).catch(() => {});
+    }
+
+    // すでにログイン済みなら即表示
+    onAuthStateChanged(auth, user => {
+        if (user) showInfo(user);
+    });
+
+    window.doLogin = async function () {
+        const btn = document.getElementById('btn-login');
+        const errEl = document.getElementById('err-msg');
+        btn.disabled = true;
+        errEl.style.display = 'none';
+        try {
+            const result = await signInWithPopup(auth, new GoogleAuthProvider());
+            showInfo(result.user);
+        } catch (e) {
+            if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+                btn.disabled = false;
+                return;
+            }
+            errEl.textContent = 'エラーが発生しました: ' + e.message;
+            errEl.style.display = '';
+            btn.disabled = false;
+        }
+    };
+
+    window.copyText = function (elId, btn) {
+        const text = document.getElementById(elId).textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = '✓ コピー済';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = 'コピー';
+                btn.classList.remove('copied');
+            }, 2000);
+        });
+    };
+</script>
+</body>
+</html>
