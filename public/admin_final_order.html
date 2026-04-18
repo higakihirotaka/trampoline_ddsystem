@@ -212,10 +212,10 @@
     classRow.innerHTML = '<span class="filter-label">クラス</span>';
     if (classes.length > 1) {
       classRow.style.display = '';
-      const allBtn = mkTabBtn('全て', fClass === '', () => { fClass = ''; updateFinalCountFromRule(); });
+      const allBtn = mkTabBtn('全て', fClass === '', () => { fClass = ''; renderFilters(); updateFinalCountFromRule(); });
       classRow.appendChild(allBtn);
       classes.forEach(c => {
-        classRow.appendChild(mkTabBtn(c, fClass === c, () => { fClass = c; updateFinalCountFromRule(); }));
+        classRow.appendChild(mkTabBtn(c, fClass === c, () => { fClass = c; renderFilters(); updateFinalCountFromRule(); }));
       });
     } else {
       classRow.style.display = classes.length === 1 ? '' : 'none';
