@@ -564,15 +564,12 @@
             </div>`;
         }
 
-        // 決勝フィルター行
-        const hasAnyFinals = athletes.some(a => a.finalOrder != null);
-        if (hasAnyFinals) {
-            filHtml += `<div class="filter-row">
-                <span class="filter-label">決勝</span>
-                <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">全て</button>
-                <button class="tab-btn ${fFinalOnly?'active':''}" onclick="setFilter('finalOnly',true)">🏆 決勝のみ</button>
-            </div>`;
-        }
+        // 決勝フィルター行（常時表示）
+        filHtml += `<div class="filter-row">
+            <span class="filter-label">ラウンド</span>
+            <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">予選</button>
+            <button class="tab-btn ${fFinalOnly?'active':''}" onclick="setFilter('finalOnly',true)">🏆 決勝</button>
+        </div>`;
 
         filterEl.style.display = filHtml ? '' : 'none';
         filterEl.innerHTML = filHtml;
@@ -580,11 +577,16 @@
         // 絞り込み＆ソート
         let filtered;
         if (fFinalOnly) {
-            filtered = athletes
-                .filter(a => a.finalOrder != null)
+            filtered = byType
                 .filter(a => !fClass  || (a.class || a.category || '') === fClass)
                 .filter(a => !fGender || (a.gender || '') === fGender)
-                .sort((a, b) => (a.finalOrder ?? 999) - (b.finalOrder ?? 999));
+                .sort((a, b) => {
+                    // finalOrder設定済みを先頭（試技順）、未設定を末尾（予選順）
+                    if (a.finalOrder != null && b.finalOrder != null) return a.finalOrder - b.finalOrder;
+                    if (a.finalOrder != null) return -1;
+                    if (b.finalOrder != null) return  1;
+                    return (a.order ?? 999) - (b.order ?? 999);
+                });
         } else {
             filtered = byType
                 .filter(a => !fClass  || (a.class || a.category || '') === fClass)
@@ -621,7 +623,12 @@
 
             let dotsHtml = "";
             if (fFinalOnly) {
-                dotsHtml = getDotHtml(ath.id, 'final', 'F');
+                // 決勝モード: 全員にFドット + 試技順バッジ
+                const fo = ath.finalOrder;
+                const badge = fo != null
+                    ? `<span style="font-size:0.55rem;color:#f9a825;font-weight:900;margin-right:2px;">${fo}試技</span>`
+                    : '';
+                dotsHtml = badge + getDotHtml(ath.id, 'final', 'F');
             } else {
                 for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
                 if (hasFinalClass) dotsHtml += getDotHtml(ath.id, 'final', 'F');
