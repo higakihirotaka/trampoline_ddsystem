@@ -1288,6 +1288,18 @@
     };
 
     // ---- QIRA 取得 ----
+    // プロキシ（server.js）→ 直接接続（localhost:8080）の順で試みる
+    async function tryFetchQira() {
+        try {
+            const r = await fetch('/api/qira/result', { signal: AbortSignal.timeout(1500) });
+            // Content-Type が JSON であればプロキシ経由が機能している
+            const ct = r.headers.get('content-type') || '';
+            if (ct.includes('json')) return r;
+        } catch {}
+        // フォールバック: QIRA に直接接続（同PC内の場合 localhost は HTTPS からでも許可される）
+        return fetch('http://localhost:8080/routineresult', { signal: AbortSignal.timeout(3000) });
+    }
+
     window.getFromQira = async function() {
         const statusEl = document.getElementById('qira-status');
         const btn      = document.getElementById('btn-hdts');
@@ -1295,7 +1307,7 @@
         statusEl.style.color = '#90a4ae';
         statusEl.textContent = '取得中...';
         try {
-            const res  = await fetch('/api/qira/result');
+            const res  = await tryFetchQira();
             if (res.status === 404) { statusEl.style.color = '#e57373'; statusEl.textContent = 'QIRAに確定データがありません'; return; }
             if (!res.ok)            { statusEl.style.color = '#e57373'; statusEl.textContent = `エラー: ${res.status}`; return; }
             const data = await res.json();
