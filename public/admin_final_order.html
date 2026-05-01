@@ -35,6 +35,12 @@
     .btn-apply { padding:8px 22px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:.9rem; }
     .btn-apply:hover { background:#1558b0; }
 
+    /* シャッフル選択 */
+    .shuffle-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+    .shuffle-opt { display:flex; align-items:center; gap:5px; font-size:.82rem; cursor:pointer; padding:5px 14px; border:1px solid #b0bec5; border-radius:20px; background:#fff; color:#546e7a; font-weight:700; transition:.15s; white-space:nowrap; user-select:none; }
+    .shuffle-opt:has(input:checked) { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .shuffle-opt input[type=radio] { display:none; }
+
     /* 順位表 */
     .standings-card { background:var(--card); border-radius:16px; padding:0; box-shadow:0 2px 8px rgba(0,0,0,.07); overflow:hidden; margin-bottom:16px; }
     .standings-head { padding:16px 24px; border-bottom:2px solid #e0e0e0; font-weight:900; font-size:1.05rem; display:flex; align-items:center; gap:10px; }
@@ -77,8 +83,7 @@
   </div>
 
   <div class="info-box">
-    クラスを選び、決勝進出人数を設定して「確認・確定」を押してください。<br>
-    <strong>予選順位が下位の選手から先に試技します（逆順）。</strong>
+    クラスを選び、決勝進出人数・試技順を設定して「確認・確定」を押してください。<br>
     確定後は「保存する」を押すまで反映されません。
   </div>
 
@@ -98,6 +103,12 @@
       <input type="number" id="final-count" min="1" max="40" value="8">
       <span style="font-size:.85rem;color:var(--text-sub);">（クラス設定値を自動反映）</span>
       <button class="btn-apply" onclick="applyFinalCount()">確認・確定</button>
+    </div>
+    <div class="shuffle-row">
+      <span class="filter-label">順序</span>
+      <label class="shuffle-opt"><input type="radio" name="shuffle" value="none" checked>シャッフルなし（予選逆順）</label>
+      <label class="shuffle-opt"><input type="radio" name="shuffle" value="full">完全シャッフル</label>
+      <label class="shuffle-opt"><input type="radio" name="shuffle" value="split4">上位4名とそれ以外でシャッフル</label>
     </div>
   </div>
 
@@ -134,7 +145,7 @@
   import { db } from "./firebase-config.js";
   import { doc, getDocs, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { ensureAdmin, logout } from "./auth.js";
-  import { getTournament, getAthletes, invalidateCache } from "./cache.js";
+  import { getTournament, getAthletes, getFinalOrders, invalidateCache } from "./cache.js";
   import { normalizeClassRules } from "./shared.js";
 
   const params  = new URLSearchParams(location.search);
@@ -165,6 +176,12 @@
     document.getElementById('event-name').textContent = tourData.name || eventId;
 
     athletes = fetchedAth;
+    // 決勝試技順はキャッシュ除外なので毎回Firestoreから取得してマージ
+    const finalOrders = await getFinalOrders(eventId);
+    athletes.forEach(a => {
+      const fo = finalOrders[a.id];
+      if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
+    });
 
     buildFilters();
     updateFinalCountFromRule();
@@ -253,10 +270,21 @@
     if (rule.finalCount) document.getElementById('final-count').value = rule.finalCount;
   }
 
+  // ---- Fisher-Yates シャッフル ----
+  function shuffleArray(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
   // ---- 確認・確定ボタン ----
   window.applyFinalCount = async function() {
-    const finalCount = parseInt(document.getElementById('final-count').value);
+    const finalCount  = parseInt(document.getElementById('final-count').value);
     if (!finalCount || finalCount < 1) { alert('決勝人数を入力してください'); return; }
+    const shuffleMode = document.querySelector('input[name="shuffle"]:checked')?.value || 'none';
 
     // このクラスの全選手を取得
     const classAthletes = athletes.filter(a =>
@@ -285,8 +313,8 @@
     const numPre    = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
     const scoreMode = rule.scoreMode || 'best';
 
-    // 予選スコア計算
-    const ranked = classAthletes.map(a => {
+    // 予選スコア計算・順位付け
+    const sorted = classAthletes.map(a => {
       const rMap = resultsByAth[a.id] || {};
       const pre1 = rMap['pre1']?.officialTotal ?? null;
       const pre2 = rMap['pre2']?.officialTotal ?? null;
@@ -307,16 +335,43 @@
       return b.qualScore - a.qualScore;
     });
 
-    // 決勝試技順を逆順で割り当て（予選1位が最後）
-    const actual = Math.min(finalCount, ranked.filter(r => r.qualScore != null).length);
-    pendingFinalOrder = ranked.map((entry, idx) => {
-      const qualRank = idx + 1;
-      const inFinal  = idx < actual && entry.qualScore != null;
-      const finalOrder = inFinal ? (actual - idx) : null; // 1位→最後(actual番目), actual位→1番目
-      return { ...entry, qualRank, inFinal, finalOrder };
-    });
+    const actual = Math.min(finalCount, sorted.filter(r => r.qualScore != null).length);
 
-    renderStandings(pendingFinalOrder, numPre, actual);
+    // 予選順位を付与
+    const withRanks = sorted.map((entry, idx) => ({
+      ...entry,
+      qualRank: idx + 1,
+      inFinal:  idx < actual && entry.qualScore != null
+    }));
+
+    const finalists    = withRanks.filter(e => e.inFinal);
+    const nonFinalists = withRanks.filter(e => !e.inFinal);
+
+    // シャッフルモードに応じて試技順を決定
+    let trialOrder;
+    if (shuffleMode === 'full') {
+      trialOrder = shuffleArray(finalists);
+    } else if (shuffleMode === 'split4') {
+      if (actual <= 4) {
+        // 4人以下は完全シャッフルと同じ
+        trialOrder = shuffleArray(finalists);
+      } else {
+        const top4 = shuffleArray(finalists.slice(0, 4)); // 予選上位4名
+        const rest = shuffleArray(finalists.slice(4));    // それ以外
+        trialOrder = [...rest, ...top4]; // 下位グループが先、上位4名が後
+      }
+    } else {
+      // none: 予選逆順（下位から先に試技、1位が最後）
+      trialOrder = [...finalists].reverse();
+    }
+
+    // finalOrder割り当て（1 = 最初に試技、actual = 最後に試技）
+    trialOrder.forEach((entry, i) => { entry.finalOrder = i + 1; });
+
+    // 予選順位順に並べて表示用データとする
+    pendingFinalOrder = [...finalists, ...nonFinalists].sort((a, b) => a.qualRank - b.qualRank);
+
+    renderStandings(pendingFinalOrder, numPre, actual, shuffleMode);
     document.getElementById('standings-card').style.display = '';
     document.getElementById('save-btn').style.display = '';
     document.getElementById('save-btn').disabled = false;
@@ -327,16 +382,17 @@
   };
 
   // ---- 順位表描画 ----
-  function renderStandings(entries, numPre, actual) {
+  function renderStandings(entries, numPre, actual, shuffleMode = 'none') {
     const title = [fClass, fGender, fType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
+    const shuffleLabel = { none:'逆順', full:'完全シャッフル', split4:'上位4名分割シャッフル' }[shuffleMode] || shuffleMode;
     document.getElementById('standings-title').textContent = `${title} 予選順位`;
-    document.getElementById('standings-meta').textContent = `決勝進出: ${actual}人`;
+    document.getElementById('standings-meta').textContent = `決勝進出: ${actual}人 ／ ${shuffleLabel}`;
 
     const r2col = numPre >= 2;
     const tbody = document.getElementById('standings-tbody');
     tbody.innerHTML = entries.map(e => {
       const badge = e.inFinal
-        ? `<span class="final-order-badge">第 ${e.finalOrder} 試技</span>`
+        ? `<span class="final-order-badge">${e.finalOrder}</span>`
         : '<span style="color:#bbb;font-size:.8rem;">−</span>';
       const r2cell = r2col ? `<td class="num">${fmt(e.pre2)}</td>` : '';
       return `<tr class="${e.inFinal ? 'finalist' : 'non-finalist'}">

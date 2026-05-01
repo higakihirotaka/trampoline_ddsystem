@@ -511,7 +511,7 @@
     import { db } from "./firebase-config.js";
     import { doc, onSnapshot, getDocs, collection, query, where, setDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin } from "./auth.js";
-    import { getTournament, getAthletes } from "./cache.js";
+    import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
@@ -599,6 +599,12 @@
         currentTour = tourData;
         document.getElementById('event-name-sidebar').innerText = currentTour.name;
         athletes = athleteList;
+        // 決勝試技順はキャッシュ除外なので毎回Firestoreから取得してマージ
+        const finalOrders = await getFinalOrders(eventId);
+        athletes.forEach(a => {
+            const fo = finalOrders[a.id];
+            if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
+        });
         subSnap.forEach(d => submissions[d.id] = d.data());
         resSnap.forEach(d => results[d.id] = d.data());
 
@@ -750,21 +756,18 @@
 
             let dotsHtml = "";
             if (fFinalOnly) {
-                // 決勝モード: 全員にFドット + 試技順バッジ
-                const fo = ath.finalOrder;
-                const badge = fo != null
-                    ? `<span style="font-size:0.55rem;color:#f9a825;font-weight:900;margin-right:2px;">${fo}試技</span>`
-                    : '';
-                dotsHtml = badge + getDotHtml(ath.id, 'final', 'F');
+                // 決勝モード: Fドットのみ（番号列に試技順を表示）
+                dotsHtml = getDotHtml(ath.id, 'final', 'F');
             } else {
                 for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
                 if (hasFinalClass) dotsHtml += getDotHtml(ath.id, 'final', 'F');
             }
 
             const isActive = ath.id === athleteId;
+            const orderNum = fFinalOnly ? ath.finalOrder : ath.order;
             const nameHtml = isSynchro
-                ? `<span class="ath-order">${ath.order}.</span>${ath.name1} / ${ath.name2 || ''}`
-                : `<span class="ath-order">${ath.order}.</span>${ath.name1}`;
+                ? `<span class="ath-order">${orderNum}.</span>${ath.name1} / ${ath.name2 || ''}`
+                : `<span class="ath-order">${orderNum}.</span>${ath.name1}`;
 
             parts.push(`
                 <div class="athlete-row ${isActive ? 'active-athlete' : ''}">

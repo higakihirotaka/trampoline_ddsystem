@@ -94,7 +94,7 @@
     import { db } from "./firebase-config.js";
     import { doc, collection, getDocs, getDoc, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { normalizeClassRules, calcBonus } from "./shared.js";
-    import { getTournament, getAthletes, getSkills } from "./cache.js";
+    import { getTournament, getAthletes, getSkills, getFinalOrders } from "./cache.js";
     const params = new URLSearchParams(location.search);
     const eventIdParam = params.get('event');
     const eventId = eventIdParam ? eventIdParam.trim() : null;
@@ -136,7 +136,13 @@
             classRules = normalizeClassRules(tourData.classRules);
         }
         athletes = athleteList;
-        
+        // 決勝試技順はキャッシュ除外なので毎回Firestoreから取得してマージ
+        const finalOrders = await getFinalOrders(eventId);
+        athletes.forEach(a => {
+            const fo = finalOrders[a.id];
+            if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
+        });
+
         renderSidebar();
         const firstTarget = findNextTarget();
         if (firstTarget) {

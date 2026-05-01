@@ -1311,13 +1311,16 @@
     const groupStr   = ath.flightGroup ? `PANEL ${ath.flightGroup}` : '';
     const sessionLine2 = [groupStr, dateStr].filter(Boolean).join(' | ');
     const classGender  = [ath.class, ath.gender].filter(Boolean).join(' ');
+    const orderLabel   = (resData.round === 'final' && ath.finalOrder != null)
+      ? `試技順 ${ath.finalOrder}`
+      : `No.${ath.order || '?'}`;
 
     // ---- フルHTML生成 ----
     const html = `
       <div class="convention-header">${tournamentName}</div>
 
       <div class="athlete-section">
-        <div class="class-no">${classGender} / No.${ath.order || '?'}</div>
+        <div class="class-no">${classGender} / ${orderLabel}</div>
         <div class="session-info">
           ${getRoundLabel(resData.round)}<br>
           ${sessionLine2}
@@ -1531,10 +1534,13 @@
       const hasFinalOrder   = Object.keys(byAth).some(id => athleteMap[id]?.finalOrder != null);
       const isFinal = round === 'final' || (round == null && hasFinalResults && hasFinalOrder);
 
-      // 決勝モード: finalOrder確定済み選手のみ
+      // 決勝モード: finalOrder確定済み選手 or 決勝スコアが存在する選手のみ
+      // （表示ページがfinalOrder保存前にロードされてキャッシュが古い場合のフォールバック）
       let entries = Object.entries(byAth);
       if (isFinal) {
-        entries = entries.filter(([id]) => athleteMap[id]?.finalOrder != null);
+        entries = entries.filter(([id, s]) =>
+          athleteMap[id]?.finalOrder != null || s.final !== null
+        );
       }
 
       return entries
@@ -1995,6 +2001,21 @@
         }));
 
       athleteList.forEach(a => athleteMap[a.id] = a);
+
+      // 試技順をリアルタイム監視（管理者が決勝試技順を変更しても即反映）
+      // display.html は朝から終日リロードしないため onSnapshot で常に最新を保持する
+      onSnapshot(collection(db, 'tournaments', eventId, 'athletes'), snap => {
+        snap.docChanges().forEach(change => {
+          if (change.type === 'modified' || change.type === 'added') {
+            const id = change.doc.id;
+            const d  = change.doc.data();
+            if (athleteMap[id]) {
+              athleteMap[id].finalOrder = d.finalOrder ?? null;
+              athleteMap[id].isInFinal  = d.isInFinal  ?? false;
+            }
+          }
+        });
+      });
 
       if (fetchedTour) {
         const tourData = fetchedTour;

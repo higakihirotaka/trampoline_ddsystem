@@ -298,9 +298,10 @@
                 if (hasFinalClass) dotsHtml += getDotHtml(ath.id, 'final', 'F');
             }
 
+            const orderNum = fFinalOnly ? ath.finalOrder : ath.order;
             const nameLine1 = isSynchro
-                ? `<span class="ath-order">${ath.order}.</span>${ath.name1} / ${ath.name2 || ''}`
-                : `<span class="ath-order">${ath.order}.</span>${ath.name1}`;
+                ? `<span class="ath-order">${orderNum}.</span>${ath.name1} / ${ath.name2 || ''}`
+                : `<span class="ath-order">${orderNum}.</span>${ath.name1}`;
             const nameLine2 = isSynchro
                 ? (ath.kana1 || ath.kana2 ? `${ath.kana1 || ''} / ${ath.kana2 || ''}` : '')
                 : (ath.kana1 || '');

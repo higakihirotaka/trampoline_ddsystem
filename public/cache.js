@@ -71,10 +71,33 @@ export async function getAthletes(eventId) {
     if (ss !== undefined) { _mem.set(key, ss); return ss; }
 
     const snap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
-    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // finalOrder / isInFinal は試技順変更で頻繁に更新されるためキャッシュ除外
+    const data = snap.docs.map(d => {
+        const { finalOrder, isInFinal, ...stable } = { id: d.id, ...d.data() };
+        return stable;
+    });
     _mem.set(key, data);
     ssSet(key, data);
     return data;
+}
+
+/**
+ * 決勝試技順を取得（キャッシュなし、毎回 Firestore から取得）
+ * 管理者が試技順を変更した場合でも常に最新値を返す。
+ * @param {string} eventId
+ * @returns {Object<string, {finalOrder: number|null, isInFinal: boolean}>}
+ */
+export async function getFinalOrders(eventId) {
+    const snap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
+    const map = {};
+    snap.docs.forEach(d => {
+        const data = d.data();
+        map[d.id] = {
+            finalOrder: data.finalOrder ?? null,
+            isInFinal:  data.isInFinal ?? false
+        };
+    });
+    return map;
 }
 
 /**
