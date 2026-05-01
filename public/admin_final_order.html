@@ -313,11 +313,12 @@
     const numPre    = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
     const scoreMode = rule.scoreMode || 'best';
 
-    // 予選スコア計算・順位付け
+    // 予選スコア計算・順位付け（タイブレーク T→H→D 対応）
     const sorted = classAthletes.map(a => {
       const rMap = resultsByAth[a.id] || {};
-      const pre1 = rMap['pre1']?.officialTotal ?? null;
-      const pre2 = rMap['pre2']?.officialTotal ?? null;
+      const r1 = rMap['pre1'], r2 = rMap['pre2'];
+      const pre1 = r1?.officialTotal ?? null;
+      const pre2 = r2?.officialTotal ?? null;
       let qualScore = null;
       if (numPre === 1) {
         qualScore = pre1;
@@ -327,12 +328,40 @@
         } else if (pre1 != null) qualScore = pre1;
         else if (pre2 != null) qualScore = pre2;
       }
-      return { a, pre1, pre2, qualScore };
+      // タイブレーク用スコア
+      const tbScores = r => ({ t: r?.tof ?? null, h: r?.hd?.total ?? null, d: r?.officialD ?? null });
+      let tbSum = null, tb = { t: null, h: null, d: null };
+      if (numPre >= 2 && pre1 != null && pre2 != null) {
+        tbSum = pre1 + pre2;
+        if (scoreMode === 'best') {
+          const tbR = (pre1 >= pre2 ? r1 : r2);
+          tb = tbScores(tbR);
+        } else {
+          const s1 = tbScores(r1), s2 = tbScores(r2);
+          tb = {
+            t: (s1.t ?? 0) + (s2.t ?? 0),
+            h: (s1.h ?? 0) + (s2.h ?? 0),
+            d: (s1.d ?? 0) + (s2.d ?? 0)
+          };
+        }
+      } else {
+        tb = tbScores(pre1 != null ? r1 : r2);
+      }
+      return { a, pre1, pre2, qualScore, tbSum, tb };
     }).sort((a, b) => {
       if (a.qualScore == null && b.qualScore == null) return 0;
       if (a.qualScore == null) return 1;
       if (b.qualScore == null) return -1;
-      return b.qualScore - a.qualScore;
+      const diff = Math.round((b.qualScore - a.qualScore) * 100) / 100;
+      if (Math.abs(diff) > 1e-9) return diff;
+      // タイブレーク①: 予選2本合計（ベスト採用時のみ）
+      if (a.tbSum != null && b.tbSum != null && Math.abs(b.tbSum - a.tbSum) > 1e-9) return b.tbSum - a.tbSum;
+      // タイブレーク②: T → H → D
+      for (const k of ['t', 'h', 'd']) {
+        const va = a.tb[k], vb = b.tb[k];
+        if (va != null && vb != null && Math.abs(vb - va) > 1e-9) return vb - va;
+      }
+      return 0;
     });
 
     const actual = Math.min(finalCount, sorted.filter(r => r.qualScore != null).length);
