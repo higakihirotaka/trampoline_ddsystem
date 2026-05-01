@@ -1036,61 +1036,32 @@
     };
   }
 
-  function tbCompare(myTb, otherTb) {
-    // 各タイブレーク項目で相手が上位かどうか判定
-    // 返り値: true = 相手が上位（rankを+1すべき）
-    const keys = ['tof', 'hd', 'diff'];
-    for (const k of keys) {
-      const mv = myTb[k], ov = otherTb[k];
-      if (mv != null && ov != null && Math.abs(mv - ov) > 1e-9) {
-        return ov > mv;  // 相手が高い → 上位
-      }
-    }
-    return false;  // ブレイクできない → 同順位（rank加算しない）
-  }
-
-  async function calcRank(ath, round, qualTotal) {
-    if (qualTotal === null || qualTotal === undefined) return null;
+  async function calcRank(ath, round) {
+    // fetchRankingEntriesFor の結果を流用（タイブレーク T→H→D 適用済みソート）
+    // 同点時も正確な順位を返す。追加 Firestore クエリなし（_rankingCache 共用）。
     const classVal  = ath.class  || '';
     const genderVal = ath.gender || '';
     const typeVal   = ath.type   || 'individual';
-    const rule      = getClassRule(ath);
-    const numPre    = rule.qualifyingRoutines ?? 1;
-    const scoreMode = rule.scoreMode || 'best';
-    const sameGroup = a => a?.class === classVal && a?.gender === genderVal && (a?.type || 'individual') === typeVal;
     try {
+      const entries = await fetchRankingEntriesFor(classVal, genderVal, typeVal, round);
+      const idx = entries.findIndex(e => e.id === ath.id);
+      if (idx < 0) return null;
+      // ソート済みリストで「自分と真の同点でない上位選手」の数をカウント → rank
+      const cur = entries[idx];
+      function areTied(x) {
+        if (Math.abs((x.total ?? -Infinity) - (cur.total ?? -Infinity)) > 1e-9) return false;
+        // 予選2本ベスト採用時：2本合計も同じか
+        if (Math.abs(((x.pre1 ?? 0) + (x.pre2 ?? 0)) - ((cur.pre1 ?? 0) + (cur.pre2 ?? 0))) > 1e-9) return false;
+        // T（ToF/Syn）→ H → D
+        for (const k of ['tof', 'hd', 'diff']) {
+          const vx = x._tb?.[k], vy = cur._tb?.[k];
+          if (vx != null && vy != null && Math.abs(vx - vy) > 1e-9) return false;
+        }
+        return true;
+      }
       let rank = 1;
-      if (round === 'final') {
-        // 決勝: 決勝スコア同士で比較
-        const snap = await getDocs(query(collection(db,"results"), where("eventId","==",eventId), where("round","==","final"), where("published","==",true)));
-        snap.docs.forEach(d => {
-          const data = d.data(); const a = athleteMap[data.athleteId];
-          if (sameGroup(a) && (data.officialTotal ?? 0) > qualTotal + 1e-9) rank++;
-        });
-      } else if (numPre <= 1) {
-        // 予選1ラウンドのみ: pre1スコアで比較
-        const snap = await getDocs(query(collection(db,"results"), where("eventId","==",eventId), where("round","==","pre1"), where("published","==",true)));
-        snap.docs.forEach(d => {
-          const data = d.data(); const a = athleteMap[data.athleteId];
-          if (sameGroup(a) && (data.officialTotal ?? 0) > qualTotal + 1e-9) rank++;
-        });
-      } else {
-        // 予選2ラウンド: 両ラウンド取得し予選合計で比較
-        const [pre1Snap, pre2Snap] = await Promise.all([
-          getDocs(query(collection(db,"results"), where("eventId","==",eventId), where("round","==","pre1"), where("published","==",true))),
-          getDocs(query(collection(db,"results"), where("eventId","==",eventId), where("round","==","pre2"), where("published","==",true)))
-        ]);
-        const sc = {};
-        pre1Snap.docs.forEach(d => { const r=d.data(); sc[r.athleteId] = { pre1: r.officialTotal ?? null }; });
-        pre2Snap.docs.forEach(d => { const r=d.data(); if (!sc[r.athleteId]) sc[r.athleteId]={}; sc[r.athleteId].pre2 = r.officialTotal ?? null; });
-        Object.entries(sc).forEach(([aid, s]) => {
-          const a = athleteMap[aid];
-          if (!sameGroup(a)) return;
-          let other = (s.pre1 != null && s.pre2 != null)
-            ? (scoreMode === 'total' ? s.pre1 + s.pre2 : Math.max(s.pre1, s.pre2))
-            : (s.pre1 ?? s.pre2);
-          if (other != null && other > qualTotal + 1e-9) rank++;
-        });
+      for (let i = 0; i < idx; i++) {
+        if (!areTied(entries[i])) rank++;
       }
       return rank;
     } catch { return null; }
@@ -1271,18 +1242,19 @@
 
     // ---- 他ラウンド結果 & 順位 ----
     const athResults = await getAthleteResults(resData.athleteId);
-    // 予選合計（2ラウンドの場合はbest/total）で順位計算
-    let qualTotal = totalScore;
+    // 予選合計（BEST/TOTAL 表示用）
     const rule2   = getClassRule(ath);
     const numPre2 = rule2.qualifyingRoutines ?? 1;
     const sMode2  = rule2.scoreMode || 'best';
+    let qualTotal = totalScore;
     if (numPre2 >= 2 && (resData.round === 'pre1' || resData.round === 'pre2')) {
       const p1 = resData.round === 'pre1' ? totalScore : (athResults['pre1'] ?? null);
       const p2 = resData.round === 'pre2' ? totalScore : (athResults['pre2'] ?? null);
       if (p1 != null && p2 != null) qualTotal = sMode2 === 'total' ? p1 + p2 : Math.max(p1, p2);
       else qualTotal = p1 ?? p2;
     }
-    const rank = await calcRank(ath, resData.round, qualTotal);
+    // 順位計算: fetchRankingEntriesFor の結果を流用（タイブレーク T→H→D 込み）
+    const rank = await calcRank(ath, resData.round);
 
     // ---- ルーティン合計 ----
     let routineTotalsHTML = '';
