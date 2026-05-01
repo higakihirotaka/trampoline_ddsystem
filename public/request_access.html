@@ -157,6 +157,17 @@
 <div class="card">
     <div class="sys-label">Trampoline Scoring System</div>
     <h1>管理者登録の手続き</h1>
+
+    <!-- ===== WebView警告（LINE等の内蔵ブラウザ検出時） ===== -->
+    <div id="webview-warn" style="display:none; background:#fff3e0; border-left:4px solid #f57c00; border-radius:0 8px 8px 0; padding:14px 16px; margin-bottom:20px; font-size:0.88rem; line-height:1.7; color:#5d4037;">
+        <strong>⚠️ このページはLINE等の内蔵ブラウザでは動作しません</strong><br>
+        GoogleログインはLINEのブラウザでブロックされます。<br><br>
+        <strong>開き方：</strong><br>
+        ① 画面右上の「…」または「⋮」メニューをタップ<br>
+        ② 「ブラウザで開く」または「Safariで開く」を選択<br>
+        ③ このページが Safari / Chrome で開いたらログインできます
+    </div>
+
     <p class="lead">
         管理者からこのURLを受け取った方向けのページです。<br>
         以下の手順で操作し、表示された情報を管理者に送ってください。
@@ -234,11 +245,25 @@
         onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+    // LINE / Instagram 等の内蔵ブラウザ（WebView）検出
+    (function checkWebView() {
+        const ua = navigator.userAgent;
+        const isWebView =
+            /Line\/|FBAN|FBAV|Instagram|GSA\/|Twitter\/|Snapchat/.test(ua) ||
+            (/wv/.test(ua) && /Android/.test(ua)) ||
+            (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua) && !/CriOS\//.test(ua) && /AppleWebKit/.test(ua));
+        if (isWebView) {
+            document.getElementById('webview-warn').style.display = '';
+            const btn = document.getElementById('btn-login');
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.title = 'ブラウザで開いてからご利用ください'; }
+        }
+    })();
+
     function showInfo(user) {
         document.getElementById('user-email').textContent = user.email || '—';
         document.getElementById('user-uid').textContent   = user.uid   || '—';
         document.getElementById('phase-login').style.display = 'none';
-        document.getElementById('phase-info').style.display  = '';
+        document.getElementById('phase-info').style.display  = 'block';
         // このページではサインイン状態を保持しない
         signOut(auth).catch(() => {});
     }

@@ -32,10 +32,42 @@
         .btn { flex: 1; padding: 18px; border-radius: 12px; font-size: 1.0em; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: center; text-decoration: none; border: 2px solid transparent; }
         .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
         .btn-secondary { background: #fff; color: var(--primary); border-color: var(--primary); }
+        .btn-warn { background: #f57c00; color: white; border-color: #f57c00; }
+        .btn-warn:hover { background: #e65100; border-color: #e65100; }
         .btn-danger { width: 100%; margin-top: 20px; background: #fff; color: var(--danger); border-color: var(--danger); display: none; }
         #modify-btn { display: none; }
         .duplicate-row td { background-color: #fff176 !important; }
         .dd-zero { color: var(--danger) !important; font-weight: bold; }
+        .check-cell input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; }
+        .dd-not-designated { color: #90a4ae !important; }
+        .input-note { font-size: 0.72em; color: #80868b; margin: 2px 0 0; }
+        .synchro-kana-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .synchro-kana-col { display: flex; flex-direction: column; gap: 5px; }
+        .synchro-kana-col-label { font-size: 0.7em; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 0.04em; }
+        .synchro-kana-col-name { font-size: 0.88em; font-weight: bold; color: #333; }
+        .synchro-kana-club { font-size: 1em; font-weight: bold; color: #333; }
+        .diff-club-label { font-size: 0.82em; color: #5f6368; display: flex; align-items: center; gap: 6px; cursor: pointer; justify-content: center; margin: 6px 0 4px; }
+        .diff-club-label input { accent-color: var(--primary); cursor: pointer; width: 15px; height: 15px; }
+        #club-same-area { display: flex; flex-direction: column; gap: 4px; }
+        .notice-box { background: #fff8e1; border-left: 4px solid var(--warn); border-radius: 8px; padding: 12px 16px; margin-top: 20px; font-size: 0.85em; color: #5d4037; line-height: 1.7; }
+
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        @media (max-width: 600px) {
+            body { padding: 8px; }
+            .container { padding: 14px; border-radius: 14px; }
+            .info-name { font-size: 1.25em; }
+            .info-label { min-width: 70px; font-size: 0.68em; }
+            table { min-width: 460px; }
+            th, td { padding: 9px 3px; font-size: 0.88em; }
+            select { padding: 9px 2px; font-size: 0.88em; border-radius: 6px; }
+            .total-display { flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; }
+            .total-val { font-size: 2.4em; }
+            .total-val-wrap { align-self: flex-end; }
+            .btn-group { flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+            .btn { padding: 15px 10px; font-size: 0.92em; min-width: calc(50% - 5px); }
+            #admin-clear-btn { margin-top: 12px; }
+        }
     </style>
 </head>
 <body>
@@ -49,24 +81,70 @@
                 <span class="badge badge-round" id="round-display">-</span>
             </div>
         </div>
-        <div class="info-input-row">
-            <span class="info-label">ふりがな</span>
-            <input type="text" id="ath-kana" class="kana-input" placeholder="せい めい">
+        <!-- 個人用ふりがな（シンクロは非表示） -->
+        <div id="indiv-kana-area">
+            <div class="info-input-row">
+                <span class="info-label">ふりがな</span>
+                <input type="text" id="ath-kana" class="kana-input" placeholder="せい めい">
+            </div>
+            <div class="info-row">
+                <span class="info-label">所属</span>
+                <span id="ath-club" class="info-value">読み込み中...</span>
+            </div>
+            <div class="info-input-row">
+                <span class="info-label">所属(ふりがな)</span>
+                <input type="text" id="ath-club-kana" class="kana-input" placeholder="くらぶめい">
+            </div>
+            <p class="input-note">📢 選手コールに使用するため、ご記載をお願いします</p>
         </div>
-        <div class="info-row">
-            <span class="info-label">所属</span>
-            <span id="ath-club" class="info-value">読み込み中...</span>
-        </div>
-        <div class="info-input-row">
-            <span class="info-label">所属(ふりがな)</span>
-            <input type="text" id="ath-club-kana" class="kana-input" placeholder="くらぶめい">
+        <!-- シンクロ用ふりがな（個人は非表示） -->
+        <div id="synchro-kana-area" style="display:none">
+            <!-- 選手名ふりがな：常に左右対称 -->
+            <div class="synchro-kana-grid">
+                <div class="synchro-kana-col">
+                    <span class="synchro-kana-col-label">選手 1</span>
+                    <span id="synchro-name1" class="synchro-kana-col-name"></span>
+                    <input type="text" id="ath-kana1" class="kana-input" placeholder="せい めい">
+                </div>
+                <div class="synchro-kana-col">
+                    <span class="synchro-kana-col-label">選手 2</span>
+                    <span id="synchro-name2" class="synchro-kana-col-name"></span>
+                    <input type="text" id="ath-kana2" class="kana-input" placeholder="せい めい">
+                </div>
+            </div>
+            <!-- チーム名が別かチェック -->
+            <label class="diff-club-label">
+                <input type="checkbox" id="club-diff-chk"> チーム名が別
+            </label>
+            <!-- 同一チーム：全幅1入力 -->
+            <div id="club-same-area">
+                <span id="synchro-club-shared" class="synchro-kana-club"></span>
+                <input type="text" id="ath-club-kana-shared" class="kana-input" placeholder="所属よみ">
+            </div>
+            <!-- 別チーム：左右対称2入力 -->
+            <div id="club-diff-area" class="synchro-kana-grid" style="display:none">
+                <div class="synchro-kana-col">
+                    <span id="synchro-club1" class="synchro-kana-club"></span>
+                    <input type="text" id="ath-club-kana1" class="kana-input" placeholder="所属よみ（選手1）">
+                </div>
+                <div class="synchro-kana-col">
+                    <span id="synchro-club2" class="synchro-kana-club"></span>
+                    <input type="text" id="ath-club-kana2" class="kana-input" placeholder="所属よみ（選手2）">
+                </div>
+            </div>
+            <p class="input-note">📢 選手コールに使用するため、ご記載をお願いします</p>
         </div>
     </div>
+    <div id="copy-prev-area" style="display:none; margin-bottom: 12px;">
+        <button id="copy-prev-btn" class="btn btn-secondary" style="width:100%;"></button>
+    </div>
     <input type="hidden" id="ath-gender">
+    <div class="table-wrap">
     <table id="skill-table">
-        <thead><tr><th style="width:40px;">#</th><th style="width:22%;">系統</th><th style="width:20%;">宙系</th><th>Symbol</th><th style="width:65px;">DD</th></tr></thead>
+        <thead><tr><th style="width:40px;">#</th><th style="width:22%;">系統</th><th style="width:22%;">宙系</th><th>技名</th><th style="width:65px;">DD</th><th id="check-th" style="display:none;width:36px;">指定</th></tr></thead>
         <tbody id="skill-rows"></tbody>
     </table>
+    </div>
     <div class="total-display">
         <div class="total-display-sub">
             基礎点：<span id="dd-base">0.0</span><br>
@@ -77,17 +155,20 @@
             <div id="total-dd" class="total-val">0.0</div>
         </div>
     </div>
+    <div id="designation-info" style="display:none;text-align:center;margin-top:10px;font-size:0.95rem;font-weight:bold;padding:8px 16px;border-radius:8px;background:#f1f3f4;"></div>
+    <div class="notice-box">⚠️ 選択肢にない技やシステムの計算がおかしいなどがある場合は、大会開始までに審判席にお越しください。</div>
     <div class="btn-group">
         <a id="back-link" class="btn btn-secondary" href="#">一覧に戻る</a>
         <button id="submit-btn" class="btn btn-primary" onclick="submitRoutine()">この内容で提出する</button>
-        <button id="modify-btn" class="btn btn-primary" onclick="enableEditing()">内容を修正する</button>
+        <button id="modify-btn" class="btn btn-warn" onclick="enableEditing()">内容を修正する</button>
     </div>
     <button id="admin-clear-btn" class="btn btn-danger" onclick="clearEntry()">登録を初期化する (管理者専用)</button>
 </div>
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getSkills } from "./cache.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round');
@@ -97,6 +178,7 @@
     let currentAthlete = null;
     let tourData = {};
     let subDocRef = null;   // submissionDoc の存在確認用
+    let designatedDDCount = -1; // 指定難度本数（-1=無効、0=0本指定、1-9=N本指定）
 
     async function init() {
         if (!eventId || !athleteId || !round) return;
@@ -107,10 +189,7 @@
         const roundMap = {'pre1': '予選1', 'pre2': '予選2', 'final': '決勝'};
         document.getElementById('round-display').textContent = roundMap[round] || round;
 
-        const skillSnap = await getDocs(collection(db, 'skillMaster'));
-        skillMaster = skillSnap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)));
+        skillMaster = await getSkills();
 
         const [tourDoc, athDoc, subDocResult] = await Promise.all([
             getDoc(doc(db, "tournaments", eventId)),
@@ -126,19 +205,79 @@
             const athClub = currentAthlete.type === 'synchro' ? `${currentAthlete.club1} / ${currentAthlete.club2}` : currentAthlete.club1;
 
             document.getElementById('ath-name').innerText = athName;
-            document.getElementById('ath-club').innerText = athClub;
-            document.getElementById('ath-kana').value = currentAthlete.kana1 || "";
-            document.getElementById('ath-club-kana').value = currentAthlete.clubKana1 || "";
             document.getElementById('ath-gender').value = currentAthlete.gender || "男子";
             document.getElementById('ath-class').textContent = currentAthlete.class || '-';
             document.getElementById('ath-flight-group').textContent = currentAthlete.flightGroup ? `G${currentAthlete.flightGroup}` : '-';
+
+            if (currentAthlete.type === 'synchro') {
+                document.getElementById('indiv-kana-area').style.display = 'none';
+                document.getElementById('synchro-kana-area').style.display = '';
+                document.getElementById('synchro-name1').textContent = currentAthlete.name1 || '';
+                document.getElementById('synchro-name2').textContent = currentAthlete.name2 || '';
+                document.getElementById('ath-kana1').value = currentAthlete.kana1 || '';
+                document.getElementById('ath-kana2').value = currentAthlete.kana2 || '';
+                // チーム名が同一か自動判定
+                const isDiffClub = (currentAthlete.club1 || '') !== (currentAthlete.club2 || '');
+                const diffChk = document.getElementById('club-diff-chk');
+                diffChk.checked = isDiffClub;
+                if (isDiffClub) {
+                    document.getElementById('club-same-area').style.display = 'none';
+                    document.getElementById('club-diff-area').style.display = '';
+                    document.getElementById('synchro-club1').textContent = currentAthlete.club1 || '';
+                    document.getElementById('synchro-club2').textContent = currentAthlete.club2 || '';
+                    document.getElementById('ath-club-kana1').value = currentAthlete.clubKana1 || '';
+                    document.getElementById('ath-club-kana2').value = currentAthlete.clubKana2 || '';
+                } else {
+                    document.getElementById('synchro-club-shared').textContent = currentAthlete.club1 || '';
+                    document.getElementById('ath-club-kana-shared').value = currentAthlete.clubKana1 || '';
+                }
+                // チェック変更時：エリア切替＋値を引き継ぎ
+                diffChk.addEventListener('change', () => {
+                    const diff = diffChk.checked;
+                    document.getElementById('club-same-area').style.display = diff ? 'none' : '';
+                    document.getElementById('club-diff-area').style.display = diff ? '' : 'none';
+                    if (diff) {
+                        const v = document.getElementById('ath-club-kana-shared').value;
+                        document.getElementById('ath-club-kana1').value = v;
+                        document.getElementById('ath-club-kana2').value = v;
+                    } else {
+                        document.getElementById('ath-club-kana-shared').value = document.getElementById('ath-club-kana1').value;
+                    }
+                });
+            } else {
+                document.getElementById('ath-club').innerText = athClub;
+                document.getElementById('ath-kana').value = currentAthlete.kana1 || "";
+                document.getElementById('ath-club-kana').value = currentAthlete.clubKana1 || "";
+            }
+
+            // 指定難度本数をクラスルールから取得（2本合計時のみ有効）
+            const athType = currentAthlete.type || 'individual';
+            const athClass = currentAthlete.class || currentAthlete.category || '';
+            const cr = (tourData.classRules?.[athType] || {})[athClass] || {};
+            // -1=設定なし, 0=0本指定(DD全0), 1-9=N本指定
+            const rawDDCount = (cr.designatedDDCount != null && cr.designatedDDCount >= 0) ? cr.designatedDDCount : -1;
+            designatedDDCount = (rawDDCount >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round !== 'pre2')
+                ? rawDDCount : -1;
+            if (designatedDDCount > 0) {
+                // 1本以上指定: チェックボックス列を表示
+                document.getElementById('check-th').style.display = '';
+                document.getElementById('designation-info').style.display = '';
+            } else if (designatedDDCount === 0) {
+                // 0本指定: チェックボックス不要、インジケーターのみ表示
+                document.getElementById('designation-info').style.display = '';
+            }
         }
 
         const skillsData = subDocResult.exists() ? subDocResult.data().skills : [];
         const savedSkillIds = skillsData.map(s => {
             if (s === null || s === undefined) return "";
             if (typeof s === 'object') {
-                // 通常申告フォーマット: { skill: "記号", dd: 0.0 }
+                // id フィールドがあれば ID で直接照合（同Symbol異注釈の技に対応）
+                if (s.id) {
+                    const byId = skillMaster.find(m => m.id === String(s.id));
+                    if (byId) return byId.id;
+                }
+                // 旧フォーマット互換: Symbol で検索
                 const found = skillMaster.find(m => m.symbol === s.skill);
                 return found ? found.id : "";
             }
@@ -152,25 +291,45 @@
             const skillId = savedSkillIds[i-1] || "";
             const skill = skillMaster.find(s => s.id === skillId) || {};
             const hasSoma = skill.direction && skill.direction !== '基礎技';
+            // 2回宙は doubleSomaGroup で細分化したオプション値にマップ
+            let somaVal = '';
+            if (hasSoma) {
+                if (skill.somersaultType === '2回宙') {
+                    somaVal = skill.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）';
+                } else {
+                    somaVal = skill.somersaultType || '';
+                }
+            }
+            const checkStyle = designatedDDCount > 0 ? 'text-align:center' : 'display:none';
             rows += `<tr id="row-${i}"><td>${i}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
-                    <option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
-                    <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option>
-                    <option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option></select></td>
+                    <option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方系</option>
+                    <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方系</option>
+                    <option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎技</option></select></td>
                 <td><select id="soma-${i}" onchange="updateOptions(${i})" style="${hasSoma ? '' : 'visibility:hidden'}">
                     <option value="">--</option>
-                    <option value="1回宙" ${skill.somersaultType==='1回宙'?'selected':''}>1回宙</option>
-                    <option value="2回宙" ${skill.somersaultType==='2回宙'?'selected':''}>2回宙</option>
-                    <option value="3回宙" ${skill.somersaultType==='3回宙'?'selected':''}>3回宙</option>
-                    <option value="4回宙" ${skill.somersaultType==='4回宙'?'selected':''}>4回宙</option>
+                    <option value="1回宙"       ${somaVal==='1回宙'       ?'selected':''}>1回宙系</option>
+                    <option value="2回宙（1.5以下）" ${somaVal==='2回宙（1.5以下）'?'selected':''}>2回宙系（1.5以下）</option>
+                    <option value="2回宙（1.6以上）" ${somaVal==='2回宙（1.6以上）'?'selected':''}>2回宙系（1.6以上）</option>
+                    <option value="3回宙"       ${somaVal==='3回宙'       ?'selected':''}>3回宙系</option>
+                    <option value="4回宙"       ${somaVal==='4回宙'       ?'selected':''}>4回宙系</option>
                 </select></td>
                 <td><select id="skill-${i}" onchange="calcTotal()"></select></td>
-                <td><span id="dd-${i}">0.0</span></td></tr>`;
+                <td><span id="dd-${i}">0.0</span></td>
+                <td class="check-cell" style="${checkStyle}"><input type="checkbox" id="chk-${i}" onchange="onCheckChange(${i})"></td></tr>`;
         }
         document.getElementById('skill-rows').innerHTML = rows;
         for (let i = 1; i <= 10; i++) {
              updateOptions(i, savedSkillIds[i-1], false)
         };
+        // 指定難度インデックスを復元（calcTotal前に設定する）
+        if (designatedDDCount > 0 && subDocResult.exists()) {
+            const savedIdx = subDocResult.data().designatedDDIndices || [];
+            savedIdx.forEach(idx => {
+                const chk = document.getElementById(`chk-${idx + 1}`);
+                if (chk) chk.checked = true;
+            });
+        }
         calcTotal();
 
         if (subDocResult.exists()) {
@@ -179,13 +338,19 @@
             document.getElementById('modify-btn').style.display = "block";
         } else {
             document.getElementById('submit-btn').disabled = false;
+            if (round === 'pre2' || round === 'final') {
+                const cpBtn = document.getElementById('copy-prev-btn');
+                cpBtn.textContent = round === 'final' ? '📋 予選演技をコピーする' : '📋 予選１の構成をコピーする';
+                cpBtn.onclick = copyPrevRound;
+                document.getElementById('copy-prev-area').style.display = '';
+            }
         }
     }
 
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
-        const dir = document.getElementById(`dir-${idx}`).value;
+        const dir    = document.getElementById(`dir-${idx}`).value;
         const somaEl = document.getElementById(`soma-${idx}`);
-        const sel = document.getElementById(`skill-${idx}`);
+        const sel    = document.getElementById(`skill-${idx}`);
         const currentVal = sel.value;
         // 基礎技は宙系不要
         if (somaEl) {
@@ -194,12 +359,22 @@
             if (!showSoma) somaEl.value = '';
         }
         const soma = somaEl?.value || '';
+        // '2回宙（1.5以下）' / '2回宙（1.6以上）' を somersaultType + doubleSomaGroup にマップ
+        let somaType  = soma;
+        let somaGroup = '';
+        if (soma === '2回宙（1.5以下）') { somaType = '2回宙'; somaGroup = 'low'; }
+        else if (soma === '2回宙（1.6以上）') { somaType = '2回宙'; somaGroup = 'high'; }
         sel.innerHTML = '<option value="">選択してください</option>';
         if (dir) {
-            skillMaster.filter(s => s.direction === dir && (!soma || s.somersaultType === soma)).forEach(s => {
+            skillMaster.filter(s => {
+                if (s.direction !== dir) return false;
+                if (somaType && s.somersaultType !== somaType) return false;
+                if (somaGroup && s.doubleSomaGroup !== somaGroup) return false;
+                return true;
+            }).forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
-                opt.textContent = s.symbol;
+                opt.textContent = s.note ? `${s.symbol}（${s.note}）` : s.symbol;
                 if (s.id === selectedId) opt.selected = true;
                 sel.appendChild(opt);
             });
@@ -216,22 +391,41 @@
             if(id) idCounts[id] = (idCounts[id] || 0) + 1;
         }
 
+        let designatedChecked = 0;
         for (let i = 1; i <= 10; i++) {
             const id = document.getElementById(`skill-${i}`).value;
             const row = document.getElementById(`row-${i}`);
             const ddSpan = document.getElementById(`dd-${i}`);
-            if (!id) { ddSpan.textContent = "0.0"; row.classList.remove('duplicate-row'); continue; }
-            
+            if (!id) {
+                ddSpan.textContent = "0.0";
+                ddSpan.classList.remove('dd-zero', 'dd-not-designated');
+                row.classList.remove('duplicate-row');
+                continue;
+            }
+
             const skill = skillMaster.find(s => s.id === id);
             row.classList.toggle('duplicate-row', idCounts[id] > 1);
 
+            // 指定難度チェック（-1=全技有効、0=全技無効、1以上=チェック済みのみ有効）
+            const isDesignated = designatedDDCount < 0
+                || (designatedDDCount > 0 && document.getElementById(`chk-${i}`)?.checked === true);
+            if (isDesignated && designatedDDCount > 0) designatedChecked++;
+
             if (seenIds.has(id)) {
-                ddSpan.textContent = "0.0"; ddSpan.classList.add('dd-zero');
+                ddSpan.textContent = "0.0";
+                ddSpan.classList.add('dd-zero');
+                ddSpan.classList.remove('dd-not-designated');
             } else {
-                baseDD += skill.dd;
-                ddSpan.textContent = skill.dd.toFixed(1); ddSpan.classList.remove('dd-zero');
-                if (skill.isTriple) tripleCount++;
                 seenIds.add(id);
+                ddSpan.textContent = skill.dd.toFixed(1);
+                ddSpan.classList.remove('dd-zero');
+                if (isDesignated) {
+                    baseDD += skill.dd;
+                    if (skill.isTriple) tripleCount++;
+                    ddSpan.classList.remove('dd-not-designated');
+                } else {
+                    ddSpan.classList.add('dd-not-designated'); // 非指定はグレー表示
+                }
             }
         }
 
@@ -243,21 +437,128 @@
         document.getElementById('dd-base').textContent  = baseDD.toFixed(1);
         document.getElementById('dd-bonus').textContent = bonus.toFixed(1);
         document.getElementById('total-dd').textContent = (baseDD + bonus).toFixed(1);
+
+        // 指定難度インジケーター更新
+        if (designatedDDCount === 0) {
+            const infoEl = document.getElementById('designation-info');
+            if (infoEl) {
+                infoEl.textContent = '指定難度：0本設定（このクラスのDD得点は0点）';
+                infoEl.style.background = '#fce4ec';
+                infoEl.style.color      = '#c62828';
+            }
+        } else if (designatedDDCount > 0) {
+            const infoEl = document.getElementById('designation-info');
+            if (infoEl) {
+                const ok = designatedChecked === designatedDDCount;
+                infoEl.textContent = `指定難度：${designatedChecked} / ${designatedDDCount} 本 選択中`;
+                infoEl.style.background = ok ? '#e8f5e9' : '#fff3e0';
+                infoEl.style.color      = ok ? '#1e8e3e' : '#e65100';
+            }
+        }
+    };
+
+    window.onCheckChange = (idx) => {
+        const chkEl  = document.getElementById(`chk-${idx}`);
+        const skillEl = document.getElementById(`skill-${idx}`);
+        // スキル未選択の場合はチェック不可
+        if (!skillEl?.value) {
+            if (chkEl) chkEl.checked = false;
+            return;
+        }
+        // チェック数の上限確認
+        if (chkEl?.checked && designatedDDCount > 0) {
+            const total = Array.from({length: 10}, (_, i) => document.getElementById(`chk-${i+1}`)?.checked ? 1 : 0)
+                              .reduce((a, b) => a + b, 0);
+            if (total > designatedDDCount) {
+                chkEl.checked = false;
+                return;
+            }
+        }
+        calcTotal();
     };
 
     function lockInputs(v) {
         for (let i = 1; i <= 10; i++) {
             document.getElementById(`dir-${i}`).disabled = v;
+            document.getElementById(`soma-${i}`).disabled = v;
             document.getElementById(`skill-${i}`).disabled = v;
+            const chk = document.getElementById(`chk-${i}`);
+            if (chk) chk.disabled = v;
         }
         document.getElementById('ath-kana').disabled = v;
         document.getElementById('ath-club-kana').disabled = v;
+        ['ath-kana1','ath-kana2','ath-club-kana1','ath-club-kana2','ath-club-kana-shared','club-diff-chk'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = v;
+        });
     }
 
     window.enableEditing = () => {
         lockInputs(false);
         document.getElementById('modify-btn').style.display = "none";
-        document.getElementById('submit-btn').style.display = "block";
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.style.display = "block";
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'この内容で提出する';
+        if (round === 'pre2' || round === 'final') {
+            document.getElementById('copy-prev-area').style.display = '';
+        }
+    };
+
+    window.copyPrevRound = async () => {
+        const isFinal  = round === 'final';
+        const srcRound = isFinal ? 'pre2' : 'pre1';
+        const fallback = isFinal ? 'pre1' : null;
+        const srcLabel = isFinal ? '予選演技' : '予選１の構成';
+        if (!confirm(`${srcLabel}をこの画面にコピーします。現在の入力内容は上書きされます。よろしいですか？`)) return;
+        const btn = document.getElementById('copy-prev-btn');
+        btn.disabled = true;
+        btn.textContent = '読み込み中...';
+        try {
+            let snap = await getDoc(doc(db, 'submissions', `${eventId}_${athleteId}_${srcRound}`));
+            if (!snap.exists() && fallback) {
+                snap = await getDoc(doc(db, 'submissions', `${eventId}_${athleteId}_${fallback}`));
+            }
+            if (!snap.exists()) {
+                alert('予選の提出データが見つかりませんでした。先に予選を提出してください。');
+                return;
+            }
+            const srcSkills = snap.data().skills || [];
+            const skillIds = srcSkills.map(s => {
+                if (s === null || s === undefined) return '';
+                if (typeof s === 'object') {
+                    if (s.id) { const byId = skillMaster.find(m => m.id === String(s.id)); if (byId) return byId.id; }
+                    const found = skillMaster.find(m => m.symbol === s.skill);
+                    return found ? found.id : '';
+                }
+                const sStr = String(s);
+                return skillMaster.find(m => m.id === sStr) ? sStr : '';
+            });
+            for (let i = 1; i <= 10; i++) {
+                const skillId = skillIds[i - 1] || '';
+                const skill   = skillMaster.find(s => s.id === skillId);
+                const dirEl   = document.getElementById(`dir-${i}`);
+                const somaEl  = document.getElementById(`soma-${i}`);
+                dirEl.value = skill?.direction || '';
+                // 2回宙は doubleSomaGroup で細分化した値にマップ
+                let somaVal = '';
+                if (skill?.direction && skill.direction !== '基礎技') {
+                    if (skill.somersaultType === '2回宙') {
+                        somaVal = skill.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）';
+                    } else {
+                        somaVal = skill.somersaultType || '';
+                    }
+                }
+                somaEl.value = somaVal;
+                updateOptions(i, skillId, false);
+            }
+            calcTotal();
+        } catch (e) {
+            alert('コピーに失敗しました: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = `📋 ${srcLabel}をコピーする`;
+        }
     };
 
     window.clearEntry = async () => {
@@ -276,6 +577,16 @@
     };
 
     window.submitRoutine = async () => {
+        // 指定難度バリデーション（1本以上指定時のみ）
+        if (designatedDDCount > 0) {
+            const checked = Array.from({length: 10}, (_, i) => document.getElementById(`chk-${i+1}`)?.checked ? 1 : 0)
+                                .reduce((a, b) => a + b, 0);
+            if (checked !== designatedDDCount) {
+                alert(`指定難度を正確に ${designatedDDCount} 本選択してください（現在 ${checked} 本）`);
+                return;
+            }
+        }
+
         // 期限チェック
         const now = new Date();
         const isFinal = round === 'final';
@@ -298,13 +609,25 @@
                 return;
             }
             const skill = skillMaster.find(s => s.id === skillId);
-            skills.push({ skill: skill.symbol, dd: skill.dd });
+            skills.push({ id: skillId, skill: skill.symbol, dd: skill.dd });
         }
-        const kana = document.getElementById('ath-kana').value.trim();
+        const isSynchro = currentAthlete.type === 'synchro';
+        const kana     = document.getElementById('ath-kana').value.trim();
         const clubKana = document.getElementById('ath-club-kana').value.trim();
-        if (currentAthlete.type !== 'synchro' && (!kana || !clubKana)) {
+        if (!isSynchro && (!kana || !clubKana)) {
             alert("選手と所属のふりがなを入力してください。");
             return;
+        }
+        if (isSynchro) {
+            const k1     = document.getElementById('ath-kana1').value.trim();
+            const k2     = document.getElementById('ath-kana2').value.trim();
+            const isDiff = document.getElementById('club-diff-chk')?.checked;
+            const ck1    = isDiff ? document.getElementById('ath-club-kana1').value.trim() : document.getElementById('ath-club-kana-shared').value.trim();
+            const ck2    = isDiff ? document.getElementById('ath-club-kana2').value.trim() : ck1;
+            if (!k1 || !k2 || !ck1 || (isDiff && !ck2)) {
+                alert("選手2名のふりがなと所属よみをすべて入力してください。");
+                return;
+            }
         }
 
         const btn = document.getElementById('submit-btn');
@@ -315,9 +638,21 @@
             const subId = `${eventId}_${athleteId}_${round}`;
             const totalDD = parseFloat(document.getElementById('total-dd').textContent);
 
+            // 指定難度インデックスを収集
+            const designatedDDIndices = [];
+            if (designatedDDCount > 0) {
+                for (let i = 1; i <= 10; i++) {
+                    const chk = document.getElementById(`chk-${i}`);
+                    if (chk?.checked) designatedDDIndices.push(i - 1); // 0-indexed
+                }
+            }
+
             // 1. Update the detailed submission document
             await setDoc(doc(db, "submissions", subId), {
                 eventId, athleteId, round, skills, totalDD,
+                ...(designatedDDCount > 0
+                    ? { designatedDDIndices }
+                    : { designatedDDIndices: deleteField() }),
                 checkStatus: 0, // 0: Submitted, not yet checked
                 updatedAt: serverTimestamp(),
                 revisionCount: increment(1)
@@ -327,9 +662,17 @@
             const athleteUpdateData = {
                 [`submissions.${round}`]: 0 // 0: Submitted
             };
-            if (currentAthlete.type !== 'synchro') {
+            if (!isSynchro) {
                 athleteUpdateData.kana1 = kana;
                 athleteUpdateData.clubKana1 = clubKana;
+            } else {
+                const isDiff = document.getElementById('club-diff-chk')?.checked;
+                const ck1    = isDiff ? document.getElementById('ath-club-kana1').value.trim() : document.getElementById('ath-club-kana-shared').value.trim();
+                const ck2    = isDiff ? document.getElementById('ath-club-kana2').value.trim() : ck1;
+                athleteUpdateData.kana1     = document.getElementById('ath-kana1').value.trim();
+                athleteUpdateData.kana2     = document.getElementById('ath-kana2').value.trim();
+                athleteUpdateData.clubKana1 = ck1;
+                athleteUpdateData.clubKana2 = ck2;
             }
             await updateDoc(doc(db, "tournaments", eventId, "athletes", athleteId), athleteUpdateData);
 

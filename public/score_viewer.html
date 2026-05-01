@@ -197,7 +197,8 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, onSnapshot, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, onSnapshot, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getTournament, getAthletes } from "./cache.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -225,9 +226,9 @@
         if (!eventId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">大会IDが見つかりません</p>'; return; }
         document.getElementById('menu-back').href = `judge_menu.html?event=${eventId}`;
 
-        const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await Promise.all([
-            getDoc(doc(db, 'tournaments', eventId)),
-            getDocs(collection(db, 'tournaments', eventId, 'athletes')),
+        const [tourData, athleteList, subSnap, resSnap, smSnap] = await Promise.all([
+            getTournament(eventId),
+            getAthletes(eventId),
             getDocs(query(collection(db, 'submissions'), where('eventId','==',eventId))),
             getDocs(query(collection(db, 'results'),     where('eventId','==',eventId))),
             getDocs(collection(db, 'skillMaster'))
@@ -236,10 +237,11 @@
         smSnap.forEach(d => {
             skillMasterMap[d.id] = { id: d.id, symbol: d.data().symbol, dd: parseFloat(d.data().dd) || 0 };
         });
-        currentTour = tourSnap.data();
+        if (!tourData) throw new Error('大会データが見つかりません');
+        currentTour = tourData;
         document.getElementById('event-name-sidebar').textContent = currentTour?.name || '';
 
-        athSnap.docs.forEach(d => { athletes[d.id] = { id: d.id, ...d.data() }; });
+        athleteList.forEach(a => { athletes[a.id] = a; });
         subSnap.forEach(d => { submissions[d.id] = d.data(); });
         resSnap.forEach(d => { results[d.id] = d.data(); });
 
@@ -330,8 +332,7 @@
         const rule = currentTour?.classRules?.[a.type||'individual']?.[a.class||a.category||''] || {};
         const n = rule.qualifyingRoutines || 2;
         const rounds = Array.from({length:n}, (_, i) => ({ key:`pre${i+1}`, label:`P${i+1}` }));
-        if (rule.semifinalEnabled) rounds.push({ key:'semi', label:'SF' });
-        if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
+if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         return rounds;
     }
 
@@ -407,12 +408,21 @@
             const s = subSkills[i];
             el.style.color = ''; el.classList.remove('d-dup');
             if (!s) { el.textContent = '-'; declaredSymbols.push(null); return; }
-            const raw = typeof s === 'string' ? s : (s.skill || '');
-            const sym = skillMasterMap[raw]?.symbol || raw;
+            // オブジェクト形式（entry.htmlが保存する{id,skill,dd}）はidでマスター照合
+            let sym;
+            if (typeof s === 'object' && s !== null) {
+                const found = s.id ? skillMasterMap[String(s.id)] : null;
+                sym = found ? found.symbol : (s.skill || '');
+            } else {
+                const raw = String(s);
+                sym = (!isNaN(raw) && raw !== '' && skillMasterMap[raw])
+                    ? skillMasterMap[raw].symbol : raw;
+            }
             el.textContent = sym || '-';
             declaredSymbols.push(sym || null);
-            if (sym && seenSub.has(sym)) el.classList.add('d-dup');
-            else if (sym) seenSub.add(sym);
+            const dupKey = (typeof s === 'object' && s.id) ? String(s.id) : sym;
+            if (dupKey && seenSub.has(dupKey)) el.classList.add('d-dup');
+            else if (dupKey) seenSub.add(dupKey);
         });
 
         // 実施行
@@ -453,10 +463,12 @@
             ddCells.forEach((el, i) => {
                 const id = execSkills[i];
                 if (i >= vLimit || !id) { el.textContent = '-'; return; }
-                const skill = skillMasterMap[id];
+                // ID直接参照、なければSymbolでフォールバック（manual保存の旧データ互換）
+                const skill = skillMasterMap[id] || Object.values(skillMasterMap).find(v => v.symbol === id);
                 if (!skill) { el.textContent = '-'; return; }
-                el.textContent = seen.has(id) ? '0.0' : skill.dd.toFixed(1);
-                seen.add(id);
+                const key = skill.id; // 重複判定はIDで統一
+                el.textContent = seen.has(key) ? '0.0' : skill.dd.toFixed(1);
+                seen.add(key);
             });
         }
         document.getElementById('dd-bonus-cell').textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';

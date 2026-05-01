@@ -45,9 +45,14 @@
         .nav-icon.orange { background: #fff3e0; }
         .nav-icon.teal   { background: #e0f2f1; }
         .nav-icon.red    { background: #fce4ec; }
+        .nav-icon.gold   { background: #fff8e1; }
         .nav-title { font-size: 0.95rem; font-weight: 700; }
         .nav-desc  { font-size: 0.7rem; color: var(--sub); margin-top: 1px; }
         .nav-arrow { margin-left: auto; color: #ccc; font-size: 1.1rem; flex-shrink: 0; }
+
+        .footer-credit { text-align: center; padding: 16px 0 32px; }
+        .footer-credit .sys-name { font-size: 0.72rem; font-weight: 900; color: #90a4ae; letter-spacing: 0.08em; display: block; }
+        .footer-credit .sys-dev  { font-size: 0.62rem; color: #b0bec5; letter-spacing: 0.06em; display: block; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -89,11 +94,21 @@
         <div><div class="nav-title">スコア確認</div><div class="nav-desc">各審判の得点確認</div></div>
         <span class="nav-arrow">›</span>
     </a>
+    <a class="nav-card" id="nav-ranking" href="#" target="_blank">
+        <div class="nav-icon gold">🏆</div>
+        <div><div class="nav-title">順位表</div><div class="nav-desc">クラス別の得点順位</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
     <a class="nav-card" id="nav-display" href="#" target="_blank">
         <div class="nav-icon teal">📺</div>
         <div><div class="nav-title">会場ディスプレイ</div><div class="nav-desc">モニター用表示画面</div></div>
         <span class="nav-arrow">›</span>
     </a>
+</div>
+
+<div class="footer-credit">
+    <span class="sys-name">TRAvaults system</span>
+    <span class="sys-dev">DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</span>
 </div>
 
 <script type="module">
@@ -108,17 +123,21 @@
     document.getElementById('nav-cardcheck').href = `admin_card_check.html?event=${eventId}&from=judge`;
     document.getElementById('nav-input').href     = `judge_role_select.html?event=${eventId}`;
     document.getElementById('nav-score').href   = `score_viewer.html?event=${eventId}`;
+    document.getElementById('nav-ranking').href = `ranking.html?event=${eventId}`;
     document.getElementById('nav-display').href = `display.html?event=${eventId}`;
 
-    let timerInterval = null, warmupData = {};
+    let timerInterval = null, warmupData = {}, _serverOffset = 0;
     function startTimerTick() {
         clearInterval(timerInterval);
+        if (warmupData.timerRef?.toMillis) {
+            _serverOffset = warmupData.timerRef.toMillis() - Date.now();
+        }
         const el = document.getElementById('timer-val');
         function tick() {
             const wu = warmupData;
             let ms, running;
             if (wu.timerPaused || !wu.timerEndTime) { ms = wu.timerRemainingMs ?? 0; running = false; }
-            else { ms = Math.max(0, wu.timerEndTime - Date.now()); running = true; }
+            else { ms = Math.max(0, wu.timerEndTime - (Date.now() + _serverOffset)); running = true; }
             const s = Math.ceil(ms / 1000);
             el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
             el.className = 'timer-val' + (ms === 0 ? ' done' : ms < 60000 ? ' warning' : running ? ' running' : '');

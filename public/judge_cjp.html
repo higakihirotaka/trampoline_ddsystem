@@ -5,14 +5,23 @@
     <title>Technical Console - Trampoline System</title>
     <style>
         :root {
-            --bg: #edf1f7; --card-bg: #ffffff; --accent: #1a73e8;
-            --success: #2e7d32; --danger: #c62828; --text: #1a2a3a; --text-dim: #607d8b;
-            --sidebar-bg: #f4f7fb; --primary: #1e3a5f;
-            --border: #d4dce8; --th-bg: #1e3a5f; --th-text: #e8f0fa;
-            --cell-bg: #ffffff; --cell-alt: #f5f8fc;
+            --bg: #f1f5f9;       /* slate-100 */
+            --card-bg: #ffffff;
+            --accent: #2563eb;   /* blue-600 */
+            --success: #059669;  /* emerald-600 */
+            --danger: #dc2626;   /* red-600 */
+            --text: #0f172a;     /* slate-900 */
+            --text-dim: #64748b; /* slate-500 */
+            --sidebar-bg: #f8fafc;
+            --primary: #0f172a;  /* slate-900 */
+            --border: #e2e8f0;   /* slate-200 */
+            --th-bg: #1e293b;    /* slate-800 */
+            --th-text: #cbd5e1;  /* slate-300 */
+            --cell-bg: #ffffff;
+            --cell-alt: #f8fafc;
         }
-        html { min-height: 100%; }
-        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; align-items: flex-start; overflow-x: hidden; }
+        html { height: 100%; overflow: hidden; }
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; display: flex; overflow: hidden; }
         
         /* ===== サイドバー ===== */
         .sidebar {
@@ -21,7 +30,7 @@
             border-right: 1px solid var(--border);
             display: flex; flex-direction: column;
             box-shadow: 2px 0 8px rgba(0,0,0,0.06);
-            position: sticky; top: 0; height: 100vh;
+            height: 100vh;
         }
 
         /* ヘッダー */
@@ -34,7 +43,7 @@
         .sidebar-header::after {
             content: ''; display: block;
             height: 3px; margin-top: 14px;
-            background: linear-gradient(90deg, var(--accent) 0%, rgba(30,115,232,0) 100%);
+            background: linear-gradient(90deg, var(--accent) 0%, rgba(37,99,235,0) 100%);
             border-radius: 2px;
         }
         .sb-system-label {
@@ -69,7 +78,7 @@
         }
         .tab-btn {
             padding: 3px 9px; border-radius: 20px;
-            border: 1.5px solid #dde3ec;
+            border: 1.5px solid #e2e8f0;
             background: #fff; color: #64748b;
             font-size: 0.68rem; font-weight: 700;
             cursor: pointer; transition: all 0.12s;
@@ -79,7 +88,7 @@
         .tab-btn.active {
             background: var(--accent); color: #fff;
             border-color: var(--accent);
-            box-shadow: 0 2px 6px rgba(26,115,232,0.25);
+            box-shadow: 0 2px 6px rgba(37,99,235,0.3);
         }
 
         /* 選手リスト */
@@ -90,9 +99,9 @@
             font-size: 0.62rem; font-weight: 800;
             letter-spacing: 0.12em; text-transform: uppercase;
             color: var(--accent);
-            background: #f0f5ff;
-            border-top: 1px solid #dde6f7;
-            border-bottom: 1px solid #dde6f7;
+            background: #eff6ff;
+            border-top: 1px solid #bfdbfe;
+            border-bottom: 1px solid #bfdbfe;
         }
         .gender-group {
             padding: 4px 16px;
@@ -102,14 +111,14 @@
         }
         .athlete-row {
             padding: 7px 14px 7px 12px;
-            border-bottom: 1px solid #f0f4f8;
+            border-bottom: 1px solid #f1f5f9;
             display: flex; justify-content: space-between; align-items: center;
             cursor: pointer; transition: background 0.1s;
             border-left: 3px solid transparent;
         }
-        .athlete-row:hover { background: #f5f8ff; }
+        .athlete-row:hover { background: #f0f9ff; }
         .active-athlete {
-            background: #eef4ff !important;
+            background: #eff6ff !important;
             border-left-color: var(--accent) !important;
         }
         .ath-name-text {
@@ -140,89 +149,100 @@
             border: 1.5px solid transparent;
             transition: all 0.1s; letter-spacing: -0.02em;
         }
-        .r-dot.has-sub { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
-        .r-dot.has-res { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+        .r-dot.has-sub { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+        .r-dot.has-res { background: #ecfdf5; color: #059669; border-color: #6ee7b7; }
         .r-dot.current {
             background: var(--accent) !important; color: #fff !important;
             border-color: var(--accent) !important;
-            box-shadow: 0 2px 5px rgba(26,115,232,0.35);
+        }
+        .r-dot.has-res.current {
+            background: #059669 !important; color: #fff !important;
+            border-color: #047857 !important;
+            box-shadow: 0 2px 5px rgba(5,150,105,0.35);
         }
 
         /* メインコンソール */
-        .console-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-        .top-bar { background: var(--primary); padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; position: sticky; top: 0; z-index: 10; }
-        .btn-exit { color: #ffb3b3; text-decoration: none; border: 1px solid #ff8a80; padding: 5px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .console-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; overflow: hidden; }
+        .top-bar { background: var(--primary); padding: 8px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.04); flex-shrink: 0; }
+        .btn-exit { color: #fca5a5; text-decoration: none; border: 1px solid #f87171; padding: 4px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 
-        .athlete-banner { background: var(--card-bg); padding: 15px 25px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
-        .main-content { padding: 20px; display: flex; flex-direction: column; gap: 20px; padding-bottom: 40px; }
+        .athlete-banner { background: var(--card-bg); padding: 11px 25px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.05); flex-shrink: 0; }
+        /* テーブル＋入力エリアのスクロール領域 */
+        .console-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+        .main-content { padding: 14px 20px 18px; display: flex; flex-direction: column; gap: 12px; }
 
         /* テーブル */
         /* table-layout:fixed でセル幅固定。width:100% で画面幅を使い切り、
            min-width:700px で狭い画面ではスクロール対応 */
         .monitor-table { width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
-        .monitor-table th, .monitor-table td { padding: 8px 6px; text-align: center; border-radius: 4px; background: var(--cell-bg); font-size: 1.1rem; overflow: hidden; white-space: nowrap; color: var(--text); border: 1px solid transparent; }
-        .monitor-table th { background: var(--th-bg); font-size: 0.65rem; color: var(--th-text); border-color: #0d2440; font-weight: 700; letter-spacing: 0.03em; }
-        .skill-header { color: #90caf9 !important; font-weight: bold; }
-        .val-filled { color: #2e7d32; font-weight: bold; }
-        /* 審判値ハイライト（明るい背景向け）— 2段階 */
-        .middle-cell      { background: #c8e6c9 !important; color: #1b5e20 !important; font-weight: 900; outline: 2px solid #66bb6a; }
-        /* 甘すぎる（低減点）: mild=薄青, strong=やや濃青+白文字 */
-        .low-cell-mild    { background: #e8f1fb !important; color: #2c5fa8 !important; font-weight: 700; outline: 1px solid #a8c4e8; }
-        .low-cell         { background: #cfe0f7 !important; color: #1a3d7a !important; font-weight: 900; outline: 2px solid #7aaee0; }
-        /* 厳しすぎる（高減点）: mild=薄赤, strong=やや濃赤 */
-        .high-cell-mild   { background: #fdf0f0 !important; color: #a83232 !important; font-weight: 700; outline: 1px solid #e8a8a8; }
-        .high-cell        { background: #f7d5d5 !important; color: #7a1a1a !important; font-weight: 900; outline: 2px solid #e07a7a; }
+        .monitor-table th, .monitor-table td { padding: 6px 5px; text-align: center; border-radius: 4px; background: var(--cell-bg); font-size: 1.05rem; overflow: hidden; white-space: nowrap; color: var(--text); border: 1px solid transparent; }
+        .monitor-table th { background: var(--th-bg); font-size: 0.63rem; color: var(--th-text); border-color: #111827; font-weight: 700; letter-spacing: 0.03em; }
+        .skill-header { color: #93c5fd !important; font-weight: bold; }
+        .val-filled { color: #059669; font-weight: bold; }
+        /* ── 審判値ハイライト 2段階 ── */
+        /* 中央値 */
+        .middle-cell      { background: #bbf7d0 !important; color: #065f46 !important; font-weight: 900; outline: 2px solid #34d399; }
+        /* 甘すぎる（低減点）*/
+        .low-cell-mild    { background: #dbeafe !important; color: #1e40af !important; font-weight: 700; outline: 1px solid #93c5fd; }
+        .low-cell         { background: #bfdbfe !important; color: #1e3a8a !important; font-weight: 900; outline: 2px solid #60a5fa; }
+        /* 厳しすぎる（高減点）*/
+        .high-cell-mild   { background: #fee2e2 !important; color: #991b1b !important; font-weight: 700; outline: 1px solid #fca5a5; }
+        .high-cell        { background: #fecaca !important; color: #7f1d1d !important; font-weight: 900; outline: 2px solid #f87171; }
         /* 手動入力セルにアウトライアー色を重ねる */
-        .manual-cell.low-cell-mild  { background: #e8f1fb !important; color: #2c5fa8 !important; }
-        .manual-cell.low-cell       { background: #cfe0f7 !important; color: #1a3d7a !important; }
-        .manual-cell.high-cell-mild { background: #fdf0f0 !important; color: #a83232 !important; }
-        .manual-cell.high-cell      { background: #f7d5d5 !important; color: #7a1a1a !important; }
-        .middle-row td { background: rgba(67,160,71,0.08) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(67,160,71,0.3) !important; }
+        .manual-cell.low-cell-mild  { background: #dbeafe !important; color: #1e40af !important; }
+        .manual-cell.low-cell       { background: #bfdbfe !important; color: #1e3a8a !important; }
+        .manual-cell.high-cell-mild { background: #fee2e2 !important; color: #991b1b !important; }
+        .manual-cell.high-cell      { background: #fecaca !important; color: #7f1d1d !important; }
+        .middle-row td { background: rgba(5,150,105,0.07) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(5,150,105,0.25) !important; }
         .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
 
         /* 入力エリア */
-        .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        .input-card { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
-        .input-card label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 8px; font-weight: bold; }
-        .input-card input, .input-card select { width: 100%; background: #f5f8fc; border: 1px solid var(--border); color: var(--text); padding: 10px; font-size: 1.2rem; border-radius: 6px; box-sizing: border-box; }
-        .input-card input:focus, .input-card select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+        .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .input-card { background: var(--card-bg); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+        .input-card label { display: block; font-size: 0.68rem; color: var(--text-dim); margin-bottom: 5px; font-weight: bold; }
+        .input-card input, .input-card select { width: 100%; background: #f5f8fc; border: 1px solid var(--border); color: var(--text); padding: 7px 10px; font-size: 1.15rem; border-radius: 6px; box-sizing: border-box; }
+        .input-card input:focus, .input-card select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
 
-        /* スコア集計 */
-        .score-summary { background: var(--card-bg); padding: 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,0.12); }
+        /* スコア集計 — ダークカードで視線を集める */
+        .score-summary { background: #0f172a; padding: 13px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
         .score-box { text-align: center; }
-        .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 5px; font-weight: bold; }
-        .score-box div { font-size: 2.2rem; font-weight: 900; font-family: monospace; color: var(--text); }
+        .score-box label { font-size: 0.6rem; color: rgba(255,255,255,0.38); display: block; margin-bottom: 4px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+        .score-box div { font-size: 2rem; font-weight: 900; font-family: monospace; color: #e2e8f0; }
+        /* Total だけエメラルドで強調 */
+        .score-summary #res-total { color: #34d399 !important; }
 
-        /* ── アクションボタン行 ── */
-        .action-row { display: flex; gap: 8px; margin-top: 4px; }
-        .btn-action { flex: 1; padding: 14px 6px; border-radius: 10px; font-size: 0.88rem; font-weight: 900; cursor: pointer; border: 2px solid transparent; transition: opacity 0.15s, filter 0.15s; white-space: nowrap; }
+        /* ── アクションボタン: 5列 × 複数行グリッド ── */
+        .action-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+        .btn-action { padding: 10px 6px; border-radius: 10px; font-size: 0.88rem; font-weight: 900; cursor: pointer; border: 2px solid transparent; transition: opacity 0.15s, filter 0.15s; white-space: nowrap; }
         .btn-action:disabled { opacity: 0.28; cursor: not-allowed; filter: grayscale(0.4); }
-        .btn-confirm     { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,0.25); }
-        .btn-unlock      { background: #fff3e0; color: #e65100; border-color: #ff9800; }
-        .btn-republish   { background: #e8f5e9; color: #2e7d32; border-color: #66bb6a; }
-        .btn-calculating { background: #f3f3f3; color: #607d8b; border-color: #b0bec5; }
-        .btn-hdts        { background: #e0f2f1; color: #00695c; border-color: #26a69a; }
-        .btn-hdts:hover  { background: #b2dfdb; }
-        .qira-status-bar { min-height: 1.4em; font-size: 0.7rem; color: #90a4ae; text-align: right; padding: 2px 4px; letter-spacing: 0.02em; }
+        .btn-confirm        { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+        .btn-confirm-silent { background: #f0f6ff; color: #2563eb; border-color: #93c5fd; }
+        .btn-confirm-silent:hover { background: #dbeafe; }
+        .btn-unlock      { background: #fff7ed; color: #c2410c; border-color: #f97316; }
+        .btn-republish   { background: #ecfdf5; color: #059669; border-color: #34d399; }
+        .btn-calculating { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+        .btn-hdts        { background: #f0fdfa; color: #0f766e; border-color: #0d9488; }
+        .btn-hdts:hover  { background: #ccfbf1; }
+        .qira-status-bar { min-height: 1.4em; font-size: 0.7rem; color: #94a3b8; text-align: right; padding: 2px 4px; letter-spacing: 0.02em; }
 
         /* S1-S10 有効本数クリック */
         .sn-th { cursor: pointer; user-select: none; transition: background 0.15s, color 0.15s; }
-        .sn-th:hover { background: rgba(26,115,232,0.18) !important; }
-        .sn-th.sn-valid { background: rgba(67,160,71,0.18); color: #1b5e20; }
-        .sn-th.sn-cutoff { background: var(--accent) !important; color: #fff !important; font-weight: 900; outline: 2px solid #0d47a1; }
+        .sn-th:hover { background: rgba(37,99,235,0.2) !important; }
+        .sn-th.sn-valid { background: rgba(5,150,105,0.18); color: #065f46; }
+        .sn-th.sn-cutoff { background: #059669 !important; color: #fff !important; font-weight: 900; outline: 2px solid #047857; }
         .sn-th.sn-invalid { opacity: 0.4; }
 
         /* 手動入力モード */
-        .btn-manual-toggle { background: transparent; color: #ff9800; border: 2px solid #ff9800; padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
-        .btn-manual-toggle.active { background: #ff9800; color: #000; }
-        .manual-banner { background: #e65100; color: white; text-align: center; padding: 5px 10px; font-size: 0.8rem; font-weight: bold; display: none; letter-spacing: 0.03em; flex-shrink: 0; }
+        .btn-manual-toggle { background: transparent; color: #f97316; border: 2px solid #f97316; padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+        .btn-manual-toggle.active { background: #f97316; color: #fff; }
+        .manual-banner { background: #c2410c; color: white; text-align: center; padding: 5px 10px; font-size: 0.8rem; font-weight: bold; display: none; letter-spacing: 0.03em; flex-shrink: 0; }
         .manual-banner.show { display: block; }
-        input.manual-input { width: 44px; background: #111; border: 1px solid #ff9800; color: #fff; border-radius: 4px; padding: 4px 2px; font-size: 1.1rem; text-align: center; -moz-appearance: textfield; }
+        input.manual-input { width: 44px; background: #111827; border: 1px solid #f97316; color: #fff; border-radius: 4px; padding: 4px 2px; font-size: 1.1rem; text-align: center; -moz-appearance: textfield; }
         input.manual-input::-webkit-outer-spin-button, input.manual-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        input.manual-input:focus { border-color: #ffc107; outline: none; box-shadow: 0 0 0 2px rgba(255,152,0,0.3); }
-        .btn-save-manual { background: #e65100; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
-        .btn-save-manual:hover { background: #bf360c; }
-        .manual-saved { color: #00e676; font-size: 0.78rem; font-weight: bold; }
+        input.manual-input:focus { border-color: #fbbf24; outline: none; box-shadow: 0 0 0 2px rgba(249,115,22,0.3); }
+        .btn-save-manual { background: #c2410c; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+        .btn-save-manual:hover { background: #9a3412; }
+        .manual-saved { color: #34d399; font-size: 0.78rem; font-weight: bold; }
         /* 行ごとの手動入力ボタン */
         /* 読込/手動切り替えスイッチ */
         .mode-toggle-box { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -230,66 +250,103 @@
         .mode-lbl { font-size: 0.7rem; font-weight: bold; color: var(--text-dim); transition: color 0.2s; }
         .toggle-switch { position: relative; display: inline-block; width: 44px; height: 22px; flex-shrink: 0; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .toggle-track { position: absolute; cursor: pointer; inset: 0; background: #b0bec5; border-radius: 22px; transition: 0.25s; }
+        .toggle-track { position: absolute; cursor: pointer; inset: 0; background: #cbd5e1; border-radius: 22px; transition: 0.25s; }
         .toggle-track::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: 0.25s; }
-        .toggle-switch input:checked + .toggle-track { background: #ff9800; }
+        .toggle-switch input:checked + .toggle-track { background: #f97316; }
         .toggle-switch input:checked + .toggle-track::before { transform: translateX(22px); }
         /* セル直接編集（手動モード） */
-        .manual-cell { color: #e65100; font-weight: bold; cursor: default; outline: none; background: #fff8f0 !important; }
-        .manual-cell:focus { background: rgba(255,152,0,0.20) !important; box-shadow: 0 0 0 2px #ff9800 inset; border-radius: 3px; }
-        .manual-cell.null-val { color: rgba(230,81,0,0.4); font-weight: normal; }
+        .manual-cell { color: #c2410c; font-weight: bold; cursor: default; outline: none; background: #fff7ed !important; }
+        .manual-cell:focus { background: rgba(249,115,22,0.18) !important; box-shadow: 0 0 0 2px #f97316 inset; border-radius: 3px; }
+        .manual-cell.null-val { color: rgba(194,65,12,0.4); font-weight: normal; }
         /* 行ごとの小型トグル */
         .toggle-col { padding: 3px !important; vertical-align: middle; background: transparent !important; }
         .toggle-switch-sm { position: relative; display: inline-block; width: 30px; height: 16px; }
         .toggle-switch-sm input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .track-sm { position: absolute; cursor: pointer; inset: 0; background: #b0bec5; border-radius: 16px; transition: 0.2s; }
+        .track-sm { position: absolute; cursor: pointer; inset: 0; background: #cbd5e1; border-radius: 16px; transition: 0.2s; }
         .track-sm::before { content: ''; position: absolute; width: 12px; height: 12px; left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.2s; }
-        .toggle-switch-sm input:checked + .track-sm { background: #ff9800; }
+        .toggle-switch-sm input:checked + .track-sm { background: #f97316; }
         .toggle-switch-sm input:checked + .track-sm::before { transform: translateX(14px); }
         /* ToF/HD モード切替ボタン */
-        .btn-th-mode { float: right; background: transparent; border: 1px solid #90a4ae; color: #607d8b; padding: 1px 5px; border-radius: 3px; font-size: 0.6rem; cursor: pointer; transition: 0.15s; margin-left: 4px; }
-        .btn-th-mode.manual { border-color: #ff9800; color: #ff9800; }
+        .btn-th-mode { float: right; background: transparent; border: 1px solid #94a3b8; color: #64748b; padding: 1px 5px; border-radius: 3px; font-size: 0.6rem; cursor: pointer; transition: 0.15s; margin-left: 4px; }
+        .btn-th-mode.manual { border-color: #f97316; color: #f97316; }
         /* 審判ヘッダー行 - 文字大きめ */
-        .monitor-table thead th { font-size: 0.82rem; }
-        /* tfoot(申請・実施・DD)の区切り線 */
-        .monitor-table tfoot tr:first-child th { border-top: 2px solid var(--border) !important; }
-        /* 実施技行 背景色 — 確定状態で切り替え */
-        #skill-symbols-row th { background: #e1f5fe !important; color: #01579b; transition: opacity 0.3s, filter 0.3s; }
-        #skill-symbols-row th.skill-header { background: #e1f5fe !important; color: #01579b; transition: opacity 0.3s, filter 0.3s; }
-        /* 未確定時: 薄く・グレーがかった表示 */
-        /* 未確定: やや薄め */
+        .monitor-table thead th { font-size: 0.78rem; }
+        /* テーブルカードラッパー */
+        .table-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.09);
+            border: 1px solid var(--border);
+        }
+        /* ── セクションヘッダー行 ── */
+        .section-head th {
+            text-align: left !important;
+            font-size: 0.58rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.2em !important;
+            text-transform: uppercase !important;
+            padding: 5px 14px 4px 16px !important;
+            border: none !important;
+            border-radius: 0 !important;
+        }
+        /* E ─ sky 帯（採点アウトライアー blue 系と同族） */
+        .e-section-head th {
+            background: #f0f9ff !important;
+            color: #0369a1 !important;
+            border-bottom: 2px solid #7dd3fc !important;
+            box-shadow: inset 5px 0 0 0 #0284c7 !important;
+        }
+        /* D ─ violet 帯（E と色相が大きく異なる） */
+        .d-section-head th {
+            background: #f5f3ff !important;
+            color: #6d28d9 !important;
+            border-bottom: 2px solid #c4b5fd !important;
+            box-shadow: inset 5px 0 0 0 #7c3aed !important;
+        }
+        /* HDTS ─ teal 帯（HDTS ボタン・行と同族） */
+        .hdts-section-head th {
+            background: #f0fdfa !important;
+            color: #0f766e !important;
+            border-bottom: 2px solid #5eead4 !important;
+            box-shadow: inset 5px 0 0 0 #0d9488 !important;
+        }
+        /* 実施技行 */
+        #skill-symbols-row th { background: #eff6ff !important; color: #2563eb; transition: opacity 0.3s, filter 0.3s; }
+        #skill-symbols-row th.skill-header { background: #eff6ff !important; color: #2563eb; }
         #skill-symbols-row:not(.d-confirmed) th { opacity: 0.65; filter: grayscale(0.2); }
-        /* 確定: くっきり・強調 */
-        #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; font-weight: bold; color: #003c8f !important; }
-        /* 申請との差異セル: 確定/未確定に関わらず赤を優先 */
+        #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; font-weight: bold; color: #1e40af !important; background: #dbeafe !important; }
         #skill-symbols-row th.d-mismatch { color: var(--danger) !important; opacity: 1 !important; filter: none !important; }
         /* dd-bonus-cell 手動時 */
-        #dd-bonus-cell.d-manual-cell { color: #e65100 !important; font-weight: bold !important; cursor: text; background: #fff8f0 !important; }
-        #dd-bonus-cell.d-manual-cell:focus { background: rgba(255,152,0,0.15) !important; outline: 2px solid #ff9800; }
+        #dd-bonus-cell.d-manual-cell { color: #c2410c !important; font-weight: bold !important; cursor: text; background: #fff7ed !important; }
+        #dd-bonus-cell.d-manual-cell:focus { background: rgba(249,115,22,0.12) !important; outline: 2px solid #f97316; }
         /* D情報行（申請・実施・DD） */
-        .d-info-row th { font-size: 0.9rem; color: var(--text-dim); background: rgba(26,115,232,0.07); font-weight: normal; border-color: rgba(26,115,232,0.15) !important; }
-        .d-info-row.d-confirmed th { background: rgba(67,160,71,0.1); color: var(--success); }
+        .d-info-row th { font-size: 0.85rem; color: #475569; background: #f8fafc; font-weight: 400; border-color: #e2e8f0 !important; }
+        .d-info-row.d-confirmed th { background: #ecfdf5; color: #047857; }
         /* D確定バッジ */
-        .d-badge { font-size: 0.72rem; background: #43a047; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
+        .d-badge { font-size: 0.72rem; background: #059669; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
         /* HDTS 技別データ行 */
-        .hdts-row th { background: rgba(38,166,154,0.10) !important; color: #00695c !important; border-color: rgba(38,166,154,0.22) !important; font-size: 0.78rem !important; font-family: monospace; }
+        .hdts-row th { background: #f0fdfa !important; color: #0f766e !important; border-color: #99f6e4 !important; font-size: 0.78rem !important; font-family: monospace; }
         .hdts-row .hdts-label { font-size: 0.63rem !important; font-family: inherit; white-space: normal; line-height: 1.4; }
         .hdts-row .hdts-sum { font-weight: bold; }
         /* DD合計セル（ボーナス内訳を2行表示するため折り返しを許可） */
         #dd-total-cell { white-space: normal; line-height: 1.3; }
-        /* 重複技ハイライト（薄い黄色） */
-        .d-dup { background: rgba(255, 193, 7, 0.22) !important; }
-        /* skill-symbolsヘッダーは高specificity青を上書き */
-        #skill-symbols-row th.skill-header.d-dup { background: rgba(255, 193, 7, 0.55) !important; color: #7c5e00 !important; }
-        /* DD行：重複=黄色bg＋暗黄文字 / 申告相違=赤文字太字（!importantでインラインstyleに勝つ） */
-        #dd-row th.d-dup      { background: rgba(255, 193, 7, 0.55) !important; color: #7c5e00 !important; }
+        /* 指定難度行 */
+        #designated-row { display: none; }
+        .d-designated { cursor: pointer; user-select: none; transition: background 0.15s; }
+        .d-designated:hover { background: rgba(37,99,235,0.15) !important; }
+        .d-designated.dsg-on { background: rgba(37,99,235,0.2) !important; color: #2563eb !important; font-weight: 900; outline: 2px solid #2563eb; }
+
+        /* 重複技ハイライト（amber） */
+        .d-dup { background: rgba(245,158,11,0.2) !important; }
+        #skill-symbols-row th.skill-header.d-dup { background: rgba(245,158,11,0.5) !important; color: #92400e !important; }
+        #dd-row th.d-dup      { background: rgba(245,158,11,0.5) !important; color: #92400e !important; }
         #dd-row th.d-mismatch { color: var(--danger) !important; font-weight: 900 !important; }
-        /* 両方同時：黄色bg＋赤文字 */
-        #skill-symbols-row th.skill-header.d-dup.d-mismatch { background: rgba(255, 193, 7, 0.55) !important; color: var(--danger) !important; }
-        #dd-row th.d-dup.d-mismatch { background: rgba(255, 193, 7, 0.55) !important; color: var(--danger) !important; }
+        #skill-symbols-row th.skill-header.d-dup.d-mismatch { background: rgba(245,158,11,0.5) !important; color: var(--danger) !important; }
+        #dd-row th.d-dup.d-mismatch { background: rgba(245,158,11,0.5) !important; color: var(--danger) !important; }
         /* D手動入力セル */
-        .d-manual-cell { color: #e65100 !important; font-weight: bold !important; cursor: text; border-radius: 3px; background: #fff8f0 !important; }
-        .d-manual-cell:focus { background: rgba(255,152,0,0.15) !important; outline: 2px solid #ff9800; }
+        .d-manual-cell { color: #c2410c !important; font-weight: bold !important; cursor: text; border-radius: 3px; background: #fff7ed !important; }
+        .d-manual-cell:focus { background: rgba(249,115,22,0.12) !important; outline: 2px solid #f97316; }
     </style>
 </head>
 <body>
@@ -306,21 +363,27 @@
 
 <div class="console-wrapper">
     <div class="top-bar">
-        <div id="panel-role-label" style="font-size: 0.8rem; font-weight: bold; color: var(--accent);">PANEL - | ROLE -</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <div id="panel-role-label" style="font-size: 0.8rem; font-weight: bold; color: var(--accent);">PANEL - | ROLE -</div>
+            <button id="btn-ranking" onclick="openRanking()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.75);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;white-space:nowrap;">🏆 順位表</button>
+        </div>
         <div></div>
         <button onclick="fillDummyData()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
+        <button id="btn-delete-result" onclick="deleteResult()" style="background:rgba(211,47,47,0.25);border:1px solid rgba(211,47,47,0.6);color:#ef9a9a;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🗑 得点削除</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
     </div>
 
     <div class="athlete-banner">
-        <div style="font-size: 1.6rem; font-weight: 900;" id="ath-name">選手を選択してください</div>
-        <div id="ath-meta" style="color: var(--text-dim); font-size: 0.9rem;">- / -</div>
-        <div style="margin-left: auto; text-align: right;">
-            <div id="dd-label" style="font-size: 1.2rem; font-weight: 900; color: var(--accent);">DD: 0.0</div>
+        <div>
+            <div style="font-size: 1.6rem; font-weight: 900;" id="ath-name">選手を選択してください</div>
+            <div id="ath-club" style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600; margin-top: 2px;"></div>
         </div>
+        <div id="ath-meta" style="color: var(--text-dim); font-size: 0.9rem; margin-left: auto;">- / -</div>
     </div>
 
+    <div class="console-scroll">
     <div class="main-content">
+        <div class="table-card">
         <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
         <table class="monitor-table">
             <colgroup>
@@ -331,6 +394,9 @@
                 <col style="width:36px"><!-- toggle: 固定 -->
             </colgroup>
             <thead>
+                <tr class="section-head e-section-head">
+                    <th colspan="14">E &nbsp; EXECUTION</th>
+                </tr>
                 <!-- 審判ヘッダー行 -->
                 <tr>
                     <th>Judge</th>
@@ -342,6 +408,9 @@
             </thead>
             <tbody id="judge-rows"></tbody>
             <tfoot>
+                <tr class="section-head d-section-head">
+                    <th colspan="14">D &nbsp; DIFFICULTY</th>
+                </tr>
                 <!-- 申請行 -->
                 <tr class="d-info-row" id="declared-row">
                     <th style="width:70px;">申請</th>
@@ -363,6 +432,16 @@
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
                     <th id="dd-bonus-cell">-</th><th id="dd-total-cell">-</th><th class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" id="d-mode-toggle" onchange="toggleDMode(this.checked)"><span class="track-sm"></span></label></th>
                 </tr>
+                <!-- 指定難度行 -->
+                <tr class="d-info-row" id="designated-row">
+                    <th style="width:70px;white-space:normal;line-height:1.4;">指定<br><span id="dsg-count" style="font-size:0.7rem;font-weight:normal;color:#90a4ae;">0/0</span></th>
+                    <th class="d-designated" id="dsg-0" onclick="toggleDesignated(0)">·</th><th class="d-designated" id="dsg-1" onclick="toggleDesignated(1)">·</th><th class="d-designated" id="dsg-2" onclick="toggleDesignated(2)">·</th><th class="d-designated" id="dsg-3" onclick="toggleDesignated(3)">·</th><th class="d-designated" id="dsg-4" onclick="toggleDesignated(4)">·</th>
+                    <th class="d-designated" id="dsg-5" onclick="toggleDesignated(5)">·</th><th class="d-designated" id="dsg-6" onclick="toggleDesignated(6)">·</th><th class="d-designated" id="dsg-7" onclick="toggleDesignated(7)">·</th><th class="d-designated" id="dsg-8" onclick="toggleDesignated(8)">·</th><th class="d-designated" id="dsg-9" onclick="toggleDesignated(9)">·</th>
+                    <th>-</th><th>-</th><th class="toggle-col"></th>
+                </tr>
+                <tr class="section-head hdts-section-head">
+                    <th colspan="14">HDTS</th>
+                </tr>
                 <!-- HDTS 技別 ToF 行 -->
                 <tr class="d-info-row hdts-row" id="hdts-tof-row">
                     <th class="hdts-label">HDTS<br>ToF(s)</th>
@@ -380,6 +459,7 @@
             </tfoot>
         </table>
         </div>
+        </div>
 
         <div class="input-grid">
             <div class="input-card">
@@ -391,39 +471,47 @@
                 </select>
             </div>
             <div class="input-card">
-                <label>ToF (T) <button class="btn-th-mode" id="tof-mode-btn" onclick="toggleTofMode()">読込</button></label>
+                <label><span id="tof-input-label">ToF (T)</span> <button class="btn-th-mode" id="tof-mode-btn" onclick="toggleTofMode()">読込</button></label>
                 <input type="number" id="tof" step="0.001" onchange="calc()">
             </div>
             <div class="input-card">
                 <label>HD <button class="btn-th-mode" id="hd-mode-btn" onclick="toggleHdMode()">読込</button></label>
                 <input type="number" id="hd" step="0.1" onchange="calc()">
             </div>
-            <div class="input-card"><label>PENALTY (P)</label><input type="number" id="pen" step="0.1" value="0.0" onchange="calc()"></div>
+            <div class="input-card">
+                <label>PENALTY (P) <button class="btn-th-mode" id="pen-mode-btn" onclick="togglePenMode()">読込</button></label>
+                <input type="number" id="pen" step="0.1" value="0.0" onchange="calc()">
+            </div>
         </div>
 
         <div class="score-summary">
             <div class="score-box"><label>Difficulty</label><div id="res-d">0.0</div></div>
             <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
-            <div class="score-box"><label>T</label><div id="res-t">0.000</div></div>
+            <div class="score-box"><label id="res-t-label">T</label><div id="res-t">0.000</div></div>
             <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
             <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
         </div>
 
         <div class="action-row">
-            <button class="btn-action btn-confirm"     id="btn-confirm"     onclick="publish()">確定&amp;表示</button>
-            <button class="btn-action btn-unlock"      id="btn-unlock"      onclick="unlock()">修正</button>
-            <button class="btn-action btn-republish"   id="btn-republish"   onclick="republish()">再表示</button>
-            <button class="btn-action btn-calculating" id="btn-calculating" onclick="showCalculating()">集計中</button>
-            <button class="btn-action btn-hdts"        id="btn-hdts"        onclick="getFromQira()">HDTS</button>
+            <!-- 1行目 -->
+            <button class="btn-action btn-confirm"        id="btn-confirm"        onclick="publish()">確定&amp;表示</button>
+            <button class="btn-action btn-unlock"         id="btn-unlock"         onclick="unlock()">修正</button>
+            <button class="btn-action btn-republish"      id="btn-republish"      onclick="republish()">再表示</button>
+            <button class="btn-action btn-calculating"    id="btn-calculating"    onclick="showCalculating()">集計中</button>
+            <button class="btn-action btn-hdts"           id="btn-hdts"           onclick="getFromQira()">HDTS</button>
+            <!-- 2行目（今後ここに追加） -->
+            <button class="btn-action btn-confirm-silent" id="btn-confirm-silent" onclick="publishSilent()">確定のみ</button>
         </div>
         <div id="qira-status" class="qira-status-bar"></div>
     </div>
-</div>
+    </div><!-- /.console-scroll -->
+</div><!-- /.console-wrapper -->
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, onSnapshot, getDoc, getDocs, collection, query, where, setDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, onSnapshot, getDocs, collection, query, where, setDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin } from "./auth.js";
+    import { getTournament, getAthletes } from "./cache.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
@@ -432,12 +520,48 @@
     let athletes = [], submissions = {}, results = {}, currentTour = null;
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null, unsubscribeSub = null;
-    let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
+    let tofMode = 'auto', hdMode = 'auto', penMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
     let isLocked = false;
     let lockedOfficialSkills = null; // 確定時にスナップショットした実施技（D審判の更新を遮断）
+    let _preciseE = 0; // 表示は第1位だが保存用に全精度を保持（シンクロ4人時の第2位など）
+    let _lastEc   = null; // 最後に計算した calcExecution 結果（publish 時に per-skill E を保存するため）
+
+    function roundLabel(r) {
+        if (r === 'pre1')  return 'Routine 1';
+        if (r === 'pre2')  return 'Routine 2';
+        if (r === 'final') return 'Final';
+        return r.toUpperCase();
+    }
+
+    window.openRanking = function() {
+        const base = `ranking.html?event=${eventId}`;
+        const ath  = athletes.find(a => a.id === athleteId);
+        if (!ath) { window.open(base, '_blank'); return; }
+        const cls      = encodeURIComponent(ath.class || ath.category || '');
+        const gender   = encodeURIComponent(ath.gender || '');
+        const type     = encodeURIComponent(ath.type   || 'individual');
+        const rkRound  = round === 'final' ? 'final' : 'qualifying'; // pre1/pre2 → qualifying
+        window.open(`${base}&class=${cls}&gender=${gender}&type=${type}&round=${rkRound}`, '_blank');
+    };
+
+    // 現在の選手クラスに応じた E審判人数を返す
+    function getNumE() {
+        const ath = athletes.find(a => a.id === athleteId);
+        if (ath) {
+            const type = ath.type || 'individual';
+            const cls  = ath.class || ath.category || '';
+            const n = parseInt(currentTour?.classRules?.[type]?.[cls]?.eJudgeCount);
+            if (!isNaN(n) && n > 0) return n;
+        }
+        return currentTour?.numExecJudges || 6;
+    }
     let skillMasterMap = {};  // skillId → { symbol, dd, ... }
     let dMode = 'auto';           // 'auto' | 'manual'
     let dModeAutoExplicit = false; // ユーザーが明示的にautoを選択した場合true（手動復元を抑制）
+    // 指定難度（-1=無効、0=0本指定(全DD=0)、1-9=N本指定）
+    let designatedDDCount = -1;
+    let designatedDDIndices = []; // 指定中の技インデックス（0-based）
+    let designatedDDManualChanged = false; // 審判が手動で変更したフラグ
 
     async function init() {
         if (!eventId) return;
@@ -446,14 +570,14 @@
         document.getElementById('panel-role-label').innerText = `PANEL ${panel} | ROLE ${role}`;
 
         // 初期化完了前はアクションボタンを無効化
-        ['btn-confirm','btn-unlock','btn-republish','btn-calculating','btn-hdts'].forEach(id => {
+        ['btn-confirm','btn-confirm-silent','btn-unlock','btn-republish','btn-calculating','btn-hdts'].forEach(id => {
             const el = document.getElementById(id); if (el) el.disabled = true;
         });
 
         try {
-        const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await Promise.all([
-            getDoc(doc(db, "tournaments", eventId)),
-            getDocs(collection(db, "tournaments", eventId, "athletes")),
+        const [tourData, athleteList, subSnap, resSnap, smSnap] = await Promise.all([
+            getTournament(eventId),
+            getAthletes(eventId),
             getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
             getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
             getDocs(collection(db, "skillMaster"))
@@ -463,6 +587,7 @@
             skillMasterMap[d.id] = {
                 id: d.id,
                 symbol: d.data().symbol,
+                note: d.data().note || '',
                 dd: parseFloat(d.data().dd) || 0,
                 isTriple: d.data().isTriple === true,
                 direction: d.data().direction || '',
@@ -470,9 +595,10 @@
             };
         });
 
-        currentTour = tourSnap.data();
+        if (!tourData) throw new Error('大会データが見つかりません');
+        currentTour = tourData;
         document.getElementById('event-name-sidebar').innerText = currentTour.name;
-        athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        athletes = athleteList;
         subSnap.forEach(d => submissions[d.id] = d.data());
         resSnap.forEach(d => results[d.id] = d.data());
 
@@ -482,9 +608,15 @@
         if (athleteId) {
             const ath = athletes.find(a => a.id === athleteId);
             if (ath) {
+                if (ath.type) fType = ath.type; // fType をURLロード時の選手typeに合わせる
+                applySynchroUI(fType === 'synchro');
                 const dispName = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
+                const clubDisp = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+                    ? `${ath.club1} / ${ath.club2}` : (ath.club1 || '');
                 document.getElementById('ath-name').innerText = `No.${ath.order} ${dispName}`;
-                document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${round.toUpperCase()}`;
+                document.getElementById('ath-club').textContent = clubDisp;
+                document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${roundLabel(round)}`;
+                updateDesignatedForAthlete(ath, round);
 
                 // E審判が自動追従するために liveState を更新（パネルごとに分離）
                 await setDoc(doc(db, 'tournaments', eventId), {
@@ -532,7 +664,7 @@
         // クラス一覧（表示順を維持）
         const tourClassDefs = (currentTour?.classes?.[fType] || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
         const rawClasses = [...new Set(byType.map(a => a.class || a.category || ''))];
-        const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
+        const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))].filter(Boolean);
 
         // 性別一覧（個人・シンクロ共通）
         const genders = [...new Set(byType.map(a => a.gender || ''))].filter(Boolean);
@@ -550,7 +682,7 @@
             </div>`;
         }
 
-        if (classes.length > 1) {
+        if (classes.length >= 1) {
             filHtml += `<div class="filter-row"><span class="filter-label">クラス</span>
                 <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">全て</button>
                 ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c}')">${c}</button>`).join('')}
@@ -663,11 +795,16 @@
         if (aid === athleteId && rid === round) return;
 
         // 旧リスナー解除
-        if (unsubscribeSub) { unsubscribeSub(); unsubscribeSub = null; }
+        if (unsubscribeScores) { unsubscribeScores(); unsubscribeScores = null; }
+        if (unsubscribeSub)    { unsubscribeSub();    unsubscribeSub    = null; }
 
         // 変数更新
         athleteId = aid;
         round = rid;
+
+        // 指定難度リセット
+        designatedDDCount = -1; designatedDDIndices = []; designatedDDManualChanged = false;
+        renderDesignatedRow();
 
         // 手動入力状態リセット
         manualRows = new Set();
@@ -684,9 +821,18 @@
         const dBonusCell = document.getElementById('dd-bonus-cell');
         if (dBonusCell) { dBonusCell.contentEditable = 'false'; dBonusCell.classList.remove('d-manual-cell'); }
 
-        // ToF/HD mode リセット（auto に戻す）
-        if (tofMode === 'manual') toggleTofMode();
-        if (hdMode === 'manual') toggleHdMode();
+        // ToF/HD/Pen mode リセット（isLocked状態に関わらず直接リセット）
+        isLocked = false;
+        const _resetMode = (modeVar, btnId, inpId, defaultVal = '') => {
+            const btn = document.getElementById(btnId);
+            const inp = document.getElementById(inpId);
+            if (btn) { btn.textContent = '読込'; btn.classList.remove('manual'); btn.disabled = false; }
+            if (inp) { inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
+                       inp.value = defaultVal; inp.disabled = false; }
+        };
+        tofMode = 'auto'; _resetMode('tofMode', 'tof-mode-btn', 'tof');
+        hdMode  = 'auto'; _resetMode('hdMode',  'hd-mode-btn',  'hd');
+        penMode = 'auto'; _resetMode('penMode', 'pen-mode-btn', 'pen', '0');
 
         // HDTS 技別行リセット
         resetHdtsRows();
@@ -694,9 +840,15 @@
         // バナー更新
         const ath = athletes.find(a => a.id === aid);
         if (ath) {
+            if (ath.type && ath.type !== fType) { fType = ath.type; fClass = ''; fGender = ''; } // 種目切替時はクラス・性別フィルタもリセット
+            else if (ath.type) fType = ath.type;
+            applySynchroUI(fType === 'synchro');
             const dispName2 = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
+            const clubDisp2 = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+                ? `${ath.club1} / ${ath.club2}` : (ath.club1 || '');
             document.getElementById('ath-name').innerText = `No.${ath.order} ${dispName2}`;
-            document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${rid.toUpperCase()}`;
+            document.getElementById('ath-club').textContent = clubDisp2;
+            document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${roundLabel(rid)}`;
 
             // liveState 更新（選手切り替え時は必ずロック解除）
             await setDoc(doc(db, 'tournaments', eventId), {
@@ -708,6 +860,9 @@
                     locked: false
                 }}
             }, { merge: true });
+
+            // 指定難度ロード
+            updateDesignatedForAthlete(ath, rid);
 
             // クラスルールのデフォルトモード適用
             const athType = ath.type || 'individual';
@@ -727,23 +882,84 @@
         watchSubmission();
     };
 
+    // ---- 指定難度 関数群 ----
+    function renderDesignatedRow() {
+        const row = document.getElementById('designated-row');
+        if (!row) return;
+        // 1本以上指定時のみ行を表示（0本指定=全DD0なのでチェック操作不要）
+        row.style.display = designatedDDCount > 0 ? '' : 'none';
+        for (let i = 0; i < 10; i++) {
+            const cell = document.getElementById(`dsg-${i}`);
+            if (!cell) continue;
+            const sel = designatedDDIndices.includes(i);
+            cell.textContent = sel ? '✓' : '·';
+            cell.classList.toggle('dsg-on', sel);
+        }
+        const countEl = document.getElementById('dsg-count');
+        if (countEl) countEl.textContent = `${designatedDDIndices.length}/${designatedDDCount}`;
+    }
+
+    window.toggleDesignated = function(idx) {
+        if (designatedDDCount <= 0) return; // 無効または0本指定時は操作不可
+        const pos = designatedDDIndices.indexOf(idx);
+        if (pos >= 0) {
+            designatedDDIndices.splice(pos, 1);
+        } else {
+            if (designatedDDIndices.length >= designatedDDCount) return; // 上限
+            designatedDDIndices.push(idx);
+        }
+        designatedDDManualChanged = true;
+        renderDesignatedRow();
+        renderScores(latestData);
+    };
+
+    function updateDesignatedForAthlete(ath, rid) {
+        if (!ath) {
+            designatedDDCount = -1; designatedDDIndices = []; designatedDDManualChanged = false;
+            renderDesignatedRow(); return;
+        }
+        const athType  = ath.type || 'individual';
+        const athClass = ath.class || ath.category || '';
+        const classRule = currentTour?.classRules?.[athType]?.[athClass] || {};
+        // 指定難度は2本合計・予選1本目のみ有効（-1=無効, 0=全DD0, 1-9=N本指定）
+        const rawDDCount = (classRule.designatedDDCount != null && classRule.designatedDDCount >= 0) ? classRule.designatedDDCount : -1;
+        designatedDDCount = (rawDDCount >= 0 && classRule.qualifyingRoutines === 2 && classRule.scoreMode === 'total' && rid !== 'pre2')
+            ? rawDDCount : -1;
+
+        const resId = `${eventId}_${ath.id}_${rid}`;
+        const officialIdx    = results[resId]?.officialDesignatedDDIndices;
+        const submissionIdx  = submissions[resId]?.designatedDDIndices;
+        designatedDDIndices  = [...(officialIdx || submissionIdx || [])];
+        designatedDDManualChanged = false;
+        renderDesignatedRow();
+    }
+
     function watchSubmission() {
         if (unsubscribeSub) unsubscribeSub();
         const resId = `${eventId}_${athleteId}_${round}`;
         unsubscribeSub = onSnapshot(doc(db, "submissions", resId), snap => {
             submissions[resId] = snap.exists() ? snap.data() : null;
+            // 審判が未変更の場合、選手の申告した指定インデックスを反映
+            if (!designatedDDManualChanged && designatedDDCount > 0) {
+                const idx = submissions[resId]?.designatedDDIndices;
+                if (idx) { designatedDDIndices = [...idx]; renderDesignatedRow(); }
+            }
             renderScores(latestData);
         });
     }
 
     function watchScores() {
-        if (unsubscribeScores) unsubscribeScores();
+        if (unsubscribeScores) { unsubscribeScores(); unsubscribeScores = null; }
         const resId = `${eventId}_${athleteId}_${round}`;
         unsubscribeScores = onSnapshot(doc(db, "results", resId), async (snap) => {
             latestData = snap.exists() ? snap.data() : {};
+            // ローカルキャッシュ更新（getDotHtml のドット判定に使用）
+            if (snap.exists()) { results[resId] = latestData; }
+            else               { delete results[resId]; }
             const newLocked = latestData.published === true;
             const lockChanged = newLocked !== isLocked;
             renderScores(latestData);
+            renderSidebar(); // ドット色をリアルタイムに更新
             // E審判のロック状態をFirestoreに同期（変化があった場合のみ）
             if (lockChanged) {
                 setDoc(doc(db, 'tournaments', eventId), {
@@ -755,17 +971,43 @@
 
     function applyLock(locked) {
         isLocked = locked;
-        document.getElementById('btn-confirm').disabled     =  locked;  // 確定済みは再確定不可
-        document.getElementById('btn-unlock').disabled      = !locked;  // 未確定時は修正不要
+        document.getElementById('btn-confirm').disabled        =  locked;  // 確定済みは再確定不可
+        document.getElementById('btn-confirm-silent').disabled =  locked;  // 同上
+        document.getElementById('btn-unlock').disabled         = !locked;  // 未確定時は修正不要
         document.getElementById('btn-republish').disabled   = false;    // 選手選択後は常に有効
         document.getElementById('btn-calculating').disabled = false;    // 選手選択後は常に有効
         document.getElementById('btn-hdts').disabled        = false;    // 選手選択後は常に有効
+        // 確定後: 手動切替・有効本数・入力欄をロック
+        document.getElementById('tof-mode-btn').disabled = locked;
+        document.getElementById('hd-mode-btn').disabled  = locked;
+        document.getElementById('pen-mode-btn').disabled = locked;
+        document.getElementById('valid-count').disabled  = locked;
+        document.getElementById('tof').disabled          = locked;
+        document.getElementById('hd').disabled           = locked;
+        document.getElementById('pen').disabled          = locked;
+        document.querySelectorAll('.sn-th').forEach(th => {
+            th.style.pointerEvents = locked ? 'none' : '';
+            th.style.cursor        = locked ? 'default' : '';
+            th.style.opacity       = locked ? '0.5' : '';
+        });
+        // E審判 行ごとの手動トグルをロック
+        document.querySelectorAll('.toggle-col input[type="checkbox"]').forEach(cb => {
+            cb.disabled = locked;
+        });
+        // 得点削除ボタン: 選手選択後は常に表示
+        const delBtn = document.getElementById('btn-delete-result');
+        if (delBtn) delBtn.style.display = athleteId ? '' : 'none';
     }
 
     window.unlock = async function() {
         applyLock(false);
         lockedOfficialSkills = null;
+        // 指定難度を申告値にリセット
         const resId = `${eventId}_${athleteId}_${round}`;
+        const submissionIdx = submissions[resId]?.designatedDDIndices;
+        designatedDDIndices = [...(submissionIdx || [])];
+        designatedDDManualChanged = false;
+        renderDesignatedRow();
         await Promise.all([
             setDoc(doc(db, 'tournaments', eventId), {
                 liveState: { [panel]: { locked: false } }
@@ -776,6 +1018,61 @@
                 published: false   // D審判の修正を許可
             }, { merge: true }) : Promise.resolve()
         ]);
+    };
+
+    // 得点削除: results ドキュメントを完全削除してゼロ状態に戻す
+    window.deleteResult = async function() {
+        if (!athleteId) return;
+        if (!confirm('この選手のラウンドの得点データをすべて削除しますか？\nD審判・E審判の入力内容も含めて完全に削除されます。')) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        try {
+            await Promise.all([
+                deleteDoc(doc(db, 'results', resId)),
+                setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: { [panel]: { locked: false } },
+                    calculating: false
+                }, { merge: true })
+            ]);
+
+            // ローカル状態リセット（switchAthlete と同等）
+            delete results[resId];
+            latestData = {};
+            manualRows = new Set();
+            pendingEdits = {};
+            dMode = 'auto';
+            dModeAutoExplicit = false;
+            lockedOfficialSkills = null;
+            const dToggle = document.getElementById('d-mode-toggle');
+            if (dToggle) dToggle.checked = false;
+            document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            const dBonusCell = document.getElementById('dd-bonus-cell');
+            if (dBonusCell) { dBonusCell.contentEditable = 'false'; dBonusCell.classList.remove('d-manual-cell'); }
+
+            // 指定難度を申告値にリセット
+            const submissionIdx = submissions[resId]?.designatedDDIndices;
+            designatedDDIndices = [...(submissionIdx || [])];
+            designatedDDManualChanged = false;
+            renderDesignatedRow();
+
+            // ロック解除・申告技をデフォルトとして再表示
+            applyLock(false);
+            const subData = submissions[resId];
+            const initSkills = (subData?.skills || []).map(s => {
+                if (!s) return '';
+                if (typeof s === 'object' && s !== null) {
+                    if (s.id) return String(s.id);
+                    // idなしオブジェクト（{skill,dd}形式）→ symbolからID逆引き
+                    const found = s.skill ? Object.values(skillMasterMap).find(v => v.symbol === s.skill) : null;
+                    return found ? found.id : (s.skill || '');
+                }
+                return String(s);
+            });
+            renderScores(initSkills.length > 0 ? { officialSkills: initSkills } : {});
+            renderSidebar();
+        } catch(e) {
+            alert('削除に失敗しました: ' + e.message);
+        }
     };
 
     // 再表示: publishedAtを更新して会場ディスプレイに再アニメーション
@@ -921,7 +1218,7 @@
                 .map(([k, v]) => [k.slice(panelPrefix.length), v])
         );
         const vLimit = data?.validCount ?? 10;
-        const numE   = currentTour?.numExecJudges || 6;
+        const numE   = getNumE();
         const jKeys  = Array.from({ length: numE }, (_, i) => `E${i + 1}`);
 
         if (!isSynchro) {
@@ -979,7 +1276,6 @@
         // 手動入力中は Firestore の値で上書きしない
         if (dMode === 'auto') {
             document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
-            document.getElementById('dd-label').innerText = `DD: ${data.officialTotalDD?.toFixed(1) || "0.0"}`;
         }
 
         // ---- D情報行 ----
@@ -992,28 +1288,37 @@
         let hasDeclaredMismatch = false;
         const declaredSymbols = []; // シンボルベースで比較するため格納
         {
-            const seenSymbols = new Set();
+            const seenKeys = new Set();
             document.querySelectorAll('.d-declared').forEach((el, i) => {
                 const s = subSkills[i];
                 el.style.color = '';
                 el.style.fontWeight = '';
                 el.classList.remove('d-dup');
                 if (!s) { el.textContent = '-'; declaredSymbols.push(null); return; }
-                const rawVal = typeof s === 'string' ? s : (s.skill || '');
-                if (!rawVal) { el.textContent = '-'; declaredSymbols.push(null); return; }
                 let sym;
-                if (!isNaN(rawVal) && rawVal !== '' && skillMasterMap[rawVal]) {
-                    sym = skillMasterMap[rawVal].symbol;
+                if (typeof s === 'object' && s !== null) {
+                    // オブジェクト形式（entry.html が保存する {id, skill, dd}）
+                    // s.skill はシンボル文字列なので直接使わず、s.id でマスター照合する
+                    const found = s.id ? skillMasterMap[String(s.id)] : null;
+                    sym = found ? found.symbol : (s.skill || '');
                 } else {
-                    sym = rawVal; // シンボル文字列そのまま
+                    // 文字列形式（旧データ互換）
+                    const rawVal = String(s);
+                    if (!isNaN(rawVal) && rawVal !== '' && skillMasterMap[rawVal]) {
+                        sym = skillMasterMap[rawVal].symbol;
+                    } else {
+                        sym = rawVal;
+                    }
                 }
-                el.textContent = sym || rawVal;
-                declaredSymbols.push(sym || rawVal);
-                // 申請内での重複 → 黄色ハイライト
-                if (sym && seenSymbols.has(sym)) {
+                if (!sym) { el.textContent = '-'; declaredSymbols.push(null); return; }
+                el.textContent = sym;
+                declaredSymbols.push(sym);
+                // 申請内での重複判定: IDがあればID、なければシンボルをキーに使う
+                const dupKey = (typeof s === 'object' && s.id) ? String(s.id) : sym;
+                if (dupKey && seenKeys.has(dupKey)) {
                     el.classList.add('d-dup');
-                } else if (sym) {
-                    seenSymbols.add(sym);
+                } else if (dupKey) {
+                    seenKeys.add(dupKey);
                 }
             });
         }
@@ -1021,27 +1326,30 @@
         // 実施行（officialSkills → skillMasterMap でシンボル取得、重複は黄色・申請差異は赤）
         if (dMode === 'auto') {
             const ddCells = [...document.querySelectorAll('.d-dd')];
-            // Pass1: シンボル収集 & クラスリセット（skill-header と d-dd 両方）
+            // Pass1: シンボル・ID収集 & クラスリセット（skill-header と d-dd 両方）
             const execSymbols = [];
+            const execIds = [];
             document.querySelectorAll('.skill-header').forEach((el, i) => {
                 el.style.color = '';
                 el.classList.remove('d-dup', 'd-mismatch');
                 if (ddCells[i]) ddCells[i].classList.remove('d-dup', 'd-mismatch');
                 const id = execSkills[i];
-                if (i >= vLimitD || !id) { el.textContent = '-'; execSymbols.push(null); return; }
+                if (i >= vLimitD || !id) { el.textContent = '-'; execSymbols.push(null); execIds.push(null); return; }
                 const skill = skillMasterMap[id]
                     || Object.values(skillMasterMap).find(v => v.symbol === id);
                 const sym = skill ? skill.symbol : String(id);
                 el.textContent = sym;
                 execSymbols.push(sym);
+                execIds.push(skill ? skill.id : String(id));
             });
-            const symCount = {};
-            execSymbols.forEach(sym => { if (sym) symCount[sym] = (symCount[sym] || 0) + 1; });
+            // 重複判定はIDベース
+            const idCount = {};
+            execIds.forEach(id => { if (id) idCount[id] = (idCount[id] || 0) + 1; });
             // Pass2: 重複（両方）と申告差異をハイライト（skill-header と d-dd 両方に適用）
             document.querySelectorAll('.skill-header').forEach((el, i) => {
                 const sym = execSymbols[i];
                 if (!sym) return;
-                if (symCount[sym] > 1) {
+                if (execIds[i] && idCount[execIds[i]] > 1) {
                     el.classList.add('d-dup'); // 重複は黄色（初回も含む全て）
                     if (ddCells[i]) ddCells[i].classList.add('d-dup');
                 }
@@ -1084,7 +1392,6 @@
                 const totalDD = data.officialTotalDD || 0;
                 document.getElementById('dd-total-cell').textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
                 document.getElementById('res-d').innerText = totalDD > 0 ? totalDD.toFixed(1) : '0.0';
-                document.getElementById('dd-label').innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : '0.0'}`;
                 // 手動モードに切り替え（再読み込み後の復元。ユーザーがautoを明示選択中は除く）
                 if (!dModeAutoExplicit) {
                     dMode = 'manual';
@@ -1105,18 +1412,38 @@
                     el.style.color = '';
                     el.style.fontWeight = '';
                     const id = execSkills[i];
-                    if (i >= vLimitD || !id) { el.textContent = i >= vLimitD ? '' : '-'; return; }
-                    const skill = skillMasterMap[id];
+                    // 指定難度マスキング（-1=無効=全技有効、0=全DD0、1以上=指定のみ有効）
+                    const isDesignated = designatedDDCount < 0
+                        || (designatedDDCount > 0 && designatedDDIndices.includes(i));
+
+                    if (i >= vLimitD || !id) {
+                        // 中断以降：非指定はハイフン(グレー)、指定スロットは空欄
+                        if (i >= vLimitD) {
+                            if (!isDesignated) { el.textContent = '-'; el.style.color = '#90a4ae'; }
+                            else { el.textContent = ''; }
+                        } else {
+                            el.textContent = '-';
+                        }
+                        return;
+                    }
+                    const skill = skillMasterMap[id]
+                        || Object.values(skillMasterMap).find(v => v.symbol === id);
                     if (!skill) { el.textContent = '-'; return; }
+
                     if (seenIds.has(id)) {
                         el.textContent = '0.0';
                         el.style.color = 'var(--danger)';
                         el.style.fontWeight = 'bold';
                     } else {
-                        el.textContent = skill.dd.toFixed(1);
-                        baseDD += skill.dd;
-                        if (skill.isTriple) tripleCount++;
                         seenIds.add(id);
+                        if (isDesignated) {
+                            el.textContent = skill.dd.toFixed(1);
+                            baseDD += skill.dd;
+                            if (skill.isTriple) tripleCount++;
+                        } else {
+                            el.textContent = '-';          // 非指定はハイフン
+                            el.style.color = '#90a4ae';    // グレー
+                        }
                     }
                 });
 
@@ -1133,9 +1460,6 @@
                 const resDEl = document.getElementById('res-d');
                 resDEl.innerText = totalDD > 0 ? totalDD.toFixed(1) : "0.0";
                 resDEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
-                const ddLabelEl = document.getElementById('dd-label');
-                ddLabelEl.innerText = `DD: ${totalDD > 0 ? totalDD.toFixed(1) : "0.0"}`;
-                ddLabelEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
             }
         }
 
@@ -1158,7 +1482,8 @@
         }
 
         const ec = calcExecution(mergedData);
-        const { skillResults, landingResult, totalDed, vLimit, numE, jKeys, judges } = ec;
+        _lastEc = ec; // publish 時に per-skill E 保存用
+        const { skillResults, landingResult, totalDed, vLimit, numE, jKeys, judges, isSynchro } = ec;
 
         // フォーカス位置を記憶（re-render後に復元するため）
         const activeEl = document.activeElement;
@@ -1222,15 +1547,16 @@
 
         // 中間2名合計行（データがない技は "-"）
         const hasJudgeData = Object.keys(judges).length > 0;
+        const _medFmt = (v) => isSynchro ? (v * 10).toFixed(2) : Math.round(v * 10);
         let m2Row = `<tr class="middle-row"><td>Med</td>`;
         for (let i = 0; i < 10; i++) {
-            const hasVal = hasJudgeData && skillResults[i].indices.size > 0;
+            const hasVal = hasJudgeData && (skillResults[i].hasData ?? skillResults[i].indices.size > 0);
             m2Row += i < vLimit
-                ? `<td>${hasVal ? Math.round(skillResults[i].sum * 10) : '-'}</td>`
+                ? `<td>${hasVal ? _medFmt(skillResults[i].sum) : '-'}</td>`
                 : `<td style="opacity:0.15">-</td>`;
         }
-        const hasLanding = hasJudgeData && landingResult.indices.size > 0;
-        m2Row += `<td>${vLimit === 10 && hasLanding ? Math.round(landingResult.sum * 10) : '-'}</td>`;
+        const hasLanding = hasJudgeData && (landingResult.hasData ?? landingResult.indices.size > 0);
+        m2Row += `<td>${vLimit === 10 && hasLanding ? _medFmt(landingResult.sum) : '-'}</td>`;
         m2Row += `<td class="ded-total">${hasJudgeData ? ec.execution.toFixed(1) : '-'}</td><td></td></tr>`;
         tbody.innerHTML += m2Row;
 
@@ -1242,9 +1568,13 @@
             if (toFocus) toFocus.focus();
         }
 
-        if (tofMode === 'auto') document.getElementById('tof').value = data.tofByPanel?.[panel] ?? data.tof ?? "";
+        if (tofMode === 'auto') {
+            const rawTof = data.tofByPanel?.[panel] ?? data.tof ?? "";
+            document.getElementById('tof').value = (fType === 'synchro' && rawTof !== "")
+                ? (parseFloat(rawTof) / 2).toFixed(3) : rawTof;
+        }
         if (hdMode === 'auto')  document.getElementById('hd').value  = data.hdByPanel?.[panel] ?? data.hd?.total ?? "";
-        document.getElementById('pen').value = data.penalty || 0;
+        if (penMode === 'auto') document.getElementById('pen').value = data.penalty ?? 0;
         updateScoreSummary(ec, hasJudgeData);
 
         // 確定済みロック状態を反映
@@ -1252,6 +1582,7 @@
     }
 
     window.updateValid = async (val) => {
+        if (isLocked) return;
         const resId = `${eventId}_${athleteId}_${round}`;
         await setDoc(doc(db, "results", resId), { eventId, athleteId, round, validCount: parseInt(val) }, { merge: true });
     };
@@ -1267,6 +1598,7 @@
     }
 
     window.setValidCount = (n) => {
+        if (isLocked) return;
         document.getElementById('valid-count').value = n;
         updateValidHeaders(n);
         updateValid(n);
@@ -1274,14 +1606,23 @@
 
     window.calc = function(data) { updateScoreSummary(data ? calcExecution(data) : null); };
 
-    function updateScoreSummary(ec, hasJudgeData = true) {
-        const d = parseFloat(document.getElementById('res-d').innerText) || 0;
-        const e = ec ? (hasJudgeData ? ec.execution : 0)
-                     : (parseFloat(document.getElementById('res-e').innerText) || 0);
-        const t = parseFloat(document.getElementById('tof').value) || 0;
-        const h = parseFloat(document.getElementById('hd').value) || 0;
-        const p = parseFloat(document.getElementById('pen').value) || 0;
+    function applySynchroUI(isSyn) {
+        const tofLbl = document.getElementById('tof-input-label');
+        if (tofLbl) tofLbl.textContent = isSyn ? 'SYN（1/2）' : 'ToF (T)';
+        const resLbl = document.getElementById('res-t-label');
+        if (resLbl) resLbl.textContent = isSyn ? 'Syn' : 'T';
+    }
 
+    function updateScoreSummary(ec, hasJudgeData = true) {
+        const d    = parseFloat(document.getElementById('res-d').innerText) || 0;
+        const e    = ec ? (hasJudgeData ? ec.execution : 0)
+                       : (parseFloat(document.getElementById('res-e').innerText) || 0);
+        const tRaw = parseFloat(document.getElementById('tof').value) || 0;
+        const t    = (fType === 'synchro') ? tRaw * 2 : tRaw; // シンクロは×2表示
+        const h    = parseFloat(document.getElementById('hd').value) || 0;
+        const p    = parseFloat(document.getElementById('pen').value) || 0;
+
+        _preciseE = e; // 全精度を保持（保存時に使用）
         document.getElementById('res-e').innerText     = e.toFixed(1);
         document.getElementById('res-t').innerText     = t.toFixed(3);
         document.getElementById('res-hd').innerText    = h.toFixed(3);
@@ -1289,6 +1630,7 @@
     }
 
     window.toggleRowManual = function(jKey, on) {
+        if (isLocked) return;
         if (on) {
             manualRows.add(jKey);
             const allJudges = latestData?.execution?.judges || {};
@@ -1411,6 +1753,7 @@
     };
 
     window.toggleTofMode = function() {
+        if (isLocked) return;
         tofMode = tofMode === 'auto' ? 'manual' : 'auto';
         const btn = document.getElementById('tof-mode-btn');
         const inp = document.getElementById('tof');
@@ -1421,11 +1764,15 @@
         } else {
             btn.textContent = '読込'; btn.classList.remove('manual');
             inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
-            inp.value = latestData.tofByPanel?.[panel] ?? latestData.tof ?? ""; calc();
+            const rawTof2 = latestData.tofByPanel?.[panel] ?? latestData.tof ?? "";
+            inp.value = (fType === 'synchro' && rawTof2 !== "")
+                ? (parseFloat(rawTof2) / 2).toFixed(3) : rawTof2;
+            calc();
         }
     };
 
     window.toggleHdMode = function() {
+        if (isLocked) return;
         hdMode = hdMode === 'auto' ? 'manual' : 'auto';
         const btn = document.getElementById('hd-mode-btn');
         const inp = document.getElementById('hd');
@@ -1437,6 +1784,22 @@
             btn.textContent = '読込'; btn.classList.remove('manual');
             inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
             inp.value = latestData.hdByPanel?.[panel] ?? latestData.hd?.total ?? ""; calc();
+        }
+    };
+
+    window.togglePenMode = function() {
+        if (isLocked) return;
+        penMode = penMode === 'auto' ? 'manual' : 'auto';
+        const btn = document.getElementById('pen-mode-btn');
+        const inp = document.getElementById('pen');
+        if (penMode === 'manual') {
+            btn.textContent = '手動'; btn.classList.add('manual');
+            inp.style.borderColor = '#ff9800'; inp.style.color = '#ff9800';
+            inp.style.background = 'rgba(255,152,0,0.06)';
+        } else {
+            btn.textContent = '読込'; btn.classList.remove('manual');
+            inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
+            inp.value = latestData.penalty ?? 0; calc();
         }
     };
 
@@ -1469,7 +1832,6 @@
         const totalDD = baseDD + bonus;
         document.getElementById('dd-total-cell').textContent = totalDD.toFixed(1);
         document.getElementById('res-d').innerText = totalDD.toFixed(1);
-        document.getElementById('dd-label').innerText = `DD: ${totalDD.toFixed(1)}`;
         const eVal = parseFloat(document.getElementById('res-e').innerText) || 0;
         const t    = parseFloat(document.getElementById('tof').value) || 0;
         const h    = parseFloat(document.getElementById('hd').value) || 0;
@@ -1477,15 +1839,19 @@
         document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(3);
     });
 
-    window.publish = async () => {
+    // 確定のみ（会場ディスプレイをスキップ）
+    window.publishSilent = () => window.publish({ displaySkip: true });
+
+    window.publish = async (opts = {}) => {
         if (!athleteId) return;
 
         const resId  = `${eventId}_${athleteId}_${round}`;
         const vLimit = parseInt(document.getElementById('valid-count').value) || 10;
         const d      = parseFloat(document.getElementById('res-d').innerText) || 0;
-        const e      = parseFloat(document.getElementById('res-e').innerText) || 0;
+        const e      = _preciseE; // 表示（第1位）ではなく全精度値を使用
         const t      = parseFloat(document.getElementById('res-t').innerText) || 0;
         const h      = parseFloat(document.getElementById('res-hd').innerText) || 0;
+        const p      = parseFloat(document.getElementById('pen').value) || 0;
         const th     = t + h;
         const total  = parseFloat(document.getElementById('res-total').innerText) || 0;
 
@@ -1493,18 +1859,34 @@
             eventId, athleteId, round,
             published: true, publishedAt: serverTimestamp(),
             verifiedAt: serverTimestamp(),
-            tof: t, hd: { total: h },
+            tof: t, hd: { total: h }, penalty: p,
             tofByPanel: { [panel]: t }, hdByPanel: { [panel]: h },
-            officialD: d, officialE: e, officialTH: th, officialTotal: total
+            officialD: d, officialE: e, officialTH: th, officialTotal: total,
+            // 技ごとのE減点（会場ディスプレイの per-skill 表示をCJP値と一致させる）
+            ...(_lastEc ? {
+                officialEPerSkill: _lastEc.skillResults.map(r => r.sum),
+                officialELanding:  _lastEc.landingResult.sum
+            } : {}),
+            // displaySkip: true のとき会場ディスプレイをスキップ（確定のみ）
+            // false/undefined のとき通常表示（フィールドを削除して「なし」状態に戻す）
+            displaySkip: opts.displaySkip === true ? true : deleteField(),
+            ...(designatedDDCount > 0 ? { officialDesignatedDDIndices: [...designatedDDIndices] } : {})
         };
 
         // D手動入力モードの場合、officialSkills・officialDDValues・officialDDBonus・officialTotalDD を保存
         if (dMode === 'manual') {
-            const manualSymbols = [...document.querySelectorAll('.skill-header')].map(el =>
-                (el.textContent === '-' || el.textContent === '') ? '' : el.textContent.trim());
+            // Symbol→ID 逆引きマップ（一度だけ構築）
+            const symToId = {};
+            Object.entries(skillMasterMap).forEach(([id, v]) => { symToId[v.symbol] = id; });
+            // skill-header はSymbol表示なのでIDに変換して保存（他画面との互換性を保つ）
+            const manualIds = [...document.querySelectorAll('.skill-header')].map(el => {
+                const sym = el.textContent.trim();
+                if (!sym || sym === '-') return '';
+                return symToId[sym] || sym; // IDがあればID、なければsymbolそのまま（安全網）
+            });
             const manualDDs = [...document.querySelectorAll('.d-dd')].map(el => parseFloat(el.textContent) || 0);
             const manualBonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
-            saveData.officialSkills   = manualSymbols;
+            saveData.officialSkills   = manualIds;
             saveData.officialDDValues = manualDDs;   // 各技のDD値（再読み込み復元用）
             saveData.officialDDBonus  = manualBonus;
             saveData.officialTotalDD  = manualDDs.reduce((a, b) => a + b, 0) + manualBonus;
@@ -1516,7 +1898,7 @@
 
         // 手動入力行がある場合、execution.judges を手動値＋既存値でマージして保存
         if (manualRows.size > 0) {
-            const numE = currentTour?.numExecJudges || 6;
+            const numE = getNumE();
             const judgesData = {};
             const existingJudges = latestData?.execution?.judges || {};
             Array.from({ length: numE }, (_, i) => `E${i + 1}`).forEach(jKey => {
@@ -1540,8 +1922,14 @@
         try {
             await Promise.all([
                 setDoc(doc(db, "results", resId), saveData, { merge: true }),
-                // calculating:false はログイン済みCJPが書く（venue_displayは非ログインのため書けない）
-                setDoc(doc(db, 'tournaments', eventId), { calculating: false }, { merge: true })
+                // calculating:false / venueScreen:'score' はログイン済みCJPが書く
+                // （venue_displayは非ログインのため書けない）
+                // venueScreen:'score' を同時に書くことで、warmupタイマー等の
+                // 後続スナップショット発火でも会場練習画面に戻らなくなる
+                setDoc(doc(db, 'tournaments', eventId), {
+                    calculating: false,
+                    venueScreen: 'score'
+                }, { merge: true })
             ]);
             if (!results[resId]) results[resId] = {};
             results[resId].published = true;
@@ -1556,6 +1944,7 @@
     document.addEventListener('keydown', function(e) {
         const td = e.target;
         if (!td.matches('td.manual-cell')) return;
+        if (isLocked) return;
 
         const jKey = td.dataset.jkey;
         const isLanding = td.classList.contains('manual-landing-cell');
@@ -1599,7 +1988,7 @@
     }
 
     function updateManualMed(vLimit) {
-        const numE = currentTour?.numExecJudges || 6;
+        const numE = getNumE();
         const jKeys = Array.from({length: numE}, (_, i) => `E${i + 1}`);
 
         // マージされた審判データを構築（pendingEdits + Firestore）
@@ -1643,6 +2032,7 @@
             })()
             : { sum: 0, indices: new Set() };
         const totalDed = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0) + landingResult.sum;
+        _lastEc = { skillResults, landingResult, vLimit }; // publish 時に per-skill E 保存用
 
         // Med行のセルを in-place 更新
         const medRow = document.querySelector('#judge-rows .middle-row');
@@ -1650,29 +2040,33 @@
         const cells = medRow.querySelectorAll('td');
         // cells[0]=Med, cells[1..10]=S1-S10, cells[11]=Ln, cells[12]=SUM合計
         const hasData = Object.keys(mergedJudges).length > 0;
+        const _medFmtM = (v) => isSynchro ? (v * 10).toFixed(2) : Math.round(v * 10);
         for (let i = 0; i < 10; i++) {
-            const hasVal = hasData && skillResults[i].indices.size > 0;
-            if (i < vLimit) cells[i + 1].textContent = hasVal ? Math.round(skillResults[i].sum * 10) : '-';
+            const hasVal = hasData && (skillResults[i].hasData ?? skillResults[i].indices.size > 0);
+            if (i < vLimit) cells[i + 1].textContent = hasVal ? _medFmtM(skillResults[i].sum) : '-';
         }
         const hasLanding = hasData && (isSynchro ? landingResult.hasData : landingResult.indices.size > 0);
-        cells[11].textContent = vLimit === 10 && hasLanding ? Math.round(landingResult.sum * 10) : '-';
+        cells[11].textContent = vLimit === 10 && hasLanding ? _medFmtM(landingResult.sum) : '-';
         const basePerSkill = isSynchro ? 1.0 : 2.0;
         const execution = (vLimit * basePerSkill) - totalDed;
         cells[12].textContent = hasData ? execution.toFixed(1) : '-';
         // 青い箱のEスコア・Totalもリアルタイム更新
         if (hasData) {
+            _preciseE = execution; // 全精度を保持（保存時に使用）
             document.getElementById('res-e').innerText = execution.toFixed(1);
-            const d = parseFloat(document.getElementById('res-d').innerText) || 0;
-            const t = parseFloat(document.getElementById('tof').value) || 0;
-            const h = parseFloat(document.getElementById('hd').value) || 0;
-            const p = parseFloat(document.getElementById('pen').value) || 0;
+            const d    = parseFloat(document.getElementById('res-d').innerText) || 0;
+            const tRaw = parseFloat(document.getElementById('tof').value) || 0;
+            const t    = (fType === 'synchro') ? tRaw * 2 : tRaw;
+            const h    = parseFloat(document.getElementById('hd').value) || 0;
+            const p    = parseFloat(document.getElementById('pen').value) || 0;
             document.getElementById('res-total').innerText = Math.max(0, d + execution + t + h - p).toFixed(3);
         }
     }
 
     window.fillDummyData = function() {
-        const vLimit = parseInt(document.getElementById('valid-count').value) || 10;
-        const numE = currentTour?.numExecJudges || 6;
+        const vLimit  = parseInt(document.getElementById('valid-count').value) || 10;
+        const numE    = getNumE();
+        const isSyn   = fType === 'synchro';
         Array.from({length: numE}, (_, i) => `E${i + 1}`).forEach(jKey => {
             manualRows.add(jKey);
             pendingEdits[jKey] = {
@@ -1682,8 +2076,13 @@
         });
         renderScores(latestData);
         // renderScores(auto モード)による上書きの後に ToF/HD をセット
-        document.getElementById('tof').value = (Math.random() * 3 + 14).toFixed(2);
+        document.getElementById('tof').value = isSyn
+            ? (Math.random() * 3 + 7).toFixed(2)   // Syn: 7.00〜10.00
+            : (Math.random() * 3 + 14).toFixed(2);  // ToF: 14.00〜17.00
         document.getElementById('hd').value = (Math.random() * 3 + 7).toFixed(1);
+        // 手動モードに切り替えて、以後の onSnapshot による上書きを防ぐ
+        if (tofMode !== 'manual') toggleTofMode();
+        if (hdMode  !== 'manual') toggleHdMode();
         calc();
     };
 

@@ -49,7 +49,13 @@
 
         .comparison-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .comparison-table th, .comparison-table td { padding: 12px 5px; border-bottom: 1px solid #f0f0f0; text-align: center; font-size: 1.05em; transition: 0.3s; }
-        .col-num { width: 45px; color: #999; font-size: 0.85em; }
+        .col-num { width: 45px; color: #999; font-size: 0.85em; position: relative; }
+        .col-num.designated { color: #d97706; font-weight: 900; }
+        .col-num.designated::after {
+            content: '★';
+            position: absolute; top: 3px; right: 4px;
+            font-size: 0.55em; color: #f59e0b; line-height: 1;
+        }
         .col-sub { width: 22%; background: #f9f9f9; color: #555; font-weight: bold; } 
         .col-sub-dd { width: 65px; background: #f9f9f9; color: #999; font-family: monospace; }
         
@@ -112,6 +118,26 @@
     let cjpConfirmed = false; // CJPが公式スコアを確定済（published:true）かどうか
     let unsubValidCount = null;
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
+    let designatedDDCount = -1;   // -1=無効, 0=全DD0, 1以上=N本指定
+    let designatedDDIndices = []; // 指定技インデックス（0-based）
+
+    // Firestore doc ID (文字列 or 数値) でスキルを引く。位置アクセスは使わない
+    function findSkillById(id) {
+        if (id === null || id === undefined || id === '') return null;
+        return skillMaster.find(m => m.id === String(id)) || null;
+    }
+
+    function resolveSubSkill(s) {
+        if (!s) return null;
+        if (typeof s === 'object') {
+            if (s.id) return findSkillById(s.id);
+            if (s.skill) return skillMaster.find(m => m.symbol === s.skill) || null;
+            return null;
+        }
+        // 数値文字列 → ID として検索（旧形式互換）
+        if (!isNaN(s) && s !== '') return findSkillById(s) || skillMaster.find(m => m.symbol === String(s)) || null;
+        return skillMaster.find(m => m.symbol === s) || null;
+    }
 
     async function init() {
         if (!eventId) return;
@@ -160,9 +186,8 @@
         if (!sub || !res || !res.officialSkills) return false;
         const validLimit = res.validCount !== undefined ? res.validCount : 10;
         for (let i = 0; i < validLimit; i++) {
-            const skill = skillMaster[res.officialSkills[i]];
-            const subRaw = sub.skills[i] || "";
-            const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+            const skill = findSkillById(res.officialSkills[i]);
+                const subSkill = resolveSubSkill(sub.skills[i]);
             if (skill && subSkill && skill.symbol !== subSkill.symbol) return true;
         }
         return false;
@@ -320,7 +345,18 @@
 
     function watchValidCount(resId) {
         if (unsubValidCount) { unsubValidCount(); unsubValidCount = null; }
+        let prevExists = !!results[resId];
         unsubValidCount = onSnapshot(doc(db, 'results', resId), snap => {
+            const nowExists = snap.exists();
+            // 結果ドキュメントが削除された → 申告技をデフォルトで再ロード
+            if (!nowExists && prevExists) {
+                delete results[resId];
+                cjpConfirmed = false;
+                prevExists = false;
+                renderScoringArea();
+                return;
+            }
+            prevExists = nowExists;
             const data = snap.exists() ? snap.data() : null;
             const vc = (data?.validCount) ?? 10;
             const el = document.getElementById('valid-count');
@@ -362,9 +398,32 @@
         const initialData = (dSaved ? resData.officialSkills : sub?.skills) || [];
         const validCount = (isLocked && resData.validCount !== undefined) ? resData.validCount : 10;
 
+        // 指定難度ロード
+        const athType2 = ath.type || 'individual';
+        const athClass2 = ath.class || ath.category || '';
+        const classRule = currentTour?.classRules?.[athType2]?.[athClass2] || {};
+        const rawDDCount = classRule.designatedDDCount ?? -1;
+        const validDesig = rawDDCount >= 0
+            && classRule.qualifyingRoutines === 2
+            && classRule.scoreMode === 'total'
+            && round !== 'pre2';
+        designatedDDCount   = validDesig ? rawDDCount : -1;
+        designatedDDIndices = [...(resData?.officialDesignatedDDIndices || sub?.designatedDDIndices || [])];
+
         const initialIds = initialData.map(s => {
-            if (s !== "" && !isNaN(s) && skillMaster[s]) return String(s);
-            const found = skillMaster.find(m => m.symbol === s);
+            if (!s && s !== 0) return "";
+            if (typeof s === 'object') {
+                if (s.id) { const b = skillMaster.find(m => m.id === String(s.id)); if (b) return b.id; }
+                if (s.skill) { const b = skillMaster.find(m => m.symbol === s.skill); if (b) return b.id; }
+                return "";
+            }
+            // 数値文字列 → Firestore ID として検索（配列インデックスではなくIDで検索）
+            if (s !== "" && !isNaN(s)) {
+                const byId = skillMaster.find(m => m.id === String(s));
+                if (byId) return byId.id;
+            }
+            // シンボル文字列として検索
+            const found = skillMaster.find(m => m.symbol === String(s));
             return found ? found.id : "";
         });
 
@@ -401,9 +460,8 @@
         const tbody = document.getElementById('skill-rows');
         for (let i = 1; i <= 10; i++) {
             const currentId = initialIds[i-1] || "";
-            const skill = skillMaster[currentId] || {};
-            const subRaw = (sub?.skills || [])[i-1] || "";
-            const subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+            const skill = findSkillById(currentId) || {};
+            const subSkill = resolveSubSkill((sub?.skills || [])[i-1]);
 
             const tr = document.createElement('tr'); tr.id = `row-${i}`;
             const hasSoma = skill.direction && skill.direction !== '基礎技';
@@ -465,14 +523,30 @@
 
         for (let i = 1; i <= 10; i++) {
             const id = document.getElementById(`skill-${i}`)?.value, row = document.getElementById(`row-${i}`), ddSpan = document.getElementById(`dd-${i}`), selSkill = document.getElementById(`skill-${i}`), selDir = document.getElementById(`dir-${i}`);
-            const subRaw = (sub?.skills || [])[i-1] || "", subSkill = isNaN(subRaw) ? skillMaster.find(m => m.symbol === subRaw) : skillMaster[subRaw];
+            const subSkill = resolveSubSkill((sub?.skills || [])[i-1]);
 
-            if (i > validLimit) { row.classList.add('invalid-row'); ddSpan.innerText = "0.0"; continue; }
+            // 指定難度の星マーク（中断以降も含めて全行対象）
+            const isDesigIdx = designatedDDCount > 0 && designatedDDIndices.includes(i - 1);
+            const numCell = row?.querySelector('td.col-num');
+            if (numCell) numCell.classList.toggle('designated', isDesigIdx);
+
+            if (i > validLimit) {
+                row.classList.add('invalid-row');
+                ddSpan.style.color = '';
+                // 非指定はハイフン、指定スロットは0.0
+                if (!isDesigIdx && designatedDDCount > 0) {
+                    ddSpan.innerText = '-'; ddSpan.style.color = '#90a4ae';
+                } else {
+                    ddSpan.innerText = '0.0';
+                }
+                continue;
+            }
             row.classList.remove('invalid-row');
 
             if (!id) { ddSpan.innerText = "0.0"; row.classList.remove('duplicate-row'); selSkill.classList.remove('diff-skill'); selDir.classList.remove('diff-skill'); ddSpan.classList.remove('diff-skill'); continue; }
 
-            const skill = skillMaster[id];
+            const skill = findSkillById(id);
+            if (!skill) continue;
             if (idCounts[id] > 1) row.classList.add('duplicate-row'); else row.classList.remove('duplicate-row');
             
             if (subSkill && skill.symbol !== subSkill.symbol) {
@@ -481,8 +555,20 @@
                 selSkill.classList.remove('diff-skill'); selDir.classList.remove('diff-skill'); ddSpan.classList.remove('diff-skill');
             }
 
-            if (seenIds.has(id)) { ddSpan.innerText = "0.0"; ddSpan.classList.add('dd-zero'); }
-            else { baseDD += skill.dd; ddSpan.innerText = skill.dd.toFixed(1); ddSpan.classList.remove('dd-zero'); if (skill.isTriple) tripleCount++; seenIds.add(id); }
+            ddSpan.style.color = ''; // 色リセット
+            if (seenIds.has(id)) {
+                ddSpan.innerText = "0.0"; ddSpan.classList.add('dd-zero');
+            } else {
+                seenIds.add(id); ddSpan.classList.remove('dd-zero');
+                const isDesig = designatedDDCount < 0
+                    || (designatedDDCount > 0 && designatedDDIndices.includes(i - 1));
+                if (isDesig) {
+                    baseDD += skill.dd; ddSpan.innerText = skill.dd.toFixed(1); if (skill.isTriple) tripleCount++;
+                } else {
+                    ddSpan.innerText = '-';
+                    if (!ddSpan.classList.contains('diff-skill')) ddSpan.style.color = '#90a4ae';
+                }
+            }
         }
 
         const ath = athletes.find(a => a.id === athleteId);
@@ -502,10 +588,18 @@
 
     window.saveOfficialScore = async () => {
         const btn = document.getElementById('btn-save'); if (!btn) return;
+        const validCount = parseInt(document.getElementById('valid-count').value);
+        const skills = [];
+        for (let i = 1; i <= 10; i++) {
+            const val = document.getElementById(`skill-${i}`).value;
+            if (i <= validCount && !val) {
+                alert(`${i}本目の技が未選択です。すべての技を選択してから保存してください。`);
+                return;
+            }
+            skills.push(val);
+        }
         btn.disabled = true;
         try {
-            const skills = []; for (let i = 1; i <= 10; i++) skills.push(document.getElementById(`skill-${i}`).value);
-            const validCount = parseInt(document.getElementById('valid-count').value);
             const totalVal = parseFloat(document.getElementById('total-dd').innerText.split(' ')[0]);
             await setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
             init(); 

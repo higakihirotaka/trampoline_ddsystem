@@ -13,7 +13,8 @@
         .admin-back a { text-decoration: none; color: #5f6368; font-size: 0.9rem; border: 1px solid #ccc; padding: 7px 18px; border-radius: 8px; }
         .countdown-container { display: none; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; justify-content: center; }
         .timer-card { flex: 1; min-width: 150px; max-width: 250px; background: #fff; padding: 12px; border-radius: 12px; border-left: 4px solid var(--primary-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; }
-        .timer-label { font-size: 0.65em; font-weight: bold; color: #90a4ae; margin-bottom: 5px; }
+        .timer-label { font-size: 0.65em; font-weight: bold; color: #90a4ae; margin-bottom: 3px; }
+        .timer-time { font-size: 0.82em; color: #546e7a; font-weight: bold; margin-bottom: 4px; }
         .timer-clock { font-family: monospace; font-size: 1.1em; font-weight: 900; }
         .timer-clock.urgent { color: var(--success-green); }
         .timer-clock.expired { color: #d32f2f; }
@@ -38,6 +39,21 @@
         .status-done { background: #e8f0fe; color: var(--primary-blue); border-color: transparent; }
         .withdrawn-row { background-color: #f5f5f5; color: #999; }
         .withdrawn-row td { text-decoration: line-through; }
+
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .list-container { padding: 14px; border-radius: 12px; }
+            #event-title { font-size: 1.3em !important; }
+            .section-header { font-size: 1.3em; margin: 30px 0 12px; }
+            .class-header { font-size: 1em; padding: 8px 14px; margin: 20px 0 10px; }
+            th, td { padding: 8px 5px; font-size: 0.85em; }
+            .col-num { width: 28px; }
+            .col-btn { width: 70px; }
+            .col-name { min-width: 90px; }
+            .status-link { width: 62px; font-size: 0.72em; padding: 7px 0; }
+        }
     </style>
 </head>
 <body>
@@ -46,6 +62,7 @@
     <div class="header-section">
         <h1 id="event-title" style="font-size:2em; margin-bottom:5px;">読み込み中...</h1>
         <div id="event-date" style="font-size: 1em; color: #888;"></div>
+        <div id="event-venue" style="font-size: 0.95em; color: #888;"></div>
     </div>
     <div id="countdown-area" class="countdown-container"></div>
     <div id="indiv-list"></div>
@@ -72,6 +89,7 @@
         const tour = tourSnap.data();
         document.getElementById('event-title').innerText = tour.name;
         document.getElementById('event-date').innerText = `${tour.startDate || tour.start_date || ''} ～ ${tour.endDate || tour.end_date || ''}`;
+        if (tour.venue) document.getElementById('event-venue').innerText = `📍 ${tour.venue}`;
         
         startGlobalTimers(tour);
 
@@ -146,7 +164,7 @@
                     const totalCols = 3 + rules.qualifyingRoutines + (rules.hasFinal ? 1 : 0);
 
                     finalHtml += `
-                        <table>
+                        <div class="table-wrap"><table>
                             <thead>
                                 <tr class="category-row"><td colspan="${totalCols}" style="text-align:left;">${currentGender}</td></tr>
                                 <tr>
@@ -171,7 +189,7 @@
                 if (rules.hasFinal) finalHtml += `<td>${getStatusButton(ath, 'final', subDataMap, eventId)}</td>`;
                 finalHtml += '</tr>';
             });
-            if (classAthletes.length > 0) finalHtml += '</tbody></table>';
+            if (classAthletes.length > 0) finalHtml += '</tbody></table></div>';
         }
         return finalHtml;
     }
@@ -187,17 +205,26 @@
     
     function startGlobalTimers(tour) {
         const area = document.getElementById('countdown-area');
-        const deadlines = [{ label: '提出締切', time: tour.submissionDeadline }, { label: '修正締切', time: tour.revisionDeadline }, { label: '決勝締切', time: tour.finalSubmissionDeadline }].filter(d => d.time);
+        const deadlines = [
+            { label: '提出締切', time: tour.submissionDeadline },
+            { label: '修正締切', time: tour.revisionDeadline },
+            { label: '決勝締切', time: tour.finalSubmissionDeadline }
+        ].filter(d => d.time).map(d => {
+            const dt = new Date(d.time);
+            const mo = dt.getMonth() + 1, da = dt.getDate();
+            const hh = String(dt.getHours()).padStart(2, '0'), mm = String(dt.getMinutes()).padStart(2, '0');
+            return { ...d, timeStr: `${mo}/${da} ${hh}:${mm}`, ms: dt.getTime() };
+        });
         if (deadlines.length === 0) return;
         area.style.display = 'flex';
         const timerId = setInterval(() => {
             const now = new Date().getTime();
             area.innerHTML = deadlines.map(d => {
-                const diff = new Date(d.time).getTime() - now;
+                const diff = d.ms - now;
                 const h = Math.floor(diff / (1000 * 60 * 60)), m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)), s = Math.floor((diff % (1000 * 60)) / 1000);
                 const expired = diff <= 0;
-                if(expired && deadlines.every(d => new Date(d.time).getTime() - now <=0)) clearInterval(timerId);
-                return `<div class="timer-card"><div class="timer-label">${d.label}</div><div class="timer-clock ${expired ? 'expired' : 'urgent'}">${expired ? '終了' : h + 'h ' + m + 'm ' + s + 's'}</div></div>`;
+                if (expired && deadlines.every(d => d.ms - now <= 0)) clearInterval(timerId);
+                return `<div class="timer-card"><div class="timer-label">${d.label}</div><div class="timer-time">${d.timeStr}</div><div class="timer-clock ${expired ? 'expired' : 'urgent'}">${expired ? '終了' : h + 'h ' + m + 'm ' + s + 's'}</div></div>`;
             }).join('');
         }, 1000);
     }

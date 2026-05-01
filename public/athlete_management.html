@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -77,6 +77,33 @@
         .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 11px 26px; border-radius: 30px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; white-space: nowrap; }
         .toast.show { opacity: 1; }
         .toast.error { background: var(--danger); }
+
+        /* CSV drag & drop zone */
+        .csv-drop-zone {
+            border: 2px dashed #c0cdd8;
+            border-radius: 12px;
+            padding: 18px 24px;
+            margin-bottom: 14px;
+            text-align: center;
+            color: var(--text-sub);
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, color 0.15s;
+            user-select: none;
+        }
+        .csv-drop-zone:hover {
+            border-color: var(--accent);
+            background: #f0f7ff;
+            color: var(--accent);
+        }
+        .csv-drop-zone.drag-over {
+            border-color: var(--accent);
+            background: #e8f0fe;
+            color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.15);
+        }
+        .csv-drop-zone .drop-icon { font-size: 1.6rem; display: block; margin-bottom: 4px; }
+        .csv-drop-zone .drop-sub { font-size: 0.78rem; color: #90a4ae; margin-top: 3px; }
     </style>
 </head>
 <body>
@@ -102,6 +129,12 @@
         <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" onchange="handleCSV(this)">
         <div class="spacer"></div>
         <span class="athlete-count" id="athlete-count"></span>
+    </div>
+
+    <div class="csv-drop-zone" id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()">
+        <span class="drop-icon">📂</span>
+        CSVファイルをここにドロップ
+        <div class="drop-sub">または クリックしてファイルを選択</div>
     </div>
 
     <div class="table-wrap">
@@ -217,7 +250,7 @@
     function renderTable() {
         const classes = currentClasses();
         const isIndiv = currentTab === 'individual';
-        const cols    = 9;  // 個人・シンクロともに9列（性別あり）
+        const cols    = isIndiv ? 9 : 13; // 個人9列 / シンクロ13列
 
         // クラス設定の display_order 順 → 男女順 → グループ → 試技順 でソートして表示
         const classIdx  = name => { const i = classes.indexOf(name ?? ''); return i === -1 ? 9999 : i; };
@@ -253,9 +286,13 @@
                 <th style="width:65px">グループ</th>
                 <th class="col-order">試技順</th>
                 <th style="min-width:100px">選手1</th>
-                <th style="min-width:100px">選手2</th>
+                <th style="min-width:100px">選手1ふりがな</th>
                 <th style="min-width:100px">所属1</th>
+                <th style="min-width:100px">所属1よみ</th>
+                <th style="min-width:100px">選手2</th>
+                <th style="min-width:100px">選手2ふりがな</th>
                 <th style="min-width:100px">所属2</th>
+                <th style="min-width:100px">所属2よみ</th>
                 <th class="col-del"></th>
             </tr>`;
         }
@@ -314,10 +351,14 @@
                 <td><select onchange="${ev}'gender',this.value)">${genderOpts}</select></td>
                 ${num('flightGroup', ath.flightGroup, 'G')}
                 ${num('order', ath.order, '#')}
-                ${inp('name1', ath.name1, '選手1')}
-                ${inp('name2', ath.name2, '選手2')}
-                ${inp('club1', ath.club1, '所属1')}
-                ${inp('club2', ath.club2, '所属2')}
+                ${inp('name1',     ath.name1,     '選手1')}
+                ${inp('kana1',     ath.kana1,     '選手1ふりがな')}
+                ${inp('club1',     ath.club1,     '所属1')}
+                ${inp('clubKana1', ath.clubKana1, '所属1よみ')}
+                ${inp('name2',     ath.name2,     '選手2')}
+                ${inp('kana2',     ath.kana2,     '選手2ふりがな')}
+                ${inp('club2',     ath.club2,     '所属2')}
+                ${inp('clubKana2', ath.clubKana2, '所属2よみ')}
                 ${del()}
             </tr>`;
         }
@@ -365,15 +406,16 @@
 
     // ---- CSV ----
     const COLS_INDIV   = ['class','gender','flightGroup','order','name1','kana1','club1','clubKana1'];
-    const COLS_SYNCHRO = ['class','gender','flightGroup','order','name1','name2','club1','club2'];
+    const COLS_SYNCHRO = ['class','gender','flightGroup','order','name1','kana1','club1','clubKana1','name2','kana2','club2','clubKana2'];
 
-    window.handleCSV = (input) => {
-        const file = input.files[0];
+    function processCSVFile(file) {
         if (!file) return;
-        input.value = '';
+        if (!file.name.match(/\.csv$/i) && file.type && !file.type.includes('csv') && !file.type.includes('text')) {
+            showToast('CSVファイルを選択してください', true); return;
+        }
         const reader = new FileReader();
         reader.onload = e => {
-            const text = e.target.result.replace(/^\uFEFF/, ''); // BOM除去
+            const text = e.target.result.replace(/^﻿/, ''); // BOM除去
             const rows = parseCsv(text);
             if (rows.length < 2) { showToast('CSVにデータ行がありません', true); return; }
             const cols    = currentTab === 'individual' ? COLS_INDIV : COLS_SYNCHRO;
@@ -413,7 +455,37 @@
             document.getElementById('csv-modal').classList.add('open');
         };
         reader.readAsText(file, 'UTF-8');
+    }
+
+    window.handleCSV = (input) => {
+        const file = input.files[0];
+        input.value = '';
+        processCSVFile(file);
     };
+
+    // ---- ドラッグ＆ドロップ ----
+    const dropZone = document.getElementById('csv-drop-zone');
+    dropZone.addEventListener('dragenter', e => {
+        e.preventDefault(); e.stopPropagation();
+        dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragover', e => {
+        e.preventDefault(); e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
+        dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', e => {
+        if (dropZone.contains(e.relatedTarget)) return;
+        dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault(); e.stopPropagation();
+        dropZone.classList.remove('drag-over');
+        processCSVFile(e.dataTransfer.files[0]);
+    });
+    // ページ全体への誤ドロップを防止
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop',     e => e.preventDefault());
 
     window.closeCsvModal = () => {
         document.getElementById('csv-modal').classList.remove('open');
@@ -433,10 +505,10 @@
         const isIndiv = currentTab === 'individual';
         const header  = isIndiv
             ? 'クラス,性別,グループ,試技順,氏名,氏名ふりがな,所属,所属よみ'
-            : 'クラス,性別,グループ,試技順,選手1,選手2,所属1,所属2';
+            : 'クラス,性別,グループ,試技順,選手1,選手1ふりがな,所属1,所属1よみ,選手2,選手2ふりがな,所属2,所属2よみ';
         const example = isIndiv
             ? 'Aクラス,男子,1,1,山田太郎,やまだたろう,○○体育館,まるまるたいいくかん'
-            : 'シンクロAクラス,男子,1,1,山田太郎,鈴木花子,○○体育館,△△スポーツ';
+            : 'シンクロAクラス,男子,1,1,山田太郎,やまだたろう,○○体育館,まるまるたいいくかん,鈴木花子,すずきはなこ,△△スポーツ,さんかくさんかくすぽーつ';
         const blob = new Blob(['\uFEFF' + header + '\n' + example], { type: 'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
@@ -460,8 +532,94 @@
         });
     }
 
+    // ---- 試技順バリデーション ----
+
+    // 重複なし・1始まり連番か確認。問題があればエラー文字列を返す
+    function checkConsecutiveFrom1(orders) {
+        const seen = new Set();
+        const dups = new Set();
+        orders.forEach(o => { if (seen.has(o)) dups.add(o); else seen.add(o); });
+        if (dups.size > 0)
+            return `重複: ${[...dups].sort((a, b) => a - b).join('、')}`;
+        const sorted = [...orders].sort((a, b) => a - b);
+        if (sorted[0] !== 1)
+            return `1から始まっていません（最小値: ${sorted[0]}）`;
+        const missing = [];
+        for (let i = 1; i <= sorted[sorted.length - 1]; i++) {
+            if (!seen.has(i)) missing.push(i);
+        }
+        if (missing.length > 0)
+            return `欠番: ${missing.join('、')}`;
+        return null;
+    }
+
+    // ルール:
+    //  ・クラス×性別 が同じ選手の中で検証（男女は別進行なので別チェック）
+    //  ・グループが1種類のみ → 1〜N の連番
+    //  ・グループが複数    → 「全体で 1〜N 連番」か「グループごとに 1 から連番」のどちらか
+    function validateOrders(list, label) {
+        const cgMap = new Map();
+        for (const ath of list) {
+            const key = `${ath.class || ''}___${ath.gender || ''}`;
+            if (!cgMap.has(key)) cgMap.set(key, []);
+            cgMap.get(key).push(ath);
+        }
+
+        for (const [cgKey, athletes] of cgMap) {
+            const [cls, gender] = cgKey.split('___');
+            const glabel = `${label}（${[cls, gender].filter(Boolean).join(' ') || '未分類'}）`;
+
+            // order が有効な整数の選手だけ抽出
+            const withOrder = athletes.filter(a => {
+                const n = Number(a.order);
+                return a.order != null && !isNaN(n) && Number.isInteger(n) && n > 0;
+            });
+
+            if (withOrder.length === 0) continue; // 全員未設定はOK
+
+            // 一部だけ設定
+            if (withOrder.length !== athletes.length) {
+                const cnt = athletes.length - withOrder.length;
+                return `${glabel}：試技順が未設定の選手が ${cnt} 名います。`;
+            }
+
+            const fgKeys = [...new Set(athletes.map(a => a.flightGroup ?? '__none__'))];
+            const orders = athletes.map(a => Number(a.order));
+
+            if (fgKeys.length <= 1) {
+                // グループなし or 単一グループ → シンプルに連番チェック
+                const err = checkConsecutiveFrom1(orders);
+                if (err) return `${glabel}：試技順が連番ではありません（${err}）`;
+            } else {
+                // 複数グループ →
+                //   ① 全体で 1〜N 連番（グループを無視）
+                //   ② グループごとに 1 から連番
+                // のどちらかであればOK
+                const globalOk  = checkConsecutiveFrom1(orders) === null;
+                const perGroupOk = fgKeys.every(fk => {
+                    const grpOrders = athletes
+                        .filter(a => (a.flightGroup ?? '__none__') === fk)
+                        .map(a => Number(a.order));
+                    return checkConsecutiveFrom1(grpOrders) === null;
+                });
+
+                if (!globalOk && !perGroupOk) {
+                    return `${glabel}：グループが複数あります。試技順は「全体で 1〜${orders.length} の連番」か「グループごとに 1 から連番」のどちらかにしてください。`;
+                }
+            }
+        }
+
+        return null;
+    }
+
     // ---- 保存 ----
     window.saveAll = async () => {
+        // 試技順バリデーション
+        const errInd = validateOrders(individualAthletes, '個人');
+        if (errInd) { showToast(errInd, true); return; }
+        const errSyn = validateOrders(synchroAthletes, 'シンクロ');
+        if (errSyn) { showToast(errSyn, true); return; }
+
         const btn = document.getElementById('btn-save');
         btn.disabled = true;
         btn.textContent = '保存中…';

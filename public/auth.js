@@ -1,25 +1,23 @@
-import { app, db, auth, isLocalDev } from "./firebase-config.js";
+import { db, auth, isLocalDev } from "./firebase-config.js";
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { doc, getDoc, collection, query, orderBy, getDocs, writeBatch, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- Auth Functions ---
 
 async function checkAdminStatus(user) {
     if (!user) return false;
     if (isLocalDev) return true;
+    // セッション内キャッシュ（同タブ内の2回目以降はFirestore不要）
+    const cacheKey = `adminStatus:${user.uid}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached !== null) return cached === 'true';
     const adminDoc = await getDoc(doc(db, "admins", user.uid));
-    return adminDoc.exists();
+    const result = adminDoc.exists();
+    sessionStorage.setItem(cacheKey, String(result));
+    return result;
 }
 
 export { isLocalDev };
-
-export function loginSkip() {
-    if (!isLocalDev) return;
-    // クエリパラメータを引き継いで遷移
-    const params = new URLSearchParams(window.location.search);
-    const qs = params.toString();
-    window.location.href = 'admin_index.html' + (qs ? '?' + qs : '');
-}
 
 export async function loginWithGoogle() {
     try {
@@ -40,10 +38,6 @@ export async function loginWithGoogle() {
 
 export function logout() {
     signOut(auth).then(() => { window.location.href = 'admin_login.html'; });
-}
-
-export function handleLoginRedirect() {
-    // No-op: signInWithPopup is used, no redirect handling needed
 }
 
 export function ensureAdmin(callback) {
@@ -67,8 +61,8 @@ export async function getTournaments() {
     return snap.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .sort((a, b) => {
-            const da = a.startDate || '';
-            const db_ = b.startDate || '';
+            const da = a.startDate || a.start_date || '';
+            const db_ = b.startDate || b.start_date || '';
             if (da > db_) return -1;
             if (da < db_) return 1;
             // startDateが同じ or 両方なし → 作成日時の新しい順
@@ -82,24 +76,6 @@ export async function getTournamentDetails(tournamentId) {
     if (!tournamentId) return null;
     const tourDoc = await getDoc(doc(db, "tournaments", tournamentId));
     return tourDoc.exists() ? { id: tourDoc.id, ...tourDoc.data() } : null;
-}
-
-export async function getAthletes(eventId) {
-    if (!eventId) return [];
-    const snap = await getDocs(collection(db, `tournaments/${eventId}/athletes`));
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-}
-
-export async function getSkills() {
-    try {
-        const snap = await getDocs(collection(db, 'skillMaster'));
-        return snap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)));
-    } catch (e) {
-        console.error("Error loading skills:", e);
-        return [];
-    }
 }
 
 export async function bulkSaveSubmissions(eventId, submissions, skillIds) {

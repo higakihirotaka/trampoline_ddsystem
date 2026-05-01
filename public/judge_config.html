@@ -36,6 +36,10 @@
         .field-label { font-size: 0.75rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.4px; }
         .field-input { padding: 9px 12px; border: 1.5px solid #d0d7de; border-radius: 8px; font-size: 0.95rem; background: #f8fbff; transition: border-color 0.2s; }
         .field-input:focus { border-color: var(--accent); outline: none; background: #fff; }
+        .field-input:disabled { background: #eceff1; color: #b0bec5; cursor: not-allowed; border-color: #cfd8dc; }
+        .field-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .disable-check-label { font-size: 0.7rem; color: #90a4ae; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
+        .disable-check-label input[type="checkbox"] { accent-color: #e53935; cursor: pointer; width: 13px; height: 13px; }
 
         /* 審判フィールド */
         .judge-section { margin-bottom: 16px; }
@@ -103,19 +107,31 @@
         <div class="card-title">🏅 大会スタッフ</div>
         <div class="staff-grid">
             <div class="field-group">
-                <span class="field-label">審判長</span>
+                <div class="field-label-row">
+                    <span class="field-label">審判長</span>
+                    <label class="disable-check-label"><input type="checkbox" id="chief-judge-disabled"> 設定しない</label>
+                </div>
                 <input type="text" class="field-input" id="chief-judge" placeholder="氏名">
             </div>
             <div class="field-group">
-                <span class="field-label">記録主任</span>
+                <div class="field-label-row">
+                    <span class="field-label">記録主任</span>
+                    <label class="disable-check-label"><input type="checkbox" id="chief-recorder-disabled"> 設定しない</label>
+                </div>
                 <input type="text" class="field-input" id="chief-recorder" placeholder="氏名">
             </div>
             <div class="field-group">
-                <span class="field-label">上級審判 1</span>
+                <div class="field-label-row">
+                    <span class="field-label">上級審判 1</span>
+                    <label class="disable-check-label"><input type="checkbox" id="senior-judge-1-disabled"> 設定しない</label>
+                </div>
                 <input type="text" class="field-input" id="senior-judge-1" placeholder="氏名">
             </div>
             <div class="field-group">
-                <span class="field-label">上級審判 2</span>
+                <div class="field-label-row">
+                    <span class="field-label">上級審判 2</span>
+                    <label class="disable-check-label"><input type="checkbox" id="senior-judge-2-disabled"> 設定しない</label>
+                </div>
                 <input type="text" class="field-input" id="senior-judge-2" placeholder="氏名">
             </div>
         </div>
@@ -131,9 +147,10 @@
 <div id="toast" class="toast"></div>
 
 <script type="module">
-    import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
+    import { getTournament, invalidateCache } from "./cache.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -152,10 +169,8 @@
         if (!eventId) { location.href = 'admin_index.html'; return; }
         document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
 
-        const tDoc = await getDoc(doc(db, 'tournaments', eventId));
-        if (!tDoc.exists()) { showToast('大会データが見つかりません', true); return; }
-
-        const d = tDoc.data();
+        const d = await getTournament(eventId);
+        if (!d) { showToast('大会データが見つかりません', true); return; }
         judgeConfig = d.judgeConfig || {};
 
         // 大会スタッフ
@@ -164,6 +179,19 @@
         document.getElementById('chief-recorder').value = staff.chiefRecorder || '';
         document.getElementById('senior-judge-1').value = staff.seniorJudge1  || '';
         document.getElementById('senior-judge-2').value = staff.seniorJudge2  || '';
+        // 「設定しない」フラグ復元・チェック連動
+        [
+            ['chief-judge-disabled',   'chief-judge',   'chiefJudgeDisabled'],
+            ['chief-recorder-disabled', 'chief-recorder','chiefRecorderDisabled'],
+            ['senior-judge-1-disabled', 'senior-judge-1','seniorJudge1Disabled'],
+            ['senior-judge-2-disabled', 'senior-judge-2','seniorJudge2Disabled'],
+        ].forEach(([chkId, inpId, flag]) => {
+            const chk = document.getElementById(chkId);
+            const inp = document.getElementById(inpId);
+            chk.checked  = !!staff[flag];
+            inp.disabled = !!staff[flag];
+            chk.addEventListener('change', () => { inp.disabled = chk.checked; });
+        });
 
         // クラス一覧
         const cls = d.classes || {};
@@ -181,7 +209,7 @@
 
         document.getElementById('no-class-msg').remove();
 
-        const numE = d.numExecJudges || 6;   // E審判人数（大会設定に合わせる）
+        const classRules = d.classRules || {};   // クラス別設定（E審判人数取得用）
 
         // 個人
         if (individual.length > 0) {
@@ -189,7 +217,11 @@
             heading.className = 'section-heading';
             heading.innerHTML = '<span class="section-badge individual">個人</span>';
             container.appendChild(heading);
-            individual.forEach(name => container.appendChild(buildClassCard(name, 'individual', numE)));
+            individual.forEach(name => {
+                const numE    = parseInt(classRules.individual?.[name]?.eJudgeCount) || 4;
+                const hasH5H6 = classRules.individual?.[name]?.hasH5H6 === true;
+                container.appendChild(buildClassCard(name, 'individual', numE, hasH5H6));
+            });
         }
 
         // シンクロ
@@ -198,7 +230,11 @@
             heading.className = 'section-heading';
             heading.innerHTML = '<span class="section-badge synchro">シンクロ</span>';
             container.appendChild(heading);
-            synchro.forEach(name => container.appendChild(buildClassCard(name, 'synchro', numE)));
+            synchro.forEach(name => {
+                const numE    = parseInt(classRules.synchro?.[name]?.eJudgeCount) || 4;
+                const hasH5H6 = classRules.synchro?.[name]?.hasH5H6 === true;
+                container.appendChild(buildClassCard(name, 'synchro', numE, hasH5H6));
+            });
         }
 
         // 一括保存
@@ -211,15 +247,15 @@
     }
 
     // ---- カード生成 ----
-    function buildClassCard(className, type, numE = 6) {
+    function buildClassCard(className, type, numE = 6, hasH5H6 = false) {
         const data = (judgeConfig.classes || {})[className] || {};
         const isSynchro = type === 'synchro';
 
         // E審判フィールドを numE 人分動的生成
-        const eCols  = numE <= 2 ? 'cols-2' : numE <= 4 ? 'cols-2' : 'cols-3';
+        const eCols  = 'cols-1';
         const eLabel = `E 審判（E1 〜 E${numE}）`;
         let eFields  = '';
-        for (let i = 1; i <= numE; i++) eFields += jf(`e${i}`, `E${i}`, data[`e${i}`]);
+        for (let i = 1; i <= numE; i++) eFields += jf(`e${i}`, `E${i}`, data[`e${i}`], data[`e${i}_kind`]);
 
         const card = document.createElement('div');
         card.className = 'card';
@@ -231,7 +267,7 @@
             <div class="judge-section">
                 <div class="judge-section-title">CJP</div>
                 <div class="judge-grid cols-1">
-                    ${jf('cjp', 'CJP', data.cjp)}
+                    ${jf('cjp', 'CJP', data.cjp, data.cjp_kind)}
                 </div>
             </div>
             <div class="judge-section">
@@ -240,10 +276,17 @@
                     ${eFields}
                 </div>
             </div>
+            ${hasH5H6 ? `
+            <div class="judge-section">
+                <div class="judge-section-title">H 審判（H5・H6）</div>
+                <div class="judge-grid cols-1">
+                    ${jf('h5','H5',data.h5,data.h5_kind)}${jf('h6','H6',data.h6,data.h6_kind)}
+                </div>
+            </div>` : ''}
             <div class="judge-section">
                 <div class="judge-section-title">D 審判（D7・D8）</div>
-                <div class="judge-grid cols-2">
-                    ${jf('d7','D7',data.d7)}${jf('d8','D8',data.d8)}
+                <div class="judge-grid cols-1">
+                    ${jf('d7','D7',data.d7,data.d7_kind)}${jf('d8','D8',data.d8,data.d8_kind)}
                 </div>
             </div>
             <div class="card-actions">
@@ -284,6 +327,7 @@
             try {
                 collectCard(card);
                 await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+                invalidateCache(eventId);
                 showToast(`「${className}」を保存しました`);
             } catch (e) {
                 showToast('保存に失敗: ' + e.message, true);
@@ -295,8 +339,12 @@
         return card;
     }
 
-    function jf(key, label, value) {
-        return `<div class="judge-field"><label>${label}</label><input type="text" data-key="${key}" placeholder="氏名" value="${escHtml(value || '')}"></div>`;
+    function jf(key, label, value, kind) {
+        return `<div class="judge-field">
+            <label>${label}</label>
+            <input type="text" data-key="${key}" placeholder="氏名" value="${escHtml(value || '')}">
+            <input type="text" data-key="${key}_kind" placeholder="種別（帯同先チーム・招聘 等）" value="${escHtml(kind || '')}">
+        </div>`;
     }
 
     // カードのinputを読んでオブジェクト返す
@@ -329,6 +377,7 @@
         try {
             document.querySelectorAll('.card[data-cls]').forEach(card => collectCard(card));
             await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+            invalidateCache(eventId);
             showToast('全クラスの審判構成を保存しました');
         } catch (e) {
             showToast('保存に失敗: ' + e.message, true);
@@ -343,12 +392,17 @@
         btn.disabled = true; btn.textContent = '保存中…';
         try {
             judgeConfig.staff = {
-                chiefJudge:    document.getElementById('chief-judge').value.trim(),
-                chiefRecorder: document.getElementById('chief-recorder').value.trim(),
-                seniorJudge1:  document.getElementById('senior-judge-1').value.trim(),
-                seniorJudge2:  document.getElementById('senior-judge-2').value.trim(),
+                chiefJudge:            document.getElementById('chief-judge').value.trim(),
+                chiefJudgeDisabled:    document.getElementById('chief-judge-disabled').checked,
+                chiefRecorder:         document.getElementById('chief-recorder').value.trim(),
+                chiefRecorderDisabled: document.getElementById('chief-recorder-disabled').checked,
+                seniorJudge1:          document.getElementById('senior-judge-1').value.trim(),
+                seniorJudge1Disabled:  document.getElementById('senior-judge-1-disabled').checked,
+                seniorJudge2:          document.getElementById('senior-judge-2').value.trim(),
+                seniorJudge2Disabled:  document.getElementById('senior-judge-2-disabled').checked,
             };
             await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+            invalidateCache(eventId);
             showToast('大会スタッフを保存しました');
         } catch (e) {
             showToast('保存に失敗: ' + e.message, true);

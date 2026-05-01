@@ -118,6 +118,7 @@
     import { doc, getDoc, setDoc, collection, getDocs, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
+    import { invalidateCache } from "./cache.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -147,10 +148,10 @@
         document.getElementById('venue').value = d.venue || '';
 
         const normalize = arr => (arr || [])
-            .map((c, i) => ({ name: c.name || '', display_order: c.display_order ?? i }))
+            .map((c, i) => ({ name: c.name || '', display_order: c.display_order ?? i, originalName: c.name || '' }))
             .sort((a, b) => a.display_order - b.display_order);
 
-        const rulesKeys = obj => Object.keys(obj || {}).map((name, i) => ({ name, display_order: i }));
+        const rulesKeys = obj => Object.keys(obj || {}).map((name, i) => ({ name, display_order: i, originalName: name }));
 
         if (d.classes && !Array.isArray(d.classes) && (d.classes.individual || d.classes.synchro)) {
             // 新形式: { individual: [...], synchro: [...] }
@@ -226,7 +227,7 @@
     window.addToType = (type) => {
         const arr = type === 'individual' ? individual : synchro;
         const listId = type === 'individual' ? 'individual-list' : 'synchro-list';
-        arr.push({ name: '', display_order: arr.length });
+        arr.push({ name: '', display_order: arr.length, originalName: null });
         renderList(listId, arr, type);
         const inputs = document.querySelectorAll(`#${listId} .class-item input`);
         if (inputs.length) inputs[inputs.length - 1].focus();
@@ -263,6 +264,18 @@
             return;
         }
 
+        // ── リネーム検出 ──────────────────────────────────────────
+        // originalName（読込時の名称）と現在の名称を比較
+        const renames = [];
+        [{ arr: individual, type: 'individual' }, { arr: synchro, type: 'synchro' }]
+            .forEach(({ arr, type }) => {
+                arr.forEach(c => {
+                    if (c.originalName && c.originalName !== c.name.trim()) {
+                        renames.push({ type, oldName: c.originalName, newName: c.name.trim() });
+                    }
+                });
+            });
+
         const btn = document.getElementById('btn-save-classes');
         btn.disabled = true;
         btn.textContent = '保存中…';
@@ -270,7 +283,7 @@
             const toPayload = arr => arr.map((c, i) => ({ name: c.name.trim(), display_order: i }));
             const payload = { individual: toPayload(individual), synchro: toPayload(synchro) };
 
-            // 既存のclassRulesを取得し、新しいクラスにデフォルトを設定
+            // 既存 classRules を取得
             const tDoc = await getDoc(doc(db, 'tournaments', eventId));
             const rawRules = tDoc.data()?.classRules || {};
             const rulesHasNewFormat = 'individual' in rawRules || 'synchro' in rawRules;
@@ -278,25 +291,66 @@
                                   Object.keys(rawRules).length > 0 ? { individual: rawRules, synchro: {} } :
                                   { individual: {}, synchro: {} };
             const defaultRule = {
-                qualifyingRoutines: 2,
-                scoreMode: 'best',
-                semifinalEnabled: false,
-                finalCount: 8,
-                eJudgeCount: 4,
-                hasFinal: true
+                qualifyingRoutines: 2, scoreMode: 'best',
+                finalCount: 8, eJudgeCount: 4, hasFinal: true
             };
             const mergedIndividual = { ...existingRules.individual };
             const mergedSynchro    = { ...existingRules.synchro };
+
+            // ── classRules キーのリネーム移行 ─────────────────────
+            // スワップ等に対応するため「旧キーを先に全削除 → 新キーを旧スナップから追加」の2ステップ
+            if (renames.length > 0) {
+                const origInd = { ...existingRules.individual };
+                const origSyn = { ...existingRules.synchro };
+                // Step1: 旧名称キーを削除
+                renames.forEach(({ type, oldName }) => {
+                    if (type === 'individual') delete mergedIndividual[oldName];
+                    else                       delete mergedSynchro[oldName];
+                });
+                // Step2: 新名称キーへルール設定をコピー
+                renames.forEach(({ type, oldName, newName }) => {
+                    const src  = type === 'individual' ? origInd : origSyn;
+                    const dest = type === 'individual' ? mergedIndividual : mergedSynchro;
+                    if (src[oldName] !== undefined) dest[newName] = src[oldName];
+                });
+            }
+
+            // 新規クラスにデフォルトを設定
             payload.individual.forEach(c => { if (!mergedIndividual[c.name]) mergedIndividual[c.name] = defaultRule; });
             payload.synchro.forEach(c =>    { if (!mergedSynchro[c.name])    mergedSynchro[c.name]    = defaultRule; });
 
+            // ── 選手の class フィールドを一括更新 ─────────────────
+            let migratedCount = 0;
+            if (renames.length > 0) {
+                const athSnap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
+                const batch = writeBatch(db);
+                athSnap.docs.forEach(d => {
+                    const ath = d.data();
+                    const rename = renames.find(r => r.oldName === (ath.class || ath.category || ''));
+                    if (rename) {
+                        batch.update(d.ref, { class: rename.newName });
+                        migratedCount++;
+                    }
+                });
+                if (migratedCount > 0) await batch.commit();
+            }
+
+            // ── Firestore 保存 ────────────────────────────────────
             await setDoc(doc(db, 'tournaments', eventId), {
                 classes: payload,
                 classRules: { individual: mergedIndividual, synchro: mergedSynchro }
             }, { merge: true });
-            individual = payload.individual;
-            synchro    = payload.synchro;
-            showToast('クラスを保存しました');
+
+            // 保存後に originalName を新名称へ更新
+            individual = payload.individual.map(c => ({ ...c, originalName: c.name }));
+            synchro    = payload.synchro.map(c =>    ({ ...c, originalName: c.name }));
+
+            invalidateCache(eventId);
+
+            const msg = migratedCount > 0
+                ? `クラスを保存しました（選手 ${migratedCount} 名のクラス名を自動更新）`
+                : 'クラスを保存しました';
+            showToast(msg);
             renderAll();
         } catch (e) {
             showToast('保存に失敗しました: ' + e.message, true);

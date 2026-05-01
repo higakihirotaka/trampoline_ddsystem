@@ -19,7 +19,7 @@
     "url": "https://github.com/higakihirotaka/trampoline_ddsystem/issues"
   },
   "homepage": "https://github.com/higakihirotaka/trampoline_ddsystem#readme",
-  "dependencies": {
+  "devDependencies": {
     "jimp": "^1.6.0"
   }
 }

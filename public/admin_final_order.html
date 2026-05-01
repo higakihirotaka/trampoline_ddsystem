@@ -132,8 +132,10 @@
 
 <script type="module">
   import { db } from "./firebase-config.js";
-  import { doc, getDoc, getDocs, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { doc, getDocs, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { ensureAdmin, logout } from "./auth.js";
+  import { getTournament, getAthletes, invalidateCache } from "./cache.js";
+  import { normalizeClassRules } from "./shared.js";
 
   const params  = new URLSearchParams(location.search);
   const eventId = params.get('event');
@@ -153,14 +155,16 @@
 
     if (!eventId) { document.getElementById('event-name').textContent = 'URLにeventパラメータがありません'; return; }
 
-    const tourSnap = await getDoc(doc(db, 'tournaments', eventId));
-    if (!tourSnap.exists()) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
+    const [fetchedTour, fetchedAth] = await Promise.all([
+      getTournament(eventId),
+      getAthletes(eventId)
+    ]);
+    if (!fetchedTour) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
 
-    tourData = tourSnap.data();
+    tourData = fetchedTour;
     document.getElementById('event-name').textContent = tourData.name || eventId;
 
-    const athSnap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
-    athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    athletes = fetchedAth;
 
     buildFilters();
     updateFinalCountFromRule();
@@ -244,8 +248,7 @@
   // ---- クラスルールから決勝人数を自動入力 ----
   function updateFinalCountFromRule() {
     if (!tourData) return;
-    const cRules = tourData.classRules || {};
-    const byType = (cRules.individual || cRules.synchro) ? cRules : { individual: cRules };
+    const byType = normalizeClassRules(tourData.classRules);
     const rule = (byType[fType] || {})[fClass] || {};
     if (rule.finalCount) document.getElementById('final-count').value = rule.finalCount;
   }
@@ -277,8 +280,7 @@
     });
 
     // クラスルールからscoreMode取得
-    const cRules = tourData.classRules || {};
-    const byType = (cRules.individual || cRules.synchro) ? cRules : { individual: cRules };
+    const byType = normalizeClassRules(tourData.classRules);
     const rule = (byType[fType] || {})[fClass] || {};
     const numPre    = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
     const scoreMode = rule.scoreMode || 'best';
@@ -376,6 +378,7 @@
         });
       });
       await batch.commit();
+      invalidateCache(eventId);
 
       // ローカルのathletesデータも更新
       pendingFinalOrder.forEach(e => {

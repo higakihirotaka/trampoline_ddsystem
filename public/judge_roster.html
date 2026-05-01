@@ -40,6 +40,7 @@
         .judge-table td.role { width: 44px; font-weight: 800; font-size: 0.75rem; color: var(--text-sub); }
         .judge-table td.name { font-weight: 700; color: var(--text-main); }
         .judge-table td.name.empty { color: #b0bec5; font-weight: 400; }
+        .judge-kind { font-size: 0.7rem; color: var(--text-sub); background: #eceff1; padding: 1px 6px; border-radius: 4px; margin-left: 5px; font-weight: 600; }
 
         .section-heading { font-size: 0.72rem; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin: 24px 0 10px 2px; display: flex; align-items: center; gap: 8px; }
         .section-heading::after { content:''; flex:1; height:1px; background:#dde3ec; }
@@ -56,13 +57,13 @@
 
 <div class="container">
     <!-- 大会スタッフ -->
-    <div class="card">
+    <div class="card" id="staff-card">
         <div class="card-title">大会スタッフ</div>
         <div class="staff-grid" id="staff-grid">
-            <div class="staff-field"><span class="staff-label">審判長</span><span class="staff-value empty" id="s-chief">—</span></div>
-            <div class="staff-field"><span class="staff-label">記録主任</span><span class="staff-value empty" id="s-recorder">—</span></div>
-            <div class="staff-field"><span class="staff-label">上級審判 1</span><span class="staff-value empty" id="s-senior1">—</span></div>
-            <div class="staff-field"><span class="staff-label">上級審判 2</span><span class="staff-value empty" id="s-senior2">—</span></div>
+            <div class="staff-field" id="sw-chief"><span class="staff-label">審判長</span><span class="staff-value empty" id="s-chief">—</span></div>
+            <div class="staff-field" id="sw-recorder"><span class="staff-label">記録主任</span><span class="staff-value empty" id="s-recorder">—</span></div>
+            <div class="staff-field" id="sw-senior1"><span class="staff-label">上級審判 1</span><span class="staff-value empty" id="s-senior1">—</span></div>
+            <div class="staff-field" id="sw-senior2"><span class="staff-label">上級審判 2</span><span class="staff-value empty" id="s-senior2">—</span></div>
         </div>
     </div>
 
@@ -93,23 +94,36 @@
         if (val) { el.textContent = val; el.classList.remove('empty'); }
         else { el.textContent = '—'; }
     };
-    set('s-chief',    staff.chiefJudge);
-    set('s-recorder', staff.chiefRecorder);
-    set('s-senior1',  staff.seniorJudge1);
-    set('s-senior2',  staff.seniorJudge2);
+    // 「設定しない」フラグがあれば非表示、なければ値を表示
+    if (staff.chiefJudgeDisabled)    { document.getElementById('sw-chief').style.display    = 'none'; }
+    else { set('s-chief',    staff.chiefJudge); }
+    if (staff.chiefRecorderDisabled) { document.getElementById('sw-recorder').style.display = 'none'; }
+    else { set('s-recorder', staff.chiefRecorder); }
+    if (staff.seniorJudge1Disabled)  { document.getElementById('sw-senior1').style.display  = 'none'; }
+    else { set('s-senior1',  staff.seniorJudge1); }
+    if (staff.seniorJudge2Disabled)  { document.getElementById('sw-senior2').style.display  = 'none'; }
+    else { set('s-senior2',  staff.seniorJudge2); }
+    // 全員「設定しない」ならスタッフカードごと非表示
+    if (staff.chiefJudgeDisabled && staff.chiefRecorderDisabled && staff.seniorJudge1Disabled && staff.seniorJudge2Disabled) {
+        document.getElementById('staff-card').style.display = 'none';
+    }
 
     // クラス別
     const cls          = d.classes || {};
     const individual   = (cls.individual || []).map(c => ({ name: c.name, type: 'individual' }));
     const synchro      = (cls.synchro    || []).map(c => ({ name: c.name, type: 'synchro' }));
     const judgeConfig  = d.judgeConfig?.classes || {};
+    const classRules   = d.classRules || {};
     const container    = document.getElementById('classes-container');
 
-    const ROLES = [
-        ['cjp','CJP'],
-        ['e1','E1'],['e2','E2'],['e3','E3'],['e4','E4'],['e5','E5'],['e6','E6'],
-        ['d7','D7'],['d8','D8'],
-    ];
+    // クラス別のE審判人数に応じたロール配列を返す
+    function getRoles(name, type) {
+        const numE = parseInt(classRules[type]?.[name]?.eJudgeCount) || 4;
+        const roles = [['cjp','CJP']];
+        for (let i = 1; i <= numE; i++) roles.push([`e${i}`, `E${i}`]);
+        roles.push(['d7','D7'], ['d8','D8']);
+        return roles;
+    }
 
     function buildSection(list, type) {
         if (list.length === 0) return;
@@ -120,7 +134,8 @@
         container.appendChild(heading);
 
         list.forEach(({ name }) => {
-            const data = judgeConfig[name] || {};
+            const data   = judgeConfig[name] || {};
+            const ROLES  = getRoles(name, type);
             const hasAny = ROLES.some(([key]) => data[key]);
 
             const card = document.createElement('div');
@@ -129,10 +144,11 @@
             let rows = '';
             if (hasAny) {
                 ROLES.forEach(([key, label]) => {
-                    const val = data[key] || '';
+                    const val  = data[key]           || '';
+                    const kind = data[key + '_kind'] || '';
                     rows += `<tr>
                         <td class="role">${label}</td>
-                        <td class="name${val ? '' : ' empty'}">${val || '—'}</td>
+                        <td class="name${val ? '' : ' empty'}">${val || '—'}${val && kind ? `<span class="judge-kind">${kind}</span>` : ''}</td>
                     </tr>`;
                 });
             } else {

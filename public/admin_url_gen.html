@@ -18,6 +18,7 @@
         .url-card { background: var(--card); padding: 30px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); text-align: center; border-top: 8px solid var(--primary); display: flex; flex-direction: column; align-items: center; }
         .url-card.judge  { border-top-color: #f57c00; }
         .url-card.display { border-top-color: var(--success); }
+        .url-card.entry  { border-top-color: #7b1fa2; }
 
         .card-title { font-size: 1.1em; font-weight: 900; margin-bottom: 20px; color: #333; }
 
@@ -26,9 +27,12 @@
 
         .url-box { background: #f1f3f4; padding: 12px; border-radius: 10px; font-family: monospace; font-size: 0.8em; word-break: break-all; color: #546e7a; margin-bottom: 15px; border: 1px solid #e1e4e8; width: 100%; box-sizing: border-box; min-height: 45px; }
 
+        .btn-group { display: flex; flex-direction: column; gap: 8px; width: 100%; }
         .btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 0.9em; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .btn-copy { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2); }
         .btn-copy:active { transform: scale(0.97); }
+        .btn-copy-qr { background: #fff; color: var(--accent); border: 2px solid var(--accent); }
+        .btn-copy-qr:active { transform: scale(0.97); }
 
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #323232; color: white; padding: 12px 30px; border-radius: 50px; font-size: 0.9em; display: none; z-index: 100; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
 
@@ -50,7 +54,10 @@
         <div class="qr-area"><canvas id="qr-judge-menu"></canvas></div>
         <div class="event-label" style="margin-bottom:8px;">Judge Menu URL</div>
         <div id="url-judge-menu" class="url-box">生成中...</div>
-        <button class="btn btn-copy" onclick="copy('url-judge-menu')">URLをコピー</button>
+        <div class="btn-group">
+            <button class="btn btn-copy" onclick="copy('url-judge-menu')">URLをコピー</button>
+            <button class="btn btn-copy-qr" onclick="copyQR('qr-judge-menu')">🖼 QR画像をコピー</button>
+        </div>
     </div>
 
     <div class="url-card display">
@@ -58,7 +65,21 @@
         <div class="qr-area"><canvas id="qr-venue"></canvas></div>
         <div class="event-label" style="margin-bottom:8px;">Venue Display URL</div>
         <div id="url-venue" class="url-box">生成中...</div>
-        <button class="btn btn-copy" onclick="copy('url-venue')">URLをコピー</button>
+        <div class="btn-group">
+            <button class="btn btn-copy" onclick="copy('url-venue')">URLをコピー</button>
+            <button class="btn btn-copy-qr" onclick="copyQR('qr-venue')">🖼 QR画像をコピー</button>
+        </div>
+    </div>
+
+    <div class="url-card entry">
+        <div class="card-title">📝 技申告（選手用）</div>
+        <div class="qr-area"><canvas id="qr-entry"></canvas></div>
+        <div class="event-label" style="margin-bottom:8px;">Athlete Entry URL</div>
+        <div id="url-entry" class="url-box">生成中...</div>
+        <div class="btn-group">
+            <button class="btn btn-copy" onclick="copy('url-entry')">URLをコピー</button>
+            <button class="btn btn-copy-qr" onclick="copyQR('qr-entry')">🖼 QR画像をコピー</button>
+        </div>
     </div>
 </div>
 
@@ -87,18 +108,32 @@
         const base = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
         setupLink('qr-judge-menu', 'url-judge-menu', `${base}/judge_menu.html?event=${eventId}`);
         setupLink('qr-venue',      'url-venue',      `${base}/display.html?event=${eventId}`);
+        setupLink('qr-entry',      'url-entry',      `${base}/event.html?event=${eventId}`);
     }
 
     function setupLink(canvasId, boxId, url) {
-        document.getElementById(boxId).innerText = url;
+        document.getElementById(boxId).innerHTML =
+            `<a href="${url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;word-break:break-all;">${url}</a>`;
         new QRious({ element: document.getElementById(canvasId), value: url, size: 180, level: 'H' });
     }
 
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2000);
+    }
+
     window.copy = (elementId) => {
-        navigator.clipboard.writeText(document.getElementById(elementId).innerText).then(() => {
-            const toast = document.getElementById('toast');
-            toast.style.display = 'block';
-            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        navigator.clipboard.writeText(document.getElementById(elementId).innerText)
+            .then(() => showToast('URLをコピーしました！'));
+    };
+
+    window.copyQR = (canvasId) => {
+        document.getElementById(canvasId).toBlob(blob => {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+                .then(() => showToast('QR画像をコピーしました！'))
+                .catch(() => showToast('コピーに失敗しました（ブラウザ非対応の可能性）'));
         });
     };
 

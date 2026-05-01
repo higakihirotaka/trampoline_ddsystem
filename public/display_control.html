@@ -420,7 +420,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, getDocs, collection, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
 
     const params  = new URLSearchParams(location.search);
@@ -503,10 +503,11 @@
     linkSlider('intro-duration','intro-duration-val');
 
     // ---- タブ2: 画面切り替え ----
-    let currentScreen = 'score';
-    let warmupData    = {};
-    let classCombos   = [];  // 既存クラス一覧
+    let currentScreen  = 'score';
+    let warmupData     = {};
+    let classCombos    = [];  // 既存クラス一覧
     let ctrlTimerInterval = null;
+    let _serverOffset  = 0;   // サーバー時刻との差（ms）: serverTs - Date.now()
 
     const SCREEN_LABELS = {
         score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
@@ -567,6 +568,10 @@
             setSlider('wu-class-fs', warmup.classFontSize || 4.5);
             setSlider('wu-timer-fs', warmup.timerFontSize || 24);
             document.getElementById('timer-repeat').checked = !!warmup.timerRepeat;
+            // サーバー時刻オフセット更新（timerRef は serverTimestamp で書き込まれる）
+            if (warmup.timerRef?.toMillis) {
+                _serverOffset = warmup.timerRef.toMillis() - Date.now();
+            }
         }
 
         // 巡回チェックボックス復元（巡回停止中のみ上書き）
@@ -894,7 +899,7 @@
                 startBtn.textContent = '▶ 開始'; startBtn.disabled = (wu.timerRemainingMs ?? 0) === 0;
                 pauseBtn.disabled = true; return;
             }
-            const rem = Math.max(0, wu.timerEndTime - Date.now());
+            const rem = Math.max(0, wu.timerEndTime - (Date.now() + _serverOffset));
             renderCtrlTimer(timerEl, rem, true);
             startBtn.textContent = '▶ 開始'; startBtn.disabled = true; pauseBtn.disabled = false;
             if (rem === 0) {
@@ -904,7 +909,8 @@
                     const defaultMs = wu.timerDefaultMs ?? 5 * 60 * 1000;
                     setTimeout(async () => {
                         await updateDoc(doc(db,'tournaments',eventId), {
-                            'warmupSettings.timerEndTime':    Date.now() + defaultMs,
+                            'warmupSettings.timerEndTime':    Date.now() + _serverOffset + defaultMs,
+                            'warmupSettings.timerRef':        serverTimestamp(),
                             'warmupSettings.timerPaused':     false,
                             'warmupSettings.timerRemainingMs':defaultMs,
                         }).catch(() => {});
@@ -928,14 +934,15 @@
         const rem = warmupData.timerRemainingMs ?? 0;
         if (rem <= 0) return;
         await updateDoc(doc(db,'tournaments',eventId), {
-            'warmupSettings.timerEndTime':    Date.now() + rem,
+            'warmupSettings.timerEndTime':    Date.now() + _serverOffset + rem,
+            'warmupSettings.timerRef':        serverTimestamp(),
             'warmupSettings.timerPaused':     false,
             'warmupSettings.timerRemainingMs':rem,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-pause-btn').addEventListener('click', async () => {
         if (!warmupData.timerEndTime) return;
-        const rem = Math.max(0, warmupData.timerEndTime - Date.now());
+        const rem = Math.max(0, warmupData.timerEndTime - (Date.now() + _serverOffset));
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,

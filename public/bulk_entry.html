@@ -23,6 +23,9 @@
         .skills-table { width: 100%; border-collapse: collapse; margin: 20px 0; table-layout: fixed; }
         .skills-table th, .skills-table td { padding: 8px 4px; border-bottom: 1px solid #eee; text-align: center; }
         select { width: 100%; padding: 10px 5px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95em; background: #fff; }
+        .total-bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 14px; background: #e8f0fe; border-radius: 10px; }
+        .total-bar-label { font-size: 0.75em; font-weight: bold; color: #1a73e8; }
+        .total-bar-val { font-size: 1.6em; font-weight: 900; color: #1a73e8; font-family: monospace; }
         .btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 30px; }
         .btn { padding: 18px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1em; }
         .btn-save { background: var(--primary); color: white; }
@@ -50,9 +53,13 @@
     <div class="form-card">
         <h3 style="margin-top:0;">一括適用する演技構成</h3>
         <table class="skills-table">
-            <thead><tr><th style="width:35px;">#</th><th>系統</th><th>Symbol</th></tr></thead>
+            <thead><tr><th style="width:35px;">#</th><th style="width:22%;">系統</th><th style="width:20%;">宙系</th><th>技名</th><th style="width:50px;">DD</th></tr></thead>
             <tbody id="skill-rows"></tbody>
         </table>
+        <div class="total-bar">
+            <span class="total-bar-label">Total DD</span>
+            <span id="total-dd" class="total-bar-val">0.0</span>
+        </div>
         <div class="btn-group">
             <button id="save-btn" class="btn btn-save">選択した項目に一括保存</button>
             <button id="clear-btn" class="btn btn-clear">選択した項目のデータを全消去</button>
@@ -62,7 +69,8 @@
 </div>
 
 <script type="module">
-    import { ensureAdmin, getTournamentDetails, getAthletes, getSkills, bulkSaveSubmissions, bulkClearSubmissions } from './auth.js';
+    import { ensureAdmin, getTournamentDetails, bulkSaveSubmissions, bulkClearSubmissions } from './auth.js';
+    import { getAthletes, getSkills } from './cache.js';
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim();
@@ -145,26 +153,88 @@
     function renderForm() {
         let rows = "";
         for (let i = 1; i <= 10; i++) {
-            rows += `<tr><td>${i}</td><td><select id="dir-${i}" data-idx="${i}"><option value="">--</option><option value="前方系">前方</option><option value="後方系">後方</option><option value="基礎技">基礎</option></select></td><td><select id="skill-${i}"></select></td></tr>`;
+            rows += `<tr id="row-${i}">
+                <td>${i}</td>
+                <td><select id="dir-${i}" data-idx="${i}">
+                    <option value="">--</option>
+                    <option value="前方系">前方系</option>
+                    <option value="後方系">後方系</option>
+                    <option value="基礎技">基礎技</option>
+                </select></td>
+                <td><select id="soma-${i}" data-idx="${i}" style="visibility:hidden;">
+                    <option value="">--</option>
+                    <option value="1回宙">1回宙系</option>
+                    <option value="2回宙（1.5以下）">2回宙系（1.5以下）</option>
+                    <option value="2回宙（1.6以上）">2回宙系（1.6以上）</option>
+                    <option value="3回宙">3回宙系</option>
+                    <option value="4回宙">4回宙系</option>
+                </select></td>
+                <td><select id="skill-${i}" data-idx="${i}"><option value="">選択してください</option></select></td>
+                <td><span id="dd-${i}" style="font-weight:bold; color:#1a73e8;">-</span></td>
+            </tr>`;
         }
         document.getElementById('skill-rows').innerHTML = rows;
     }
-    
+
     function updateOptions(idx) {
         const dir = document.getElementById(`dir-${idx}`).value;
+        const somaEl = document.getElementById(`soma-${idx}`);
         const sel = document.getElementById(`skill-${idx}`);
-        sel.innerHTML = '<option value="">選択</option>';
+        const showSoma = dir && dir !== '基礎技';
+        somaEl.style.visibility = showSoma ? '' : 'hidden';
+        if (!showSoma) somaEl.value = '';
+        const soma = somaEl.value;
+        // '2回宙（1.5以下）' / '2回宙（1.6以上）' を somersaultType + doubleSomaGroup にマップ
+        let somaType  = soma;
+        let somaGroup = '';
+        if (soma === '2回宙（1.5以下）') { somaType = '2回宙'; somaGroup = 'low'; }
+        else if (soma === '2回宙（1.6以上）') { somaType = '2回宙'; somaGroup = 'high'; }
+        sel.innerHTML = '<option value="">選択してください</option>';
         if (dir) {
-            skillMaster.filter(s => s.direction === dir).forEach(s => { 
-                sel.innerHTML += `<option value="${s.id}">${s.symbol}</option>`; 
+            skillMaster.filter(s => {
+                if (s.direction !== dir) return false;
+                if (somaType && s.somersaultType !== somaType) return false;
+                if (somaGroup && s.doubleSomaGroup !== somaGroup) return false;
+                return true;
+            }).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.note ? `${s.symbol}（${s.note}）` : s.symbol;
+                sel.appendChild(opt);
             });
         }
+        updateDD(idx);
+    }
+
+    function updateDD(idx) {
+        const skillId = document.getElementById(`skill-${idx}`).value;
+        const skill = skillMaster.find(s => s.id === skillId);
+        document.getElementById(`dd-${idx}`).textContent = skill ? skill.dd.toFixed(1) : '-';
+        calcTotal();
+    }
+
+    function calcTotal() {
+        let total = 0;
+        const seenIds = new Set();
+        for (let i = 1; i <= 10; i++) {
+            const id = document.getElementById(`skill-${i}`).value;
+            if (id && !seenIds.has(id)) {
+                const skill = skillMaster.find(s => s.id === id);
+                if (skill) total += skill.dd;
+                seenIds.add(id);
+            }
+        }
+        document.getElementById('total-dd').textContent = total.toFixed(1);
     }
 
     function attachEventListeners() {
         document.getElementById('skill-rows').addEventListener('change', e => {
-            if (e.target.tagName === 'SELECT' && e.target.id.startsWith('dir-')) {
-                updateOptions(e.target.dataset.idx);
+            const idx = e.target.dataset.idx;
+            if (!idx) return;
+            if (e.target.id.startsWith('dir-') || e.target.id.startsWith('soma-')) {
+                updateOptions(Number(idx));
+            } else if (e.target.id.startsWith('skill-')) {
+                updateDD(Number(idx));
             }
         });
 
@@ -189,9 +259,10 @@
 
         const skillIds = [];
         for (let i = 1; i <= 10; i++) {
-            const val = document.getElementById(`skill-${i}`).value;
-            if (!val) return alert("10本すべての技を選択してください。");
-            skillIds.push(val);
+            const skillId = document.getElementById(`skill-${i}`).value;
+            if (!skillId) return alert("10本すべての技を選択してください。");
+            const skill = skillMaster.find(s => s.id === skillId);
+            skillIds.push({ id: skillId, skill: skill.symbol, dd: skill.dd });
         }
 
         if (!confirm(`${selected.length}件の演技構成を一括登録します。よろしいですか？`)) return;

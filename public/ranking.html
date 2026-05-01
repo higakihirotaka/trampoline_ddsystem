@@ -26,31 +26,35 @@
     /* ---- 本体 ---- */
     .print-area { padding:10px 12px; }
 
-    .sheet-header { position:relative; text-align:center; border-bottom:3px solid var(--accent); padding-bottom:8px; margin-bottom:12px; }
-    .event-name { font-size:1rem; font-weight:900; color:var(--accent); margin:0 0 2px; }
-    .sheet-title { font-size:1.4rem; font-weight:900; margin:0; }
-    .sheet-sub { font-size:.72rem; color:#666; margin:4px 0 0; }
-    .sheet-credit {
-      position:absolute; top:0; right:0;
-      display:flex; align-items:center; gap:8px;
-    }
-    .sheet-credit img { height:48px; width:auto; }
+    /* ---- ヘッダー ---- */
+    .sheet-header { margin-bottom:10px; }
+    .header-top { position:relative; text-align:center; }
+    .header-main { width:100%; text-align:center; }
+    .event-name { font-size:1.4rem; font-weight:900; color:var(--accent); margin:0 0 5px; line-height:1.2; }
+    .sheet-meta { font-size:.9rem; font-weight:700; color:#333; margin:0; }
+    .sheet-divider { border:none; border-top:3px solid var(--accent); margin:8px 0 6px; }
+    .sheet-credit { position:absolute; top:0; right:0; display:flex; align-items:center; gap:8px; }
+    .sheet-credit img { height:44px; width:auto; }
     .sheet-credit .sys-text { text-align:right; line-height:1.5; }
-    .sheet-credit .sys-name { font-size:.85rem; font-weight:900; color:var(--accent); display:block; }
-    .sheet-credit .sys-dev  { font-size:.7rem; color:#888; display:block; }
+    .sheet-credit .sys-name { font-size:.8rem; font-weight:900; color:var(--accent); display:block; }
+    .sheet-credit .sys-dev  { font-size:.65rem; color:#888; display:block; }
+
+    /* ---- グループラベル（表の直上・左） ---- */
+    .group-label { font-size:.95rem; font-weight:900; color:#222; margin:0 0 5px; }
+    .group-label .round-badge { font-size:.75rem; font-weight:400; color:#666; margin-left:8px; }
 
     /* ---- スコア表 ---- */
     .score-table {
-      width:100%; border-collapse:collapse; font-size:12px;
+      width:100%; border-collapse:collapse; font-size:14px;
       table-layout:fixed;
     }
     .score-table th {
       background:var(--accent); color:#fff;
-      padding:5px 3px; text-align:center; font-size:10px; font-weight:700;
+      padding:6px 4px; text-align:center; font-size:12px; font-weight:700;
       border:1px solid #fff;
     }
     .score-table td {
-      padding:4px 3px; border-bottom:1px solid #e0e0e0; border-right:1px solid #eee;
+      padding:5px 4px; border-bottom:1px solid #e0e0e0; border-right:1px solid #eee;
       text-align:center; vertical-align:middle; overflow:hidden; white-space:nowrap;
     }
     .score-table td.left { text-align:left; }
@@ -60,29 +64,30 @@
     tr.ath-row-1:nth-child(4n+1) td { background:#fafafa; }
     tr.ath-row-2 td { border-bottom:2px solid #aaa; }
     tr.ath-row-2:nth-child(4n+2) td { background:#fafafa; }
+    /* 最終行：次の選手がいないため通常セルに底線を補完 */
+    .score-table tbody tr:last-child td { border-bottom:2px solid #aaa; }
 
-    .rank-num { font-size:1.1rem; font-weight:900; color:var(--accent); }
+    .rank-num { font-size:1.2rem; font-weight:900; color:var(--accent); }
 
     /* 決勝進出・リザーブマーク（右上に絶対配置して数字位置を変えない） */
     .col-rank { position:relative; }
-    .q-mark { position:absolute; top:3px; right:3px; font-size:8px; font-weight:900; color:#1565c0; line-height:1; }
-    .r-mark { position:absolute; top:3px; right:3px; font-size:8px; font-weight:900; color:#e65100; line-height:1; }
-    tr.is-qual td { background:#e8f0fe !important; }
-    tr.is-resv td { background:#fff3e0 !important; }
+    .q-mark { position:absolute; top:3px; right:3px; font-size:9px; font-weight:900; color:#1565c0; line-height:1; }
+    .r-mark { position:absolute; top:3px; right:3px; font-size:9px; font-weight:900; color:#e65100; line-height:1; }
+    tr.is-qual td { background:#e8f0fe !important; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+    tr.is-resv td { background:#fff3e0 !important; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
 
-    .ath-name { font-weight:700; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .ath-club { font-size:10px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .ath-yomi { font-size:10px; color:#888; }
+    .ath-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ath-club { font-size:11px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ath-yomi { font-size:11px; color:#888; }
 
-    .round-label { font-size:10px; color:#555; font-weight:600; white-space:nowrap; }
+    .round-label { font-size:11px; color:#555; font-weight:600; white-space:nowrap; }
 
-    .s-val { font-size:11px; }
-    .s-val.hi { color:#c62828; font-weight:700; }  /* 大きい減点 */
+    .s-val { font-size:13px; }
 
-    .score-val { font-weight:700; font-size:12px; }
-    .total-val { font-weight:900; font-size:13px; color:var(--accent); }
+    .score-val { font-weight:700; font-size:14px; }
+    .total-val { font-weight:900; font-size:15px; color:var(--accent); }
 
-    .score-na { color:#bbb; font-size:10px; }
+    .score-na { color:#bbb; font-size:11px; }
 
     .loading { text-align:center; padding:60px; color:#999; }
     .no-data { text-align:center; padding:60px; color:#aaa; font-size:.9rem; }
@@ -107,7 +112,7 @@
       .print-area { padding:0; }
       @page { margin:10mm 8mm; size:A4 landscape; }
       .score-table { font-size:10px; }
-      .score-table th { font-size:9px; padding:3px 2px; }
+      .score-table th { font-size:9px; padding:3px 2px; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
       .score-table td { padding:3px 2px; }
       .col-name { width:130px; }
     }
@@ -116,20 +121,11 @@
 <body>
 
 <div class="controls" id="controls">
-  <label>種目</label>
-  <select id="sel-type">
-    <option value="individual">個人</option>
-    <option value="synchro">シンクロ</option>
-  </select>
-  <label>性別</label>
-  <select id="sel-gender"><option value="">（全て）</option></select>
-  <label>クラス</label>
-  <select id="sel-class"><option value="">（全て）</option></select>
+  <label>グループ</label>
+  <select id="sel-group"><option value="">-- 選択 --</option></select>
   <label>ラウンド</label>
   <select id="sel-round">
-    <option value="qualifying">予選（合計/ベスト）</option>
-    <option value="pre1">予選 R1のみ</option>
-    <option value="pre2">予選 R2のみ</option>
+    <option value="qualifying">予選</option>
     <option value="final">決勝</option>
   </select>
   <label>決勝進出</label>
@@ -145,6 +141,7 @@
     <option value="0">なし</option>
     <option value="1">1人</option><option value="2">2人</option>
   </select>
+  <button class="btn-load" onclick="loadRanking()">表示</button>
   <button class="btn-print" onclick="window.print()">🖨 印刷</button>
 </div>
 
@@ -153,9 +150,10 @@
 </div>
 
 <script type="module">
+  import { getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { db } from "./firebase-config.js";
-  import { doc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules } from "./shared.js";
+  import { getTournament, getAthletes } from "./cache.js";
 
   const params  = new URLSearchParams(location.search);
   const eventId = params.get('event');
@@ -163,13 +161,13 @@
 
   async function init() {
     if (!eventId) { document.getElementById('output').innerHTML = '<div class="no-data">URLにeventパラメータがありません</div>'; return; }
-    const [tourSnap, athSnap] = await Promise.all([
-      getDoc(doc(db, 'tournaments', eventId)),
-      getDocs(collection(db, 'tournaments', eventId, 'athletes'))
+    const [fetchedTour, fetchedAth] = await Promise.all([
+      getTournament(eventId),
+      getAthletes(eventId)
     ]);
-    if (!tourSnap.exists()) { document.getElementById('output').innerHTML = '<div class="no-data">大会が見つかりません</div>'; return; }
-    tourData = tourSnap.data();
-    athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!fetchedTour) { document.getElementById('output').innerHTML = '<div class="no-data">大会が見つかりません</div>'; return; }
+    tourData = fetchedTour;
+    athletes = fetchedAth;
     buildSelectors();
   }
 
@@ -179,30 +177,54 @@
     const urlClass  = params.get('class');
     const urlRound  = params.get('round');
 
-    function update(autoLoad) {
-      const fType = document.getElementById('sel-type').value;
-      const byType = athletes.filter(a => (a.type || 'individual') === fType);
-      const genders = [...new Set(byType.map(a => a.gender || '').filter(Boolean))];
-      const tourClassDefs = (tourData?.classes?.[fType] || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+    // 選手登録のある (type, class, gender) 組み合わせを列挙
+    const hasBothTypes = athletes.some(a => (a.type || 'individual') === 'synchro');
+    const combos = [];
+    const seen = new Set();
+    ['individual','synchro'].forEach(type => {
+      const tourClassDefs = (tourData?.classes?.[type] || [])
+        .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+      const byType = athletes.filter(a => (a.type || 'individual') === type);
       const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
       const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
-      document.getElementById('sel-gender').innerHTML =
-        '<option value="">（全て）</option>' + genders.map(g => `<option>${g}</option>`).join('');
-      document.getElementById('sel-class').innerHTML =
-        '<option value="">（全て）</option>' + classes.map(c => `<option>${c}</option>`).join('');
-      if (urlGender) document.getElementById('sel-gender').value = urlGender;
-      if (urlClass)  document.getElementById('sel-class').value  = urlClass;
-      if (autoLoad) loadRanking();
+      classes.forEach(cls => {
+        const genders = [...new Set(
+          byType.filter(a => (a.class || a.category || '') === cls).map(a => a.gender || '').filter(Boolean)
+        )];
+        // 性別が登録されていない場合は空文字で1件
+        (genders.length ? genders : ['']).forEach(gender => {
+          const key = `${type}::${cls}::${gender}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          let label = `${cls}${gender ? ' ' + gender : ''}`;
+          if (hasBothTypes) label = (type === 'synchro' ? 'シンクロ ' : '個人 ') + label;
+          combos.push({ key, label });
+        });
+      });
+    });
+
+    const selGroup = document.getElementById('sel-group');
+    selGroup.innerHTML = '<option value="">-- 選択 --</option>'
+      + combos.map(c => `<option value="${c.key}">${c.label}</option>`).join('');
+
+    // URLパラメータで初期選択
+    if (urlType || urlClass || urlGender) {
+      const matchKey = `${urlType||'individual'}::${urlClass||''}::${urlGender||''}`;
+      // 完全一致を優先、なければ type+class のみで探す
+      const exact = combos.find(c => c.key === matchKey);
+      const loose = exact || combos.find(c => c.key.startsWith(`${urlType||'individual'}::${urlClass||''}`));
+      if (loose) selGroup.value = loose.key;
     }
-    document.getElementById('sel-type').onchange = () => update(false);
-    // セレクタ変更で自動再読み込み
-    ['sel-gender','sel-class','sel-round','sel-qual','sel-resv'].forEach(id =>
+
+    if (urlRound) document.getElementById('sel-round').value = urlRound;
+
+    // 変更で自動再読み込み
+    ['sel-group','sel-round','sel-qual','sel-resv'].forEach(id =>
       document.getElementById(id).addEventListener('change', () => loadRanking())
     );
 
-    if (urlType)  document.getElementById('sel-type').value  = urlType;
-    if (urlRound) document.getElementById('sel-round').value = urlRound;
-    update(/* autoLoad = */ !!(urlClass || urlGender));  // URLパラメータあれば即表示
+    // URLパラメータあれば即表示
+    if (selGroup.value) loadRanking();
   }
 
   // S1-S10: 全審判の各技減点を合計（stored値×10 = タップ単位に戻す）
@@ -210,34 +232,35 @@
     const judges = Object.values(result.execution?.judges || {});
     if (judges.length === 0) return { skills: Array(10).fill(null), land: null };
 
-    // judge_cjp.html と同じ中央値計算（3人→index1, 5人→index2）
-    function median(vals) {
+    // CJP の middle2 と同じ：中間2名の合計を ×10 して表示
+    function mid2sum(vals) {
       const filled = vals.filter(v => v !== null && v !== undefined);
-      if (filled.length === 0) return null;
+      if (filled.length < 2) return filled.length === 1 ? Math.round(filled[0] * 10) : null;
       filled.sort((a, b) => a - b);
-      return filled[Math.floor(filled.length / 2)];
+      const mid = Math.floor((filled.length - 2) / 2);
+      // 中間2名の合計（×10整数）
+      return Math.round((filled[mid] + filled[mid + 1]) * 10);
     }
 
-    // 各技の中央値減点を ×10 して整数表示（0.2 → 2）
+    // 各技の有効減点合計を ×10 して整数表示（CJP の middle2sum と同じ値）
     const skills = Array.from({ length: 10 }, (_, i) => {
       const vals = judges.map(j => (j.deductions || [])[i] ?? null);
-      const med = median(vals);
-      return med !== null ? Math.round(med * 10) : null;
+      return mid2sum(vals);
     });
 
-    const landMed = median(judges.map(j => j.landing ?? null));
-    const land = landMed !== null ? Math.round(landMed * 10) : null;
+    const land = mid2sum(judges.map(j => j.landing ?? null));
 
     return { skills, land };
   }
 
   const fmt3 = v => v != null ? Number(v).toFixed(3) : null;
+  const fmt2 = v => v != null ? Number(v).toFixed(2) : null;
   const fmt1 = v => v != null ? Number(v).toFixed(1) : null;
 
   window.loadRanking = async function() {
-    const fType   = document.getElementById('sel-type').value;
-    const fGender = document.getElementById('sel-gender').value;
-    const fClass  = document.getElementById('sel-class').value;
+    const selGroup = document.getElementById('sel-group').value;
+    if (!selGroup) { document.getElementById('output').innerHTML = '<div class="no-data">グループを選択してください</div>'; return; }
+    const [fType, fClass, fGender] = selGroup.split('::');
     const fRound  = document.getElementById('sel-round').value;
 
     document.getElementById('output').innerHTML = '<div class="loading">読み込み中...</div>';
@@ -287,12 +310,64 @@
       else if (fRound === 'pre2') qualScore = pre2;
       else if (fRound === 'final') qualScore = final;
 
-      return { a, pre1r, pre2r, finr, pre1, pre2, final, qualScore, numPre, scoreMode };
+      // タイブレーク用データ（TR2025 §4.4.4）
+      // best採用: まず2本合計 → ベスト演技のT→H→D
+      // total採用: qualScoreが既に合計なのでtbSumは不要 → 2本合計のT→H→D
+      // その他ラウンド: そのラウンドのT→H→D
+      let tbSum = null, tbT = null, tbH = null, tbD = null;
+      if (fRound === 'qualifying' && numPre >= 2 && pre1 != null && pre2 != null) {
+        if (scoreMode === 'best') {
+          // Q1 ベスト採用：2本合計 → ベスト演技のT/H/D
+          tbSum = pre1 + pre2;
+          const tbRes = pre1 >= pre2 ? pre1r : pre2r;
+          tbT = tbRes?.tof       ?? null;
+          tbH = tbRes?.hd?.total ?? null;
+          tbD = tbRes?.officialD ?? null;
+        } else {
+          // Q1 合計採用：qualScore既に合計なのでtbSumは不要、T/H/Dも2本合計
+          tbT = (pre1r?.tof       ?? 0) + (pre2r?.tof       ?? 0);
+          tbH = (pre1r?.hd?.total ?? 0) + (pre2r?.hd?.total ?? 0);
+          tbD = (pre1r?.officialD ?? 0) + (pre2r?.officialD ?? 0);
+        }
+      } else {
+        const tbRes = fRound === 'pre1' ? pre1r
+                    : fRound === 'pre2' ? pre2r
+                    : fRound === 'final' ? finr : pre1r;
+        tbT = tbRes?.tof       ?? null; // 個人=ToF、シンクロ=Syn
+        tbH = tbRes?.hd?.total ?? null;
+        tbD = tbRes?.officialD ?? null;
+      }
+
+      return { a, pre1r, pre2r, finr, pre1, pre2, final, qualScore, numPre, scoreMode, tbSum, tbT, tbH, tbD };
     }).sort((x, y) => {
       if (x.qualScore == null && y.qualScore == null) return 0;
       if (x.qualScore == null) return 1;
       if (y.qualScore == null) return -1;
-      return y.qualScore - x.qualScore;
+      // 合計点：小数第２位で比較
+      const xs2 = Math.round(x.qualScore * 100) / 100;
+      const ys2 = Math.round(y.qualScore * 100) / 100;
+      if (ys2 !== xs2) return ys2 - xs2;
+      // Q1 2本合計（ベスト採用時のみ）
+      if (x.tbSum != null && y.tbSum != null && y.tbSum !== x.tbSum) return y.tbSum - x.tbSum;
+      // T（個人=ToF / シンクロ=Syn）→ H → D
+      if (x.tbT != null && y.tbT != null && y.tbT !== x.tbT) return y.tbT - x.tbT;
+      if (x.tbH != null && y.tbH != null && y.tbH !== x.tbH) return y.tbH - x.tbH;
+      if (x.tbD != null && y.tbD != null && y.tbD !== x.tbD) return y.tbD - x.tbD;
+      return 0; // 真の同点
+    });
+
+    // ランク計算：すべてのタイブレーク基準が同じ場合のみ同順位
+    rows.forEach((r, idx) => {
+      if (idx === 0) { r.rank = 1; return; }
+      const prev = rows[idx - 1];
+      if (r.qualScore == null || prev.qualScore == null) { r.rank = idx + 1; return; }
+      const isTied =
+        Math.round(r.qualScore  * 100) / 100 === Math.round(prev.qualScore * 100) / 100 &&
+        (r.tbSum == null || r.tbSum === prev.tbSum) &&
+        (r.tbT  == null || r.tbT  === prev.tbT)  &&
+        (r.tbH  == null || r.tbH  === prev.tbH)  &&
+        (r.tbD  == null || r.tbD  === prev.tbD);
+      r.rank = isTied ? prev.rank : idx + 1;
     });
 
     // タイトル
@@ -312,7 +387,7 @@
     // thead
     const thead = `<thead><tr>
       <th class="col-rank" rowspan="2">Rank</th>
-      <th class="col-name left" rowspan="2">氏名</th>
+      <th class="col-name" rowspan="2">氏名</th>
       <th class="col-round" rowspan="2">Round</th>
       <th class="col-s">S1</th><th class="col-s">S2</th><th class="col-s">S3</th>
       <th class="col-s">S4</th><th class="col-s">S5</th><th class="col-s">S6</th>
@@ -343,12 +418,16 @@
     // tbody
     let tbodyHtml = '';
     rows.forEach((r, idx) => {
-      const rank = idx + 1;
+      const rank = r.rank;
+      const isLast = idx === rows.length - 1;
       const isQual = nQual > 0 && rank <= nQual;
       const isResv = nResv > 0 && rank > nQual && rank <= nQual + nResv;
       const rankCls = isQual ? ' is-qual' : isResv ? ' is-resv' : '';
       const qmark = isQual ? '<span class="q-mark">Q</span>' : isResv ? '<span class="r-mark">R</span>' : '';
       const medal = '';
+
+      // rowspanセルは最終選手かつ複数ラウンド時のみ底線を直接付与（CSSのlast-childでは届かない）
+      const rsStyle = (isLast && showRounds.length > 1) ? ' style="border-bottom:2px solid #aaa"' : '';
 
       const nameHtml = r.a.type === 'synchro'
         ? `<div class="ath-name">${r.a.name1 || '−'} / ${r.a.name2 || '−'}</div>
@@ -357,8 +436,8 @@
            <div class="ath-club">${r.a.club1 || ''}</div>`;
 
       const totalCell = isFinal
-        ? `<td class="total-val" rowspan="${showRounds.length}">${r.a.finalOrder != null ? `第${r.a.finalOrder}試技` : '−'}</td>`
-        : `<td class="total-val" rowspan="${showRounds.length}">${r.qualScore != null ? fmt3(r.qualScore) : '<span class="score-na">−</span>'}</td>`;
+        ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.a.finalOrder != null ? `第${r.a.finalOrder}試技` : '−'}</td>`
+        : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt3(r.qualScore) : '<span class="score-na">−</span>'}</td>`;
 
       showRounds.forEach((rnd, ri) => {
         const res = rnd === 'pre1' ? r.pre1r : rnd === 'pre2' ? r.pre2r : r.finr;
@@ -370,12 +449,22 @@
         let skillCells = '';
         if (res) {
           const { skills, land } = calcSkillTotals(res);
+          const vLimit = res.validCount ?? 10;  // 中断時の有効本数
           for (let i = 0; i < 10; i++) {
-            const v = skills[i];
-            const hiCls = v != null && v >= 6 ? ' hi' : '';
-            skillCells += `<td class="s-val${hiCls}">${v != null ? (Number.isInteger(v) ? v : v.toFixed(1)) : '−'}</td>`;
+            if (i >= vLimit) {
+              // 中断後の技：空欄
+              skillCells += `<td class="score-na"></td>`;
+            } else {
+              const v = skills[i];
+              skillCells += `<td class="s-val">${v != null ? (Number.isInteger(v) ? v : v.toFixed(1)) : '−'}</td>`;
+            }
           }
-          skillCells += `<td class="s-val">${land != null ? (Number.isInteger(land) ? land : land.toFixed(1)) : '−'}</td>`;
+          // 着地：validCount=10のときのみ表示
+          if (vLimit < 10) {
+            skillCells += `<td class="score-na"></td>`;
+          } else {
+            skillCells += `<td class="s-val">${land != null ? (Number.isInteger(land) ? land : land.toFixed(1)) : '−'}</td>`;
+          }
         } else {
           skillCells = Array(11).fill('<td class="score-na">−</td>').join('');
         }
@@ -383,15 +472,15 @@
         const exe  = res?.officialE    != null ? fmt1(res.officialE)    : null;
         const diff = res?.officialD    != null ? fmt1(res.officialD)    : null;
         const tof  = res?.tof          != null ? fmt3(res.tof)          : null;
-        const hd   = res?.hd?.total    != null ? fmt3(res.hd.total)     : null;
-        const pen  = res?.penalty      != null ? fmt1(res.penalty)      : null;
+        const hd   = res?.hd?.total    != null ? fmt2(res.hd.total)     : null;
+        const pen  = (res?.penalty != null && res.penalty !== 0) ? fmt1(res.penalty) : null;
         const sc   = res?.officialTotal!= null ? fmt3(res.officialTotal): null;
 
         const cell = v => v != null ? v : '<span class="score-na">−</span>';
 
         tbodyHtml += `<tr class="${rowCls}">
-          ${isFirst ? `<td class="col-rank" rowspan="${showRounds.length}"><span class="rank-num">${rank}</span>${qmark}</td>` : ''}
-          ${isFirst ? `<td class="left" rowspan="${showRounds.length}">${nameHtml}</td>` : ''}
+          ${isFirst ? `<td class="col-rank" rowspan="${showRounds.length}"${rsStyle}><span class="rank-num">${rank}</span>${qmark}</td>` : ''}
+          ${isFirst ? `<td rowspan="${showRounds.length}"${rsStyle}>${nameHtml}</td>` : ''}
           <td class="round-label">${rndLabel}</td>
           ${skillCells}
           <td class="score-val">${cell(exe)}</td>
@@ -405,25 +494,44 @@
       });
     });
 
+    function toJpDate(ds) {
+      if (!ds) return '';
+      const d = new Date(ds + 'T00:00:00');
+      return new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {
+        era:'long', year:'numeric', month:'long', day:'numeric'
+      }).format(d);
+    }
+    const venue = tourData.venue || '';
+    const s = tourData.start_date || tourData.startDate || '';
+    const e = tourData.end_date   || tourData.endDate   || '';
+    const jpS = toJpDate(s), jpE = toJpDate(e);
+    const dateStr = jpS && jpE && s !== e ? `${jpS} 〜 ${jpE}` : (jpS || jpE);
+
+    const groupParts = [];
+    if (fType === 'synchro') groupParts.push('シンクロ'); else groupParts.push('個人');
+    if (fGender) groupParts.push(fGender);
+    if (fClass)  groupParts.push(fClass);
+    const groupText = groupParts.join(' / ');
+    const roundBadge = roundLabels[fRound] || fRound;
+
     document.getElementById('output').innerHTML = `
       <div class="sheet-header">
-        <div class="sheet-credit">
-          <div class="sys-text">
-            <span class="sys-name">TRAvaults system</span>
-            <span class="sys-dev">Dev. Hirotaka.H</span>
+        <div class="header-top">
+          <div class="header-main">
+            <div class="event-name">${tourData.name || ''}</div>
+            ${venue  ? `<div class="sheet-meta">${venue}</div>`   : ''}
+            ${dateStr ? `<div class="sheet-meta">${dateStr}</div>` : ''}
           </div>
-          <img src="logo.png" alt="TRAvaults system">
+          <div class="sheet-credit">
+            <div class="sys-text">
+              <span class="sys-name">TRAvaults system</span>
+              <span class="sys-dev">Dev. Hirotaka.H</span>
+            </div>
+          </div>
         </div>
-        <div class="event-name">${tourData.name || ''}</div>
-        <div class="sheet-title">${sheetTitle}</div>
-        <div class="sheet-sub">${(() => {
-          const venue = tourData.venue || '';
-          const s = tourData.start_date || tourData.startDate || '';
-          const e = tourData.end_date   || tourData.endDate   || '';
-          const dateStr = s && e && s !== e ? `${s} ～ ${e}` : (s || e);
-          return [venue, dateStr].filter(Boolean).join('　　');
-        })()}</div>
+        <hr class="sheet-divider">
       </div>
+      <div class="group-label">${groupText}<span class="round-badge">· ${roundBadge}</span></div>
       <div style="overflow-x:auto">
         <table class="score-table">${colgroup}${thead}<tbody>${tbodyHtml}</tbody></table>
       </div>`;

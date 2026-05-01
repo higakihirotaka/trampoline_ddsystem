@@ -7,28 +7,28 @@
     <style>
         :root { --bg: #0b0e11; --card: #1e2227; --panel-a: #1a73e8; --panel-b: #9c27b0; --text: #fff; }
         body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
-        .header { padding: 16px 20px 20px; text-align: center; background: #000; border-bottom: 2px solid #333; position: relative; }
-        .btn-back { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.55); text-decoration: none; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 6px; transition: 0.15s; white-space: nowrap; }
+        .header { padding: 14px 20px 16px; background: #000; border-bottom: 2px solid #333; display: flex; flex-direction: column; gap: 10px; }
+        .btn-back { color: rgba(255,255,255,0.55); text-decoration: none; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 6px; transition: 0.15s; white-space: nowrap; align-self: flex-start; }
         .btn-back:hover { color: white; border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.08); }
         .panels { display: flex; gap: 2px; background: #333; min-height: calc(100vh - 120px); }
         .panel { flex: 1; background: var(--bg); padding: 20px; }
         .label-a { color: var(--panel-a); border: 2px solid var(--panel-a); padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; margin-bottom: 20px; }
         .label-b { color: var(--panel-b); border: 2px solid var(--panel-b); padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; margin-bottom: 20px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 30px; }
-        .btn { background: var(--card); padding: 20px 10px; border-radius: 12px; text-decoration: none; color: white; text-align: center; border-bottom: 4px solid #444; transition: 0.2s; }
+        .btn { background: var(--card); padding: 16px 10px 28px; border-radius: 12px; text-decoration: none; color: white; text-align: center; border-bottom: 4px solid #444; transition: 0.2s; position: relative; }
         .btn:active { transform: translateY(2px); border-bottom: none; }
         .btn-cjp { border-color: #ff1744; }
         .btn-tech { border-color: #546e7a; }
         .btn-exec { border-color: #00e676; }
         .section-title { font-size: 0.7rem; color: #777; margin-bottom: 10px; text-transform: uppercase; }
-        .badge-auth { display: block; font-size: 0.55rem; font-weight: 700; color: #ff1744; background: rgba(255,23,68,0.12); border: 1px solid rgba(255,23,68,0.35); border-radius: 4px; padding: 1px 5px; margin-top: 4px; letter-spacing: 0.03em; }
+        .badge-auth { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.55rem; font-weight: 700; color: #ff1744; background: rgba(255,23,68,0.12); border: 1px solid rgba(255,23,68,0.35); border-radius: 4px; padding: 1px 5px; letter-spacing: 0.03em; }
         @media (max-width: 800px) { .panels { flex-direction: column; } }
     </style>
 </head>
 <body>
     <div class="header">
         <a href="#" id="btn-back" class="btn-back">← 審判メニュー</a>
-        <h1 id="event-name" style="margin:0; font-size:1.2rem;">Loading...</h1>
+        <h1 id="event-name" style="margin:0; font-size:1.2rem; text-align:center;">Loading...</h1>
     </div>
     <div class="panels">
         <div class="panel">
@@ -47,7 +47,7 @@
             <div class="label-b">PANEL B</div>
             <div class="section-title">Superior & Technical</div>
             <div class="grid">
-                <a href="#" class="btn btn-cjp" onclick="go('B','CJP')">CJP</a>
+                <a href="#" class="btn btn-cjp" onclick="go('B','CJP')">CJP<span class="badge-auth">要権限</span></a>
                 <a href="#" class="btn btn-tech" onclick="go('B','D')">D</a>
                 <a href="#" class="btn btn-tech" onclick="go('B','HD')">HD</a>
                 <a href="#" class="btn btn-tech" onclick="go('B','T')">T</a>
@@ -57,16 +57,14 @@
         </div>
     </div>
 <script type="module">
-    import { db } from "./firebase-config.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getTournament } from "./cache.js";
     const params = new URLSearchParams(location.search), eventId = params.get('event');
     document.getElementById('btn-back').href = eventId ? `judge_menu.html?event=${eventId}` : 'judge_menu.html';
 
     async function init() {
         if (!eventId) { document.body.innerHTML = '<h1>エラー: 大会IDが見つかりません。</h1><a href="admin_index.html">大会選択に戻る</a>'; return; }
-        const tDoc = await getDoc(doc(db, "tournaments", eventId));
-        if (tDoc.exists()) {
-            const data = tDoc.data();
+        const data = await getTournament(eventId);
+        if (data) {
             document.getElementById('event-name').innerText = data.name;
             const numE = data.numExecJudges || 6;
             ['a', 'b'].forEach(p => {

@@ -144,7 +144,6 @@
       font-size: 2.2cqw; font-weight:900;
       color: var(--text-white);
       margin-top: 1.35cqh;
-      text-transform: uppercase;
       opacity: 0.95;
       letter-spacing: 0.15cqw;
       text-shadow: 0 0 22px rgba(0,242,255,0.15);
@@ -222,7 +221,7 @@
     .d-code{
       display:flex; align-items:center; justify-content:center;
       font-size: 1.8cqw; font-weight:900;
-      color: var(--text-muted);
+      color: var(--text-white);
       border-bottom: 1px solid var(--border-ui);
       letter-spacing: -0.5px;
       background: rgba(255,255,255,0.02);
@@ -366,6 +365,7 @@
     }
     .alert{ color: var(--alert-red) !important; }
     .repeat{ color: var(--alert-red) !important; font-weight:900; }
+    .dim{ opacity: 0.35; }
     /* ===== 待機状態 ===== */
     .waiting-msg{
       grid-column: 1 / -1; grid-row: 1 / -1;
@@ -705,7 +705,7 @@
   }
   @keyframes intro-line-expand{
     from{ width:0; }
-    to  { width:30cqw; }
+    to  { width:50cqw; }
   }
   .intro-top-bar{
     position:absolute; top:0; left:0; right:0;
@@ -713,17 +713,17 @@
     padding: 2.2cqh 4cqw;
   }
   .intro-event-lbl{
-    font-size:1.0cqw; font-weight:700; letter-spacing:0.55em;
+    font-size:1.2cqw; font-weight:700; letter-spacing:0.55em;
     color:rgba(255,255,255,0.28); text-transform:uppercase;
   }
   .intro-counter-lbl{
-    font-size:1.0cqw; font-weight:700; letter-spacing:0.15em;
+    font-size:1.2cqw; font-weight:700; letter-spacing:0.15em;
     color:rgba(255,255,255,0.28);
   }
   .intro-card{
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
-    gap:1.8cqh; text-align:center;
+    gap:2.8cqh; text-align:center;
     opacity:0;
   }
   /* カード全体は即表示（子要素が個別にアニメ） */
@@ -765,24 +765,24 @@
     to  { opacity:1; transform:translateY(0); }
   }
   .intro-class-lbl{
-    font-size:1.5cqw; font-weight:800; letter-spacing:0.4em;
+    font-size:2.2cqw; font-weight:800; letter-spacing:0.4em;
     color:var(--accent-gold); text-transform:uppercase; line-height:1;
   }
   .intro-order-lbl{
-    font-size:1.2cqw; font-weight:700; letter-spacing:0.2em;
+    font-size:1.7cqw; font-weight:700; letter-spacing:0.2em;
     color:var(--text-muted); line-height:1;
   }
   .intro-name-lbl{
-    font-size:7.5cqw; font-weight:900; line-height:0.9;
+    font-size:11cqw; font-weight:900; line-height:0.9;
     letter-spacing:-2px; color:#ffffff; white-space:nowrap;
     text-shadow:0 0 80px rgba(255,255,255,0.12);
   }
   .intro-kana-lbl{
-    font-size:1.8cqw; font-weight:600; letter-spacing:0.25em;
+    font-size:2.6cqw; font-weight:600; letter-spacing:0.25em;
     color:rgba(255,255,255,0.45); line-height:1;
   }
   .intro-club-lbl{
-    font-size:2.2cqw; font-weight:800; letter-spacing:0.12em;
+    font-size:3.2cqw; font-weight:800; letter-spacing:0.12em;
     color:rgba(255,255,255,0.75); line-height:1;
   }
   .intro-progress-wrap{
@@ -882,6 +882,7 @@
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules, calcBonus } from "./shared.js";
+  import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
   const eventId   = params.get('event')?.trim();
@@ -953,27 +954,37 @@
     return (athleteMap[athleteId]?.type || 'individual') === 'synchro';
   }
 
+  // ---- クラス別E審判人数を返す ----
+  function getNumEForAthlete(athleteId) {
+    const ath = athleteMap[athleteId];
+    if (ath) {
+      const type = ath.type || 'individual';
+      const cls  = ath.class || ath.category || '';
+      const n = parseInt(tournamentData?.classRules?.[type]?.[cls]?.eJudgeCount);
+      if (!isNaN(n) && n > 0) return n;
+    }
+    return tournamentData?.numExecJudges || 6;
+  }
+
   // ---- 技ごとのE減点（データなし→null、表示は×10の整数） ----
-  function getSkillEDed(panelJudges, si, synchro) {
+  function getSkillEDed(panelJudges, si, synchro, numE) {
     if (!panelJudges) return null;
     const jKeys = Object.keys(panelJudges);
     if (jKeys.length < 2) return null;
     const vals   = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
     const filled = vals.filter(v => v !== null);
     if (filled.length === 0) return null;
-    const numE = tournamentData?.numExecJudges || jKeys.length;
     return synchro ? synchroEAvg(vals, numE) : mid2sum(vals);
   }
 
   // ---- 着地E減点 ----
-  function getLandingDed(panelJudges, synchro) {
+  function getLandingDed(panelJudges, synchro, numE) {
     if (!panelJudges) return null;
     const jKeys = Object.keys(panelJudges);
     if (jKeys.length < 2) return null;
     const vals   = jKeys.map(k => panelJudges[k]?.landing ?? null);
     const filled = vals.filter(v => v !== null);
     if (filled.length === 0) return null;
-    const numE = tournamentData?.numExecJudges || jKeys.length;
     return synchro ? synchroEAvg(vals, numE) : mid2sum(vals);
   }
 
@@ -986,7 +997,7 @@
     if (jKeys.length < 2) return null;
     const vLimit = resData.validCount ?? 10;
     const synchro = isSynchroAthlete(resData.athleteId);
-    const numE = tournamentData?.numExecJudges || jKeys.length;
+    const numE = getNumEForAthlete(resData.athleteId);
     let totalDed = 0;
     for (let si = 0; si < vLimit; si++) {
       const vals = jKeys.map(k => panelJudges[k]?.deductions?.[si] ?? null);
@@ -1092,9 +1103,9 @@
     const resData = resultDoc.data();
     const ath     = athleteMap[resData.athleteId] || {};
 
-    // 順位表→スコア切替時: 旧スコアが一瞬見えるのを防ぐためモニターを隠す
+    // 別コンテンツ→スコア切替時: 旧コンテンツが一瞬見えるのを防ぐためモニターを隠す
     const monitor = document.getElementById('monitor');
-    if (currentMode === 'ranking' || rankingPageTimer) {
+    if (currentMode === 'ranking' || rankingPageTimer || isNew) {
       monitor.style.opacity = '0';
     }
 
@@ -1108,6 +1119,17 @@
     // officialE の有無に関わらず、技ごとの表示には審判ごとのデータを使う
     const panelJudges   = getPanelJudges(resData);
     const synchro       = isSynchroAthlete(resData.athleteId);
+    const numE          = getNumEForAthlete(resData.athleteId);
+
+    // ---- 指定難度 ----
+    const _classRule  = getClassRule(ath);
+    const _rawDesig   = _classRule.designatedDDCount ?? -1;
+    const _validDesig = _rawDesig >= 0
+        && _classRule.qualifyingRoutines === 2
+        && _classRule.scoreMode === 'total'
+        && resData.round !== 'pre2';
+    const desigCount   = _validDesig ? _rawDesig : -1;
+    const desigIndices = resData.officialDesignatedDDIndices || sub?.designatedDDIndices || [];
 
     // ---- 技ごとデータ計算 ----
     const seenIds = new Set();
@@ -1130,47 +1152,78 @@
         continue;
       }
 
-      const offId      = officialSkills[i];
-      const skill      = skillMaster.find(m => m.id === String(offId));
+      const offRaw     = officialSkills[i];
+      const skill      = offRaw
+        ? (skillMaster.find(m => m.id === String(offRaw)) || skillMaster.find(m => m.symbol === String(offRaw)))
+        : undefined;
       const subRaw     = sub.skills?.[i] || '';
-      const subSkillRaw= (typeof subRaw === 'object' && subRaw !== null) ? subRaw.skill : subRaw;
-      const subSkill   = isNaN(subSkillRaw)
-                         ? skillMaster.find(m => m.symbol === subSkillRaw)
-                         : skillMaster.find(m => m.id === String(subSkillRaw));
+      // subSkill: オブジェクト形式（entry.htmlが保存する{id,skill,dd}）はidでID検索、文字列は旧形式互換
+      const subSkill   = (() => {
+        if (!subRaw) return null;
+        if (typeof subRaw === 'object' && subRaw !== null) {
+          return subRaw.id
+            ? skillMaster.find(m => m.id === String(subRaw.id))
+            : skillMaster.find(m => m.symbol === (subRaw.skill || ''));
+        }
+        return isNaN(subRaw)
+          ? skillMaster.find(m => m.symbol === String(subRaw))
+          : skillMaster.find(m => m.id === String(subRaw));
+      })();
 
-      const isDiff  = !!(skill && subSkill && skill.symbol !== subSkill.symbol);
-      const isRepeat= !!(skill && seenIds.has(String(offId)));
+      const isDiff    = !!(skill && subSkill && skill.symbol !== subSkill.symbol);
+      const repeatKey = skill ? (skill.symbol + '|' + (skill.direction || '')) : String(offRaw);
+      const isRepeat  = !!(skill && seenIds.has(repeatKey));
       if (isDiff) hasAnyDiff = true;
+
+      const isDesigSkill = desigCount < 0
+          || (desigCount > 0 && desigIndices.includes(i));
 
       let displayDD = 0, dCodeTxt, dValTxt;
       if (hasManualDDValues) {
         // 手動入力: officialDDValues から各技の DD 値を復元
         displayDD = Number(resData.officialDDValues[i]) || 0;
-        if (!isRepeat && offId) baseDD += displayDD;
-        dCodeTxt = offId || '-';
-        dValTxt  = displayDD.toFixed(1);
+        if (!isRepeat && offRaw && isDesigSkill) baseDD += displayDD;
+        if (skill && !isRepeat) seenIds.add(repeatKey); // 重複検出用キーを登録
+        // 技マスターからの表示用シンボルを優先（シンボル優先・IDフォールバック）
+        const skillM = skillMaster.find(m => m.id === String(offRaw))
+            || skillMaster.find(m => m.symbol === String(offRaw));
+        dCodeTxt = skillM ? (skillM.displaySymbol || skillM.symbol) : (offRaw || '-');
+        dValTxt  = !isDesigSkill ? '-' : displayDD.toFixed(1);
       } else {
         if (skill && !isRepeat) {
-          displayDD = skill.dd;
-          baseDD   += skill.dd;
-          if (skill.isTriple) tripleCount++;
-          seenIds.add(String(offId));
+          seenIds.add(repeatKey);
+          if (isDesigSkill) {
+            displayDD = skill.dd;
+            baseDD   += skill.dd;
+            if (skill.isTriple) tripleCount++;
+          }
         }
         dCodeTxt = skill ? (skill.displaySymbol || skill.symbol) : '-';
-        dValTxt  = skill ? (isRepeat ? '0.0' : displayDD.toFixed(1)) : '-';
+        dValTxt  = !skill        ? '-'
+                 : !isDesigSkill ? '-'
+                 : isRepeat      ? '0.0'
+                 :                 displayDD.toFixed(1);
       }
 
-      const eDedVal  = getSkillEDed(panelJudges, i, synchro);
-      const eDisplay = eDedVal !== null ? Math.round(eDedVal * 10) : '--';
-      const hasAlert = isDiff || isRepeat;
+      // officialEPerSkill があれば CJP が計算した値をそのまま使う（パネル不一致を回避）
+      const eDedVal  = (resData.officialEPerSkill?.[i] != null)
+          ? resData.officialEPerSkill[i]
+          : getSkillEDed(panelJudges, i, synchro, numE);
+      const eDisplay = eDedVal !== null
+          ? (synchro ? (eDedVal * 10).toFixed(2) : Math.round(eDedVal * 10))
+          : '--';
+      const codeAlert = isDiff;             // 技名は変更時のみ赤
+      const valAlert  = isDiff || isRepeat; // DD値は変更・重複どちらも赤
+      const dimCode = !isDesigSkill && !codeAlert; // 非指定かつ差異なし→薄く
+      const dimVal  = !isDesigSkill && !valAlert;
 
       skillCols.push(`
         <div class="skill-stack">
           <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
           <div class="card e-card"><div class="e-val num">${eDisplay}</div></div>
           <div class="card d-card">
-            <div class="d-code${hasAlert ? ' alert' : ''}">${dCodeTxt}</div>
-            <div class="d-val num${hasAlert ? ' alert' : ''}">${dValTxt}</div>
+            <div class="d-code${codeAlert ? ' alert' : dimCode ? ' dim' : ''}">${dCodeTxt}</div>
+            <div class="d-val num${valAlert ? ' alert' : dimVal ? ' dim' : ''}">${dValTxt}</div>
           </div>
         </div>`);
     }
@@ -1179,18 +1232,20 @@
     const bonus   = hasManualDDValues ? (resData.officialDDBonus || 0) : calcBonus(ath.gender, tripleCount);
     const finalDD = hasManualDDValues ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
 
-    // LAN列
-    const landDed = getLandingDed(panelJudges, synchro);
+    // LAN列（officialELanding があれば CJP 値を優先）
+    const landDed = (resData.officialELanding != null)
+        ? resData.officialELanding
+        : getLandingDed(panelJudges, synchro, numE);
     const isLanValid = vLimit === 10;
     const bonusCol = `
-      <div class="skill-stack bonus-style" style="${(isLanValid || bonus > 0) ? '' : 'opacity:0.25;'}">
+      <div class="skill-stack bonus-style" style="${isLanValid ? '' : 'opacity:0.25;'}">
         <div class="col-idx">LAN</div>
-        <div class="card e-card"><div class="e-val num">${isLanValid && landDed !== null ? Math.round(landDed * 10) : '--'}</div></div>
-        <div class="bonus-note-block">
+        <div class="card e-card"><div class="e-val num">${isLanValid && landDed !== null ? (synchro ? (landDed * 10).toFixed(2) : Math.round(landDed * 10)) : '--'}</div></div>
+        <div class="bonus-note-block" style="${bonus > 0 ? '' : 'opacity:0.25;'}">
           <span>D-SCORE</span>
           <span>BONUS</span>
         </div>
-        <div class="bonus-dval">
+        <div class="bonus-dval" style="${bonus > 0 ? '' : 'opacity:0.25;'}">
           <span class="bonus-val num">+${bonus.toFixed(1)}</span>
         </div>
       </div>`;
@@ -1291,7 +1346,7 @@
       <div class="breakdown-row">
         <div class="stat-item"><label>Exec.</label><div class="val num">${fmt1(eScore)}</div></div>
         <div class="stat-item"><label>Diff.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(dScore)}</div></div>
-        <div class="stat-item"><label>ToF</label><div class="val num">${fmt3(tScore)}</div></div>
+        <div class="stat-item"><label>${synchro ? 'Syn' : 'ToF'}</label><div class="val num">${fmt3(tScore)}</div></div>
         <div class="stat-item"><label>HD</label><div class="val num">${fmt2(hdScore)}</div></div>
         <div class="stat-item"><label>Penalty</label><div class="val num">${fmt1(pScore)}</div></div>
       </div>
@@ -1301,9 +1356,10 @@
         <div class="final-results">
           <div class="score-unit">
             ${(() => {
-              const isBestMode = numPre2 >= 2 && sMode2 === 'best' && (resData.round === 'pre1' || resData.round === 'pre2');
-              const lbl  = isBestMode ? 'BEST' : 'TOTAL';
-              const disp = isBestMode ? qualTotal : totalScore;
+              // 2本制の場合は best/total ともに qualTotal（累計またはベスト）を表示
+              const isMultiRound = numPre2 >= 2 && (resData.round === 'pre1' || resData.round === 'pre2');
+              const lbl  = (isMultiRound && sMode2 === 'best') ? 'BEST' : 'TOTAL';
+              const disp = isMultiRound ? qualTotal : totalScore;
               return `<label>${isPublished ? lbl : lbl + '*'}</label><div class="total-val num">${fmt3(disp)}</div>`;
             })()}
           </div>
@@ -1383,6 +1439,11 @@
     if (displayQueue.length === 0) {
       if (lastShownResData) startRankingLoop();
       return;
+    }
+    // currentMode を変える前に判定する（変えた後だと ranking チェックが常に false になる）
+    if (currentMode === 'ranking' || rankingPageTimer) {
+      const monitor = document.getElementById('monitor');
+      if (monitor) monitor.style.opacity = '0';
     }
     currentMode = 'score';
     stopRankingLoop();
@@ -1723,6 +1784,7 @@
 
   // ---- 会場画面オーバーレイ管理 ----
   let warmupTimerInterval = null;
+  let _warmupServerOffset = 0; // サーバー時刻補正値（ms）
 
   function applyVenueScreen(tourData) {
     const screen = tourData.venueScreen || 'score';
@@ -1814,6 +1876,11 @@
     }
     if (carouselActive) return; // 巡回中は venueScreen 表示に干渉しない（stopされるまで）
 
+    // スコア表示中・キュー処理中は会場画面を上書きしない
+    // （CJP の publish により calculating:false と results の2つの書き込みが走るため
+    //   onSnapshot の発火順序によっては applyVenueScreen が後から venue 画面を再表示してしまう）
+    if (currentMode === 'score' || displayQueue.length > 0) return;
+
     if (screen === 'logo') {
       document.getElementById('vs-logo').classList.add('active');
     } else if (screen === 'title') {
@@ -1831,6 +1898,9 @@
   }
 
   function startWarmupDisplay(warmup) {
+    if (warmup.timerRef?.toMillis) {
+      _warmupServerOffset = warmup.timerRef.toMillis() - Date.now();
+    }
     const timerEl = document.getElementById('vs-timer');
     function tick() {
       if (!timerEl) return;
@@ -1839,7 +1909,7 @@
         showTimerDisplay(timerEl, rem);
         return;
       }
-      const rem = Math.max(0, warmup.timerEndTime - Date.now());
+      const rem = Math.max(0, warmup.timerEndTime - (Date.now() + _warmupServerOffset));
       showTimerDisplay(timerEl, rem);
       if (rem === 0) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
     }
@@ -1906,10 +1976,10 @@
   async function init() {
     if (!eventId) return;
     try {
-      const [smSnap, athSnap, tourSnap] = await Promise.all([
+      const [smSnap, athleteList, fetchedTour] = await Promise.all([
         getDocs(collection(db, "skillMaster")),
-        getDocs(collection(db, "tournaments", eventId, "athletes")),
-        getDoc(doc(db, "tournaments", eventId))
+        getAthletes(eventId),
+        getTournament(eventId)
       ]);
 
       skillMaster = smSnap.docs
@@ -1924,10 +1994,10 @@
           displayOrder  : d.data().displayOrder ?? parseInt(d.id)
         }));
 
-      athSnap.forEach(d => athleteMap[d.id] = d.data());
+      athleteList.forEach(a => athleteMap[a.id] = a);
 
-      if (tourSnap.exists()) {
-        const tourData = tourSnap.data();
+      if (fetchedTour) {
+        const tourData = fetchedTour;
         tournamentData = tourData;
         tournamentName = tourData.name || '---';
         document.getElementById('event-name-el').textContent = tournamentName;
@@ -1968,6 +2038,8 @@
         snap.docChanges().forEach(change => {
           // 新規公開(added)と再公開(modified)の両方を表示
           if (change.type === 'added' || change.type === 'modified') {
+            // 「確定のみ」で登録された結果は会場ディスプレイをスキップ
+            if (change.doc.data().displaySkip === true) return;
             // 集計中画面が出ていたらローカルで即消し＋Firestoreも更新＆キューリセット
             // calculating が実際に active のときだけ書き込む（余分な snapshot 発火を防ぐ）
             const calcEl = document.getElementById('vs-calculating');
@@ -1976,18 +2048,16 @@
               displayQueue.length = 0;
               // calculating:false はCJPのpublish()側で書き込む（venue_displayは非ログインのため不可）
             }
-            // 会場画面をローカルのみ解除（warmupが出ていた場合は退避して後で復元）
-            const warmupEl = document.getElementById('vs-warmup');
-            if (warmupEl?.classList.contains('active')) {
-              savedVenueScreen = 'warmup'; // タイマーは止めずに退避
-            }
-            const introEl = document.getElementById('vs-intro');
-            if (introEl?.classList.contains('active')) {
-              savedVenueScreen = 'intro';
-            }
+            // スコア確定時：全会場画面を即時非表示にし、復元しない
             ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro'].forEach(id => {
               document.getElementById(id)?.classList.remove('active');
             });
+            // warmupタイマーも停止
+            if (warmupTimerInterval) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
+            // 退避をクリア（順位表・スコア表示後に会場画面を復元しない）
+            savedVenueScreen = null;
+            // ※ venueScreen:'score' への切替は judge_cjp.html の publish() 側で書き込む
+            // （venue_displayは非ログインのためFirestore書き込み不可）
             enqueueResult(change.doc);
           }
         });

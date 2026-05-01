@@ -21,7 +21,9 @@
             flex-shrink: 0; gap: 8px; position: relative;
         }
         .header-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-        .header-role    { font-size: clamp(0.6rem, 1vw, 0.9rem); color: #555; font-weight: bold; letter-spacing: 1px; white-space: nowrap; }
+        .header-role    { font-size: clamp(0.6rem, 1vw, 0.9rem); color: #666; font-weight: bold; letter-spacing: 1px; white-space: nowrap; }
+        .header-right   { display: flex; flex-direction: row; align-items: center; gap: 14px; flex-shrink: 0; }
+        .header-judge   { font-size: 1.05rem; color: #ccc; font-weight: 700; white-space: nowrap; }
         .header-athlete { font-size: clamp(1.2rem, 2.5vw, 2.2rem); font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .header-round   { font-size: clamp(0.7rem, 1.2vw, 1.1rem); color: var(--accent); font-weight: bold; white-space: nowrap; }
         .btn-exit {
@@ -105,12 +107,14 @@
                 width: 100%;
             }
             .header-role    { font-size: 0.65rem; }
+            .header-judge   { font-size: 0.78rem; }
             .header-athlete { font-size: 1.15rem; white-space: normal; overflow: visible; text-overflow: unset; }
             .header-round   { font-size: 0.8rem; }
-            .btn-exit {
+            .header-right {
                 position: absolute; top: 8px; right: 12px;
-                padding: 4px 10px; font-size: 0.7rem;
+                flex-direction: column; align-items: flex-end; gap: 3px;
             }
+            .btn-exit { padding: 4px 10px; font-size: 0.7rem; }
 
             /* ステップバーをコンパクトに */
             .steps {
@@ -128,33 +132,6 @@
             .step.active .step-lbl { color: var(--accent); }
             .step-val { font-size: 0.85rem; }
 
-            /* 現在技パネルを表示 */
-            .current-panel {
-                display: flex;
-                align-items: center; justify-content: center;
-                background: #060809;
-                border-top: 1px solid #1a1a1a;
-                border-bottom: 1px solid #1a1a1a;
-                padding: 10px 16px;
-                gap: 14px;
-                flex-shrink: 0;
-            }
-            .cp-label {
-                font-size: 1.1rem; color: #666;
-                font-weight: 900; letter-spacing: 1px;
-                min-width: 40px; text-align: center;
-            }
-            .cp-arrow { font-size: 1.4rem; color: #333; }
-            .cp-value {
-                font-size: 4rem; font-weight: 900; line-height: 1;
-                color: var(--accent);
-                min-width: 70px; text-align: center;
-            }
-            .cp-value.empty { color: #2a2a2a; }
-            .cp-pos {
-                font-size: 0.8rem; color: #444;
-                min-width: 36px; text-align: right;
-            }
 
             /* キーパッドをコンパクトに */
             .keypad {
@@ -177,7 +154,10 @@
         <span class="header-athlete" id="header-athlete">待機中...</span>
         <span class="header-round" id="header-round">-</span>
     </div>
-    <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
+    <div class="header-right">
+        <span class="header-judge" id="header-judge"></span>
+        <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
+    </div>
 </div>
 
 <div class="waiting" id="waiting-view">
@@ -206,6 +186,16 @@
     let deductions = Array(10).fill(null), landing = null;
     let unsubResult = null;
     let isLocked = false;
+    let judgeName = '';
+    let currentTourData = null;
+
+    // ---- ラウンド表示名 ----
+    function roundLabel(r) {
+        if (r === 'pre1')  return 'Routine 1';
+        if (r === 'pre2')  return 'Routine 2';
+        if (r === 'final') return 'Final';
+        return r.toUpperCase();
+    }
 
     // ---- バリデーション ----
     const VALID_DEDUCTIONS = [0, 0.1, 0.2, 0.3, 0.4, 0.5];
@@ -240,7 +230,10 @@
 
         onSnapshot(doc(db, 'tournaments', eventId), (snap) => {
             if (!snap.exists()) return;
-            const state = snap.data()?.liveState?.[panel];
+            const d = snap.data();
+            currentTourData = d;  // 常に最新を保持（審判名の引き直しに使う）
+
+            const state = d?.liveState?.[panel];
             if (!state?.athleteId) { showWaiting(); return; }
             if (state.athleteId !== athleteId || state.round !== round) {
                 switchAthlete(state);
@@ -255,10 +248,30 @@
         });
     }
 
+    // ---- 審判名更新（クラス変わるたびに引き直し） ----
+    function updateJudgeName(athleteClass) {
+        const judgeClasses = currentTourData?.judgeConfig?.classes || {};
+        const roleKey = role.toLowerCase();
+        let name = '';
+        // 指定クラスで先に探す
+        if (athleteClass && judgeClasses[athleteClass]) {
+            name = judgeClasses[athleteClass][roleKey] || '';
+        }
+        // 見つからなければ全クラスから最初の一致をフォールバック
+        if (!name) {
+            for (const cls of Object.values(judgeClasses)) {
+                if (cls[roleKey]) { name = cls[roleKey]; break; }
+            }
+        }
+        judgeName = name;
+        document.getElementById('header-judge').textContent = name;
+    }
+
     // ---- 待機画面 ----
     function showWaiting() {
         athleteId = null; round = null;
         if (unsubResult) { unsubResult(); unsubResult = null; }
+        updateJudgeName(null);  // クラス解除 → 全クラス総当たりで名前継続表示
         headerAthlete.textContent = '待機中...';
         headerRound.textContent   = '-';
         waitingView.style.display = '';
@@ -277,8 +290,9 @@
         currentIndex = 0;
         vLimit       = 10;
 
+        updateJudgeName(state.athleteClass || '');
         headerAthlete.textContent = state.athleteName || athleteId;
-        headerRound.textContent   = round.toUpperCase();
+        headerRound.textContent   = roundLabel(round);
         waitingView.style.display = 'none';
         judgeUi.style.display     = '';
         refresh();
@@ -350,7 +364,7 @@
             const isLand = (currentIndex === 10);
             const isInt  = (vLimit < 10 && currentIndex >= vLimit);
             if (isInt) {
-                cpEl.innerHTML = `<div class="cp-label" style="font-size:0.95rem;color:#555;">有効本数 ${vLimit}本 で完了</div>`;
+                cpEl.innerHTML = '';
             } else {
                 const lbl     = isLand ? 'LAN' : `S${currentIndex + 1}`;
                 const curVal  = isLand ? landing : deductions[currentIndex];
@@ -384,12 +398,7 @@
 
         if (isInterrupted) {
             keypad.className = 'keypad';
-            keypad.innerHTML = `
-                <div style="grid-column:span 6; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#888; font-size:0.85rem; padding:4px 0; text-align:center;">
-                    <span>有効本数 <strong style="color:#aaa;">${vLimit}本</strong> で採点完了</span>
-                    <span style="font-size:0.75rem; color:#555;">修正する場合は UNDO を押してください</span>
-                </div>
-                <button class="key key-undo" onclick="undo()">UNDO / EDIT</button>`;
+            keypad.innerHTML = `<button class="key key-undo" onclick="undo()">UNDO</button>`;
         } else if (currentIndex < 10) {
             keypad.className = 'keypad';
             keypad.innerHTML =
