@@ -1278,7 +1278,7 @@
     const sessionLine2 = [groupStr, dateStr].filter(Boolean).join(' | ');
     const classGender  = [ath.class, ath.gender].filter(Boolean).join(' ');
     const orderLabel   = (resData.round === 'final' && ath.finalOrder != null)
-      ? `試技順 ${ath.finalOrder}`
+      ? `No.${ath.finalOrder}`
       : `No.${ath.order || '?'}`;
 
     // ---- フルHTML生成 ----

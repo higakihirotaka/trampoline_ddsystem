@@ -342,7 +342,7 @@
     const scoreMode       = _sectionRule.scoreMode || 'best';
     const finalScoreMode  = _sectionRule.finalScoreMode ?? 'zero';
     const totalLabel = isFinal
-      ? (finalScoreMode === 'combined' ? 'Total' : '試技順')
+      ? (finalScoreMode === 'combined' ? 'Total' : 'No.')
       : (scoreMode === 'total' ? 'Total' : 'Best');
 
     // thead
@@ -399,7 +399,7 @@
       const totalCell = isFinal
         ? (r.finalScoreMode === 'combined'
             ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt3(r.qualScore) : '<span class="score-na">−</span>'}</td>`
-            : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.a.finalOrder != null ? `第${r.a.finalOrder}試技` : '−'}</td>`)
+            : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.a.finalOrder != null ? `No.${r.a.finalOrder}` : '−'}</td>`)
         : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt3(r.qualScore) : '<span class="score-na">−</span>'}</td>`;
 
       showRounds.forEach((rnd, ri) => {
