@@ -314,7 +314,18 @@
         else qualScore = pre1 ?? pre2;
       } else if (fRound === 'pre1') qualScore = pre1;
       else if (fRound === 'pre2') qualScore = pre2;
-      else if (fRound === 'final') qualScore = final;
+      else if (fRound === 'final') {
+        const finalScoreMode = rule.finalScoreMode ?? 'zero';
+        if (finalScoreMode === 'combined') {
+          let qualPart = null;
+          if (numPre === 1) qualPart = pre1;
+          else if (pre1 != null && pre2 != null) qualPart = scoreMode === 'total' ? pre1 + pre2 : Math.max(pre1, pre2);
+          else qualPart = pre1 ?? pre2;
+          qualScore = (qualPart != null && final != null) ? qualPart + final : (final ?? qualPart);
+        } else {
+          qualScore = final;
+        }
+      }
 
       // タイブレーク用データ（TR2025 §4.4.4）
       // best採用: まず2本合計 → ベスト演技のT→H→D
@@ -344,7 +355,7 @@
         tbD = tbRes?.officialD ?? null;
       }
 
-      return { a, pre1r, pre2r, finr, pre1, pre2, final, qualScore, numPre, scoreMode, tbSum, tbT, tbH, tbD };
+      return { a, pre1r, pre2r, finr, pre1, pre2, final, qualScore, numPre, scoreMode, finalScoreMode: rule.finalScoreMode ?? 'zero', tbSum, tbT, tbH, tbD };
     }).sort((x, y) => {
       if (x.qualScore == null && y.qualScore == null) return 0;
       if (x.qualScore == null) return 1;
@@ -387,8 +398,12 @@
       : [fRound];
 
     const isFinal = fRound === 'final';
-    const scoreMode = (classRules[fType] || {})[fClass]?.scoreMode || 'best';
-    const totalLabel = isFinal ? 'Score' : (scoreMode === 'total' ? 'Total' : 'Best');
+    const _sectionRule    = (classRules[fType] || {})[fClass] || {};
+    const scoreMode       = _sectionRule.scoreMode || 'best';
+    const finalScoreMode  = _sectionRule.finalScoreMode ?? 'zero';
+    const totalLabel = isFinal
+      ? (finalScoreMode === 'combined' ? 'Total' : '試技順')
+      : (scoreMode === 'total' ? 'Total' : 'Best');
 
     // thead
     const thead = `<thead><tr>
@@ -406,7 +421,7 @@
       <th class="col-hd">HD</th>
       <th class="col-pen">Pen</th>
       <th class="col-score">Score</th>
-      ${isFinal ? '<th class="col-total">試技順</th>' : `<th class="col-total">${totalLabel}</th>`}
+      <th class="col-total">${totalLabel}</th>
     </tr></thead>`;
 
     // 列幅colgroup
@@ -442,7 +457,9 @@
            <div class="ath-club">${r.a.club1 || ''}</div>`;
 
       const totalCell = isFinal
-        ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.a.finalOrder != null ? `第${r.a.finalOrder}試技` : '−'}</td>`
+        ? (r.finalScoreMode === 'combined'
+            ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt3(r.qualScore) : '<span class="score-na">−</span>'}</td>`
+            : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.a.finalOrder != null ? `第${r.a.finalOrder}試技` : '−'}</td>`)
         : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt3(r.qualScore) : '<span class="score-na">−</span>'}</td>`;
 
       showRounds.forEach((rnd, ri) => {

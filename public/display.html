@@ -1536,8 +1536,13 @@
               diff: (s.tb1?.diff ?? 0) + (s.tb2?.diff ?? 0)
             };
           }
-          // 決勝はfinalスコア優先、未確定時はqualScore
-          const total = isFinal ? (s.final ?? qualScore) : qualScore;
+          // 決勝スコア: ゼロ点スタート=決勝スコア単体、合計=予選+決勝
+          const finalScoreMode = rule.finalScoreMode ?? 'zero';
+          const total = isFinal
+            ? (finalScoreMode === 'combined'
+                ? (qualScore != null && s.final != null ? qualScore + s.final : (s.final ?? qualScore))
+                : (s.final ?? qualScore))
+            : qualScore;
           return { id, ...s, total, _tb: tb, _isFinal: isFinal };
         })
         .sort((a, b) => {
