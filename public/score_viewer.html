@@ -148,7 +148,7 @@
                     <th>申請</th>
                     <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
                     <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
-                    <th>-</th><th>-</th>
+                    <th></th><th></th>
                 </tr>
                 <tr class="d-info-row" id="skill-symbols-row">
                     <th style="white-space:normal;line-height:1.4;">実施<br><span id="d-confirmed-badge"></span></th>
@@ -552,15 +552,16 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
 
         // Med行
         const hasData = Object.keys(judges).length > 0;
+        const _medFmt = (v) => isSynchro ? (v * 10).toFixed(2) : Math.round(v * 10);
         rows += `<tr class="middle-row"><td>Med</td>`;
         for (let i = 0; i < 10; i++) {
-            const hasVal = hasData && skillResults[i].indices.size > 0;
+            const hasVal = hasData && (skillResults[i].hasData ?? skillResults[i].indices.size > 0);
             rows += i < vLimit
-                ? `<td>${hasVal ? Math.round(skillResults[i].sum * 10) : '-'}</td>`
+                ? `<td>${hasVal ? _medFmt(skillResults[i].sum) : '-'}</td>`
                 : `<td style="opacity:0.15">-</td>`;
         }
-        const hasLn = hasData && landingResult.indices.size > 0;
-        rows += `<td>${vLimit === 10 && hasLn ? Math.round(landingResult.sum * 10) : '-'}</td>`;
+        const hasLn = hasData && (landingResult.hasData ?? landingResult.indices.size > 0);
+        rows += `<td>${vLimit === 10 && hasLn ? _medFmt(landingResult.sum) : '-'}</td>`;
         rows += `<td class="ded-total">${hasData ? execution.toFixed(1) : '-'}</td></tr>`;
         tbody.innerHTML = rows;
 
