@@ -1244,7 +1244,7 @@
     const athResults = await getAthleteResults(resData.athleteId);
     // 予選合計（BEST/TOTAL 表示用）
     const rule2   = getClassRule(ath);
-    const numPre2 = rule2.qualifyingRoutines ?? 1;
+    const numPre2 = rule2.qualifyingRoutines ?? tournamentData?.qualifyingRoutines ?? 1;
     const sMode2  = rule2.scoreMode || 'best';
     let qualTotal = totalScore;
     if (numPre2 >= 2 && (resData.round === 'pre1' || resData.round === 'pre2')) {
@@ -1483,7 +1483,7 @@
   // クラス指定でランキングエントリを取得（巡回モード・通常モード共用）
   async function fetchRankingEntriesFor(classVal, genderVal, selType, round) {
     const rule      = getClassRule({ class: classVal, type: selType });
-    const numPre    = rule.qualifyingRoutines || 1;
+    const numPre    = rule.qualifyingRoutines ?? tournamentData?.qualifyingRoutines ?? 1;
     const scoreMode = rule.scoreMode || 'best';
     try {
       const resultDocs = await _getPublishedResultDocs();
@@ -1495,10 +1495,10 @@
         if ((a.class || a.category || '') !== classVal) return;
         if ((a.gender || '') !== genderVal) return;
         if ((a.type || 'individual') !== selType) return;
-        if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null, final: null, tb1: null, tb2: null };
+        if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null, final: null, tb1: null, tb2: null, tbFinal: null };
         if (r.round === 'pre1')  { byAth[r.athleteId].pre1 = r.officialTotal ?? null; byAth[r.athleteId].tb1 = getTbScores(r); }
         if (r.round === 'pre2')  { byAth[r.athleteId].pre2 = r.officialTotal ?? null; byAth[r.athleteId].tb2 = getTbScores(r); }
-        if (r.round === 'final') byAth[r.athleteId].final = r.officialTotal ?? null;
+        if (r.round === 'final') { byAth[r.athleteId].final = r.officialTotal ?? null; byAth[r.athleteId].tbFinal = getTbScores(r); }
       });
 
       // 決勝判定: round='final'明示 or 自動検出（finalスコアあり＆finalOrder設定済みの選手がいる）
@@ -1527,7 +1527,10 @@
             else if (s.pre2 != null)   { qualScore = s.pre2; }
           }
           let tb;
-          if (scoreMode === 'best' && numPre >= 2 && s.pre1 != null && s.pre2 != null) {
+          if (isFinal && s.tbFinal) {
+            // 決勝: タイブレークは決勝ラウンドの T→H→D（ranking.html と一致）
+            tb = s.tbFinal;
+          } else if (scoreMode === 'best' && numPre >= 2 && s.pre1 != null && s.pre2 != null) {
             tb = s.pre1 >= s.pre2 ? (s.tb1 || {}) : (s.tb2 || {});
           } else {
             tb = {
@@ -1622,7 +1625,7 @@
     const curAthId = currentMode === 'carousel' ? null : lastShownResData?.athleteId;
 
     const rule      = getClassRule({ class: classVal, type: selType });
-    const numPre    = rule.qualifyingRoutines || 1;
+    const numPre    = rule.qualifyingRoutines ?? tournamentData?.qualifyingRoutines ?? 1;
     const scoreMode = rule.scoreMode || 'best';
     const scoreModeLabel = scoreMode === 'total' ? 'TOTAL' : 'BEST';
     const show2     = numPre >= 2;
