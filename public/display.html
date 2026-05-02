@@ -2001,6 +2001,21 @@
         }
       }
 
+      // ---- 初期ページ表示でのスコア復元 ----
+      // venueScreen='score' の状態でページを開いた場合、最新スコアを遡って表示する
+      // tournament / results 両 onSnapshot の初回発火が揃った時点で判定する
+      let _tourInitDone    = false;
+      let _initialResultDoc = undefined; // undefined=未確認, null=結果なし, Doc=復元対象
+      let _restoreTriggered = false;
+      function tryRestoreLastScore() {
+        if (_restoreTriggered || !_tourInitDone || _initialResultDoc === undefined) return;
+        _restoreTriggered = true;
+        const screen = tournamentData?.venueScreen ?? 'score';
+        if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {
+          enqueueResult(_initialResultDoc);
+        }
+      }
+
       // 大会ドキュメントをリアルタイム監視（displaySettings + 会場画面切り替え）
       onSnapshot(doc(db, 'tournaments', eventId), snap => {
         if (!snap.exists()) return;
@@ -2011,6 +2026,7 @@
           applyAnimSettings();
         }
         applyVenueScreen(data);
+        if (!_tourInitDone) { _tourInitDone = true; tryRestoreLastScore(); }
       });
 
       // 全published結果を監視（デュアルパネル対応）
@@ -2024,7 +2040,9 @@
       onSnapshot(q, snap => {
         if (initialLoad) {
           initialLoad = false;
-          // 初回発火は無視（リロード時に前回のスコアが再表示されるのを防ぐ）
+          // displaySkip でない最新結果を保持（venueScreen='score' 時に復元するため）
+          _initialResultDoc = snap.docs.find(d => !d.data().displaySkip) ?? null;
+          tryRestoreLastScore();
           return;
         }
         // 以後: 新規追加分のみキューに入れる
