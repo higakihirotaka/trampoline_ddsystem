@@ -1400,7 +1400,13 @@
 
   function enqueueResult(resultDoc) {
     invalidateRankingCache();
-    displayQueue.push(resultDoc);
+    // 同一ドキュメントIDがキューに既存なら最新版で上書き（修正再確定時に旧スコアを表示しない）
+    const idx = displayQueue.findIndex(d => d.id === resultDoc.id);
+    if (idx !== -1) {
+      displayQueue[idx] = resultDoc;
+    } else {
+      displayQueue.push(resultDoc);
+    }
     if (currentMode !== 'score') processQueue();
   }
 
