@@ -647,6 +647,7 @@
                 // 新形式(tofDefaultMode/hdDefaultMode)、旧形式(tofHdDefaultMode)両対応
                 if ((cRule.tofDefaultMode || cRule.tofHdDefaultMode) === 'manual') toggleTofMode();
                 if ((cRule.hdDefaultMode  || cRule.tofHdDefaultMode) === 'manual') toggleHdMode();
+                applyHdtsVisibility(ath2);
             }
         }
         } catch(e) {
@@ -874,6 +875,7 @@
             // 新形式(tofDefaultMode/hdDefaultMode)、旧形式(tofHdDefaultMode)両対応
             if ((cRule.tofDefaultMode || cRule.tofHdDefaultMode) === 'manual') { if (tofMode === 'auto') toggleTofMode(); }
             if ((cRule.hdDefaultMode  || cRule.tofHdDefaultMode) === 'manual') { if (hdMode  === 'auto') toggleHdMode();  }
+            applyHdtsVisibility(ath);
         }
 
         // URL 更新（ブラウザ履歴に残す）
@@ -1655,6 +1657,17 @@
             }, 30);
         }
     };
+
+    // ---- HDTS 技別行 表示切替（useHDTS 設定に従い section を show/hide） ----
+    function applyHdtsVisibility(ath) {
+        const athType  = ath?.type  || 'individual';
+        const athClass = ath?.class || ath?.category || '';
+        const cRule    = currentTour?.classRules?.[athType]?.[athClass] || {};
+        const show     = cRule.useHDTS !== false; // default true
+        document.querySelectorAll('.hdts-section-head, #hdts-tof-row, #hdts-hd-row').forEach(el => {
+            el.style.display = show ? '' : 'none';
+        });
+    }
 
     // ---- HDTS 技別行リセット ----
     function resetHdtsRows() {

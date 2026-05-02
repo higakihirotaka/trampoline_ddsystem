@@ -88,6 +88,12 @@
         #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; font-weight: bold; color: #003c8f !important; }
         #skill-symbols-row th.d-mismatch { color: var(--danger) !important; opacity: 1 !important; filter: none !important; }
 
+        /* HDTS 行 (read-only) */
+        .sv-hdts-head th { background: #f0fdfa !important; color: #0f766e !important; font-weight: bold; border-bottom: 2px solid #5eead4 !important; }
+        .sv-hdts-row th { background: #f0fdfa !important; color: #0f766e !important; border-color: #99f6e4 !important; font-size: 0.78rem !important; font-family: monospace; }
+        .sv-hdts-label { font-size: 0.63rem !important; font-family: inherit !important; white-space: normal; line-height: 1.4; }
+        .sv-hdts-sum { font-weight: bold; }
+
         /* スコア集計 */
         .score-summary { background: var(--card-bg); padding: 16px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,0.12); }
         .score-box { text-align: center; }
@@ -172,6 +178,22 @@
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
                     <th id="dd-bonus-cell">-</th><th>-</th>
                 </tr>
+                <!-- HDTS セクション -->
+                <tr class="d-info-row sv-hdts-head" id="sv-hdts-head">
+                    <th colspan="13">HDTS</th>
+                </tr>
+                <tr class="d-info-row sv-hdts-row" id="sv-hdts-tof-row">
+                    <th class="sv-hdts-label">HDTS<br>ToF(s)</th>
+                    <th id="sv-hdts-tof-1">-</th><th id="sv-hdts-tof-2">-</th><th id="sv-hdts-tof-3">-</th><th id="sv-hdts-tof-4">-</th><th id="sv-hdts-tof-5">-</th>
+                    <th id="sv-hdts-tof-6">-</th><th id="sv-hdts-tof-7">-</th><th id="sv-hdts-tof-8">-</th><th id="sv-hdts-tof-9">-</th><th id="sv-hdts-tof-10">-</th>
+                    <th>-</th><th class="sv-hdts-sum" id="sv-hdts-tof-sum">-</th>
+                </tr>
+                <tr class="d-info-row sv-hdts-row" id="sv-hdts-hd-row">
+                    <th class="sv-hdts-label">HDTS<br>HD(減)</th>
+                    <th id="sv-hdts-hd-1">-</th><th id="sv-hdts-hd-2">-</th><th id="sv-hdts-hd-3">-</th><th id="sv-hdts-hd-4">-</th><th id="sv-hdts-hd-5">-</th>
+                    <th id="sv-hdts-hd-6">-</th><th id="sv-hdts-hd-7">-</th><th id="sv-hdts-hd-8">-</th><th id="sv-hdts-hd-9">-</th><th id="sv-hdts-hd-10">-</th>
+                    <th>-</th><th class="sv-hdts-sum" id="sv-hdts-hd-sum">-</th>
+                </tr>
             </tfoot>
         </table>
         </div>
@@ -252,6 +274,7 @@
             const ath = athletes[athleteId];
             if (ath) {
                 setAthleteBanner(ath, round);
+                applyHdtsVisibility();
                 watchScores();
                 watchSub();
             }
@@ -302,7 +325,14 @@
             byClass[c][g].push(a);
         });
 
-        Object.entries(byClass).forEach(([cls, genderMap]) => {
+        // フィルターボタンと同じ順序でクラスグループを表示
+        const orderedClasses = [
+            ...classes.filter(c => byClass[c]),
+            ...Object.keys(byClass).filter(c => !classes.includes(c))
+        ];
+        orderedClasses.forEach(cls => {
+            const genderMap = byClass[cls];
+            if (!genderMap) return;
             listHtml += `<div class="cat-group">${cls}</div>`;
             Object.entries(genderMap).forEach(([gnd, athl]) => {
                 if (Object.keys(genderMap).length > 1) listHtml += `<div class="gender-group">${gnd}</div>`;
@@ -349,6 +379,7 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         const ath = athletes[aid];
         if (ath) {
             setAthleteBanner(ath, rid);
+            applyHdtsVisibility();
             watchScores();
             watchSub();
         }
@@ -537,6 +568,22 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         document.getElementById('res-t').textContent    = t ? Number(t).toFixed(3) : '0.000';
         document.getElementById('res-hd').textContent   = h ? Number(h).toFixed(3) : '0.000';
         document.getElementById('res-total').textContent = Math.max(0, totalDD + (hasData ? execution : 0) + Number(t) + Number(h) - p).toFixed(3);
+
+        // HDTS 合計列（技別データは Firestore 未保存のため合計値のみ）
+        document.getElementById('sv-hdts-tof-sum').textContent = t ? Number(t).toFixed(3) : '-';
+        document.getElementById('sv-hdts-hd-sum').textContent  = h ? Number(h).toFixed(3)  : '-';
+    }
+
+    // ---- HDTS 行 表示切替 ----
+    function applyHdtsVisibility() {
+        const ath   = athletes[athleteId];
+        const show  = ath
+            ? (currentTour?.classRules?.[ath.type||'individual']?.[ath.class||ath.category||'']?.useHDTS) !== false
+            : true;
+        ['sv-hdts-head','sv-hdts-tof-row','sv-hdts-hd-row'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = show ? '' : 'none';
+        });
     }
 
     // ---- 演技点計算 ----
