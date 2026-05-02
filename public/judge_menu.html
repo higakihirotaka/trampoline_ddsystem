@@ -46,6 +46,7 @@
         .nav-icon.teal   { background: #e0f2f1; }
         .nav-icon.red    { background: #fce4ec; }
         .nav-icon.gold   { background: #fff8e1; }
+        .nav-icon.sky    { background: #e1f5fe; }
         .nav-title { font-size: 0.95rem; font-weight: 700; }
         .nav-desc  { font-size: 0.7rem; color: var(--sub); margin-top: 1px; }
         .nav-arrow { margin-left: auto; color: #ccc; font-size: 1.1rem; flex-shrink: 0; }
@@ -82,6 +83,11 @@
     <a class="nav-card" id="nav-cardcheck" href="#">
         <div class="nav-icon red">🔎</div>
         <div><div class="nav-title">競技カードチェック</div><div class="nav-desc">全選手のカード提出状況と内容を確認</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
+    <a class="nav-card" id="nav-entry" href="#">
+        <div class="nav-icon sky">📋</div>
+        <div><div class="nav-title">選手入力</div><div class="nav-desc">競技カード・技の申請</div></div>
         <span class="nav-arrow">›</span>
     </a>
     <a class="nav-card" id="nav-input" href="#">
@@ -121,6 +127,7 @@
     document.getElementById('nav-info').href      = `tournament_info.html?event=${eventId}`;
     document.getElementById('nav-roster').href    = `judge_roster.html?event=${eventId}`;
     document.getElementById('nav-cardcheck').href = `admin_card_check.html?event=${eventId}&from=judge`;
+    document.getElementById('nav-entry').href     = `entry.html?event=${eventId}`;
     document.getElementById('nav-input').href     = `judge_role_select.html?event=${eventId}`;
     document.getElementById('nav-score').href   = `score_viewer.html?event=${eventId}`;
     document.getElementById('nav-ranking').href = `ranking.html?event=${eventId}`;
