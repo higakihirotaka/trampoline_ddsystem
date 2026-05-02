@@ -344,12 +344,15 @@
     const totalLabel = isFinal
       ? (finalScoreMode === 'combined' ? 'Total' : 'No.')
       : (scoreMode === 'total' ? 'Total' : 'Best');
+    // 決勝: Round列は不要、No.列（zero mode）も不要
+    const showRoundCol = !isFinal;
+    const showTotalCol = !isFinal || finalScoreMode === 'combined';
 
     // thead
     const thead = `<thead><tr>
       <th class="col-rank" rowspan="2">Rank</th>
       <th class="col-name" rowspan="2">氏名</th>
-      <th class="col-round" rowspan="2">Round</th>
+      ${showRoundCol ? '<th class="col-round" rowspan="2">Round</th>' : ''}
       <th class="col-s">S1</th><th class="col-s">S2</th><th class="col-s">S3</th>
       <th class="col-s">S4</th><th class="col-s">S5</th><th class="col-s">S6</th>
       <th class="col-s">S7</th><th class="col-s">S8</th><th class="col-s">S9</th>
@@ -361,16 +364,18 @@
       <th class="col-hd">HD</th>
       <th class="col-pen">Pen</th>
       <th class="col-score">Score</th>
-      <th class="col-total">${totalLabel}</th>
+      ${showTotalCol ? `<th class="col-total">${totalLabel}</th>` : ''}
     </tr></thead>`;
 
     // 列幅colgroup
     const colgroup = `<colgroup>
-      <col class="col-rank"><col class="col-name"><col class="col-round">
+      <col class="col-rank"><col class="col-name">
+      ${showRoundCol ? '<col class="col-round">' : ''}
       ${Array(10).fill('<col class="col-s">').join('')}
       <col class="col-land"><col class="col-exe"><col class="col-diff">
       <col class="col-tof"><col class="col-hd"><col class="col-pen">
-      <col class="col-score"><col class="col-total">
+      <col class="col-score">
+      ${showTotalCol ? '<col class="col-total">' : ''}
     </colgroup>`;
 
     const nQual = parseInt(document.getElementById('sel-qual').value) || 0;
@@ -444,7 +449,7 @@
         tbodyHtml += `<tr class="${rowCls}">
           ${isFirst ? `<td class="col-rank" rowspan="${showRounds.length}"${rsStyle}><span class="rank-num">${rank}</span>${qmark}</td>` : ''}
           ${isFirst ? `<td rowspan="${showRounds.length}"${rsStyle}>${nameHtml}</td>` : ''}
-          <td class="round-label">${rndLabel}</td>
+          ${showRoundCol ? `<td class="round-label">${rndLabel}</td>` : ''}
           ${skillCells}
           <td class="score-val">${cell(exe)}</td>
           <td class="score-val">${cell(diff)}</td>
@@ -452,7 +457,7 @@
           <td class="score-val">${cell(hd)}</td>
           <td>${cell(pen)}</td>
           <td class="score-val">${cell(sc)}</td>
-          ${isFirst ? totalCell : ''}
+          ${isFirst && showTotalCol ? totalCell : ''}
         </tr>`;
       });
     });
