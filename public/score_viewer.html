@@ -23,13 +23,6 @@
         .sb-back-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.68rem; color: rgba(255,255,255,0.5); text-decoration: none; }
         .sb-back-link:hover { color: rgba(255,255,255,0.85); }
 
-        /* パネル選択 */
-        .panel-selector { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: #f8fafc; flex-shrink: 0; align-items: center; }
-        .panel-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; color: #94a3b8; text-transform: uppercase; margin-right: 4px; }
-        .panel-btn { flex: 1; padding: 5px 0; border: 1.5px solid #dde3ec; background: #fff; color: #64748b; font-size: 0.78rem; font-weight: 700; cursor: pointer; border-radius: 8px; transition: 0.12s; }
-        .panel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-        .panel-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
-
         /* フィルター */
         .sidebar-filters { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; }
         .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
@@ -58,7 +51,6 @@
         .console-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
         .top-bar { background: var(--primary); padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; flex-shrink: 0; }
         .readonly-badge { background: #43a047; color: #fff; font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.1em; }
-        .panel-indicator { color: var(--accent); font-size: 0.82rem; font-weight: 800; }
         .athlete-banner { background: var(--card-bg); padding: 12px 22px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.06); flex-shrink: 0; }
         .main-content { flex: 1; min-height: 0; padding: 16px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 16px; }
 
@@ -114,20 +106,12 @@
         <a href="#" id="menu-back" class="sb-back-link">← 審判メニューに戻る</a>
     </div>
 
-    <!-- パネル選択 -->
-    <div class="panel-selector">
-        <span class="panel-label">Panel</span>
-        <button class="panel-btn active" id="panel-btn-A" onclick="switchPanel('A')">A</button>
-        <button class="panel-btn"        id="panel-btn-B" onclick="switchPanel('B')">B</button>
-    </div>
-
     <div id="sidebar-filters" class="sidebar-filters"></div>
     <div id="sidebar-list" class="sidebar-list"></div>
 </div>
 
 <div class="console-wrapper">
     <div class="top-bar">
-        <span class="panel-indicator" id="panel-indicator">PANEL A</span>
         <span class="readonly-badge">閲覧専用</span>
     </div>
 
@@ -220,28 +204,26 @@
 <script type="module">
     import { db } from "./firebase-config.js";
     import { doc, onSnapshot, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { getTournament, getAthletes } from "./cache.js";
+    import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
     let athleteId = params.get('athlete');
     let round     = params.get('round') || 'pre1';
-    let panel     = 'A';
 
     let athletes = {}, submissions = {}, results = {}, currentTour = null;
     let skillMasterMap = {};
     let latestData = {};
-    let fType = 'individual', fClass = '', fGender = '';
+    let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let unsubscribeScores = null, unsubscribeSub = null;
 
-    // ---- パネル切り替え ----
-    window.switchPanel = function(p) {
-        panel = p;
-        document.getElementById('panel-btn-A').classList.toggle('active', p === 'A');
-        document.getElementById('panel-btn-B').classList.toggle('active', p === 'B');
-        document.getElementById('panel-indicator').textContent = `PANEL ${p}`;
-        renderScores(latestData);
-    };
+    // ---- パネル自動検出（judge データのキーから判定） ----
+    function detectPanel(data) {
+        const keys = Object.keys(data.execution?.judges || {});
+        if (keys.some(k => k.startsWith('A_'))) return 'A';
+        if (keys.some(k => k.startsWith('B_'))) return 'B';
+        return 'A';
+    }
 
     // ---- 初期化 ----
     async function init() {
@@ -264,6 +246,12 @@
         document.getElementById('event-name-sidebar').textContent = currentTour?.name || '';
 
         athleteList.forEach(a => { athletes[a.id] = a; });
+        // 決勝試技順（キャッシュ除外）をマージ
+        const finalOrders = await getFinalOrders(eventId);
+        Object.values(athletes).forEach(a => {
+            const fo = finalOrders[a.id];
+            if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
+        });
         subSnap.forEach(d => { submissions[d.id] = d.data(); });
         resSnap.forEach(d => { results[d.id] = d.data(); });
 
@@ -295,6 +283,10 @@
             <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
             <button class="tab-btn ${fType==='synchro'?'active':''}"    onclick="setFilter('type','synchro')">シンクロ</button>
         </div>`;
+        fHtml += `<div class="filter-row"><span class="filter-label">ラウンド</span>
+            <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">予選</button>
+            <button class="tab-btn ${fFinalOnly?'active':''}"  onclick="setFilter('finalOnly',true)">🏆 決勝</button>
+        </div>`;
         if (classes.length > 1) {
             fHtml += `<div class="filter-row"><span class="filter-label">CLS</span>
                 <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">ALL</button>
@@ -311,10 +303,16 @@
 
         // 選手リスト
         let listHtml = '';
-        const display = filtered
-            .filter(a => (!fClass  || (a.class||a.category||'') === fClass))
-            .filter(a => (!fGender || a.gender === fGender))
-            .sort((a, b) => (a.order||0) - (b.order||0));
+        const display = fFinalOnly
+            ? filtered
+                .filter(a => a.isInFinal && a.finalOrder != null)
+                .filter(a => (!fClass  || (a.class||a.category||'') === fClass))
+                .filter(a => (!fGender || a.gender === fGender))
+                .sort((a, b) => a.finalOrder - b.finalOrder)
+            : filtered
+                .filter(a => (!fClass  || (a.class||a.category||'') === fClass))
+                .filter(a => (!fGender || a.gender === fGender))
+                .sort((a, b) => (a.order||0) - (b.order||0));
 
         const byClass = {};
         display.forEach(a => {
@@ -339,16 +337,18 @@
                 athl.forEach(a => {
                     const dispName = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
                     const isActive = a.id === athleteId;
-                    const rounds = getRoundsForAth(a);
+                    const rounds = fFinalOnly ? [{ key:'final', label:'F' }] : getRoundsForAth(a);
+                    const defaultRound = fFinalOnly ? 'final' : round;
+                    const orderNum = fFinalOnly ? a.finalOrder : (a.order || '');
                     const dotsHtml = rounds.map(r => {
                         const key = `${eventId}_${a.id}_${r.key}`;
                         const cls2 = (results[key]?.published ? 'has-res' : submissions[key] ? 'has-sub' : '') +
                             (a.id === athleteId && r.key === round ? ' current' : '');
                         return `<span class="r-dot ${cls2}" onclick="selectAthlete('${a.id}','${r.key}');event.stopPropagation()">${r.label}</span>`;
                     }).join('');
-                    listHtml += `<div class="athlete-row ${isActive?'active-athlete':''}" onclick="selectAthlete('${a.id}','${round}')">
+                    listHtml += `<div class="athlete-row ${isActive?'active-athlete':''}" onclick="selectAthlete('${a.id}','${defaultRound}')">
                         <div style="flex:1;min-width:0;">
-                            <div class="ath-name-text"><span class="ath-order">${a.order||''}</span>${dispName}</div>
+                            <div class="ath-name-text"><span class="ath-order">${orderNum}</span>${dispName}</div>
                         </div>
                         <div class="round-box">${dotsHtml}</div>
                     </div>`;
@@ -367,9 +367,10 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
     }
 
     window.setFilter = function(key, val) {
-        if (key === 'type') { fType = val; fClass = ''; fGender = ''; }
-        if (key === 'class') fClass = val;
-        if (key === 'gender') fGender = val;
+        if (key === 'type')      { fType = val; fClass = ''; fGender = ''; fFinalOnly = false; }
+        if (key === 'class')     fClass = val;
+        if (key === 'gender')    fGender = val;
+        if (key === 'finalOnly') fFinalOnly = val;
         renderSidebar();
     };
 
@@ -519,7 +520,8 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         const numE  = (!isNaN(_n) && _n > 0) ? _n : (currentTour?.numExecJudges || 6);
         const jKeys = Array.from({length: numE}, (_, i) => `E${i+1}`);
         const allJudges   = data.execution?.judges || {};
-        const panelPrefix = `${panel}_`;
+        const activePanel = detectPanel(data);
+        const panelPrefix = `${activePanel}_`;
         const judges = Object.fromEntries(
             Object.entries(allJudges)
                 .filter(([k]) => k.startsWith(panelPrefix))
@@ -563,8 +565,8 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         tbody.innerHTML = rows;
 
         // スコア集計
-        const t = data.tofByPanel?.[panel] ?? data.tof ?? 0;
-        const h = data.hdByPanel?.[panel]  ?? data.hd?.total ?? 0;
+        const t = data.tofByPanel?.[activePanel] ?? data.tof ?? 0;
+        const h = data.hdByPanel?.[activePanel]  ?? data.hd?.total ?? 0;
         const p = data.penalty || 0;
         document.getElementById('info-tof').textContent = t ? Number(t).toFixed(3) : '—';
         document.getElementById('info-hd').textContent  = h ? Number(h).toFixed(3) : '—';
