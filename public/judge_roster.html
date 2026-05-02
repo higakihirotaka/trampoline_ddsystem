@@ -116,11 +116,14 @@
     const classRules   = d.classRules || {};
     const container    = document.getElementById('classes-container');
 
-    // クラス別のE審判人数に応じたロール配列を返す
+    // クラス別のロール配列を返す（E審判人数・H5H6の有無を反映）
     function getRoles(name, type) {
-        const numE = parseInt(classRules[type]?.[name]?.eJudgeCount) || 4;
-        const roles = [['cjp','CJP']];
+        const rule   = classRules[type]?.[name] || {};
+        const numE   = parseInt(rule.eJudgeCount) || 4;
+        const hasH56 = rule.hasH5H6 === true;
+        const roles  = [['cjp','CJP']];
         for (let i = 1; i <= numE; i++) roles.push([`e${i}`, `E${i}`]);
+        if (hasH56) roles.push(['h5','H5'], ['h6','H6']);
         roles.push(['d7','D7'], ['d8','D8']);
         return roles;
     }
