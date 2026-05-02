@@ -152,7 +152,7 @@
 <script type="module">
   import { getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { db } from "./firebase-config.js";
-  import { normalizeClassRules } from "./shared.js";
+  import { normalizeClassRules, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks } from "./shared.js";
   import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
 
   const params  = new URLSearchParams(location.search);
@@ -294,12 +294,13 @@
       byAth[r.athleteId][r.round] = r;
     });
 
-    // 各選手のスコア計算
+    // 各選手のスコア計算 ─ shared.js の共通関数を使用
     const rows = filtered.map(a => {
       const rMap = byAth[a.id] || {};
       const rule = (classRules[fType] || {})[a.class || a.category || ''] || {};
-      const numPre    = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
-      const scoreMode = rule.scoreMode || 'best';
+      const numPre         = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
+      const scoreMode      = rule.scoreMode || 'best';
+      const finalScoreMode = rule.finalScoreMode ?? 'zero';
       const pre1r = rMap['pre1'] || null;
       const pre2r = rMap['pre2'] || null;
       const finr  = rMap['final'] || null;
@@ -307,85 +308,24 @@
       const pre2  = pre2r?.officialTotal ?? null;
       const final = finr?.officialTotal ?? null;
 
-      let qualScore = null;
+      let qualScore, tbSum, tb;
       if (fRound === 'qualifying') {
-        if (numPre === 1) qualScore = pre1;
-        else if (pre1 != null && pre2 != null) qualScore = scoreMode === 'total' ? pre1 + pre2 : Math.max(pre1, pre2);
-        else qualScore = pre1 ?? pre2;
-      } else if (fRound === 'pre1') qualScore = pre1;
-      else if (fRound === 'pre2') qualScore = pre2;
-      else if (fRound === 'final') {
-        const finalScoreMode = rule.finalScoreMode ?? 'zero';
-        if (finalScoreMode === 'combined') {
-          let qualPart = null;
-          if (numPre === 1) qualPart = pre1;
-          else if (pre1 != null && pre2 != null) qualPart = scoreMode === 'total' ? pre1 + pre2 : Math.max(pre1, pre2);
-          else qualPart = pre1 ?? pre2;
-          qualScore = (qualPart != null && final != null) ? qualPart + final : (final ?? qualPart);
-        } else {
-          qualScore = final;
-        }
+        qualScore = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
+        ({ tbSum, tb } = calcQualifyingTb(pre1, pre2, pre1r, pre2r, numPre, scoreMode));
+      } else if (fRound === 'pre1') {
+        qualScore = pre1; tbSum = null; tb = extractTbScores(pre1r);
+      } else if (fRound === 'pre2') {
+        qualScore = pre2; tbSum = null; tb = extractTbScores(pre2r);
+      } else if (fRound === 'final') {
+        const qualPart = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
+        qualScore = calcFinalScore(qualPart, final, finalScoreMode);
+        tbSum = null; tb = extractTbScores(finr);
       }
 
-      // タイブレーク用データ（TR2025 §4.4.4）
-      // best採用: まず2本合計 → ベスト演技のT→H→D
-      // total採用: qualScoreが既に合計なのでtbSumは不要 → 2本合計のT→H→D
-      // その他ラウンド: そのラウンドのT→H→D
-      let tbSum = null, tbT = null, tbH = null, tbD = null;
-      if (fRound === 'qualifying' && numPre >= 2 && pre1 != null && pre2 != null) {
-        if (scoreMode === 'best') {
-          // Q1 ベスト採用：2本合計 → ベスト演技のT/H/D
-          tbSum = pre1 + pre2;
-          const tbRes = pre1 >= pre2 ? pre1r : pre2r;
-          tbT = tbRes?.tof       ?? null;
-          tbH = tbRes?.hd?.total ?? null;
-          tbD = tbRes?.officialD ?? null;
-        } else {
-          // Q1 合計採用：qualScore既に合計なのでtbSumは不要、T/H/Dも2本合計
-          tbT = (pre1r?.tof       ?? 0) + (pre2r?.tof       ?? 0);
-          tbH = (pre1r?.hd?.total ?? 0) + (pre2r?.hd?.total ?? 0);
-          tbD = (pre1r?.officialD ?? 0) + (pre2r?.officialD ?? 0);
-        }
-      } else {
-        const tbRes = fRound === 'pre1' ? pre1r
-                    : fRound === 'pre2' ? pre2r
-                    : fRound === 'final' ? finr : pre1r;
-        tbT = tbRes?.tof       ?? null; // 個人=ToF、シンクロ=Syn
-        tbH = tbRes?.hd?.total ?? null;
-        tbD = tbRes?.officialD ?? null;
-      }
+      return { a, pre1r, pre2r, finr, pre1, pre2, final, qualScore, numPre, scoreMode, finalScoreMode, tbSum, tb };
+    }).sort(compareRankEntries);
 
-      return { a, pre1r, pre2r, finr, pre1, pre2, final, qualScore, numPre, scoreMode, finalScoreMode: rule.finalScoreMode ?? 'zero', tbSum, tbT, tbH, tbD };
-    }).sort((x, y) => {
-      if (x.qualScore == null && y.qualScore == null) return 0;
-      if (x.qualScore == null) return 1;
-      if (y.qualScore == null) return -1;
-      // 合計点：小数第２位で比較
-      const xs2 = Math.round(x.qualScore * 100) / 100;
-      const ys2 = Math.round(y.qualScore * 100) / 100;
-      if (ys2 !== xs2) return ys2 - xs2;
-      // Q1 2本合計（ベスト採用時のみ）
-      if (x.tbSum != null && y.tbSum != null && y.tbSum !== x.tbSum) return y.tbSum - x.tbSum;
-      // T（個人=ToF / シンクロ=Syn）→ H → D
-      if (x.tbT != null && y.tbT != null && y.tbT !== x.tbT) return y.tbT - x.tbT;
-      if (x.tbH != null && y.tbH != null && y.tbH !== x.tbH) return y.tbH - x.tbH;
-      if (x.tbD != null && y.tbD != null && y.tbD !== x.tbD) return y.tbD - x.tbD;
-      return 0; // 真の同点
-    });
-
-    // ランク計算：すべてのタイブレーク基準が同じ場合のみ同順位
-    rows.forEach((r, idx) => {
-      if (idx === 0) { r.rank = 1; return; }
-      const prev = rows[idx - 1];
-      if (r.qualScore == null || prev.qualScore == null) { r.rank = idx + 1; return; }
-      const isTied =
-        Math.round(r.qualScore  * 100) / 100 === Math.round(prev.qualScore * 100) / 100 &&
-        (r.tbSum == null || r.tbSum === prev.tbSum) &&
-        (r.tbT  == null || r.tbT  === prev.tbT)  &&
-        (r.tbH  == null || r.tbH  === prev.tbH)  &&
-        (r.tbD  == null || r.tbD  === prev.tbD);
-      r.rank = isTied ? prev.rank : idx + 1;
-    });
+    assignRanks(rows);
 
     // タイトル
     const labelType = fType === 'synchro' ? 'シンクロ' : '個人';

@@ -881,7 +881,7 @@
 <script type="module">
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { normalizeClassRules, calcBonus } from "./shared.js";
+  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries } from "./shared.js";
   import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
@@ -1026,15 +1026,9 @@
     } catch { return {}; }
   }
 
-  // ---- 順位計算（タイブレーク対応） ----
+  // ---- 順位計算（タイブレーク対応）----
   // タイブレーク: 個人=T→H→D, シンクロ=S(=tof)→H→D
-  function getTbScores(data) {
-    return {
-      tof:  data.tof ?? null,
-      hd:   data.hd?.total ?? null,
-      diff: data.officialD ?? data.dd ?? null
-    };
-  }
+  // extractTbScores は shared.js の共通実装を使用
 
   async function calcRank(ath, round) {
     // fetchRankingEntriesFor の結果を流用（タイブレーク T→H→D 適用済みソート）
@@ -1054,7 +1048,7 @@
         if (Math.abs(((x.pre1 ?? 0) + (x.pre2 ?? 0)) - ((cur.pre1 ?? 0) + (cur.pre2 ?? 0))) > 1e-9) return false;
         // T（ToF/Syn）→ H → D
         for (const k of ['tof', 'hd', 'diff']) {
-          const vx = x._tb?.[k], vy = cur._tb?.[k];
+          const vx = x.tb?.[k], vy = cur.tb?.[k];
           if (vx != null && vy != null && Math.abs(vx - vy) > 1e-9) return false;
         }
         return true;
@@ -1495,10 +1489,10 @@
         if ((a.class || a.category || '') !== classVal) return;
         if ((a.gender || '') !== genderVal) return;
         if ((a.type || 'individual') !== selType) return;
-        if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null, final: null, tb1: null, tb2: null, tbFinal: null };
-        if (r.round === 'pre1')  { byAth[r.athleteId].pre1 = r.officialTotal ?? null; byAth[r.athleteId].tb1 = getTbScores(r); }
-        if (r.round === 'pre2')  { byAth[r.athleteId].pre2 = r.officialTotal ?? null; byAth[r.athleteId].tb2 = getTbScores(r); }
-        if (r.round === 'final') { byAth[r.athleteId].final = r.officialTotal ?? null; byAth[r.athleteId].tbFinal = getTbScores(r); }
+        if (!byAth[r.athleteId]) byAth[r.athleteId] = { a, pre1: null, pre2: null, final: null, pre1r: null, pre2r: null, finr: null };
+        if (r.round === 'pre1')  { byAth[r.athleteId].pre1 = r.officialTotal ?? null; byAth[r.athleteId].pre1r = r; }
+        if (r.round === 'pre2')  { byAth[r.athleteId].pre2 = r.officialTotal ?? null; byAth[r.athleteId].pre2r = r; }
+        if (r.round === 'final') { byAth[r.athleteId].final = r.officialTotal ?? null; byAth[r.athleteId].finr  = r; }
       });
 
       // 決勝判定: round='final'明示 or 自動検出（finalスコアあり＆finalOrder設定済みの選手がいる）
@@ -1517,53 +1511,22 @@
 
       return entries
         .map(([id, s]) => {
-          let qualScore = null;
-          if (numPre === 1) {
-            qualScore = s.pre1;
+          // 予選スコア計算（shared.js 共通関数）
+          const qualPre = calcQualifyingScore(s.pre1, s.pre2, numPre, scoreMode);
+          // タイブレーク用データ
+          let tbSum, tb;
+          if (isFinal) {
+            tbSum = null;
+            tb = extractTbScores(s.finr); // 決勝: 決勝ラウンドの T→H→D
           } else {
-            if (s.pre1 != null && s.pre2 != null) {
-              qualScore = scoreMode === 'total' ? s.pre1 + s.pre2 : Math.max(s.pre1, s.pre2);
-            } else if (s.pre1 != null) { qualScore = s.pre1; }
-            else if (s.pre2 != null)   { qualScore = s.pre2; }
+            ({ tbSum, tb } = calcQualifyingTb(s.pre1, s.pre2, s.pre1r, s.pre2r, numPre, scoreMode));
           }
-          let tb;
-          if (isFinal && s.tbFinal) {
-            // 決勝: タイブレークは決勝ラウンドの T→H→D（ranking.html と一致）
-            tb = s.tbFinal;
-          } else if (scoreMode === 'best' && numPre >= 2 && s.pre1 != null && s.pre2 != null) {
-            tb = s.pre1 >= s.pre2 ? (s.tb1 || {}) : (s.tb2 || {});
-          } else {
-            tb = {
-              tof:  (s.tb1?.tof ?? 0) + (s.tb2?.tof ?? 0),
-              hd:   (s.tb1?.hd ?? 0) + (s.tb2?.hd ?? 0),
-              diff: (s.tb1?.diff ?? 0) + (s.tb2?.diff ?? 0)
-            };
-          }
-          // 決勝スコア: ゼロ点スタート=決勝スコア単体、合計=予選+決勝
+          // 合計スコア（表示・ランキング共用）
           const finalScoreMode = rule.finalScoreMode ?? 'zero';
-          const total = isFinal
-            ? (finalScoreMode === 'combined'
-                ? (qualScore != null && s.final != null ? qualScore + s.final : (s.final ?? qualScore))
-                : (s.final ?? qualScore))
-            : qualScore;
-          return { id, ...s, total, _tb: tb, _isFinal: isFinal };
+          const total = isFinal ? calcFinalScore(qualPre, s.final, finalScoreMode) : qualPre;
+          return { id, ...s, qualScore: total, total, tbSum, tb, _isFinal: isFinal };
         })
-        .sort((a, b) => {
-          const sa = a.total ?? -Infinity, sb = b.total ?? -Infinity;
-          const diff = sb - sa;
-          if (Math.abs(diff) > 1e-9) return diff;
-          if (!isFinal && scoreMode === 'best' && numPre >= 2) {
-            const ca = (a.pre1 ?? 0) + (a.pre2 ?? 0);
-            const cb = (b.pre1 ?? 0) + (b.pre2 ?? 0);
-            if (Math.abs(ca - cb) > 1e-9) return cb - ca;
-          }
-          const keys = ['tof', 'hd', 'diff'];
-          for (const k of keys) {
-            const va = a._tb[k], vb = b._tb[k];
-            if (va != null && vb != null && Math.abs(va - vb) > 1e-9) return vb - va;
-          }
-          return 0;
-        });
+        .sort(compareRankEntries);
     } catch(e) { console.error(e); return []; }
   }
 

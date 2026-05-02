@@ -146,7 +146,7 @@
   import { doc, getDocs, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { ensureAdmin, logout } from "./auth.js";
   import { getTournament, getAthletes, getFinalOrders, invalidateCache } from "./cache.js";
-  import { normalizeClassRules } from "./shared.js";
+  import { normalizeClassRules, calcQualifyingScore, calcQualifyingTb, compareRankEntries } from "./shared.js";
 
   const params  = new URLSearchParams(location.search);
   const eventId = params.get('event');
@@ -313,56 +313,17 @@
     const numPre    = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
     const scoreMode = rule.scoreMode || 'best';
 
-    // 予選スコア計算・順位付け（タイブレーク T→H→D 対応）
+    // 予選スコア計算・順位付け（shared.js 共通関数を使用）
     const sorted = classAthletes.map(a => {
-      const rMap = resultsByAth[a.id] || {};
-      const r1 = rMap['pre1'], r2 = rMap['pre2'];
-      const pre1 = r1?.officialTotal ?? null;
-      const pre2 = r2?.officialTotal ?? null;
-      let qualScore = null;
-      if (numPre === 1) {
-        qualScore = pre1;
-      } else {
-        if (pre1 != null && pre2 != null) {
-          qualScore = scoreMode === 'total' ? pre1 + pre2 : Math.max(pre1, pre2);
-        } else if (pre1 != null) qualScore = pre1;
-        else if (pre2 != null) qualScore = pre2;
-      }
-      // タイブレーク用スコア
-      const tbScores = r => ({ t: r?.tof ?? null, h: r?.hd?.total ?? null, d: r?.officialD ?? null });
-      let tbSum = null, tb = { t: null, h: null, d: null };
-      if (numPre >= 2 && pre1 != null && pre2 != null) {
-        tbSum = pre1 + pre2;
-        if (scoreMode === 'best') {
-          const tbR = (pre1 >= pre2 ? r1 : r2);
-          tb = tbScores(tbR);
-        } else {
-          const s1 = tbScores(r1), s2 = tbScores(r2);
-          tb = {
-            t: (s1.t ?? 0) + (s2.t ?? 0),
-            h: (s1.h ?? 0) + (s2.h ?? 0),
-            d: (s1.d ?? 0) + (s2.d ?? 0)
-          };
-        }
-      } else {
-        tb = tbScores(pre1 != null ? r1 : r2);
-      }
+      const rMap  = resultsByAth[a.id] || {};
+      const pre1r = rMap['pre1'] || null;
+      const pre2r = rMap['pre2'] || null;
+      const pre1  = pre1r?.officialTotal ?? null;
+      const pre2  = pre2r?.officialTotal ?? null;
+      const qualScore       = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
+      const { tbSum, tb }   = calcQualifyingTb(pre1, pre2, pre1r, pre2r, numPre, scoreMode);
       return { a, pre1, pre2, qualScore, tbSum, tb };
-    }).sort((a, b) => {
-      if (a.qualScore == null && b.qualScore == null) return 0;
-      if (a.qualScore == null) return 1;
-      if (b.qualScore == null) return -1;
-      const diff = Math.round((b.qualScore - a.qualScore) * 100) / 100;
-      if (Math.abs(diff) > 1e-9) return diff;
-      // タイブレーク①: 予選2本合計（ベスト採用時のみ）
-      if (a.tbSum != null && b.tbSum != null && Math.abs(b.tbSum - a.tbSum) > 1e-9) return b.tbSum - a.tbSum;
-      // タイブレーク②: T → H → D
-      for (const k of ['t', 'h', 'd']) {
-        const va = a.tb[k], vb = b.tb[k];
-        if (va != null && vb != null && Math.abs(vb - va) > 1e-9) return vb - va;
-      }
-      return 0;
-    });
+    }).sort(compareRankEntries);
 
     const actual = Math.min(finalCount, sorted.filter(r => r.qualScore != null).length);
 
