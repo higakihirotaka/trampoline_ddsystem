@@ -511,7 +511,12 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         bannerBadge.style.color = data.published ? '#43a047' : '';
 
         // ---- E審判テーブル ----
-        const numE  = currentTour?.numExecJudges || 6;
+        // クラスルール優先、なければ大会設定、なければ 6（judge_cjp の getNumE() と同ロジック）
+        const _ath  = athletes[athleteId];
+        const _type = _ath?.type || 'individual';
+        const _cls  = _ath?.class || _ath?.category || '';
+        const _n    = parseInt(currentTour?.classRules?.[_type]?.[_cls]?.eJudgeCount);
+        const numE  = (!isNaN(_n) && _n > 0) ? _n : (currentTour?.numExecJudges || 6);
         const jKeys = Array.from({length: numE}, (_, i) => `E${i+1}`);
         const allJudges   = data.execution?.judges || {};
         const panelPrefix = `${panel}_`;
