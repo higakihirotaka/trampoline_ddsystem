@@ -299,6 +299,9 @@
       letter-spacing: -1.5px;
       line-height:1;
     }
+    /* シンクロ: Exec.が小数第2位になるためフォントを縮小 */
+    .breakdown-row.syn .stat-item label{ font-size: 0.85cqw; }
+    .breakdown-row.syn .stat-item .val { font-size: 3.2cqw; }
     /* ===== 5. 結果 ===== */
     .result-section{
       display:grid;
@@ -1310,8 +1313,8 @@
         ${bonusCol}
       </div>
 
-      <div class="breakdown-row">
-        <div class="stat-item"><label>Exec.</label><div class="val num">${fmt1(eScore)}</div></div>
+      <div class="breakdown-row${synchro ? ' syn' : ''}">
+        <div class="stat-item"><label>Exec.</label><div class="val num">${synchro ? fmt2(eScore) : fmt1(eScore)}</div></div>
         <div class="stat-item"><label>Diff.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(dScore)}</div></div>
         <div class="stat-item"><label>${synchro ? 'Syn' : 'ToF'}</label><div class="val num">${fmt3(tScore)}</div></div>
         <div class="stat-item"><label>HD</label><div class="val num">${fmt2(hdScore)}</div></div>
