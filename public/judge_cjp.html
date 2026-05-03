@@ -1522,7 +1522,7 @@
                     row += `<td class="manual-cell${nullCls} ${colorCls}" tabindex="0" data-jkey="${jKey}" data-idx="${i}" style="${dimStyle}">${valStr}</td>`;
                 } else {
                     const colorCls = cellColorCls(v, sr, jIdx, i, vLimit);
-                    row += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
+                    row += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? (isSynchro ? (v * 10).toFixed(2) : Math.round(v * 10)) : '-'}</td>`;
                 }
             }
             // 着地(Ln)列
@@ -1542,7 +1542,7 @@
                 row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
             } else {
                 const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit);
-                row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
+                row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? (isSynchro ? (lv * 10).toFixed(2) : Math.round(lv * 10)) : '-'}</td>`;
                 row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
             }
             // 行ごとのトグルスイッチ（Total右）
