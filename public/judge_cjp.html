@@ -1563,7 +1563,7 @@
         }
         const hasLanding = hasJudgeData && (landingResult.hasData ?? landingResult.indices.size > 0);
         m2Row += `<td>${vLimit === 10 && hasLanding ? _medFmt(landingResult.sum) : '-'}</td>`;
-        m2Row += `<td class="ded-total">${hasJudgeData ? (isSynchro ? ec.execution.toFixed(2) : ec.execution.toFixed(1)) : '-'}</td><td></td></tr>`;
+        m2Row += `<td class="ded-total">${hasJudgeData ? (isSynchro ? ec.execution.toFixed(3) : ec.execution.toFixed(1)) : '-'}</td><td></td></tr>`;
         tbody.innerHTML += m2Row;
 
         // フォーカスを復元（手動入力行の再描画後）
@@ -1632,7 +1632,7 @@
         const p    = parseFloat(document.getElementById('pen').value) || 0;
 
         _preciseE = e; // 全精度を保持（保存時に使用）
-        document.getElementById('res-e').innerText     = (fType === 'synchro') ? e.toFixed(2) : e.toFixed(1);
+        document.getElementById('res-e').innerText     = (fType === 'synchro') ? e.toFixed(3) : e.toFixed(1);
         document.getElementById('res-t').innerText     = t.toFixed(3);
         document.getElementById('res-hd').innerText    = h.toFixed(3);
         document.getElementById('res-total').innerText = Math.max(0, d + e + t + h - p).toFixed(3);
@@ -2069,11 +2069,11 @@
         cells[11].textContent = vLimit === 10 && hasLanding ? _medFmtM(landingResult.sum) : '-';
         const basePerSkill = isSynchro ? 1.0 : 2.0;
         const execution = (vLimit * basePerSkill) - totalDed;
-        cells[12].textContent = hasData ? (isSynchro ? execution.toFixed(2) : execution.toFixed(1)) : '-';
+        cells[12].textContent = hasData ? (isSynchro ? execution.toFixed(3) : execution.toFixed(1)) : '-';
         // 青い箱のEスコア・Totalもリアルタイム更新
         if (hasData) {
             _preciseE = execution; // 全精度を保持（保存時に使用）
-            document.getElementById('res-e').innerText = isSynchro ? execution.toFixed(2) : execution.toFixed(1);
+            document.getElementById('res-e').innerText = isSynchro ? execution.toFixed(3) : execution.toFixed(1);
             const d    = parseFloat(document.getElementById('res-d').innerText) || 0;
             const tRaw = parseFloat(document.getElementById('tof').value) || 0;
             const t    = (fType === 'synchro') ? tRaw * 2 : tRaw;
