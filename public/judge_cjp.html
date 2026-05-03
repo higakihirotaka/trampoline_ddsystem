@@ -982,7 +982,7 @@
         document.getElementById('btn-unlock').disabled         = !locked;  // 未確定時は修正不要
         document.getElementById('btn-republish').disabled   = false;    // 選手選択後は常に有効
         document.getElementById('btn-calculating').disabled = false;    // 選手選択後は常に有効
-        document.getElementById('btn-hdts').disabled        = false;    // 選手選択後は常に有効
+        document.getElementById('btn-hdts').disabled        = locked;   // 確定後は操作不可
         // 確定後: 手動切替・有効本数・入力欄をロック
         document.getElementById('tof-mode-btn').disabled = locked;
         document.getElementById('hd-mode-btn').disabled  = locked;
@@ -1574,12 +1574,15 @@
             if (toFocus) toFocus.focus();
         }
 
-        if (tofMode === 'auto') {
+        // 確定済み(published)の場合はモードに関わらず保存値を表示する
+        if (tofMode === 'auto' || data.published === true) {
             const rawTof = data.tofByPanel?.[panel] ?? data.tof ?? "";
             document.getElementById('tof').value = (fType === 'synchro' && rawTof !== "")
                 ? (parseFloat(rawTof) / 2).toFixed(3) : rawTof;
         }
-        if (hdMode === 'auto')  document.getElementById('hd').value  = data.hdByPanel?.[panel] ?? data.hd?.total ?? "";
+        if (hdMode === 'auto' || data.published === true) {
+            document.getElementById('hd').value  = data.hdByPanel?.[panel] ?? data.hd?.total ?? "";
+        }
         if (penMode === 'auto') document.getElementById('pen').value = data.penalty ?? 0;
         updateScoreSummary(ec, hasJudgeData);
 
@@ -2081,6 +2084,7 @@
     }
 
     window.fillDummyData = function() {
+        if (isLocked) return;
         const vLimit  = parseInt(document.getElementById('valid-count').value) || 10;
         const numE    = getNumE();
         const isSyn   = fType === 'synchro';
