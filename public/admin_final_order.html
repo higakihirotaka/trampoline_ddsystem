@@ -92,6 +92,8 @@
     .sl-kana { font-size:.75rem; color:var(--text-sub); line-height:1.3; }
     .sl-name { font-weight:700; font-size:.95rem; line-height:1.4; }
     .sl-club { font-size:.88rem; color:var(--text-sub); }
+    .sl-btn-print-cls { padding:4px 12px; background:#607d8b; color:#fff; border:none; border-radius:6px; font-size:.75rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .sl-btn-print-cls:hover { background:#455a64; }
 
     /* 印刷 */
     .sl-print-title { display:none; }
@@ -109,6 +111,10 @@
       .sl-table th { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       .sl-table td.sl-no { color:#000 !important; }
       body { background:#fff; padding:0; }
+      /* クラス単体印刷モード: 対象以外を非表示 */
+      body.printing-class .sl-accordion:not(.print-target) { display:none !important; }
+      body.printing-class .sl-section-head h2,
+      body.printing-class .sl-print-title p { display:block !important; }
     }
   </style>
 </head>
@@ -534,6 +540,7 @@
         <div class="sl-header" onclick="this.closest('.sl-accordion').classList.toggle('open')">
           <span class="sl-title">${title}</span>
           <span class="sl-count">${g.athletes.length}人</span>
+          <button class="sl-btn-print-cls" onclick="event.stopPropagation();printClass(this,'${title}')">🖨️ 印刷</button>
           <span class="sl-chevron">▼</span>
         </div>
         <div class="sl-body">
@@ -551,6 +558,21 @@
 
     section.style.display = '';
   }
+
+  window.printClass = function(btn, title) {
+    const acc = btn.closest('.sl-accordion');
+    // 印刷タイトルをクラス名に更新
+    document.getElementById('sl-print-event').textContent = `${tourData?.name || ''} — ${title}`;
+    acc.classList.add('print-target', 'open'); // 本文を確実に展開
+    document.body.classList.add('printing-class');
+    window.print();
+    window.onafterprint = () => {
+      acc.classList.remove('print-target');
+      document.body.classList.remove('printing-class');
+      document.getElementById('sl-print-event').textContent = tourData?.name || '';
+      window.onafterprint = null;
+    };
+  };
 
   window.refreshStartList = async function() {
     const btn = document.querySelector('.btn-refresh');
