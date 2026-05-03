@@ -1522,7 +1522,7 @@
                     row += `<td class="manual-cell${nullCls} ${colorCls}" tabindex="0" data-jkey="${jKey}" data-idx="${i}" style="${dimStyle}">${valStr}</td>`;
                 } else {
                     const colorCls = cellColorCls(v, sr, jIdx, i, vLimit);
-                    row += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? (isSynchro ? (v * 10).toFixed(2) : Math.round(v * 10)) : '-'}</td>`;
+                    row += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
                 }
             }
             // 着地(Ln)列
@@ -1542,7 +1542,7 @@
                 row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
             } else {
                 const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit);
-                row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? (isSynchro ? (lv * 10).toFixed(2) : Math.round(lv * 10)) : '-'}</td>`;
+                row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
                 row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
             }
             // 行ごとのトグルスイッチ（Total右）
@@ -1563,7 +1563,7 @@
         }
         const hasLanding = hasJudgeData && (landingResult.hasData ?? landingResult.indices.size > 0);
         m2Row += `<td>${vLimit === 10 && hasLanding ? _medFmt(landingResult.sum) : '-'}</td>`;
-        m2Row += `<td class="ded-total">${hasJudgeData ? ec.execution.toFixed(1) : '-'}</td><td></td></tr>`;
+        m2Row += `<td class="ded-total">${hasJudgeData ? (isSynchro ? ec.execution.toFixed(2) : ec.execution.toFixed(1)) : '-'}</td><td></td></tr>`;
         tbody.innerHTML += m2Row;
 
         // フォーカスを復元（手動入力行の再描画後）
@@ -1632,7 +1632,7 @@
         const p    = parseFloat(document.getElementById('pen').value) || 0;
 
         _preciseE = e; // 全精度を保持（保存時に使用）
-        document.getElementById('res-e').innerText     = e.toFixed(1);
+        document.getElementById('res-e').innerText     = (fType === 'synchro') ? e.toFixed(2) : e.toFixed(1);
         document.getElementById('res-t').innerText     = t.toFixed(3);
         document.getElementById('res-hd').innerText    = h.toFixed(3);
         document.getElementById('res-total').innerText = Math.max(0, d + e + t + h - p).toFixed(3);
@@ -2069,11 +2069,11 @@
         cells[11].textContent = vLimit === 10 && hasLanding ? _medFmtM(landingResult.sum) : '-';
         const basePerSkill = isSynchro ? 1.0 : 2.0;
         const execution = (vLimit * basePerSkill) - totalDed;
-        cells[12].textContent = hasData ? execution.toFixed(1) : '-';
+        cells[12].textContent = hasData ? (isSynchro ? execution.toFixed(2) : execution.toFixed(1)) : '-';
         // 青い箱のEスコア・Totalもリアルタイム更新
         if (hasData) {
             _preciseE = execution; // 全精度を保持（保存時に使用）
-            document.getElementById('res-e').innerText = execution.toFixed(1);
+            document.getElementById('res-e').innerText = isSynchro ? execution.toFixed(2) : execution.toFixed(1);
             const d    = parseFloat(document.getElementById('res-d').innerText) || 0;
             const tRaw = parseFloat(document.getElementById('tof').value) || 0;
             const t    = (fType === 'synchro') ? tRaw * 2 : tRaw;
