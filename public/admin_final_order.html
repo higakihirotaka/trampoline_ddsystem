@@ -65,6 +65,51 @@
     .info-box { background:#e3f2fd; border-radius:10px; padding:12px 18px; font-size:.85rem; color:#1565c0; margin-bottom:16px; line-height:1.6; }
     .warn-box { background:#fff3e0; border-radius:10px; padding:12px 18px; font-size:.85rem; color:#e65100; margin-bottom:16px; }
     .empty-msg { text-align:center; color:#90a4ae; padding:40px 0; font-size:.9rem; }
+
+    /* ===== スタートリスト ===== */
+    .sl-section-head { display:flex; align-items:center; gap:12px; margin:28px 0 12px; }
+    .sl-section-head h2 { margin:0; font-size:1rem; font-weight:900; }
+    .btn-print { padding:8px 20px; background:#455a64; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:.85rem; }
+    .btn-print:hover { background:#263238; }
+    .btn-refresh { padding:8px 20px; background:#fff; color:var(--text-sub); border:1px solid #ccc; border-radius:8px; font-weight:700; cursor:pointer; font-size:.85rem; }
+    .btn-refresh:hover { background:#f5f5f5; }
+
+    .sl-accordion { background:var(--card); border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.07); margin-bottom:10px; overflow:hidden; }
+    .sl-header { display:flex; align-items:center; gap:10px; padding:14px 20px; cursor:pointer; user-select:none; }
+    .sl-header:hover { background:#f5f7fa; }
+    .sl-title { font-weight:800; font-size:.97rem; flex:1; }
+    .sl-count { font-size:.8rem; color:var(--text-sub); }
+    .sl-chevron { font-size:.75rem; color:var(--text-sub); transition:transform .2s; }
+    .sl-accordion.open .sl-chevron { transform:rotate(180deg); }
+    .sl-body { display:none; border-top:1px solid #eee; }
+    .sl-accordion.open .sl-body { display:block; }
+
+    .sl-table { width:100%; border-collapse:collapse; }
+    .sl-table th { background:#37474f; color:#fff; padding:8px 14px; font-size:.78rem; font-weight:700; text-align:left; }
+    .sl-table th.num-col { text-align:center; width:52px; }
+    .sl-table td { padding:10px 14px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+    .sl-table td.sl-no { text-align:center; font-weight:900; font-size:1.15rem; color:var(--gold); }
+    .sl-kana { font-size:.75rem; color:var(--text-sub); line-height:1.3; }
+    .sl-name { font-weight:700; font-size:.95rem; line-height:1.4; }
+    .sl-club { font-size:.88rem; color:var(--text-sub); }
+
+    /* 印刷 */
+    .sl-print-title { display:none; }
+    @media print {
+      .header-bar, .header, .info-box, .card, .standings-card,
+      #warn-overwrite, #save-btn, .save-status,
+      .sl-section-head .btn-print, .sl-section-head .btn-refresh { display:none !important; }
+      .sl-print-title { display:block; text-align:center; margin-bottom:16px; }
+      .sl-print-title h1 { font-size:14pt; margin:0 0 4px; }
+      .sl-print-title p  { font-size:9pt;  margin:0; color:#555; }
+      .sl-accordion { box-shadow:none; margin-bottom:16pt; page-break-inside:avoid; }
+      .sl-header { background:#263238 !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .sl-chevron { display:none; }
+      .sl-body { display:block !important; }
+      .sl-table th { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .sl-table td.sl-no { color:#000 !important; }
+      body { background:#fff; padding:0; }
+    }
   </style>
 </head>
 <body>
@@ -139,6 +184,20 @@
 
   <button class="btn-save" id="save-btn" style="display:none" disabled>保存する</button>
   <div class="save-status" id="save-status"></div>
+
+  <!-- スタートリスト -->
+  <div id="startlist-section" style="display:none">
+    <div class="sl-print-title">
+      <h1 id="sl-print-event"></h1>
+      <p>決勝スタートリスト</p>
+    </div>
+    <div class="sl-section-head">
+      <h2>📋 スタートリスト</h2>
+      <button class="btn-print" onclick="window.print()">🖨️ 印刷</button>
+      <button class="btn-refresh" onclick="refreshStartList()">↻ 更新</button>
+    </div>
+    <div id="startlist-container"></div>
+  </div>
 </div>
 
 <script type="module">
@@ -185,6 +244,7 @@
 
     buildFilters();
     updateFinalCountFromRule();
+    buildStartList();
   });
 
   // ---- フィルターUI構築 ----
@@ -405,6 +465,109 @@
     else if (r2th) r2th.style.display = '';
   }
 
+  // ---- スタートリスト ----
+  function buildStartList() {
+    const finalists = athletes.filter(a => a.isInFinal && a.finalOrder != null);
+    const section   = document.getElementById('startlist-section');
+    if (finalists.length === 0) { section.style.display = 'none'; return; }
+
+    // 印刷タイトルに大会名をセット
+    document.getElementById('sl-print-event').textContent = tourData?.name || '';
+
+    // クラス別グループ化（種目 → 性別 → クラス順）
+    const tourClassDefs = {};
+    ['individual','synchro'].forEach(tp => {
+      (tourData?.classes?.[tp] || [])
+        .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99))
+        .forEach((c, i) => { tourClassDefs[`${tp}|${c.name}`] = i; });
+    });
+
+    const groupMap = {};
+    finalists.forEach(a => {
+      const type   = a.type || 'individual';
+      const gender = a.gender || '';
+      const cls    = a.class || a.category || '';
+      const key    = `${type}|${gender}|${cls}`;
+      if (!groupMap[key]) groupMap[key] = { type, gender, cls, athletes: [] };
+      groupMap[key].athletes.push(a);
+    });
+
+    // グループを種目→クラス定義順→性別順でソート
+    const groups = Object.entries(groupMap).sort(([ka,a],[kb,b]) => {
+      if (a.type !== b.type) return a.type === 'individual' ? -1 : 1;
+      const oa = tourClassDefs[`${a.type}|${a.cls}`] ?? 99;
+      const ob = tourClassDefs[`${b.type}|${b.cls}`] ?? 99;
+      if (oa !== ob) return oa - ob;
+      return (a.gender||'').localeCompare(b.gender||'');
+    }).map(([,g]) => g);
+
+    const container = document.getElementById('startlist-container');
+    container.innerHTML = '';
+
+    groups.forEach(g => {
+      g.athletes.sort((a,b) => (a.finalOrder||999) - (b.finalOrder||999));
+      const typeLabel = g.type === 'synchro' ? 'シンクロ' : '個人';
+      const title = [g.cls, g.gender, typeLabel].filter(Boolean).join(' ');
+
+      const rows = g.athletes.map(a => {
+        if (a.type === 'synchro') {
+          const kana = [a.kana1, a.kana2].filter(Boolean).join(' / ');
+          const name = `${a.name1 || '---'} / ${a.name2 || '---'}`;
+          const club = [a.club1, a.club2].filter(Boolean).join(' / ');
+          return `<tr>
+            <td class="sl-no">${a.finalOrder}</td>
+            <td>${kana ? `<div class="sl-kana">${kana}</div>` : ''}<div class="sl-name">${name}</div></td>
+            <td class="sl-club">${club}</td>
+          </tr>`;
+        } else {
+          return `<tr>
+            <td class="sl-no">${a.finalOrder}</td>
+            <td>${a.kana1 ? `<div class="sl-kana">${a.kana1}</div>` : ''}<div class="sl-name">${a.name1 || '---'}</div></td>
+            <td class="sl-club">${a.club1 || ''}</td>
+          </tr>`;
+        }
+      }).join('');
+
+      const acc = document.createElement('div');
+      acc.className = 'sl-accordion';
+      acc.innerHTML = `
+        <div class="sl-header" onclick="this.closest('.sl-accordion').classList.toggle('open')">
+          <span class="sl-title">${title}</span>
+          <span class="sl-count">${g.athletes.length}人</span>
+          <span class="sl-chevron">▼</span>
+        </div>
+        <div class="sl-body">
+          <table class="sl-table">
+            <thead><tr>
+              <th class="num-col">No.</th>
+              <th>ふりがな / 氏名</th>
+              <th>所属</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      container.appendChild(acc);
+    });
+
+    section.style.display = '';
+  }
+
+  window.refreshStartList = async function() {
+    const btn = document.querySelector('.btn-refresh');
+    btn.textContent = '読込中...'; btn.disabled = true;
+    try {
+      const finalOrders = await getFinalOrders(eventId);
+      athletes.forEach(a => {
+        const fo = finalOrders[a.id];
+        a.finalOrder = fo?.finalOrder ?? null;
+        a.isInFinal  = fo?.isInFinal  ?? false;
+      });
+      buildStartList();
+    } finally {
+      btn.textContent = '↻ 更新'; btn.disabled = false;
+    }
+  };
+
   // ---- 保存 ----
   document.getElementById('save-btn').addEventListener('click', async () => {
     if (!pendingFinalOrder) return;
@@ -435,6 +598,7 @@
       status.style.color = '#2e7d32';
       status.textContent = `✅ 保存しました。CJP・D審判の「決勝のみ」フィルターに反映されます。`;
       document.getElementById('warn-overwrite').style.display = 'none';
+      buildStartList();
     } catch (err) {
       status.style.color = '#c62828';
       status.textContent = `❌ 保存に失敗しました: ${err.message}`;
