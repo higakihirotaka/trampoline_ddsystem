@@ -210,6 +210,8 @@
       font-size: 4.8cqw; font-weight:900;
       line-height:1;
     }
+    /* シンクロ: 小数第2位表示になるためフォント縮小 */
+    .e-val.syn{ font-size: 3.4cqw; }
     .card.d-card{
       grid-row: 3 / 5;
       background: rgba(0,0,0,0.3);
@@ -299,9 +301,6 @@
       letter-spacing: -1.5px;
       line-height:1;
     }
-    /* シンクロ: Exec.が小数第2位になるためフォントを縮小 */
-    .breakdown-row.syn .stat-item label{ font-size: 0.85cqw; }
-    .breakdown-row.syn .stat-item .val { font-size: 3.2cqw; }
     /* ===== 5. 結果 ===== */
     .result-section{
       display:grid;
@@ -1186,7 +1185,7 @@
       skillCols.push(`
         <div class="skill-stack">
           <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
-          <div class="card e-card"><div class="e-val num">${eDisplay}</div></div>
+          <div class="card e-card"><div class="e-val num${synchro ? ' syn' : ''}">${eDisplay}</div></div>
           <div class="card d-card">
             <div class="d-code${codeAlert ? ' alert' : dimCode ? ' dim' : ''}">${dCodeTxt}</div>
             <div class="d-val num${valAlert ? ' alert' : dimVal ? ' dim' : ''}">${dValTxt}</div>
@@ -1206,7 +1205,7 @@
     const bonusCol = `
       <div class="skill-stack bonus-style" style="${isLanValid ? '' : 'opacity:0.25;'}">
         <div class="col-idx">LAN</div>
-        <div class="card e-card"><div class="e-val num">${isLanValid && landDed !== null ? (synchro ? (landDed * 10).toFixed(2) : Math.round(landDed * 10)) : '--'}</div></div>
+        <div class="card e-card"><div class="e-val num${synchro ? ' syn' : ''}">${isLanValid && landDed !== null ? (synchro ? (landDed * 10).toFixed(2) : Math.round(landDed * 10)) : '--'}</div></div>
         <div class="bonus-note-block" style="${bonus > 0 ? '' : 'opacity:0.25;'}">
           <span>D-SCORE</span>
           <span>BONUS</span>
@@ -1313,8 +1312,8 @@
         ${bonusCol}
       </div>
 
-      <div class="breakdown-row${synchro ? ' syn' : ''}">
-        <div class="stat-item"><label>Exec.</label><div class="val num">${synchro ? fmt2(eScore) : fmt1(eScore)}</div></div>
+      <div class="breakdown-row">
+        <div class="stat-item"><label>Exec.</label><div class="val num">${fmt1(eScore)}</div></div>
         <div class="stat-item"><label>Diff.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(dScore)}</div></div>
         <div class="stat-item"><label>${synchro ? 'Syn' : 'ToF'}</label><div class="val num">${fmt3(tScore)}</div></div>
         <div class="stat-item"><label>HD</label><div class="val num">${fmt2(hdScore)}</div></div>
