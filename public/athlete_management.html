@@ -344,7 +344,7 @@
                 ${del()}
             </tr>`;
         } else {
-            const genderOpts = ['男子','女子'].map(g =>
+            const genderOpts = ['男子','女子','混合'].map(g =>
                 `<option value="${g}"${(ath.gender||'男子')===g?' selected':''}>${g}</option>`).join('');
             return `<tr data-key="${k}">
                 ${sel('class', ath.class)}
@@ -625,12 +625,15 @@
         btn.textContent = '保存中…';
 
         try {
-            const batch = writeBatch(db);
+            const CHUNK = 450;
             const col   = collection(db, 'tournaments', eventId, 'athletes');
 
-            // 削除
-            for (const id of idsToDelete) batch.delete(doc(col, id));
-
+            // 全操作をリストアップ（削除 → 保存）
+            const ops = [];
+            for (const id of idsToDelete) {
+                const ref = doc(col, id);
+                ops.push(batch => batch.delete(ref));
+            }
             const saveList = (list, type) => {
                 for (const ath of list) {
                     const { _key, _new, ...data } = ath;
@@ -638,13 +641,18 @@
                     data.updatedAt = serverTimestamp();
                     const ref = ath.id ? doc(col, ath.id) : doc(col);
                     if (!ath.id) ath.id = ref.id;
-                    batch.set(ref, data, { merge: true });
+                    ops.push(batch => batch.set(ref, data, { merge: true }));
                 }
             };
             saveList(individualAthletes, 'individual');
             saveList(synchroAthletes,    'synchro');
 
-            await batch.commit();
+            // 450件ずつ分割してコミット（Firestore 上限500件対策）
+            for (let i = 0; i < ops.length; i += CHUNK) {
+                const batch = writeBatch(db);
+                ops.slice(i, i + CHUNK).forEach(fn => fn(batch));
+                await batch.commit();
+            }
             idsToDelete.clear();
             showToast('保存しました');
         } catch (e) {

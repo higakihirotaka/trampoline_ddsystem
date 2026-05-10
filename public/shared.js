@@ -111,9 +111,9 @@ export function compareRankEntries(a, b) {
   if (a.qualScore == null && b.qualScore == null) return 0;
   if (a.qualScore == null) return  1;
   if (b.qualScore == null) return -1;
-  // ① 主スコア（小数第 2 位で比較）
-  const as2 = Math.round(a.qualScore * 100) / 100;
-  const bs2 = Math.round(b.qualScore * 100) / 100;
+  // ① 主スコア（小数第 3 位で比較）
+  const as2 = Math.round(a.qualScore * 1000) / 1000;
+  const bs2 = Math.round(b.qualScore * 1000) / 1000;
   if (bs2 !== as2) return bs2 - as2;
   // ② 2本合計（best採用時のみ; total採用時は tbSum = null なので skip）
   if (a.tbSum != null && b.tbSum != null && Math.abs(b.tbSum - a.tbSum) > 1e-9) return b.tbSum - a.tbSum;
@@ -137,7 +137,7 @@ export function assignRanks(entries) {
     const prev = entries[idx - 1];
     if (r.qualScore == null || prev.qualScore == null) { r.rank = idx + 1; return; }
     const isTied =
-      Math.round(r.qualScore * 100) / 100 === Math.round(prev.qualScore * 100) / 100 &&
+      Math.round(r.qualScore * 1000) / 1000 === Math.round(prev.qualScore * 1000) / 1000 &&
       (r.tbSum      == null || r.tbSum      === prev.tbSum)      &&
       (r.tb?.tof    == null || r.tb.tof     === prev.tb?.tof)    &&
       (r.tb?.hd     == null || r.tb.hd      === prev.tb?.hd)     &&
@@ -152,10 +152,10 @@ export function assignRanks(entries) {
 /**
  * トランポリン競技ボーナス点計算 (FIG規則)
  *   男子: 5本超のトリプル 1本につき +0.3（6本目以降）
- *   女子: 2本超のトリプル 1本につき +0.3（3本目以降）
+ *   女子・混合: 2本超のトリプル 1本につき +0.3（3本目以降）
  */
 export function calcBonus(gender, tripleCount) {
   if (gender === '男子' && tripleCount > 5) return (tripleCount - 5) * 0.3;
-  if (gender === '女子' && tripleCount >= 3) return (tripleCount - 2) * 0.3;
+  if ((gender === '女子' || gender === '混合') && tripleCount >= 3) return (tripleCount - 2) * 0.3;
   return 0;
 }

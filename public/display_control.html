@@ -133,6 +133,10 @@
         .intro-class-header:first-child { border-top:none; margin-top:0; padding-top:0; }
         .intro-run-status { text-align:center; font-size:0.85rem; font-weight:700; color:var(--text-sub); padding:6px 0; min-height:1.4em; }
         .intro-run-status.running { color:var(--green); }
+        .intro-mode-wrap { display:flex; gap:5px; margin:0 0 8px; }
+        .intro-mode-btn { flex:1; padding:6px 0; border:1.5px solid #b0bec5; border-radius:8px; background:white; font-size:0.78rem; font-weight:700; cursor:pointer; color:var(--text-sub); transition:0.15s; }
+        .intro-mode-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .intro-mode-btn.active { border-color:var(--accent); background:var(--accent); color:white; }
         .intro-filter-wrap { display:flex; flex-wrap:wrap; gap:5px; margin:0 0 10px; }
         .intro-filter-btn { padding:5px 14px; border:1.5px solid #b0bec5; border-radius:8px; background:white; font-size:0.8rem; font-weight:700; cursor:pointer; color:var(--text-sub); transition:0.15s; white-space:nowrap; }
         .intro-filter-btn:hover { border-color:var(--accent); color:var(--accent); }
@@ -261,6 +265,10 @@
                     <span class="btn-icon">👤</span>選手紹介
                     <span class="btn-sub">選手を順番に紹介</span>
                 </button>
+                <button class="screen-btn" data-screen="final_startlist">
+                    <span class="btn-icon">📋</span>決勝スタートリスト
+                    <span class="btn-sub">決勝試技順を全画面表示</span>
+                </button>
             </div>
             <button class="btn-show-screen" id="btn-show-screen" disabled>表示する</button>
             <div id="show-screen-err" style="font-size:0.82rem;font-weight:700;color:#c62828;min-height:1.2em;margin-top:6px;text-align:center;"></div>
@@ -269,6 +277,19 @@
             <div id="panel-score" class="screen-panel"></div>
             <!-- ロゴ設定（なし） -->
             <div id="panel-logo" class="screen-panel"></div>
+            <!-- 決勝スタートリスト設定 -->
+            <div id="panel-final_startlist" class="screen-panel">
+                <div class="panel-title">📋 決勝スタートリスト — クラス選択</div>
+                <div class="panel-row">
+                    <span class="panel-label">クラス</span>
+                    <select id="fsl-target" class="panel-select">
+                        <option value="">（選択してください）</option>
+                    </select>
+                </div>
+                <div style="font-size:0.76rem;color:var(--text-sub);margin-top:6px;line-height:1.5;">
+                    ※ 決勝試技順処理で確定済みのクラスが表示されます
+                </div>
+            </div>
 
             <!-- タイトル設定 -->
             <div id="panel-title" class="screen-panel">
@@ -371,9 +392,13 @@
                     <input type="number" id="intro-duration-val" class="val-box" min="3" max="30" value="5">
                     <span class="unit">秒</span>
                 </div>
+                <div class="intro-mode-wrap">
+                    <button class="intro-mode-btn active" data-mode="qualifying">予選試技順</button>
+                    <button class="intro-mode-btn" data-mode="final">決勝試技順</button>
+                </div>
                 <div style="display:flex;gap:8px;margin:8px 0;">
-                    <button id="intro-select-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">全選択</button>
-                    <button id="intro-clear-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">全解除</button>
+                    <button id="intro-select-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">表示中を全選択</button>
+                    <button id="intro-clear-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">全てクリア</button>
                 </div>
                 <div id="intro-filter-wrap" class="intro-filter-wrap"></div>
                 <div id="intro-athlete-list" style="display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto;margin-bottom:8px;"></div>
@@ -508,13 +533,15 @@
     let classCombos    = [];  // 既存クラス一覧
     let ctrlTimerInterval = null;
     let _serverOffset  = 0;   // サーバー時刻との差（ms）: serverTs - Date.now()
+    let _timerRefMs    = null; // 最後に _serverOffset を計算した timerRef の値（変化時のみ再計算するため）
 
     const SCREEN_LABELS = {
         score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
         title:'🏟️ 大会タイトル画面',
         ceremony:'🏅 表彰式画面', warmup:'🏃 会場練習画面',
         carousel:'🔄 巡回表示中',
-        intro:'👤 選手紹介中'
+        intro:'👤 選手紹介中',
+        final_startlist:'📋 決勝スタートリスト表示中'
     };
 
     // クラス一覧をselect要素に追加
@@ -568,9 +595,15 @@
             setSlider('wu-class-fs', warmup.classFontSize || 4.5);
             setSlider('wu-timer-fs', warmup.timerFontSize || 24);
             document.getElementById('timer-repeat').checked = !!warmup.timerRepeat;
-            // サーバー時刻オフセット更新（timerRef は serverTimestamp で書き込まれる）
+            // サーバー時刻オフセット更新（timerRef が変わった時＝タイマー操作時のみ再計算）
+            // timerRef は serverTimestamp で書き込まれるため、変化していない場合に
+            // 再計算すると「過去の timerRef − 現在の Date.now()」になり大きくずれる
             if (warmup.timerRef?.toMillis) {
-                _serverOffset = warmup.timerRef.toMillis() - Date.now();
+                const refMs = warmup.timerRef.toMillis();
+                if (refMs !== _timerRefMs) {
+                    _serverOffset = refMs - Date.now();
+                    _timerRefMs   = refMs;
+                }
             }
         }
 
@@ -650,7 +683,23 @@
                     'introSettings.isRunning': true
                 });
                 startIntroSequence(sel, durMs);
+            } else if (pendingScreen === 'final_startlist') {
+                const target = document.getElementById('fsl-target')?.value || '';
+                if (!target) {
+                    document.getElementById('show-screen-err').textContent = 'クラスを選択してください';
+                    setTimeout(() => { document.getElementById('show-screen-err').textContent = ''; }, 3000);
+                    return;
+                }
+                const [cls, gender, type] = target.split('|');
+                await updateDoc(doc(db,'tournaments',eventId), {
+                    venueScreen: 'final_startlist',
+                    'rankingCarousel.active': false,
+                    'finalStartlistTarget': { class: cls, gender, type }
+                });
             } else {
+                // warmupSettings のタイマーフィールドには触れない
+                // → 他画面表示中もバックグラウンドでカウントダウン継続
+                // → warmup に戻った際は timerEndTime から残り時間を再計算して表示
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: pendingScreen,
                     'rankingCarousel.active': false   // 巡回中でも画面切り替えで停止
@@ -739,17 +788,22 @@
     let introClassDefs  = [];
     let introFilterKey  = '';          // '' = 全員, 'class|gender|type' = 絞り込み
     let introCheckedIds = new Set();   // フィルターをまたいでチェック状態を保持
+    let introSortMode   = 'qualifying'; // 'qualifying' | 'final'
 
     function getIntroSorted() {
         const gScore = g => g.includes('女') ? 0 : g.includes('男') ? 1 : 2;
-        return introAthletes.slice().sort((a, b) => {
+        const base = introSortMode === 'final'
+            ? introAthletes.filter(a => a.finalOrder != null)  // 決勝: finalOrder 設定済みのみ
+            : introAthletes.slice();
+        const orderField = introSortMode === 'final' ? 'finalOrder' : 'order';
+        return base.sort((a, b) => {
             const ia = introClassDefs.indexOf(a.class);
             const ib = introClassDefs.indexOf(b.class);
             const ca = ia >= 0 ? ia : 99, cb = ib >= 0 ? ib : 99;
             if (ca !== cb) return ca - cb;
             const gd = gScore(a.gender || '') - gScore(b.gender || '');
             if (gd !== 0) return gd;
-            return (parseInt(a.order)||0) - (parseInt(b.order)||0);
+            return (parseInt(a[orderField])||0) - (parseInt(b[orderField])||0);
         });
     }
 
@@ -770,7 +824,8 @@
             const lbl = document.createElement('label');
             lbl.className = 'intro-athlete-item';
             const name = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
-            lbl.innerHTML = `<input type="checkbox" data-id="${a.id}"><span>${a.order ? 'No.' + a.order + '&nbsp;' : ''}${name}${a.club1 ? ' (' + a.club1 + ')' : ''}</span>`;
+            const orderNum = introSortMode === 'final' ? a.finalOrder : a.order;
+            lbl.innerHTML = `<input type="checkbox" data-id="${a.id}"><span>${orderNum ? 'No.' + orderNum + '&nbsp;' : ''}${name}${a.club1 ? ' (' + a.club1 + ')' : ''}</span>`;
             list.appendChild(lbl);
         });
         list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -826,14 +881,26 @@
         });
     }
 
+    document.querySelectorAll('.intro-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.intro-mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            introSortMode = btn.dataset.mode;
+            introFilterKey = '';          // モード切替時はフィルターをリセット
+            buildIntroFilterBtns();
+            applyIntroFilter();
+        });
+    });
+
     document.getElementById('intro-select-all').addEventListener('click', () => {
         document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => {
             cb.checked = true; introCheckedIds.add(cb.dataset.id);
         });
     });
     document.getElementById('intro-clear-all').addEventListener('click', () => {
+        introCheckedIds.clear(); // 非表示の選手も含めて選択記憶を完全リセット
         document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => {
-            cb.checked = false; introCheckedIds.delete(cb.dataset.id);
+            cb.checked = false;
         });
     });
 
@@ -1048,6 +1115,24 @@
         carouselCombos.sort((a, b) => a.label.localeCompare(b.label, 'ja'));
         buildClassOptions(classCombos);
         buildCarouselList(carouselCombos);
+
+        // 決勝スタートリスト: isInFinal の選手がいるクラス組み合わせを列挙
+        const fslSel = document.getElementById('fsl-target');
+        const fslMap = new Map(); // key → label
+        athSnap.forEach(d => {
+            const a = d.data();
+            if (!a.isInFinal || !a.class) return;
+            const typeRaw   = a.type || 'individual';
+            const typeLabel = typeRaw === 'synchro' ? 'シンクロ' : '個人';
+            const key = `${a.class}|${a.gender||''}|${typeRaw}`;
+            if (!fslMap.has(key))
+                fslMap.set(key, `${a.class} ${a.gender||''}（${typeLabel}）`.replace(/\s+/g,' ').trim());
+        });
+        [...fslMap.entries()].sort((a,b) => a[1].localeCompare(b[1],'ja')).forEach(([val, label]) => {
+            const o = document.createElement('option');
+            o.value = val; o.textContent = label;
+            fslSel.appendChild(o);
+        });
 
         // 選手紹介用リスト
         athSnap.forEach(d => {

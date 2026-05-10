@@ -256,7 +256,7 @@
             const cr = (tourData.classRules?.[athType] || {})[athClass] || {};
             // -1=設定なし, 0=0本指定(DD全0), 1-9=N本指定
             const rawDDCount = (cr.designatedDDCount != null && cr.designatedDDCount >= 0) ? cr.designatedDDCount : -1;
-            designatedDDCount = (rawDDCount >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round !== 'pre2')
+            designatedDDCount = (rawDDCount >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round === 'pre1')
                 ? rawDDCount : -1;
             if (designatedDDCount > 0) {
                 // 1本以上指定: チェックボックス列を表示
@@ -432,7 +432,7 @@
         const gender = document.getElementById('ath-gender').value;
         let bonus = 0;
         if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-        if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+        if ((gender === '女子' || gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3; // 混合は女子ルール適用
 
         document.getElementById('dd-base').textContent  = baseDD.toFixed(1);
         document.getElementById('dd-bonus').textContent = bonus.toFixed(1);
@@ -507,9 +507,20 @@
 
     window.copyPrevRound = async () => {
         const isFinal  = round === 'final';
-        const srcRound = isFinal ? 'pre2' : 'pre1';
-        const fallback = isFinal ? 'pre1' : null;
-        const srcLabel = isFinal ? '予選演技' : '予選１の構成';
+        // 予選本数をクラスルールから取得（1本制の場合は pre1 から直接コピー）
+        const _athType  = currentAthlete?.type || 'individual';
+        const _athClass = currentAthlete?.class || currentAthlete?.category || '';
+        const _cr       = (tourData.classRules?.[_athType] || {})[_athClass] || {};
+        const numPre    = _cr.qualifyingRoutines ?? 2;
+
+        let srcRound, fallback, srcLabel;
+        if (!isFinal) {
+            srcRound = 'pre1'; fallback = null;  srcLabel = '予選１の構成';
+        } else if (numPre === 1) {
+            srcRound = 'pre1'; fallback = null;  srcLabel = '予選演技';
+        } else {
+            srcRound = 'pre2'; fallback = 'pre1'; srcLabel = '予選演技';
+        }
         if (!confirm(`${srcLabel}をこの画面にコピーします。現在の入力内容は上書きされます。よろしいですか？`)) return;
         const btn = document.getElementById('copy-prev-btn');
         btn.disabled = true;

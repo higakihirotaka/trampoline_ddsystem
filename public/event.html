@@ -73,44 +73,46 @@
     import { db } from "./firebase-config.js";
     import { doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    async function init() {
-        const params = new URLSearchParams(location.search);
-        const eventId = params.get('event');
-        if (!eventId) return;
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
 
-        if (params.get('from') === 'admin') {
-            const backDiv = document.getElementById('admin-back');
-            backDiv.style.display = 'block';
-            backDiv.querySelector('a').href = `admin_menu.html?event=${eventId}`;
-        }
+    // ── localStorage キャッシュ ──────────────────────────────
+    const CACHE_KEY = `ev_${eventId}`;
+    function loadCache() {
+        try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
+        catch { return null; }
+    }
+    function saveCache(tour, athletes, subMap) {
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+                tour, athletes, submissions: Object.fromEntries(subMap)
+            }));
+        } catch {}
+    }
 
-        const tourSnap = await getDoc(doc(db, "tournaments", eventId));
-        if (!tourSnap.exists()) return;
-        const tour = tourSnap.data();
+    // ── 大会情報をDOMに反映 ─────────────────────────────────
+    function applyTourInfo(tour) {
         document.getElementById('event-title').innerText = tour.name;
-        document.getElementById('event-date').innerText = `${tour.startDate || tour.start_date || ''} ～ ${tour.endDate || tour.end_date || ''}`;
+        document.getElementById('event-date').innerText =
+            `${tour.startDate || tour.start_date || ''} ～ ${tour.endDate || tour.end_date || ''}`;
         if (tour.venue) document.getElementById('event-venue').innerText = `📍 ${tour.venue}`;
-        
-        startGlobalTimers(tour);
+    }
 
-        const [subSnap, athSnap] = await Promise.all([
-            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
-            getDocs(collection(db, "tournaments", eventId, "athletes"))
-        ]);
+    // ── バッジのピンポイント更新 ────────────────────────────
+    function updateStatusBadge(athId, round, sub) {
+        const el = document.getElementById(`status-${athId}-${round}`);
+        if (!el) return;
+        el.className = `status-link ${sub ? 'status-done' : 'status-none'}`;
+        el.textContent = sub ? '提出済' : '入力';
+    }
 
-        const subDataMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
-        const allAthletes = athSnap.docs.map(d => ({...d.data(), id: d.id }));
-        
-        const indivAthletes = allAthletes.filter(a => a.type !== 'synchro');
-        const syncAthletes = allAthletes.filter(a => a.type === 'synchro');
-
+    // ── 選手リスト全体描画（初回のみ呼ぶ）────────────────────
+    function renderList(tour, athletes, subMap) {
         const rawClassRules = tour.classRules || {};
-        const hasNewFormat = 'individual' in rawClassRules || 'synchro' in rawClassRules;
-        const classRules = hasNewFormat ? rawClassRules :
-                           Object.keys(rawClassRules).length > 0 ? { individual: rawClassRules, synchro: {} } :
-                           { individual: {}, synchro: {} };
-        
-        // 大会設定の display_order を使ってクラス表示順を決定
+        const hasNewFormat  = 'individual' in rawClassRules || 'synchro' in rawClassRules;
+        const classRules    = hasNewFormat ? rawClassRules :
+                              Object.keys(rawClassRules).length > 0 ? { individual: rawClassRules, synchro: {} } :
+                              { individual: {}, synchro: {} };
         const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
         let indivClassOrder = [], syncClassOrder = [];
         if (tour.classes && !Array.isArray(tour.classes)) {
@@ -119,115 +121,196 @@
         } else if (Array.isArray(tour.classes)) {
             indivClassOrder = sortByOrder(tour.classes).map(c => c.name);
         }
-
+        const indivAthletes = athletes.filter(a => a.type !== 'synchro');
+        const syncAthletes  = athletes.filter(a => a.type === 'synchro');
         const indivContainer = document.getElementById('indiv-list');
         if (indivAthletes.length > 0) {
-            indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' + renderAthleteTables(indivAthletes, classRules.individual, subDataMap, eventId, 'individual', rawClassRules, indivClassOrder);
+            indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' +
+                buildTablesHtml(indivAthletes, classRules.individual, subMap, 'individual', rawClassRules, indivClassOrder);
         }
-
         const syncContainer = document.getElementById('sync-list');
         if (syncAthletes.length > 0) {
-            syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' + renderAthleteTables(syncAthletes, classRules.synchro, subDataMap, eventId, 'synchro', rawClassRules, syncClassOrder);
+            syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' +
+                buildTablesHtml(syncAthletes, classRules.synchro, subMap, 'synchro', rawClassRules, syncClassOrder);
         }
     }
 
-    function renderAthleteTables(athletes, rulesByType, subDataMap, eventId, type, fallbackRules = {}, classOrder = []) {
-        const athletesByClass = athletes.reduce((acc, ath) => {
-            const className = ath.class || 'N/A';
-            if (!acc[className]) acc[className] = [];
-            acc[className].push(ath);
+    function buildTablesHtml(athletes, rulesByType, subMap, type, fallbackRules = {}, classOrder = []) {
+        const byClass = athletes.reduce((acc, ath) => {
+            const cn = ath.class || 'N/A';
+            (acc[cn] = acc[cn] || []).push(ath);
             return acc;
         }, {});
-
-        // display_order 順 → 未定義クラスはアルファベット順で末尾に追加
-        const ordered  = classOrder.filter(name => athletesByClass[name]);
-        const leftover = Object.keys(athletesByClass).filter(name => !classOrder.includes(name)).sort();
-        const sortedClasses = [...ordered, ...leftover];
-        let finalHtml = '';
-
-        for (const className of sortedClasses) {
-            const classAthletes = athletesByClass[className];
-            const rules = (rulesByType || {})[className] || fallbackRules[className] || { qualifyingRoutines: 2, hasFinal: false };
-
-            classAthletes.sort((a,b) => `${a.gender || ''}-${String(a.flightGroup || '').padStart(3,'0')}-${String(a.order || '').padStart(3,'0')}`.localeCompare(`${b.gender || ''}-${String(b.flightGroup || '').padStart(3,'0')}-${String(b.order || '').padStart(3,'0')}`));
-            
-            finalHtml += `<div class="class-header ${type === 'synchro' ? 'sync-class-header' : 'indiv-class-header'}">${className}</div>`;
-            let currentGender = "";
-
-            classAthletes.forEach(ath => {
-                if (currentGender !== ath.gender) {
-                    if (currentGender !== "") finalHtml += '</tbody></table>';
-                    currentGender = ath.gender;
-
-                    const routineHeaders = Array.from({length: rules.qualifyingRoutines}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
-                    const finalHeader = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
-                    const totalCols = 3 + rules.qualifyingRoutines + (rules.hasFinal ? 1 : 0);
-
-                    finalHtml += `
-                        <div class="table-wrap"><table>
-                            <thead>
-                                <tr class="category-row"><td colspan="${totalCols}" style="text-align:left;">${currentGender}</td></tr>
-                                <tr>
-                                    <th class="col-num">Gr</th>
-                                    <th class="col-num">順</th>
-                                    <th class="col-name">選手</th>
-                                    ${routineHeaders}
-                                    ${finalHeader}
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
+        const ordered  = classOrder.filter(n => byClass[n]);
+        const leftover = Object.keys(byClass).filter(n => !classOrder.includes(n)).sort();
+        let html = '';
+        for (const cn of [...ordered, ...leftover]) {
+            const cls   = byClass[cn];
+            const rules = (rulesByType || {})[cn] || fallbackRules[cn] || { qualifyingRoutines: 2, hasFinal: false };
+            cls.sort((a, b) =>
+                `${a.gender||''}-${String(a.flightGroup||'').padStart(3,'0')}-${String(a.order||'').padStart(3,'0')}`.localeCompare(
+                `${b.gender||''}-${String(b.flightGroup||'').padStart(3,'0')}-${String(b.order||'').padStart(3,'0')}`));
+            html += `<div class="class-header ${type==='synchro'?'sync-class-header':'indiv-class-header'}">${cn}</div>`;
+            let curGender = '';
+            cls.forEach(ath => {
+                if (curGender !== ath.gender) {
+                    if (curGender !== '') html += '</tbody></table></div>';
+                    curGender = ath.gender;
+                    const rh = Array.from({length: rules.qualifyingRoutines}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
+                    const fh = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
+                    html += `<div class="table-wrap"><table><thead>
+                        <tr class="category-row"><td colspan="${3+rules.qualifyingRoutines+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
+                        <tr><th class="col-num">Gr</th><th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
+                        </thead><tbody>`;
                 }
-
-                const playerHtml = type === 'synchro' ? 
-                    `<span style="font-weight:bold;">${ath.name1 || ''} / ${ath.name2 || ''}</span><br><small style="color:#888;">${ath.club1 || ''} / ${ath.club2 || ''}</small>` :
-                    `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${ath.club1}</small>`;
-
-                finalHtml += `<tr class="${ath.isWithdrawn ? 'withdrawn-row' : ''}"><td class="col-num">${ath.flightGroup || '-'}</td><td class="col-num">${ath.order || '-'}</td><td class="col-name">${playerHtml}</td>`;
-
-                for (let i = 1; i <= rules.qualifyingRoutines; i++) finalHtml += `<td>${getStatusButton(ath, `pre${i}`, subDataMap, eventId)}</td>`;
-                if (rules.hasFinal) finalHtml += `<td>${getStatusButton(ath, 'final', subDataMap, eventId)}</td>`;
-                finalHtml += '</tr>';
+                const pHtml = type === 'synchro'
+                    ? `<span style="font-weight:bold;">${ath.name1||''} / ${ath.name2||''}</span><br><small style="color:#888;">${ath.club1||''} / ${ath.club2||''}</small>`
+                    : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${ath.club1}</small>`;
+                html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}"><td class="col-num">${ath.flightGroup||'-'}</td><td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
+                for (let i = 1; i <= rules.qualifyingRoutines; i++) html += `<td>${statusButton(ath, `pre${i}`, subMap)}</td>`;
+                if (rules.hasFinal) html += `<td>${statusButton(ath, 'final', subMap)}</td>`;
+                html += '</tr>';
             });
-            if (classAthletes.length > 0) finalHtml += '</tbody></table></div>';
+            if (cls.length > 0) html += '</tbody></table></div>';
         }
-        return finalHtml;
+        return html;
     }
 
-    function getStatusButton(ath, round, subDataMap, eventId) {
-        if (ath.isWithdrawn) return "<span style='font-size:0.8em; color: #d32f2f;'>棄権</span>";
-        const subId = `${eventId}_${ath.id}_${round}`;
-        const sub = subDataMap.get(subId);
-        let btnClass = "status-none", btnText = "入力";
-        if (sub) { btnClass = "status-done"; btnText = "提出済"; }
-        return `<a href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${btnClass}">${btnText}</a>`;
+    function statusButton(ath, round, subMap) {
+        if (ath.isWithdrawn) return `<span style="font-size:0.8em;color:#d32f2f;">棄権</span>`;
+        const sub = subMap.get(`${eventId}_${ath.id}_${round}`);
+        return `<a id="status-${ath.id}-${round}" href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${sub?'status-done':'status-none'}">${sub?'提出済':'入力'}</a>`;
     }
-    
+
+    // ── カウントダウンタイマー ────────────────────────────────
+    let _timerIds = []; // 起動中のインターバルIDを管理（再呼び出し時にクリアするため）
     function startGlobalTimers(tour) {
+        // 既存タイマーをすべてクリア（キャッシュ→Firestore更新時に正しく再描画するため）
+        _timerIds.forEach(id => clearInterval(id));
+        _timerIds = [];
+
         const area = document.getElementById('countdown-area');
         const deadlines = [
-            { label: '提出締切', time: tour.submissionDeadline },
-            { label: '修正締切', time: tour.revisionDeadline },
-            { label: '決勝締切', time: tour.finalSubmissionDeadline }
+            { id: 'sub', label: '提出締切', time: tour.submissionDeadline },
+            { id: 'rev', label: '修正締切', time: tour.revisionDeadline },
+            { id: 'fin', label: '決勝締切', time: tour.finalSubmissionDeadline }
         ].filter(d => d.time).map(d => {
             const dt = new Date(d.time);
-            const mo = dt.getMonth() + 1, da = dt.getDate();
-            const hh = String(dt.getHours()).padStart(2, '0'), mm = String(dt.getMinutes()).padStart(2, '0');
-            return { ...d, timeStr: `${mo}/${da} ${hh}:${mm}`, ms: dt.getTime() };
+            return { ...d,
+                timeStr: `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`,
+                ms: dt.getTime()
+            };
         });
-        if (deadlines.length === 0) return;
+        if (deadlines.length === 0) { area.style.display = 'none'; return; }
         area.style.display = 'flex';
-        const timerId = setInterval(() => {
-            const now = new Date().getTime();
-            area.innerHTML = deadlines.map(d => {
+        area.innerHTML = deadlines.map(d =>
+            `<div class="timer-card"><div class="timer-label">${d.label}</div><div class="timer-time">${d.timeStr}</div><div id="clock-${d.id}" class="timer-clock urgent"></div></div>`
+        ).join('');
+        const tick = () => {
+            const now = Date.now();
+            let allDone = true;
+            deadlines.forEach(d => {
+                const el = document.getElementById(`clock-${d.id}`);
+                if (!el) return;
                 const diff = d.ms - now;
-                const h = Math.floor(diff / (1000 * 60 * 60)), m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)), s = Math.floor((diff % (1000 * 60)) / 1000);
-                const expired = diff <= 0;
-                if (expired && deadlines.every(d => d.ms - now <= 0)) clearInterval(timerId);
-                return `<div class="timer-card"><div class="timer-label">${d.label}</div><div class="timer-time">${d.timeStr}</div><div class="timer-clock ${expired ? 'expired' : 'urgent'}">${expired ? '終了' : h + 'h ' + m + 'm ' + s + 's'}</div></div>`;
-            }).join('');
-        }, 1000);
+                if (diff > 0) {
+                    allDone = false;
+                    el.className = 'timer-clock urgent';
+                    el.textContent = `${Math.floor(diff/3600000)}h ${Math.floor(diff%3600000/60000)}m ${Math.floor(diff%60000/1000)}s`;
+                } else {
+                    el.className = 'timer-clock expired';
+                    el.textContent = '終了';
+                }
+            });
+            if (allDone) { _timerIds.forEach(id => clearInterval(id)); _timerIds = []; }
+        };
+        tick();
+        _timerIds.push(setInterval(tick, 1000));
     }
+
+    // ── バックグラウンド差分同期 ─────────────────────────────
+    let liveTour     = null;
+    let liveAthletes = [];
+
+    async function backgroundSync() {
+        if (!eventId || !liveAthletes.length) return;
+        try {
+            const snap = await getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId)));
+            const freshMap = new Map(snap.docs.map(d => [d.id, d.data()]));
+            liveAthletes.forEach(ath => {
+                ['pre1','pre2','pre3','final'].forEach(round => {
+                    const el = document.getElementById(`status-${ath.id}-${round}`);
+                    if (!el) return;
+                    const sub = freshMap.get(`${eventId}_${ath.id}_${round}`) || null;
+                    if (el.classList.contains('status-done') !== !!sub) updateStatusBadge(ath.id, round, sub);
+                });
+            });
+            if (liveTour) saveCache(liveTour, liveAthletes, freshMap);
+        } catch(e) { console.warn('BG sync failed:', e.message); }
+    }
+
+    // ── 初期化 ───────────────────────────────────────────────
+    async function init() {
+        if (!eventId) return;
+
+        if (params.get('from') === 'admin') {
+            const backDiv = document.getElementById('admin-back');
+            backDiv.style.display = 'block';
+            backDiv.querySelector('a').href = `admin_menu.html?event=${eventId}`;
+        }
+
+        // ① キャッシュがあれば即座に描画（0ms）
+        const cache = loadCache();
+        if (cache?.tour && cache?.athletes) {
+            liveTour     = cache.tour;
+            liveAthletes = cache.athletes;
+            applyTourInfo(cache.tour);
+            startGlobalTimers(cache.tour);
+            renderList(cache.tour, cache.athletes, new Map(Object.entries(cache.submissions || {})));
+        }
+
+        // ② 最新データを常時フェッチ
+        try {
+            const tourSnap = await getDoc(doc(db, "tournaments", eventId));
+            if (!tourSnap.exists()) return;
+            const tour = tourSnap.data();
+            liveTour = tour;
+            applyTourInfo(tour);
+            startGlobalTimers(tour); // timerStarted フラグで二重起動ガード
+
+            const [subSnap, athSnap] = await Promise.all([
+                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+                getDocs(collection(db, "tournaments", eventId, "athletes"))
+            ]);
+            const freshSubMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
+            const allAthletes = athSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+            liveAthletes = allAthletes;
+
+            if (cache?.athletes) {
+                // キャッシュ描画済み → 差分バッジ更新のみ
+                allAthletes.forEach(ath => {
+                    ['pre1','pre2','pre3','final'].forEach(round => {
+                        const el = document.getElementById(`status-${ath.id}-${round}`);
+                        if (!el) return;
+                        const sub = freshSubMap.get(`${eventId}_${ath.id}_${round}`) || null;
+                        if (el.classList.contains('status-done') !== !!sub) updateStatusBadge(ath.id, round, sub);
+                    });
+                });
+            } else {
+                // 初回：全体描画
+                renderList(tour, allAthletes, freshSubMap);
+            }
+            saveCache(tour, allAthletes, freshSubMap);
+        } catch(e) {
+            console.error('Fetch failed:', e.message);
+            if (!cache) document.getElementById('event-title').innerText = '読み込みに失敗しました';
+        }
+    }
+
+    // ③ タブ復帰時にバックグラウンド差分同期
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') backgroundSync();
+    });
 
     init();
 </script>

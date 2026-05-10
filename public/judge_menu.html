@@ -59,7 +59,7 @@
 <body>
 
 <div class="timer-bar">
-    <span class="timer-label">練習</span>
+    <span class="timer-label">会場練習残り時間</span>
     <span class="timer-classes" id="bar-classes"></span>
     <span class="timer-val" id="timer-val">00:00</span>
 </div>
@@ -85,11 +85,6 @@
         <div><div class="nav-title">競技カードチェック</div></div>
         <span class="nav-arrow">›</span>
     </a>
-    <a class="nav-card" id="nav-entry" href="#">
-        <div class="nav-icon sky">📋</div>
-        <div><div class="nav-title">選手用入力画面</div></div>
-        <span class="nav-arrow">›</span>
-    </a>
     <a class="nav-card" id="nav-input" href="#">
         <div class="nav-icon green">✏️</div>
         <div><div class="nav-title">審判入力</div></div>
@@ -108,6 +103,11 @@
     <a class="nav-card" id="nav-display" href="#" target="_blank">
         <div class="nav-icon teal">📺</div>
         <div><div class="nav-title">会場ディスプレイ</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
+    <a class="nav-card" id="nav-entry" href="#">
+        <div class="nav-icon sky">📋</div>
+        <div><div class="nav-title">選手用入力画面</div></div>
         <span class="nav-arrow">›</span>
     </a>
 </div>
@@ -132,11 +132,17 @@
     document.getElementById('nav-ranking').href = `ranking.html?event=${eventId}`;
     document.getElementById('nav-display').href = `display.html?event=${eventId}`;
 
-    let timerInterval = null, warmupData = {}, _serverOffset = 0;
+    let timerInterval = null, warmupData = {}, _serverOffset = 0, _timerRefMs = null;
     function startTimerTick() {
         clearInterval(timerInterval);
+        // timerRef が変わった時（タイマー操作時）だけ再計算する
+        // 古い timerRef で毎回再計算するとオフセットがずれてタイマーが狂う
         if (warmupData.timerRef?.toMillis) {
-            _serverOffset = warmupData.timerRef.toMillis() - Date.now();
+            const refMs = warmupData.timerRef.toMillis();
+            if (refMs !== _timerRefMs) {
+                _serverOffset = refMs - Date.now();
+                _timerRefMs   = refMs;
+            }
         }
         const el = document.getElementById('timer-val');
         function tick() {
@@ -151,16 +157,23 @@
         tick(); timerInterval = setInterval(tick, 500);
     }
 
-    onSnapshot(doc(db, 'tournaments', eventId), snap => {
-        if (!snap.exists()) return;
-        const d = snap.data();
-        document.getElementById('event-name').textContent = d.name || '—';
-        document.title = `${d.name || ''} 審判用メニュー`;
-        warmupData = d.warmupSettings || {};
-        const cls = [warmupData.class1, warmupData.class2].filter(Boolean).join(' / ');
-        document.getElementById('bar-classes').textContent = cls;
-        startTimerTick();
-    });
+    onSnapshot(
+        doc(db, 'tournaments', eventId),
+        snap => {
+            if (!snap.exists()) return;
+            const d = snap.data();
+            document.getElementById('event-name').textContent = d.name || '—';
+            document.title = `${d.name || ''} 審判用メニュー`;
+            warmupData = d.warmupSettings || {};
+            const cls = [warmupData.class1, warmupData.class2].filter(Boolean).join(' / ');
+            document.getElementById('bar-classes').textContent = cls;
+            startTimerTick();
+        },
+        err => {
+            document.getElementById('event-name').textContent = '読み込みに失敗しました。再読み込みしてください。';
+            console.error('Firestore error:', err);
+        }
+    );
 </script>
 </body>
 </html>

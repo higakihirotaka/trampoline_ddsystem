@@ -549,6 +549,8 @@
   @keyframes calcPulse{
     0%,100%{ opacity:1; } 50%{ opacity:0.3; }
   }
+  /* 大会タイトル画面：COMPETITION ラベルの分だけ下 padding を増やして光学的中心に揃える */
+  #vs-title{ padding-bottom: 6vw; }
   .vs-label{
     font-size:1.0vw; font-weight:700; letter-spacing:0.4em;
     color:var(--text-muted); text-transform:uppercase;
@@ -796,6 +798,75 @@
     background:linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-gold) 100%);
     transition:none;
   }
+  /* ===== 決勝スタートリスト画面 ===== */
+  #vs-final-startlist{
+    container-type:size; padding:0;
+  }
+  .fsl-layout{
+    width:84cqw; height:100%;
+    display:flex; flex-direction:column;
+    align-items:stretch;                /* 全子要素を左寄せで統一 */
+    padding:3cqh 0; box-sizing:border-box;
+    gap:1.5cqh;
+  }
+  /* 大会名ヘッダー */
+  .fsl-header{
+    flex-shrink:0;
+    font-size:1.0cqw; font-weight:700; letter-spacing:0.6em;
+    color:rgba(255,200,70,0.55); text-transform:uppercase;
+  }
+  /* FINAL ROUND バッジ＋クラス名ブロック */
+  .fsl-meta{
+    flex-shrink:0;
+    display:flex; flex-direction:column; align-items:flex-start;
+    padding-bottom:1.5cqh;
+    border-bottom:2px solid rgba(0,242,255,0.28);
+    gap:0.6cqh;
+  }
+  .fsl-final-badge{
+    font-size:1.5cqw; font-weight:800; letter-spacing:0.65em;
+    color:var(--accent-cyan); text-transform:uppercase; line-height:1;
+  }
+  .fsl-class{
+    font-size:3.2cqw; font-weight:900; color:var(--accent-gold); line-height:1.1;
+  }
+  /* リスト：grid で名前列幅を最長名前に統一 → チーム名が全行同じ位置に揃う */
+  .fsl-table{
+    flex:1; display:grid;
+    grid-template-columns: 5cqw max-content 1fr;  /* 番号 | 名前(最長に揃える) | チーム名 */
+    align-content:space-evenly;
+    align-items:baseline;
+    column-gap:1.5cqw;
+    overflow:hidden; width:100%;
+  }
+  /* display:contents で row/athlete の box を消してグリッドに平坦化 */
+  .fsl-row{ display:contents; }
+  .fsl-athlete{ display:contents; }
+  /* 試技番号 */
+  .fsl-no{
+    font-size:var(--fsl-no-fs,2.8cqw); font-weight:900;
+    color:var(--accent-gold); text-align:right;
+    line-height:1.3;
+  }
+  /* 名前：max-content 列なので overflow:hidden は不要 */
+  .fsl-name{
+    font-size:var(--fsl-name-fs,3.5cqw); font-weight:900;
+    white-space:nowrap;
+    line-height:1.05;
+  }
+  /* チーム名：残り幅を使い切る */
+  .fsl-club{
+    font-size:var(--fsl-club-fs,1.6cqw); font-weight:600;
+    color:rgba(255,255,255,0.4);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    line-height:1.3;
+  }
+  .fsl-footer{
+    flex-shrink:0;
+    font-size:0.68cqw; font-weight:700; letter-spacing:0.25em;
+    color:rgba(255,255,255,0.2); text-transform:uppercase;
+    padding-top:0.8cqh;
+  }
   </style>
 </head>
 <body>
@@ -815,6 +886,8 @@
   <div id="vs-logo" class="venue-screen">
     <div class="vs-logo-wrap">
       <div class="vs-logo-brand">
+        <span class="vs-logo-tra">TRAvaults</span>
+        <span class="vs-logo-system">SYSTEM</span>
       </div>
       <div class="vs-logo-rule"></div>
       <div class="vs-logo-tagline">Online Score Management System for Trampoline Gymnastics</div>
@@ -855,6 +928,11 @@
       <div class="vs-timer num done" id="vs-timer">--:--</div>
     </div>
     <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
+  </div>
+
+  <!-- 決勝スタートリスト画面 -->
+  <div id="vs-final-startlist" class="venue-screen">
+    <div class="fsl-layout" id="fsl-layout"></div>
   </div>
 
   <!-- 選手紹介画面 -->
@@ -1074,6 +1152,33 @@
       monitor.style.opacity = '0';
     }
 
+    // ---- DNS（棄権）表示 ----
+    if (resData.dns === true) {
+      const classGenderDns = [ath.class || ath.category, ath.gender].filter(Boolean).join(' ');
+      const orderLabelDns  = `No.${ath.order || '?'}`;
+      const nameDns = ath.type === 'synchro' && ath.name2
+        ? `${ath.name1 || '---'} / ${ath.name2}`
+        : (ath.name1 || '---');
+      monitor.innerHTML = `
+        <div class="convention-header">${tournamentName}</div>
+        <div class="athlete-section">
+          <div class="class-no">${classGenderDns} / ${orderLabelDns}</div>
+          <div class="session-info">${getRoundLabel(resData.round)}</div>
+          <div class="athlete-identity-group">
+            <h1 class="athlete-name">${nameDns}</h1>
+            <div class="athlete-team">${ath.club1 || ''}</div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+          <div style="font-size:16cqw;font-weight:900;color:#e040fb;letter-spacing:0.12em;line-height:1;">DNS</div>
+          <div style="font-size:3cqw;color:rgba(255,255,255,0.45);font-weight:700;letter-spacing:0.08em;">棄権 — DID NOT START</div>
+        </div>
+        <footer class="footer-credits">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
+      monitor.style.opacity = '1';
+      lastShownResData = resData; lastShownAth = ath;
+      return;
+    }
+
     // 提出データ取得
     const subId   = `${eventId}_${resData.athleteId}_${resData.round}`;
     const subSnap = await getDoc(doc(db, "submissions", subId));
@@ -1092,7 +1197,7 @@
     const _validDesig = _rawDesig >= 0
         && _classRule.qualifyingRoutines === 2
         && _classRule.scoreMode === 'total'
-        && resData.round !== 'pre2';
+        && resData.round === 'pre1';
     const desigCount   = _validDesig ? _rawDesig : -1;
     const desigIndices = resData.officialDesignatedDDIndices || sub?.designatedDDIndices || [];
 
@@ -1258,17 +1363,17 @@
       routineTotalsHTML = `
         <div class="routine-box${resData.round === 'pre1' ? ' active' : ''}">
           <label>ROUTINE 1</label>
-          <div class="val num">${r1 !== undefined ? Number(r1).toFixed(3) : '--'}</div>
+          <div class="val num">${r1 !== undefined ? Number(r1).toFixed(2) : '--'}</div>
         </div>
         <div class="routine-box${resData.round === 'pre2' ? ' active' : ''}">
           <label>ROUTINE 2</label>
-          <div class="val num">${r2 !== undefined ? Number(r2).toFixed(3) : '--'}</div>
+          <div class="val num">${r2 !== undefined ? Number(r2).toFixed(2) : '--'}</div>
         </div>`;
     } else {
       routineTotalsHTML = `
         <div class="routine-box active">
           <label>FINAL</label>
-          <div class="val num">${fmt3(totalScore)}</div>
+          <div class="val num">${fmt2(totalScore)}</div>
         </div>`;
     }
 
@@ -1313,7 +1418,7 @@
       </div>
 
       <div class="breakdown-row">
-        <div class="stat-item"><label>Exec.</label><div class="val num">${fmt1(eScore)}</div></div>
+        <div class="stat-item"><label>Exec.</label><div class="val num">${fmt3(eScore)}</div></div>
         <div class="stat-item"><label>Diff.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(dScore)}</div></div>
         <div class="stat-item"><label>${synchro ? 'Syn' : 'ToF'}</label><div class="val num">${fmt3(tScore)}</div></div>
         <div class="stat-item"><label>HD</label><div class="val num">${fmt2(hdScore)}</div></div>
@@ -1329,7 +1434,7 @@
               const isMultiRound = numPre2 >= 2 && (resData.round === 'pre1' || resData.round === 'pre2');
               const lbl  = (isMultiRound && sMode2 === 'best') ? 'BEST' : 'TOTAL';
               const disp = isMultiRound ? qualTotal : totalScore;
-              return `<label>${isPublished ? lbl : lbl + '*'}</label><div class="total-val num">${fmt3(disp)}</div>`;
+              return `<label>${isPublished ? lbl : lbl + '*'}</label><div class="total-val num">${fmt2(disp)}</div>`;
             })()}
           </div>
           <div class="score-unit">
@@ -1589,8 +1694,9 @@
       genderVal = ath.gender || '';
       selType   = ath.type || 'individual';
     }
-    const heading   = [classVal, genderVal].filter(Boolean).join(' ');
-    const f = v => v !== null && v !== undefined ? Number(v).toFixed(3) : '--';
+    const typeLabel = selType === 'synchro' ? 'シンクロナイズド' : '個人';
+    const heading   = [typeLabel, classVal, genderVal].filter(Boolean).join(' ');
+    const f = v => v !== null && v !== undefined ? Number(v).toFixed(2) : '--';
     const curAthId = currentMode === 'carousel' ? null : lastShownResData?.athleteId;
 
     const rule           = getClassRule({ class: classVal, type: selType });
@@ -1759,7 +1865,8 @@
 
   // ---- 会場画面オーバーレイ管理 ----
   let warmupTimerInterval = null;
-  let _warmupServerOffset = 0; // サーバー時刻補正値（ms）
+  let _warmupServerOffset = 0;    // サーバー時刻補正値（ms）
+  let _warmupTimerRefMs   = null; // 最後に _warmupServerOffset を計算した timerRef の値
 
   function applyVenueScreen(tourData) {
     const screen = tourData.venueScreen || 'score';
@@ -1796,7 +1903,7 @@
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
     // 全画面を一旦非表示
-    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating'].forEach(id => {
+    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-final-startlist'].forEach(id => {
       document.getElementById(id)?.classList.remove('active');
     });
     // スコア表示中にwarmupを退避している場合はタイマーを止めない
@@ -1868,13 +1975,22 @@
     } else if (screen === 'intro') {
       document.getElementById('vs-intro').classList.add('active');
       applyIntroSlide(tourData.introSettings || {});
+    } else if (screen === 'final_startlist') {
+      document.getElementById('vs-final-startlist').classList.add('active');
+      renderFinalStartlist(tourData.finalStartlistTarget || {});
     }
     // 'score' の場合はオーバーレイなし（通常のスコア表示）
   }
 
   function startWarmupDisplay(warmup) {
+    // timerRef が変わった時（タイマー操作時）だけ再計算する
+    // 古い timerRef で再計算するとオフセットが大きくずれてタイマーがリセットして見える
     if (warmup.timerRef?.toMillis) {
-      _warmupServerOffset = warmup.timerRef.toMillis() - Date.now();
+      const refMs = warmup.timerRef.toMillis();
+      if (refMs !== _warmupTimerRefMs) {
+        _warmupServerOffset = refMs - Date.now();
+        _warmupTimerRefMs   = refMs;
+      }
     }
     const timerEl = document.getElementById('vs-timer');
     function tick() {
@@ -1945,6 +2061,61 @@
     void fill.offsetWidth;
     fill.style.transition = `width ${durationMs}ms linear`;
     fill.style.width = '100%';
+  }
+
+  // ---- 決勝スタートリスト描画 ----
+  function renderFinalStartlist(target) {
+    const cls     = target.class  || '';
+    const gender  = target.gender || '';
+    const selType = target.type   || 'individual';
+    const heading = [cls, gender, selType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
+
+    // finalOrder が設定済みの選手を抽出してソート
+    const finalists = Object.values(athleteMap)
+      .filter(a =>
+        (a.class || '') === cls &&
+        (a.gender || '') === gender &&
+        (a.type || 'individual') === selType &&
+        a.finalOrder != null
+      )
+      .sort((a, b) => (a.finalOrder || 0) - (b.finalOrder || 0));
+
+    // 人数に応じてフォントサイズをスケール
+    const n = finalists.length || 1;
+    const nameFsVw  = n <= 4 ? 5.0 : n <= 8 ? 3.8 : 2.8;
+    const noFsVw    = nameFsVw * 0.85;
+    const clubFsVw  = nameFsVw * 0.48;
+
+    const rows = finalists.length > 0
+      ? finalists.map(a => {
+          const nameHtml = a.type === 'synchro' && a.name2
+            ? `${a.name1 || '---'} / ${a.name2 || '---'}`
+            : (a.name1 || '---');
+          const clubHtml = a.type === 'synchro' && a.club2 && a.club1 !== a.club2
+            ? `${a.club1 || ''} / ${a.club2 || ''}` : (a.club1 || '');
+          return `<div class="fsl-row">
+            <div class="fsl-no num">${a.finalOrder}</div>
+            <div class="fsl-athlete">
+              <div class="fsl-name">${nameHtml}</div>
+              ${clubHtml ? `<div class="fsl-club">${clubHtml}</div>` : ''}
+            </div>
+          </div>`;
+        }).join('')
+      : `<div style="text-align:center;color:rgba(255,255,255,0.28);font-size:1.5cqw;padding:4cqh;">
+           スタートリストが登録されていません
+         </div>`;
+
+    document.getElementById('fsl-layout').innerHTML = `
+      <div class="fsl-header">${tournamentName}</div>
+      <div class="fsl-meta">
+        <div class="fsl-final-badge">Final Round</div>
+        <div class="fsl-class">${heading}</div>
+      </div>
+      <div class="fsl-table"
+           style="--fsl-name-fs:${nameFsVw}cqw;--fsl-no-fs:${noFsVw}cqw;--fsl-club-fs:${clubFsVw}cqw;">
+        ${rows}
+      </div>
+      <div class="fsl-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>`;
   }
 
   // ---- 初期化 ----
@@ -2057,7 +2228,7 @@
               // calculating:false はCJPのpublish()側で書き込む（venue_displayは非ログインのため不可）
             }
             // スコア確定時：全会場画面を即時非表示にし、復元しない
-            ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro'].forEach(id => {
+            ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-final-startlist'].forEach(id => {
               document.getElementById(id)?.classList.remove('active');
             });
             // warmupタイマーも停止

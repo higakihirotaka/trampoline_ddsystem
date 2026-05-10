@@ -158,19 +158,21 @@
     <div class="sys-label">Trampoline Scoring System</div>
     <h1>管理者登録の手続き</h1>
 
-    <!-- ===== WebView警告（LINE等の内蔵ブラウザ検出時） ===== -->
-    <div id="webview-warn" style="display:none; background:#fff3e0; border-left:4px solid #f57c00; border-radius:0 8px 8px 0; padding:14px 16px; margin-bottom:20px; font-size:0.88rem; line-height:1.7; color:#5d4037;">
-        <strong>⚠️ このページはLINE等の内蔵ブラウザでは動作しません</strong><br>
-        GoogleログインはLINEのブラウザでブロックされます。<br><br>
-        <strong>開き方：</strong><br>
-        ① 画面右上の「…」または「⋮」メニューをタップ<br>
+    <!-- ===== LINE通知（常時表示） ===== -->
+    <div id="webview-warn" style="background:#e3f2fd; border-left:4px solid #1976d2; border-radius:0 8px 8px 0; padding:14px 16px; margin-bottom:20px; font-size:0.88rem; line-height:1.7; color:#0d47a1;">
+        <strong>📱 LINEのリンクから開いた方へ</strong><br>
+        LINEの内蔵ブラウザではGoogleログインができません。<br>
+        <strong>Safari / Chrome などの外部ブラウザで開き直してください。</strong><br><br>
+        ① 画面右上の「…」または「⋮」をタップ<br>
         ② 「ブラウザで開く」または「Safariで開く」を選択<br>
-        ③ このページが Safari / Chrome で開いたらログインできます
+        ③ Safari / Chrome で開いたらそのままログインできます
     </div>
 
     <p class="lead">
         管理者からこのURLを受け取った方向けのページです。<br>
-        以下の手順で操作し、表示された情報を管理者に送ってください。
+        このシステム（トランポリン競技採点システム）の管理者権限をお渡しするための手続きです。<br><br>
+        Googleログインで取得・送付するのは <strong>メールアドレスと識別番号（UID）のみ</strong> です。<br>
+        パスワードはシステム側では確認できません。
     </p>
 
     <!-- ===== STEP 1: ログイン ===== -->
@@ -245,7 +247,7 @@
         onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-    // LINE / Instagram 等の内蔵ブラウザ（WebView）検出
+    // LINE / Instagram 等の内蔵ブラウザ（WebView）検出 → ボタンを無効化
     (function checkWebView() {
         const ua = navigator.userAgent;
         const isWebView =
@@ -253,7 +255,6 @@
             (/wv/.test(ua) && /Android/.test(ua)) ||
             (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua) && !/CriOS\//.test(ua) && /AppleWebKit/.test(ua));
         if (isWebView) {
-            document.getElementById('webview-warn').style.display = '';
             const btn = document.getElementById('btn-login');
             if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.title = 'ブラウザで開いてからご利用ください'; }
         }

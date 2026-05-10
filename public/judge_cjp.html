@@ -237,6 +237,14 @@
         .btn-manual-toggle.active { background: #f97316; color: #fff; }
         .manual-banner { background: #c2410c; color: white; text-align: center; padding: 5px 10px; font-size: 0.8rem; font-weight: bold; display: none; letter-spacing: 0.03em; flex-shrink: 0; }
         .manual-banner.show { display: block; }
+
+        /* DNS（棄権）バナー */
+        .dns-banner { background: #1a0030; border-top: 3px solid #9c27b0; border-bottom: 3px solid #9c27b0; color: #fff; text-align: center; padding: 18px 20px; display: none; flex-shrink: 0; flex-direction: column; align-items: center; gap: 8px; }
+        .dns-banner.show { display: flex; }
+        .dns-label { font-size: 2.6rem; font-weight: 900; color: #e040fb; letter-spacing: 0.14em; line-height: 1; }
+        .dns-sublabel { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-top: 2px; }
+        .btn-cancel-dns { margin-top: 6px; background: rgba(224,64,251,0.18); border: 1px solid rgba(224,64,251,0.5); color: #e040fb; padding: 6px 20px; border-radius: 6px; font-size: 0.82rem; font-weight: bold; cursor: pointer; }
+        .btn-cancel-dns:hover { background: rgba(224,64,251,0.32); }
         input.manual-input { width: 44px; background: #111827; border: 1px solid #f97316; color: #fff; border-radius: 4px; padding: 4px 2px; font-size: 1.1rem; text-align: center; -moz-appearance: textfield; }
         input.manual-input::-webkit-outer-spin-button, input.manual-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input.manual-input:focus { border-color: #fbbf24; outline: none; box-shadow: 0 0 0 2px rgba(249,115,22,0.3); }
@@ -370,6 +378,7 @@
         </div>
         <div></div>
         <button onclick="fillDummyData()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
+        <button id="btn-dns" onclick="declareDNS()" style="background:rgba(156,39,176,0.25);border:1px solid rgba(156,39,176,0.6);color:#ce93d8;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🚫 棄権</button>
         <button id="btn-delete-result" onclick="deleteResult()" style="background:rgba(211,47,47,0.25);border:1px solid rgba(211,47,47,0.6);color:#ef9a9a;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🗑 得点削除</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
     </div>
@@ -380,6 +389,12 @@
             <div id="ath-club" style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600; margin-top: 2px;"></div>
         </div>
         <div id="ath-meta" style="color: var(--text-dim); font-size: 0.9rem; margin-left: auto;">- / -</div>
+    </div>
+
+    <div id="dns-banner" class="dns-banner">
+        <div class="dns-label">DNS</div>
+        <div class="dns-sublabel">棄権 — 競技不参加</div>
+        <button class="btn-cancel-dns" onclick="cancelDNS()">棄権を取り消す</button>
     </div>
 
     <div class="console-scroll">
@@ -490,7 +505,7 @@
             <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
             <div class="score-box"><label id="res-t-label">T</label><div id="res-t">0.000</div></div>
             <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
-            <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
+            <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.00</div></div>
         </div>
 
         <div class="action-row">
@@ -510,7 +525,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, onSnapshot, getDocs, collection, query, where, setDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, onSnapshot, getDocs, getDocFromServer, collection, query, where, setDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin } from "./auth.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
 
@@ -632,6 +647,8 @@
                             athleteId,
                             athleteName: `No.${ath.order} ${dispName}`,
                             athleteClass: ath.class || ath.category || '',
+                            athleteGender: ath.gender || '',
+                            athleteType: ath.type || 'individual',
                             round,
                             updatedAt: serverTimestamp()
                         }
@@ -826,18 +843,33 @@
         const dBonusCell = document.getElementById('dd-bonus-cell');
         if (dBonusCell) { dBonusCell.contentEditable = 'false'; dBonusCell.classList.remove('d-manual-cell'); }
 
-        // ToF/HD/Pen mode リセット（isLocked状態に関わらず直接リセット）
+        // classRules が更新されている場合を考慮して大会データをサーバーから最新取得
+        try {
+            const _freshSnap = await getDocFromServer(doc(db, 'tournaments', eventId));
+            if (_freshSnap.exists()) currentTour = _freshSnap.data();
+        } catch(e) { /* ネットワーク不良時は既存の currentTour を使用 */ }
+
+        // ToF/HD/Pen mode リセット → classRules の初期値を直接適用（'auto' ハードコード不使用）
         isLocked = false;
-        const _resetMode = (modeVar, btnId, inpId, defaultVal = '') => {
+        const _resetMode = (btnId, inpId, defaultVal = '') => {
             const btn = document.getElementById(btnId);
             const inp = document.getElementById(inpId);
             if (btn) { btn.textContent = '読込'; btn.classList.remove('manual'); btn.disabled = false; }
             if (inp) { inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
                        inp.value = defaultVal; inp.disabled = false; }
         };
-        tofMode = 'auto'; _resetMode('tofMode', 'tof-mode-btn', 'tof');
-        hdMode  = 'auto'; _resetMode('hdMode',  'hd-mode-btn',  'hd');
-        penMode = 'auto'; _resetMode('penMode', 'pen-mode-btn', 'pen', '0');
+        {
+            const _sa    = athletes.find(a => a.id === aid);
+            const _saT   = _sa?.type || 'individual';
+            const _saC   = _sa?.class || _sa?.category || '';
+            const _saR   = currentTour?.classRules?.[_saT]?.[_saC] || {};
+            tofMode = 'auto'; _resetMode('tof-mode-btn', 'tof');
+            hdMode  = 'auto'; _resetMode('hd-mode-btn',  'hd');
+            penMode = 'auto'; _resetMode('pen-mode-btn', 'pen', '0');
+            // classRulesの初期モードをリセット直後に適用
+            if ((_saR.tofDefaultMode || _saR.tofHdDefaultMode) === 'manual') toggleTofMode();
+            if ((_saR.hdDefaultMode  || _saR.tofHdDefaultMode) === 'manual') toggleHdMode();
+        }
 
         // HDTS 技別行リセット
         resetHdtsRows();
@@ -861,6 +893,8 @@
                     athleteId: aid,
                     athleteName: `No.${ath.order} ${dispName2}`,
                     athleteClass: ath.class || ath.category || '',
+                    athleteGender: ath.gender || '',
+                    athleteType: ath.type || 'individual',
                     round: rid, updatedAt: serverTimestamp(),
                     locked: false
                 }}
@@ -869,13 +903,6 @@
             // 指定難度ロード
             updateDesignatedForAthlete(ath, rid);
 
-            // クラスルールのデフォルトモード適用
-            const athType = ath.type || 'individual';
-            const athClass = ath.class || ath.category || '';
-            const cRule = currentTour.classRules?.[athType]?.[athClass] || {};
-            // 新形式(tofDefaultMode/hdDefaultMode)、旧形式(tofHdDefaultMode)両対応
-            if ((cRule.tofDefaultMode || cRule.tofHdDefaultMode) === 'manual') { if (tofMode === 'auto') toggleTofMode(); }
-            if ((cRule.hdDefaultMode  || cRule.tofHdDefaultMode) === 'manual') { if (hdMode  === 'auto') toggleHdMode();  }
             applyHdtsVisibility(ath);
         }
 
@@ -929,7 +956,7 @@
         const classRule = currentTour?.classRules?.[athType]?.[athClass] || {};
         // 指定難度は2本合計・予選1本目のみ有効（-1=無効, 0=全DD0, 1-9=N本指定）
         const rawDDCount = (classRule.designatedDDCount != null && classRule.designatedDDCount >= 0) ? classRule.designatedDDCount : -1;
-        designatedDDCount = (rawDDCount >= 0 && classRule.qualifyingRoutines === 2 && classRule.scoreMode === 'total' && rid !== 'pre2')
+        designatedDDCount = (rawDDCount >= 0 && classRule.qualifyingRoutines === 2 && classRule.scoreMode === 'total' && rid === 'pre1')
             ? rawDDCount : -1;
 
         const resId = `${eventId}_${ath.id}_${rid}`;
@@ -1003,6 +1030,13 @@
         // 得点削除ボタン: 選手選択後は常に表示
         const delBtn = document.getElementById('btn-delete-result');
         if (delBtn) delBtn.style.display = athleteId ? '' : 'none';
+        // 棄権ボタン: DNS でなく、未確定で選手選択済みのときのみ表示
+        const isDns = latestData?.dns === true;
+        const dnsBtn = document.getElementById('btn-dns');
+        if (dnsBtn) dnsBtn.style.display = (athleteId && !locked && !isDns) ? '' : 'none';
+        // DNSバナー
+        const dnsBanner = document.getElementById('dns-banner');
+        if (dnsBanner) dnsBanner.classList.toggle('show', isDns);
     }
 
     window.unlock = async function() {
@@ -1079,6 +1113,56 @@
         } catch(e) {
             alert('削除に失敗しました: ' + e.message);
         }
+    };
+
+    // ---- 棄権（DNS）----
+    window.declareDNS = async function() {
+        if (!athleteId) return;
+        if (!confirm(`No.${athletes.find(a=>a.id===athleteId)?.order || ''} を棄権（DNS）に設定しますか？`)) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        try {
+            await Promise.all([
+                setDoc(doc(db, 'results', resId), {
+                    eventId, athleteId, round,
+                    dns: true, published: true, dnsAt: serverTimestamp()
+                }, { merge: true }),
+                setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: { [panel]: { locked: true } }
+                }, { merge: true })
+            ]);
+        } catch(e) { alert('エラー: ' + e.message); }
+    };
+
+    // 棄権取り消し: results を完全削除してゼロ状態に戻す
+    window.cancelDNS = async function() {
+        if (!athleteId) return;
+        if (!confirm('棄権を取り消しますか？\n得点データも削除されます。')) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        try {
+            await Promise.all([
+                deleteDoc(doc(db, 'results', resId)),
+                setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: { [panel]: { locked: false } }, calculating: false
+                }, { merge: true })
+            ]);
+            delete results[resId];
+            latestData = {};
+            manualRows = new Set(); pendingEdits = {};
+            dMode = 'auto'; dModeAutoExplicit = false; lockedOfficialSkills = null;
+            const dToggle = document.getElementById('d-mode-toggle');
+            if (dToggle) dToggle.checked = false;
+            document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable='false'; el.classList.remove('d-manual-cell'); });
+            document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable='false'; el.classList.remove('d-manual-cell'); });
+            const dBc = document.getElementById('dd-bonus-cell');
+            if (dBc) { dBc.contentEditable='false'; dBc.classList.remove('d-manual-cell'); }
+            const submissionIdx = submissions[resId]?.designatedDDIndices;
+            designatedDDIndices = [...(submissionIdx || [])];
+            designatedDDManualChanged = false;
+            renderDesignatedRow();
+            applyLock(false);
+            renderScores({});
+            renderSidebar();
+        } catch(e) { alert('取り消しに失敗しました: ' + e.message); }
     };
 
     // 再表示: publishedAtを更新して会場ディスプレイに再アニメーション
@@ -1453,10 +1537,10 @@
                     }
                 });
 
-                // ボーナス計算（男子:6本目以降のトリプル×0.3、女子:3本目以降のトリプル×0.3）
+                // ボーナス計算（男子:6本目以降のトリプル×0.3、女子・混合:3本目以降のトリプル×0.3）
                 let bonus = 0;
                 if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-                else if (gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+                else if ((gender === '女子' || gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
                 const totalDD = baseDD + bonus;
                 document.getElementById('dd-total-cell').textContent = (baseDD + bonus) > 0 ? (baseDD + bonus).toFixed(1) : '-';
@@ -1635,7 +1719,7 @@
         document.getElementById('res-e').innerText     = (fType === 'synchro') ? e.toFixed(3) : e.toFixed(1);
         document.getElementById('res-t').innerText     = t.toFixed(3);
         document.getElementById('res-hd').innerText    = h.toFixed(3);
-        document.getElementById('res-total').innerText = Math.max(0, d + e + t + h - p).toFixed(3);
+        document.getElementById('res-total').innerText = Math.max(0, d + e + t + h - p).toFixed(2);
     }
 
     window.toggleRowManual = function(jKey, on) {
@@ -1856,7 +1940,7 @@
         const t    = parseFloat(document.getElementById('tof').value) || 0;
         const h    = parseFloat(document.getElementById('hd').value) || 0;
         const p    = parseFloat(document.getElementById('pen').value) || 0;
-        document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(3);
+        document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(2);
     });
 
     // 確定のみ（会場ディスプレイをスキップ）
@@ -1873,7 +1957,7 @@
         const h      = parseFloat(document.getElementById('res-hd').innerText) || 0;
         const p      = parseFloat(document.getElementById('pen').value) || 0;
         const th     = t + h;
-        const total  = parseFloat(document.getElementById('res-total').innerText) || 0;
+        const total  = Math.max(0, d + e + t + h - p); // 全精度で保持（表示値ではなく計算値）
 
         const saveData = {
             eventId, athleteId, round,
@@ -2079,7 +2163,7 @@
             const t    = (fType === 'synchro') ? tRaw * 2 : tRaw;
             const h    = parseFloat(document.getElementById('hd').value) || 0;
             const p    = parseFloat(document.getElementById('pen').value) || 0;
-            document.getElementById('res-total').innerText = Math.max(0, d + execution + t + h - p).toFixed(3);
+            document.getElementById('res-total').innerText = Math.max(0, d + execution + t + h - p).toFixed(2);
         }
     }
 

@@ -407,7 +407,7 @@
         const validDesig = rawDDCount >= 0
             && classRule.qualifyingRoutines === 2
             && classRule.scoreMode === 'total'
-            && round !== 'pre2';
+            && round === 'pre1';
         designatedDDCount   = validDesig ? rawDDCount : -1;
         designatedDDIndices = [...(resData?.officialDesignatedDDIndices || sub?.designatedDDIndices || [])];
 
@@ -575,7 +575,7 @@
         const ath = athletes.find(a => a.id === athleteId);
         let bonus = 0;
         if (ath?.gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-        else if (ath?.gender === '女子' && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+        else if ((ath?.gender === '女子' || ath?.gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
         totalDDContainer.innerHTML = `${(baseDD + bonus).toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>`;

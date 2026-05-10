@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, memoryLocalCache } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -13,7 +13,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// memoryLocalCache: IndexedDB を一切使わずメモリのみでキャッシュ
+// → iOS Safari プライベートモードで IndexedDB が制限される環境でもクラッシュしない
+const db = initializeFirestore(app, { localCache: memoryLocalCache() });
 const auth = getAuth(app);
 
 const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
