@@ -328,6 +328,8 @@
         /* dd-bonus-cell 手動時 */
         #dd-bonus-cell.d-manual-cell { color: #c2410c !important; font-weight: bold !important; cursor: text; background: #fff7ed !important; }
         #dd-bonus-cell.d-manual-cell:focus { background: rgba(249,115,22,0.12) !important; outline: 2px solid #f97316; }
+        #dd-total-cell.d-manual-cell { color: #c2410c !important; font-weight: bold !important; cursor: text; background: #fff7ed !important; white-space: nowrap; }
+        #dd-total-cell.d-manual-cell:focus { background: rgba(249,115,22,0.12) !important; outline: 2px solid #f97316; }
         /* D情報行（申請・実施・DD） */
         .d-info-row th { font-size: 0.85rem; color: #475569; background: #f8fafc; font-weight: 400; border-color: #e2e8f0 !important; }
         .d-info-row.d-confirmed th { background: #ecfdf5; color: #047857; }
@@ -842,6 +844,8 @@
         document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
         const dBonusCell = document.getElementById('dd-bonus-cell');
         if (dBonusCell) { dBonusCell.contentEditable = 'false'; dBonusCell.classList.remove('d-manual-cell'); }
+        const dTotalCell0 = document.getElementById('dd-total-cell');
+        if (dTotalCell0) { dTotalCell0.contentEditable = 'false'; dTotalCell0.classList.remove('d-manual-cell'); }
 
         // classRules が更新されている場合を考慮して大会データをサーバーから最新取得
         try {
@@ -1088,6 +1092,8 @@
             document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
             const dBonusCell = document.getElementById('dd-bonus-cell');
             if (dBonusCell) { dBonusCell.contentEditable = 'false'; dBonusCell.classList.remove('d-manual-cell'); }
+            const dTotalCell1 = document.getElementById('dd-total-cell');
+            if (dTotalCell1) { dTotalCell1.contentEditable = 'false'; dTotalCell1.classList.remove('d-manual-cell'); }
 
             // 指定難度を申告値にリセット
             const submissionIdx = submissions[resId]?.designatedDDIndices;
@@ -1155,6 +1161,8 @@
             document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable='false'; el.classList.remove('d-manual-cell'); });
             const dBc = document.getElementById('dd-bonus-cell');
             if (dBc) { dBc.contentEditable='false'; dBc.classList.remove('d-manual-cell'); }
+            const dTotalCell2 = document.getElementById('dd-total-cell');
+            if (dTotalCell2) { dTotalCell2.contentEditable='false'; dTotalCell2.classList.remove('d-manual-cell'); }
             const submissionIdx = submissions[resId]?.designatedDDIndices;
             designatedDDIndices = [...(submissionIdx || [])];
             designatedDDManualChanged = false;
@@ -1491,6 +1499,8 @@
                     document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
                     const dBonusCellM = document.getElementById('dd-bonus-cell');
                     if (dBonusCellM) { dBonusCellM.contentEditable = 'true'; dBonusCellM.classList.add('d-manual-cell'); }
+                    const dTotalCellM = document.getElementById('dd-total-cell');
+                    if (dTotalCellM) { dTotalCellM.contentEditable = 'true'; dTotalCellM.classList.add('d-manual-cell'); }
                 }
             } else {
                 const ath = athletes.find(a => a.id === athleteId);
@@ -1913,34 +1923,45 @@
         const ddCells    = document.querySelectorAll('.d-dd');
         const execCells  = document.querySelectorAll('.skill-header');
         const bonusCell  = document.getElementById('dd-bonus-cell');
+        const totalCell  = document.getElementById('dd-total-cell');
         if (dMode === 'manual') {
             ddCells.forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
             execCells.forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
             if (bonusCell) { bonusCell.contentEditable = 'true'; bonusCell.classList.add('d-manual-cell'); }
+            if (totalCell) { totalCell.contentEditable = 'true'; totalCell.classList.add('d-manual-cell'); }
         } else {
             ddCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
             execCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
             if (bonusCell) { bonusCell.contentEditable = 'false'; bonusCell.classList.remove('d-manual-cell'); }
+            if (totalCell) { totalCell.contentEditable = 'false'; totalCell.classList.remove('d-manual-cell'); }
             renderScores(latestData);
         }
     };
 
     // DD手動入力セルのリアルタイム合計更新（Eスコアをリセットしないよう直接計算）
     document.addEventListener('input', function(e) {
-        if (!e.target.classList.contains('d-dd') && e.target.id !== 'dd-bonus-cell') return;
-        let baseDD = 0;
-        document.querySelectorAll('.d-dd').forEach(cell => {
-            baseDD += parseFloat(cell.textContent) || 0;
-        });
-        const bonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
-        const totalDD = baseDD + bonus;
-        document.getElementById('dd-total-cell').textContent = totalDD.toFixed(1);
-        document.getElementById('res-d').innerText = totalDD.toFixed(1);
+        if (!e.target.classList.contains('d-dd') && e.target.id !== 'dd-bonus-cell' && e.target.id !== 'dd-total-cell') return;
         const eVal = parseFloat(document.getElementById('res-e').innerText) || 0;
         const t    = parseFloat(document.getElementById('tof').value) || 0;
         const h    = parseFloat(document.getElementById('hd').value) || 0;
         const p    = parseFloat(document.getElementById('pen').value) || 0;
-        document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(2);
+        if (e.target.id === 'dd-total-cell') {
+            // 合計セルを直接編集 → その値をそのまま D として反映
+            const totalDD = parseFloat(e.target.textContent) || 0;
+            document.getElementById('res-d').innerText = totalDD.toFixed(1);
+            document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(2);
+        } else {
+            // 個技セルまたはボーナスセルを編集 → 合計を再計算して合計セルにも反映
+            let baseDD = 0;
+            document.querySelectorAll('.d-dd').forEach(cell => {
+                baseDD += parseFloat(cell.textContent) || 0;
+            });
+            const bonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
+            const totalDD = baseDD + bonus;
+            document.getElementById('dd-total-cell').textContent = totalDD.toFixed(1);
+            document.getElementById('res-d').innerText = totalDD.toFixed(1);
+            document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(2);
+        }
     });
 
     // 確定のみ（会場ディスプレイをスキップ）
@@ -1993,7 +2014,7 @@
             saveData.officialSkills   = manualIds;
             saveData.officialDDValues = manualDDs;   // 各技のDD値（再読み込み復元用）
             saveData.officialDDBonus  = manualBonus;
-            saveData.officialTotalDD  = manualDDs.reduce((a, b) => a + b, 0) + manualBonus;
+            saveData.officialTotalDD  = d; // #res-d の確定D値（合計セル手動上書きを含む）
         } else {
             // autoモードで再確定する場合は手動DD値をクリア
             saveData.officialDDValues = deleteField();
