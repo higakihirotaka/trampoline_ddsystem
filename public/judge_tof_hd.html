@@ -28,11 +28,13 @@
         /* メイン */
         .main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px; gap: 24px; }
 
-        /* 保存済み値 */
+        /* 保存済み値 / 有効本数 */
         .saved-row { width: 100%; max-width: 360px; background: var(--card); border-radius: 10px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
         .saved-label { font-size: 0.75rem; color: var(--text-dim); font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; }
         .saved-val { font-size: 1.4rem; font-weight: 900; font-family: monospace; color: var(--text-dim); }
         .saved-val.has-val { color: var(--success); }
+        .vc-val { font-size: 1.8rem; font-weight: 900; font-family: monospace; color: var(--text-dim); }
+        .vc-val.has-val { color: #ffd740; }
 
         /* 入力エリア */
         .input-section { width: 100%; max-width: 360px; text-align: center; }
@@ -86,6 +88,11 @@
 <div class="main">
 
     <div class="saved-row">
+        <span class="saved-label">有効本数</span>
+        <span class="vc-val" id="vc-val">-</span>
+    </div>
+
+    <div class="saved-row">
         <span class="saved-label">保存済み値</span>
         <span class="saved-val" id="saved-val">-</span>
     </div>
@@ -121,6 +128,7 @@
 
     let currentAthleteId = null;
     let currentRound     = null;
+    let unsubResults     = null;
 
     // ---- UI 初期化 ----
     document.getElementById('role-label').textContent  = role === 'T' ? 'ToF (T)' : 'HD';
@@ -129,14 +137,50 @@
     document.getElementById('input-label').textContent  = `入力値（実際の値 × ${divisor} の整数）`;
     document.getElementById('actual-label').textContent = `実際の値（入力値 ÷ ${divisor}）`;
 
+    // ---- results を onSnapshot で監視して有効本数をリアルタイム表示 ----
+    function watchResults() {
+        if (unsubResults) { unsubResults(); unsubResults = null; }
+        const vcEl = document.getElementById('vc-val');
+        if (!currentAthleteId || !currentRound) {
+            vcEl.textContent = '-'; vcEl.classList.remove('has-val'); return;
+        }
+        const resId = `${eventId}_${currentAthleteId}_${currentRound}`;
+        unsubResults = onSnapshot(doc(db, 'results', resId), snap => {
+            const vc = snap.exists() ? snap.data().validCount : null;
+            if (vc != null) {
+                vcEl.textContent = `${vc}本`; vcEl.classList.add('has-val');
+            } else {
+                vcEl.textContent = '-'; vcEl.classList.remove('has-val');
+            }
+        });
+    }
+
+    // ---- 選手切替時に入力欄・ステータスをクリア ----
+    function clearInput() {
+        document.getElementById('val-input').value = '';
+        document.getElementById('actual-display').textContent = '-';
+        document.getElementById('btn-send').disabled = true;
+        const statusEl = document.getElementById('status-msg');
+        statusEl.textContent = '';
+        statusEl.className = 'status-msg';
+    }
+
     // ---- liveState を監視して現在の選手を追従 ----
     if (eventId) {
         onSnapshot(doc(db, 'tournaments', eventId), snap => {
             const data = snap.data() || {};
             const live = data.liveState?.[panel] || {};
 
-            currentAthleteId = live.athleteId || null;
-            currentRound     = live.round     || 'pre1';
+            const newAthleteId = live.athleteId || null;
+            const newRound     = live.round     || 'pre1';
+
+            // 選手またはラウンドが切り替わったら入力値・ステータスをリセット
+            if (newAthleteId !== currentAthleteId || newRound !== currentRound) {
+                clearInput();
+            }
+
+            currentAthleteId = newAthleteId;
+            currentRound     = newRound;
 
             const nameEl = document.getElementById('ath-name');
             const metaEl = document.getElementById('ath-meta');
@@ -154,6 +198,8 @@
             const v = parseInt(document.getElementById('val-input').value, 10);
             document.getElementById('btn-send').disabled = !(currentAthleteId && !isNaN(v) && v >= 0);
 
+            // 有効本数のリアルタイム監視を開始（選手切替時はリスナー張り直し）
+            watchResults();
             // 保存済み値を取得・表示
             loadSavedVal();
         });
@@ -226,7 +272,7 @@
             savedEl.textContent = actual.toFixed(3);
             savedEl.className   = 'saved-val has-val';
 
-            showStatus('✓ 送信完了');
+            showStatus('✓ 送信完了', false, true); // 選手切替まで表示を保持
         } catch (e) {
             showStatus('エラー: ' + e.message, true);
         } finally {
@@ -234,11 +280,14 @@
         }
     };
 
-    function showStatus(msg, isError = false) {
+    // persistent=true のとき自動消去しない（選手切替時に clearInput() で消す）
+    function showStatus(msg, isError = false, persistent = false) {
         const el = document.getElementById('status-msg');
         el.textContent = msg;
         el.className   = 'status-msg ' + (isError ? 'err' : 'ok');
-        setTimeout(() => { el.textContent = ''; el.className = 'status-msg'; }, 3000);
+        if (!persistent) {
+            setTimeout(() => { el.textContent = ''; el.className = 'status-msg'; }, 3000);
+        }
     }
 </script>
 </body>
