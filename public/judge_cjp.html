@@ -1927,10 +1927,22 @@
         const bonusCell  = document.getElementById('dd-bonus-cell');
         const totalCell  = document.getElementById('dd-total-cell');
         if (dMode === 'manual') {
-            ddCells.forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
-            execCells.forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
-            if (bonusCell) { bonusCell.contentEditable = 'true'; bonusCell.classList.add('d-manual-cell'); }
-            if (totalCell) { totalCell.contentEditable = 'true'; totalCell.classList.add('d-manual-cell'); }
+            ddCells.forEach(el => {
+                el.contentEditable = 'true'; el.classList.add('d-manual-cell');
+                if (el.textContent.trim() === '-') el.textContent = '';  // デフォルト "-" を消去
+            });
+            execCells.forEach(el => {
+                el.contentEditable = 'true'; el.classList.add('d-manual-cell');
+                if (el.textContent.trim() === '-') el.textContent = '';  // デフォルト "-" を消去
+            });
+            if (bonusCell) {
+                bonusCell.contentEditable = 'true'; bonusCell.classList.add('d-manual-cell');
+                if (bonusCell.textContent.trim() === '-') bonusCell.textContent = '';
+            }
+            if (totalCell) {
+                totalCell.contentEditable = 'true'; totalCell.classList.add('d-manual-cell');
+                if (totalCell.textContent.trim() === '-') totalCell.textContent = '';
+            }
         } else {
             ddCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
             execCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
