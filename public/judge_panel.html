@@ -251,7 +251,7 @@
         // 絞り込み＆ソート
         let filtered;
         if (fFinalOnly) {
-            filtered = athletes
+            filtered = byType  // athletes ではなく種目フィルタ済みの byType を使う
                 .filter(a => a.finalOrder != null)
                 .filter(a => !fClass  || (a.class || a.category || '') === fClass)
                 .filter(a => !fGender || (a.gender || '') === fGender)
