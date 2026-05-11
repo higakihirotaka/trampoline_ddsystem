@@ -1241,7 +1241,8 @@
       })();
 
       const isDiff    = !!(skill && subSkill && skill.symbol !== subSkill.symbol);
-      const repeatKey = skill ? (skill.symbol + '|' + (skill.direction || '')) : String(offRaw);
+      // 重複判定はFirestoreドキュメントID基準（同名・同方向でもnoteが異なる別技を誤検知しない）
+      const repeatKey = skill ? skill.id : String(offRaw);
       const isRepeat  = !!(skill && seenIds.has(repeatKey));
       if (isDiff) hasAnyDiff = true;
 
