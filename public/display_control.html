@@ -532,8 +532,6 @@
     let warmupData     = {};
     let classCombos    = [];  // 既存クラス一覧
     let ctrlTimerInterval = null;
-    let _serverOffset  = 0;   // サーバー時刻との差（ms）: serverTs - Date.now()
-    let _timerRefMs    = null; // 最後に _serverOffset を計算した timerRef の値（変化時のみ再計算するため）
 
     const SCREEN_LABELS = {
         score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
@@ -595,16 +593,6 @@
             setSlider('wu-class-fs', warmup.classFontSize || 4.5);
             setSlider('wu-timer-fs', warmup.timerFontSize || 24);
             document.getElementById('timer-repeat').checked = !!warmup.timerRepeat;
-            // サーバー時刻オフセット更新（timerRef が変わった時＝タイマー操作時のみ再計算）
-            // timerRef は serverTimestamp で書き込まれるため、変化していない場合に
-            // 再計算すると「過去の timerRef − 現在の Date.now()」になり大きくずれる
-            if (warmup.timerRef?.toMillis) {
-                const refMs = warmup.timerRef.toMillis();
-                if (refMs !== _timerRefMs) {
-                    _serverOffset = refMs - Date.now();
-                    _timerRefMs   = refMs;
-                }
-            }
         }
 
         // 巡回チェックボックス復元（巡回停止中のみ上書き）
@@ -951,42 +939,48 @@
     });
 
     // ---- タイマー制御 ----
+    // timerRef（Firestore serverTimestamp）+ timerRemainingMs から終了時刻を計算。
+    // クライアント側の _serverOffset を使わないため、どのデバイス・どのタイミングでも一致する。
     function syncCtrlTimer() {
         clearInterval(ctrlTimerInterval); ctrlTimerInterval = null;
         const timerEl  = document.getElementById('ctrl-timer');
         const startBtn = document.getElementById('timer-start-btn');
         const pauseBtn = document.getElementById('timer-pause-btn');
-        // 表示状態に関わらずタイマーは常時動作
-        startBtn.disabled = false;
 
         function tick() {
             const wu = warmupData;
-            if (wu.timerPaused || !wu.timerEndTime) {
-                renderCtrlTimer(timerEl, wu.timerRemainingMs ?? 0, false);
-                startBtn.textContent = '▶ 開始'; startBtn.disabled = (wu.timerRemainingMs ?? 0) === 0;
-                pauseBtn.disabled = true; return;
+            // timerRef が有効 かつ 一時停止していない → カウントダウン中
+            const running = !wu.timerPaused && !!wu.timerRef?.toMillis;
+            let rem;
+            if (running) {
+                const endMs = wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0);
+                rem = Math.max(0, endMs - Date.now());
+            } else {
+                rem = wu.timerRemainingMs ?? 0;
             }
-            const rem = Math.max(0, wu.timerEndTime - (Date.now() + _serverOffset));
-            renderCtrlTimer(timerEl, rem, true);
-            startBtn.textContent = '▶ 開始'; startBtn.disabled = true; pauseBtn.disabled = false;
-            if (rem === 0) {
+            renderCtrlTimer(timerEl, rem, running);
+            startBtn.textContent = '▶ 開始';
+            startBtn.disabled = running || rem === 0;
+            pauseBtn.disabled = !running;
+
+            if (rem === 0 && running) {
                 clearInterval(ctrlTimerInterval); ctrlTimerInterval = null;
                 // 繰り返し設定: 自動で再スタート
                 if (wu.timerRepeat) {
                     const defaultMs = wu.timerDefaultMs ?? 5 * 60 * 1000;
                     setTimeout(async () => {
                         await updateDoc(doc(db,'tournaments',eventId), {
-                            'warmupSettings.timerEndTime':    Date.now() + _serverOffset + defaultMs,
                             'warmupSettings.timerRef':        serverTimestamp(),
-                            'warmupSettings.timerPaused':     false,
                             'warmupSettings.timerRemainingMs':defaultMs,
+                            'warmupSettings.timerPaused':     false,
                         }).catch(() => {});
                     }, 1500); // 1.5秒後に再スタート
                 }
             }
         }
         tick();
-        if (!warmupData.timerPaused && warmupData.timerEndTime) {
+        const wu = warmupData;
+        if (!wu.timerPaused && wu.timerRef?.toMillis) {
             ctrlTimerInterval = setInterval(tick, 500);
         }
     }
@@ -1000,20 +994,22 @@
     document.getElementById('timer-start-btn').addEventListener('click', async () => {
         const rem = warmupData.timerRemainingMs ?? 0;
         if (rem <= 0) return;
+        // timerRef にサーバー時刻、timerRemainingMs に残り時間を書き込む。
+        // 終了時刻は timerRef.toMillis() + timerRemainingMs として全デバイスが共通計算する。
         await updateDoc(doc(db,'tournaments',eventId), {
-            'warmupSettings.timerEndTime':    Date.now() + _serverOffset + rem,
             'warmupSettings.timerRef':        serverTimestamp(),
-            'warmupSettings.timerPaused':     false,
             'warmupSettings.timerRemainingMs':rem,
+            'warmupSettings.timerPaused':     false,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-pause-btn').addEventListener('click', async () => {
-        if (!warmupData.timerEndTime) return;
-        const rem = Math.max(0, warmupData.timerEndTime - (Date.now() + _serverOffset));
+        const wu = warmupData;
+        if (!wu.timerRef?.toMillis) return;
+        const endMs = wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0);
+        const rem   = Math.max(0, endMs - Date.now());
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
-            'warmupSettings.timerEndTime':     null,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-reset-btn').addEventListener('click', async () => {
@@ -1021,7 +1017,6 @@
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
-            'warmupSettings.timerEndTime':     null,
         }).catch(e => alert('失敗: '+e.message));
     });
     // ---- タイマー手入力：onSnapshot で上書きされないよう「更新」ボタンでのみ反映 ----
@@ -1039,7 +1034,6 @@
             'warmupSettings.timerDefaultMs':   ms,
             'warmupSettings.timerRemainingMs': ms,
             'warmupSettings.timerPaused':      true,
-            'warmupSettings.timerEndTime':     null,
         }).catch(e => alert('失敗: '+e.message));
         // 入力欄をクリア
         minEl.value = ''; secEl.value = '';
@@ -1061,7 +1055,6 @@
                 'warmupSettings.timerDefaultMs':   ms,
                 'warmupSettings.timerRemainingMs': ms,
                 'warmupSettings.timerPaused':      true,
-                'warmupSettings.timerEndTime':     null,
             }).catch(e => alert('失敗: '+e.message));
         });
     });

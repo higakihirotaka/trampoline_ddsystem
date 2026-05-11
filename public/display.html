@@ -1866,8 +1866,6 @@
 
   // ---- 会場画面オーバーレイ管理 ----
   let warmupTimerInterval = null;
-  let _warmupServerOffset = 0;    // サーバー時刻補正値（ms）
-  let _warmupTimerRefMs   = null; // 最後に _warmupServerOffset を計算した timerRef の値
 
   function applyVenueScreen(tourData) {
     const screen = tourData.venueScreen || 'score';
@@ -1984,29 +1982,26 @@
   }
 
   function startWarmupDisplay(warmup) {
-    // timerRef が変わった時（タイマー操作時）だけ再計算する
-    // 古い timerRef で再計算するとオフセットが大きくずれてタイマーがリセットして見える
-    if (warmup.timerRef?.toMillis) {
-      const refMs = warmup.timerRef.toMillis();
-      if (refMs !== _warmupTimerRefMs) {
-        _warmupServerOffset = refMs - Date.now();
-        _warmupTimerRefMs   = refMs;
-      }
-    }
+    // timerRef（Firestore serverTimestamp）+ timerRemainingMs から終了時刻を計算。
+    // _serverOffset に依存しないため、どのデバイス・どのタイミングでもタイマーが一致する。
+    clearInterval(warmupTimerInterval);
+    warmupTimerInterval = null;
     const timerEl = document.getElementById('vs-timer');
     function tick() {
       if (!timerEl) return;
-      if (warmup.timerPaused || !warmup.timerEndTime) {
-        const rem = warmup.timerRemainingMs ?? 0;
-        showTimerDisplay(timerEl, rem);
-        return;
+      const running = !warmup.timerPaused && !!warmup.timerRef?.toMillis;
+      let rem;
+      if (running) {
+        const endMs = warmup.timerRef.toMillis() + (warmup.timerRemainingMs ?? 0);
+        rem = Math.max(0, endMs - Date.now());
+      } else {
+        rem = warmup.timerRemainingMs ?? 0;
       }
-      const rem = Math.max(0, warmup.timerEndTime - (Date.now() + _warmupServerOffset));
       showTimerDisplay(timerEl, rem);
-      if (rem === 0) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
+      if (rem === 0 && running) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
     }
     tick();
-    if (!warmup.timerPaused && warmup.timerEndTime) {
+    if (!warmup.timerPaused && warmup.timerRef?.toMillis) {
       warmupTimerInterval = setInterval(tick, 500);
     }
   }
