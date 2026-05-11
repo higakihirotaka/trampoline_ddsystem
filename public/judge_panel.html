@@ -428,6 +428,31 @@
             return found ? found.id : "";
         });
 
+        // ヘッダー表示用: 名前・ふりがな・チーム名
+        const isSynchroCard = (ath.type === 'synchro');
+        const headerName = isSynchroCard
+            ? `${ath.name1} / ${ath.name2 || ''}`
+            : ath.name1;
+        const headerKana = isSynchroCard
+            ? [ath.kana1, ath.kana2].filter(Boolean).join(' / ')
+            : (ath.kana1 || '');
+        let headerClub = '';
+        if (isSynchroCard) {
+            const c1 = ath.club1 || '', c2 = ath.club2 || '';
+            const ck1 = ath.clubKana1 || '', ck2 = ath.clubKana2 || '';
+            if (c1 && c1 === c2) {
+                // 同じチーム名 → 一つだけ表示
+                headerClub = c1 + (ck1 ? `（${ck1}）` : '');
+            } else {
+                const p1 = c1 ? c1 + (ck1 ? `（${ck1}）` : '') : '';
+                const p2 = c2 ? c2 + (ck2 ? `（${ck2}）` : '') : '';
+                headerClub = [p1, p2].filter(Boolean).join(' / ');
+            }
+        } else {
+            const c1 = ath.club1 || '', ck1 = ath.clubKana1 || '';
+            headerClub = c1 ? c1 + (ck1 ? `（${ck1}）` : '') : '';
+        }
+
         document.getElementById('main-content').innerHTML = `
             <div class="score-card">
                 <div class="header-info">
@@ -436,7 +461,8 @@
                         ${cjpConfirmed ? '<span class="status-badge badge-cjp-locked">🔒 CJP確定済</span>' : dSaved ? '<span class="status-badge badge-locked">✓ D確定済</span>' : ''}
                         ${noSub ? '<span style="font-size:0.85em; font-weight:bold; color:var(--warn-orange); background:#fff3e0; padding:4px 10px; border-radius:6px; border:1px solid #ffcc80;">⚠ 選手未申告</span>' : ''}
                     </div>
-                    <h2>No.${ath.order} ${ath.name1} <span style="font-size:0.5em; color:#666;">(${ath.kana1 || ""})</span></h2>
+                    <h2>No.${ath.order} ${headerName} <span style="font-size:0.5em; color:#666;">${headerKana ? `(${headerKana})` : ''}</span></h2>
+                    ${headerClub ? `<div style="font-size:0.9em; color:#78909c; margin-top:2px;">${headerClub}</div>` : ''}
                 </div>
                 <table class="comparison-table">
                     <thead><tr><th class="col-num">#</th><th class="col-sub">選手申告</th><th class="col-sub-dd">DD</th><th>系統</th><th>宙系</th><th>記号</th><th class="col-dd">DD</th></tr></thead>
