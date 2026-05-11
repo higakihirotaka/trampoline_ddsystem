@@ -1982,22 +1982,24 @@
   }
 
   function startWarmupDisplay(warmup) {
-    // timerEndMs = 開始時に Date.now()+残り時間 で確定した絶対終了時刻（Firestore に保存済み）。
-    // remaining = timerEndMs - Date.now()。全デバイスが同一の timerEndMs を参照するので一致する。
+    // timerEndMs（開始時に Date.now()+残り時間 で確定した絶対終了時刻）を使用。
+    // 旧データ互換: timerEndMs がない場合は timerRef + timerRemainingMs で終了時刻を推定。
     clearInterval(warmupTimerInterval);
     warmupTimerInterval = null;
+    const timerEndMs = warmup.timerEndMs != null ? warmup.timerEndMs
+      : (warmup.timerRef?.toMillis ? warmup.timerRef.toMillis() + (warmup.timerRemainingMs ?? 0) : null);
     const timerEl = document.getElementById('vs-timer');
     function tick() {
       if (!timerEl) return;
-      const running = !warmup.timerPaused && warmup.timerEndMs != null;
+      const running = !warmup.timerPaused && timerEndMs != null;
       const rem = running
-        ? Math.max(0, warmup.timerEndMs - Date.now())
+        ? Math.max(0, timerEndMs - Date.now())
         : (warmup.timerRemainingMs ?? 0);
       showTimerDisplay(timerEl, rem);
       if (rem === 0 && running) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
     }
     tick();
-    if (!warmup.timerPaused && warmup.timerEndMs != null) {
+    if (!warmup.timerPaused && timerEndMs != null) {
       warmupTimerInterval = setInterval(tick, 500);
     }
   }

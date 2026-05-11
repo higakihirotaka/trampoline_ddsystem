@@ -950,11 +950,13 @@
         function tick() {
             const wu = warmupData;
             // timerEndMs（開始時に Date.now()+残り時間 で確定した絶対終了時刻）を使用。
-            // 全デバイスが同一の timerEndMs を Firestore から読み、Date.now() で引くだけ。
-            const running = !wu.timerPaused && wu.timerEndMs != null;
+            // 旧データ互換: timerEndMs がない場合は timerRef + timerRemainingMs で終了時刻を推定。
+            const timerEndMs = wu.timerEndMs != null ? wu.timerEndMs
+                : (wu.timerRef?.toMillis ? wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0) : null);
+            const running = !wu.timerPaused && timerEndMs != null;
             let rem;
             if (running) {
-                rem = Math.max(0, wu.timerEndMs - Date.now());
+                rem = Math.max(0, timerEndMs - Date.now());
             } else {
                 rem = wu.timerRemainingMs ?? 0;
             }
@@ -980,7 +982,9 @@
         }
         tick();
         const wu = warmupData;
-        if (!wu.timerPaused && wu.timerEndMs != null) {
+        const _timerEndMs = wu.timerEndMs != null ? wu.timerEndMs
+            : (wu.timerRef?.toMillis ? wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0) : null);
+        if (!wu.timerPaused && _timerEndMs != null) {
             ctrlTimerInterval = setInterval(tick, 500);
         }
     }
@@ -1144,6 +1148,15 @@
         introAthletes.forEach(a => introCheckedIds.add(a.id));
         buildIntroFilterBtns();
         applyIntroFilter();
+
+        // 初期画面状態を即座に反映（onSnapshot 到着前にタイマーを表示する）
+        applyScreenState(
+            tourData.venueScreen      || 'score',
+            tourData.warmupSettings   || {},
+            tourData.titleSettings    || {},
+            tourData.ceremonySettings || {},
+            tourData.rankingCarousel  || {}
+        );
 
         // リアルタイム監視
         onSnapshot(doc(db,'tournaments',eventId), snap => {
