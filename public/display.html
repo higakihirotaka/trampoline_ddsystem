@@ -1982,27 +1982,22 @@
   }
 
   function startWarmupDisplay(warmup) {
-    // timerEndMs（Firestore に保存された絶対終了時刻）から remaining = timerEndMs - Date.now() を計算。
-    // timerEndMs が確定する ~100ms 前はフォールバックとして timerRef + timerRemainingMs を使用。
+    // timerEndMs = 開始時に Date.now()+残り時間 で確定した絶対終了時刻（Firestore に保存済み）。
+    // remaining = timerEndMs - Date.now()。全デバイスが同一の timerEndMs を参照するので一致する。
     clearInterval(warmupTimerInterval);
     warmupTimerInterval = null;
     const timerEl = document.getElementById('vs-timer');
     function tick() {
       if (!timerEl) return;
-      const running = !warmup.timerPaused && !!(warmup.timerEndMs || warmup.timerRef?.toMillis);
-      let rem;
-      if (running) {
-        const endMs = warmup.timerEndMs
-            ?? (warmup.timerRef.toMillis() + (warmup.timerRemainingMs ?? 0));
-        rem = Math.max(0, endMs - Date.now());
-      } else {
-        rem = warmup.timerRemainingMs ?? 0;
-      }
+      const running = !warmup.timerPaused && warmup.timerEndMs != null;
+      const rem = running
+        ? Math.max(0, warmup.timerEndMs - Date.now())
+        : (warmup.timerRemainingMs ?? 0);
       showTimerDisplay(timerEl, rem);
       if (rem === 0 && running) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
     }
     tick();
-    if (!warmup.timerPaused && (warmup.timerEndMs || warmup.timerRef?.toMillis)) {
+    if (!warmup.timerPaused && warmup.timerEndMs != null) {
       warmupTimerInterval = setInterval(tick, 500);
     }
   }
