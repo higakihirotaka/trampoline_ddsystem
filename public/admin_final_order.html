@@ -160,6 +160,7 @@
       <label class="shuffle-opt"><input type="radio" name="shuffle" value="none" checked>シャッフルなし（予選逆順）</label>
       <label class="shuffle-opt"><input type="radio" name="shuffle" value="full">完全シャッフル</label>
       <label class="shuffle-opt"><input type="radio" name="shuffle" value="split4">上位4名とそれ以外でシャッフル</label>
+      <label class="shuffle-opt"><input type="radio" name="shuffle" value="qualifying">予選試技順のまま</label>
     </div>
   </div>
 
@@ -199,7 +200,7 @@
     </div>
     <div class="sl-section-head">
       <h2>📋 スタートリスト</h2>
-      <button class="btn-print" onclick="window.print()">🖨️ 印刷</button>
+      <button class="btn-print" onclick="printFiltered()">🖨️ 印刷</button>
       <button class="btn-refresh" onclick="refreshStartList()">↻ 更新</button>
     </div>
     <div id="startlist-container"></div>
@@ -221,7 +222,7 @@
   let fType = 'individual', fGender = '', fClass = '';
   let pendingFinalOrder = null; // 確定前プレビュー
 
-  const fmt = v => (v != null ? Number(v).toFixed(3) : '--');
+  const fmt = v => (v != null ? Number(v).toFixed(2) : '--');
 
   // ---- 認証 & 初期化 ----
   ensureAdmin(async user => {
@@ -416,6 +417,14 @@
         const rest = shuffleArray(finalists.slice(4));    // それ以外
         trialOrder = [...rest, ...top4]; // 下位グループが先、上位4名が後
       }
+    } else if (shuffleMode === 'qualifying') {
+      // 予選の出番順（組番号 → 試技順）で昇順に並べる
+      trialOrder = [...finalists].sort((x, y) => {
+        const gx = Number(x.a.flightGroup) || 0;
+        const gy = Number(y.a.flightGroup) || 0;
+        if (gx !== gy) return gx - gy;
+        return (Number(x.a.order) || 0) - (Number(y.a.order) || 0);
+      });
     } else {
       // none: 予選逆順（下位から先に試技、1位が最後）
       trialOrder = [...finalists].reverse();
@@ -440,7 +449,7 @@
   // ---- 順位表描画 ----
   function renderStandings(entries, numPre, actual, shuffleMode = 'none') {
     const title = [fClass, fGender, fType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
-    const shuffleLabel = { none:'逆順', full:'完全シャッフル', split4:'上位4名分割シャッフル' }[shuffleMode] || shuffleMode;
+    const shuffleLabel = { none:'逆順', full:'完全シャッフル', split4:'上位4名分割シャッフル', qualifying:'予選試技順維持' }[shuffleMode] || shuffleMode;
     document.getElementById('standings-title').textContent = `${title} 予選順位`;
     document.getElementById('standings-meta').textContent = `決勝進出: ${actual}人 ／ ${shuffleLabel}`;
 
@@ -519,23 +528,35 @@
         if (a.type === 'synchro') {
           const kana = [a.kana1, a.kana2].filter(Boolean).join(' / ');
           const name = `${a.name1 || '---'} / ${a.name2 || '---'}`;
-          const club = [a.club1, a.club2].filter(Boolean).join(' / ');
+          const c1 = a.club1 || '', c2 = a.club2 || '';
+          const ck1 = a.clubKana1 || '', ck2 = a.clubKana2 || '';
+          let clubHtml;
+          if (c1 && c1 === c2) {
+            clubHtml = (ck1 ? `<div class="sl-kana">${ck1}</div>` : '') + c1;
+          } else {
+            const kanaRow = [ck1, ck2].filter(Boolean).join(' / ');
+            const clubRow = [c1, c2].filter(Boolean).join(' / ');
+            clubHtml = (kanaRow ? `<div class="sl-kana">${kanaRow}</div>` : '') + clubRow;
+          }
           return `<tr>
             <td class="sl-no">${a.finalOrder}</td>
             <td>${kana ? `<div class="sl-kana">${kana}</div>` : ''}<div class="sl-name">${name}</div></td>
-            <td class="sl-club">${club}</td>
+            <td class="sl-club">${clubHtml}</td>
           </tr>`;
         } else {
           return `<tr>
             <td class="sl-no">${a.finalOrder}</td>
             <td>${a.kana1 ? `<div class="sl-kana">${a.kana1}</div>` : ''}<div class="sl-name">${a.name1 || '---'}</div></td>
-            <td class="sl-club">${a.club1 || ''}</td>
+            <td class="sl-club">${a.clubKana1 ? `<div class="sl-kana">${a.clubKana1}</div>` : ''}${a.club1 || ''}</td>
           </tr>`;
         }
       }).join('');
 
       const acc = document.createElement('div');
       acc.className = 'sl-accordion';
+      acc.dataset.type   = g.type;
+      acc.dataset.gender = g.gender;
+      acc.dataset.cls    = g.cls;
       acc.innerHTML = `
         <div class="sl-header" onclick="this.closest('.sl-accordion').classList.toggle('open')">
           <span class="sl-title">${title}</span>
@@ -558,6 +579,26 @@
 
     section.style.display = '';
   }
+
+  window.printFiltered = function() {
+    const accs = [...document.querySelectorAll('#startlist-container .sl-accordion')];
+    const targets = accs.filter(acc =>
+      acc.dataset.type === fType &&
+      (!fGender || acc.dataset.gender === fGender) &&
+      (!fClass  || acc.dataset.cls    === fClass)
+    );
+    const label = [fClass, fGender, fType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
+    document.getElementById('sl-print-event').textContent = (tourData?.name || '') + (label ? ` — ${label}` : '');
+    targets.forEach(acc => acc.classList.add('print-target', 'open'));
+    document.body.classList.add('printing-class');
+    window.print();
+    window.onafterprint = () => {
+      targets.forEach(acc => acc.classList.remove('print-target'));
+      document.body.classList.remove('printing-class');
+      document.getElementById('sl-print-event').textContent = tourData?.name || '';
+      window.onafterprint = null;
+    };
+  };
 
   window.printClass = function(btn, title) {
     const acc = btn.closest('.sl-accordion');
