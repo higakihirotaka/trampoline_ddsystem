@@ -637,7 +637,8 @@
                 const dispName = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
                 const clubDisp = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
                     ? `${ath.club1} / ${ath.club2}` : (ath.club1 || '');
-                document.getElementById('ath-name').innerText = `No.${ath.order} ${dispName}`;
+                const displayOrder1 = (round === 'final' && ath.finalOrder != null) ? ath.finalOrder : ath.order;
+                document.getElementById('ath-name').innerText = `No.${displayOrder1} ${dispName}`;
                 document.getElementById('ath-club').textContent = clubDisp;
                 document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${roundLabel(round)}`;
                 updateDesignatedForAthlete(ath, round);
@@ -647,7 +648,7 @@
                     liveState: {
                         [panel]: {
                             athleteId,
-                            athleteName: `No.${ath.order} ${dispName}`,
+                            athleteName: `No.${displayOrder1} ${dispName}`,
                             athleteClass: ath.class || ath.category || '',
                             athleteGender: ath.gender || '',
                             athleteType: ath.type || 'individual',
@@ -887,7 +888,8 @@
             const dispName2 = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
             const clubDisp2 = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
                 ? `${ath.club1} / ${ath.club2}` : (ath.club1 || '');
-            document.getElementById('ath-name').innerText = `No.${ath.order} ${dispName2}`;
+            const displayOrder2 = (rid === 'final' && ath.finalOrder != null) ? ath.finalOrder : ath.order;
+            document.getElementById('ath-name').innerText = `No.${displayOrder2} ${dispName2}`;
             document.getElementById('ath-club').textContent = clubDisp2;
             document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${roundLabel(rid)}`;
 
@@ -895,7 +897,7 @@
             await setDoc(doc(db, 'tournaments', eventId), {
                 liveState: { [panel]: {
                     athleteId: aid,
-                    athleteName: `No.${ath.order} ${dispName2}`,
+                    athleteName: `No.${displayOrder2} ${dispName2}`,
                     athleteClass: ath.class || ath.category || '',
                     athleteGender: ath.gender || '',
                     athleteType: ath.type || 'individual',
