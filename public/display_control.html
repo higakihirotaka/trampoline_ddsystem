@@ -949,11 +949,13 @@
 
         function tick() {
             const wu = warmupData;
-            // timerRef が有効 かつ 一時停止していない → カウントダウン中
-            const running = !wu.timerPaused && !!wu.timerRef?.toMillis;
+            // timerEndMs（絶対終了時刻）が Firestore に確定済みなら使用。
+            // 確定前の ~100ms はフォールバックとして timerRef + timerRemainingMs を使用。
+            const running = !wu.timerPaused && !!(wu.timerEndMs || wu.timerRef?.toMillis);
             let rem;
             if (running) {
-                const endMs = wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0);
+                const endMs = wu.timerEndMs
+                    ?? (wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0));
                 rem = Math.max(0, endMs - Date.now());
             } else {
                 rem = wu.timerRemainingMs ?? 0;
@@ -973,6 +975,7 @@
                             'warmupSettings.timerRef':        serverTimestamp(),
                             'warmupSettings.timerRemainingMs':defaultMs,
                             'warmupSettings.timerPaused':     false,
+                            'warmupSettings.timerEndMs':      null,
                         }).catch(() => {});
                     }, 1500); // 1.5秒後に再スタート
                 }
@@ -980,7 +983,7 @@
         }
         tick();
         const wu = warmupData;
-        if (!wu.timerPaused && wu.timerRef?.toMillis) {
+        if (!wu.timerPaused && (wu.timerEndMs || wu.timerRef?.toMillis)) {
             ctrlTimerInterval = setInterval(tick, 500);
         }
     }
@@ -994,22 +997,25 @@
     document.getElementById('timer-start-btn').addEventListener('click', async () => {
         const rem = warmupData.timerRemainingMs ?? 0;
         if (rem <= 0) return;
-        // timerRef にサーバー時刻、timerRemainingMs に残り時間を書き込む。
-        // 終了時刻は timerRef.toMillis() + timerRemainingMs として全デバイスが共通計算する。
+        // timerRef = サーバー時刻、timerEndMs = null（onSnapshot で確定後に書き込む）
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRef':        serverTimestamp(),
             'warmupSettings.timerRemainingMs':rem,
             'warmupSettings.timerPaused':     false,
+            'warmupSettings.timerEndMs':      null,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-pause-btn').addEventListener('click', async () => {
         const wu = warmupData;
-        if (!wu.timerRef?.toMillis) return;
-        const endMs = wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0);
-        const rem   = Math.max(0, endMs - Date.now());
+        // timerEndMs が確定済みならそれを使う（サーバー時刻基準で正確）、なければフォールバック
+        const endMs = wu.timerEndMs
+            ?? (wu.timerRef?.toMillis ? wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0) : 0);
+        if (!endMs) return;
+        const rem = Math.max(0, endMs - Date.now());
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
+            'warmupSettings.timerEndMs':       null,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-reset-btn').addEventListener('click', async () => {
@@ -1017,6 +1023,7 @@
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
+            'warmupSettings.timerEndMs':       null,
         }).catch(e => alert('失敗: '+e.message));
     });
     // ---- タイマー手入力：onSnapshot で上書きされないよう「更新」ボタンでのみ反映 ----
@@ -1034,6 +1041,7 @@
             'warmupSettings.timerDefaultMs':   ms,
             'warmupSettings.timerRemainingMs': ms,
             'warmupSettings.timerPaused':      true,
+            'warmupSettings.timerEndMs':       null,
         }).catch(e => alert('失敗: '+e.message));
         // 入力欄をクリア
         minEl.value = ''; secEl.value = '';
@@ -1055,6 +1063,7 @@
                 'warmupSettings.timerDefaultMs':   ms,
                 'warmupSettings.timerRemainingMs': ms,
                 'warmupSettings.timerPaused':      true,
+                'warmupSettings.timerEndMs':       null,
             }).catch(e => alert('失敗: '+e.message));
         });
     });
@@ -1154,6 +1163,16 @@
                 d.ceremonySettings || {},
                 d.rankingCarousel  || {}
             );
+            // ---- timerEndMs の確定書き込み ----
+            // 開始操作後 timerRef が確定した瞬間に timerEndMs（絶対終了時刻）を Firestore へ書き込む。
+            // これにより全デバイスが同一の timerEndMs を参照し、Date.now() との差分で同じ残り時間を表示できる。
+            // hasPendingWrites の場合は timerRef がまだ null なので条件を自然にスキップする。
+            const wu = d.warmupSettings || {};
+            if (!wu.timerPaused && wu.timerRef?.toMillis && wu.timerEndMs == null) {
+                updateDoc(doc(db,'tournaments',eventId), {
+                    'warmupSettings.timerEndMs': wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0)
+                }).catch(() => {});
+            }
         });
     });
 </script>
