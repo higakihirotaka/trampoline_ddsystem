@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>団体戦設定</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --accent:#1a73e8; --bg:#f0f2f5; --card:#ffffff;
+            --green:#2e7d32; --text-main:#263238; --text-sub:#546e7a;
+            --gold:#f9a825; --red:#c62828; --orange:#e65100;
+        }
+        body { font-family:'Inter',sans-serif; background:var(--bg); margin:0; padding:20px; color:var(--text-main); }
+        .container { max-width:820px; margin:0 auto; }
+        .header-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+        .btn-back { text-decoration:none; color:var(--text-sub); font-size:0.9rem; border:1px solid #ccc; padding:8px 20px; border-radius:8px; }
+        .auth-info { font-size:0.85em; color:#999; display:none; align-items:center; }
+        .auth-info span { font-weight:bold; color:var(--text-main); }
+        .logout-btn { background:none; border:1px solid #ccc; border-radius:5px; color:var(--accent); cursor:pointer; font-size:0.9em; margin-left:12px; padding:3px 8px; }
+        .header { text-align:center; margin-bottom:20px; }
+        .event-badge { display:inline-block; padding:6px 16px; background:var(--accent); color:white; border-radius:20px; font-weight:bold; margin-top:8px; }
+        h1 { margin:0 0 8px; }
+
+        .section-title { font-size:1.0rem; font-weight:900; margin:24px 0 10px; display:flex; align-items:center; gap:10px; border-left:5px solid var(--accent); padding-left:14px; }
+        .card { background:var(--card); border-radius:16px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.07); margin-bottom:14px; }
+
+        /* フィルター */
+        .filter-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+        .filter-group { display:flex; flex-direction:column; gap:5px; }
+        .filter-group label { font-size:0.75rem; font-weight:700; color:var(--text-sub); }
+        .filter-select { padding:9px 12px; border:2px solid #e0e0e0; border-radius:10px; font-size:0.9rem; font-weight:600; background:white; min-width:130px; cursor:pointer; }
+        .filter-select:focus { outline:none; border-color:var(--accent); }
+        .club-filter-wrap { display:flex; gap:8px; align-items:center; flex:1; min-width:180px; }
+        .club-filter-input { flex:1; padding:9px 12px; border:2px solid #e0e0e0; border-radius:10px; font-size:0.9rem; background:white; }
+        .club-filter-input:focus { outline:none; border-color:var(--accent); }
+        .btn-clear-filter { padding:8px 14px; border:1.5px solid #b0bec5; border-radius:8px; background:white; font-size:0.8rem; font-weight:700; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .btn-clear-filter:hover { border-color:var(--accent); color:var(--accent); }
+
+        /* チーム名入力 */
+        .team-name-row { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+        .team-name-label { font-size:0.85rem; font-weight:700; color:var(--text-main); white-space:nowrap; flex-shrink:0; }
+        .team-name-input { flex:1; padding:10px 14px; border:2px solid #e0e0e0; border-radius:10px; font-size:1rem; font-weight:700; background:white; }
+        .team-name-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(26,115,232,0.1); }
+
+        /* 選手一覧 */
+        .athlete-list-wrap { border:1.5px solid #e3eaf5; border-radius:12px; overflow:hidden; margin-bottom:12px; max-height:380px; overflow-y:auto; }
+        .club-header { padding:6px 14px; background:#eceff1; font-size:0.72rem; font-weight:900; color:var(--text-sub); letter-spacing:0.06em; border-bottom:1px solid #e0e0e0; }
+        .athlete-item { display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid #f0f0f0; cursor:pointer; transition:background 0.12s; }
+        .athlete-item:last-child { border-bottom:none; }
+        .athlete-item:hover:not(.disabled) { background:#f0f5ff; }
+        .athlete-item.checked { background:#e8f5e9; }
+        .athlete-item.disabled { opacity:0.55; cursor:default; background:#fafafa; }
+        .athlete-item input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); flex-shrink:0; cursor:pointer; }
+        .athlete-item.disabled input[type="checkbox"] { cursor:not-allowed; }
+        .ath-order { font-size:0.75rem; font-weight:700; color:var(--text-sub); min-width:38px; text-align:right; flex-shrink:0; }
+        .ath-name { font-size:0.9rem; font-weight:700; flex:1; }
+        .ath-club { font-size:0.78rem; color:var(--text-sub); flex:1; }
+        .assigned-badge { font-size:0.7rem; font-weight:700; background:#fff3e0; color:#e65100; border:1px solid #ffcc80; border-radius:12px; padding:2px 8px; white-space:nowrap; flex-shrink:0; }
+        .empty-msg { padding:28px; text-align:center; color:var(--text-sub); font-size:0.88rem; }
+
+        /* カウンター + 保存ボタン */
+        .save-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+        .sel-counter { font-size:0.85rem; font-weight:700; flex:1; }
+        .sel-counter.ok { color:var(--green); }
+        .sel-counter.warning { color:var(--orange); }
+        .sel-counter.error { color:var(--red); }
+        .btn-save-team { padding:11px 30px; border:none; border-radius:10px; background:var(--green); color:white; font-size:0.9rem; font-weight:700; cursor:pointer; transition:0.15s; white-space:nowrap; }
+        .btn-save-team:hover { background:#1b5e20; }
+        .btn-save-team:disabled { background:#aaa; cursor:default; }
+        .btn-cancel-edit { padding:10px 18px; border:1.5px solid #b0bec5; border-radius:10px; background:white; font-size:0.9rem; font-weight:700; cursor:pointer; color:var(--text-sub); display:none; white-space:nowrap; }
+        .btn-cancel-edit:hover { border-color:var(--red); color:var(--red); }
+        .editing-notice { font-size:0.8rem; font-weight:700; color:var(--accent); padding:6px 12px; background:#e3f2fd; border-radius:8px; margin-bottom:10px; display:none; }
+
+        /* チーム一覧 */
+        .team-card { background:white; border:1.5px solid #e3eaf5; border-radius:14px; padding:16px 20px; margin-bottom:10px; }
+        .team-card.editing { border-color:var(--accent); box-shadow:0 0 0 3px rgba(26,115,232,0.12); }
+        .team-card-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+        .team-name-disp { font-size:1.0rem; font-weight:900; color:var(--text-main); }
+        .team-meta-badge { font-size:0.76rem; font-weight:700; background:#e3f2fd; color:var(--accent); border-radius:12px; padding:3px 10px; }
+        .team-card-btns { margin-left:auto; display:flex; gap:6px; }
+        .btn-team-edit { padding:5px 14px; border:1.5px solid var(--accent); border-radius:8px; background:white; color:var(--accent); font-size:0.78rem; font-weight:700; cursor:pointer; }
+        .btn-team-edit:hover { background:#e3f2fd; }
+        .btn-team-del { padding:5px 10px; border:1.5px solid #e0e0e0; border-radius:8px; background:white; color:#b0bec5; font-size:0.78rem; cursor:pointer; }
+        .btn-team-del:hover { border-color:var(--red); color:var(--red); }
+        .team-members { display:flex; flex-wrap:wrap; gap:6px; }
+        .member-chip { font-size:0.8rem; background:#f5f5f5; border:1px solid #e0e0e0; border-radius:8px; padding:4px 10px; color:var(--text-main); }
+        .member-missing { font-size:0.78rem; color:#b0bec5; font-style:italic; }
+
+        /* ローディング */
+        .loading-msg { text-align:center; padding:40px; color:var(--text-sub); font-size:0.9rem; }
+
+        /* トースト */
+        .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#263238; color:white; padding:11px 28px; border-radius:30px; font-size:0.9rem; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:300; white-space:nowrap; }
+        .toast.show { opacity:1; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-bar">
+        <a id="back-link" href="admin_menu.html" class="btn-back">← メニューに戻る</a>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <h1>🏆 団体戦設定</h1>
+        <div id="event-name" class="event-badge">読み込み中...</div>
+    </div>
+
+    <!-- ① フィルター -->
+    <div class="section-title">🔍 クラス・性別の選択</div>
+    <div class="card">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>クラス</label>
+                <select id="sel-class" class="filter-select">
+                    <option value="">（選択してください）</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>性別</label>
+                <select id="sel-gender" class="filter-select">
+                    <option value="">（選択してください）</option>
+                    <option value="男子">男子</option>
+                    <option value="女子">女子</option>
+                </select>
+            </div>
+            <div class="filter-group" style="flex:1;">
+                <label>所属で絞り込み</label>
+                <div class="club-filter-wrap">
+                    <input type="text" id="inp-club-filter" class="club-filter-input" placeholder="クラブ名を入力...">
+                    <button id="btn-clear-filter" class="btn-clear-filter">クリア</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ② 新規チーム作成 -->
+    <div class="section-title">➕ チーム作成</div>
+    <div class="card" id="new-team-section">
+        <div id="editing-notice" class="editing-notice">✏️ 編集中のチームがあります</div>
+
+        <div class="team-name-row">
+            <span class="team-name-label">チーム名</span>
+            <input type="text" id="inp-team-name" class="team-name-input" placeholder="例: 鈴木道場 A">
+        </div>
+
+        <div id="athlete-list" class="athlete-list-wrap">
+            <div class="empty-msg">クラスと性別を選択してください</div>
+        </div>
+
+        <div class="save-row">
+            <span id="sel-counter" class="sel-counter">選手を3〜4人選択してください</span>
+            <button id="btn-cancel-edit" class="btn-cancel-edit">キャンセル</button>
+            <button id="btn-save-team" class="btn-save-team" disabled>チームを保存</button>
+        </div>
+    </div>
+
+    <!-- ③ 登録済みチーム一覧 -->
+    <div class="section-title">📋 登録済みチーム一覧</div>
+    <div id="team-list" class="loading-msg">読み込み中...</div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import {
+        doc, getDoc, getDocs, addDoc, setDoc, deleteDoc,
+        collection, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from "./auth.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+
+    // ---- State ----
+    let allAthletes      = [];   // individual athletes only
+    let allTeams         = [];   // teams from Firestore
+    let individualClasses = [];
+
+    let selectedClass  = '';
+    let selectedGender = '';
+    let clubFilter     = '';
+    let checkedIds     = new Set();
+    let editingTeamId  = null;   // null = new, string = editing existing
+
+    // ---- Toast ----
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // ---- フィルタリング後の選手一覧 ----
+    function getFilteredAthletes() {
+        return allAthletes
+            .filter(a => {
+                if (selectedClass  && a.class  !== selectedClass)  return false;
+                if (selectedGender && a.gender !== selectedGender) return false;
+                if (clubFilter     && !(a.club1 || '').includes(clubFilter)) return false;
+                return true;
+            })
+            .sort((a, b) => {
+                const c = (a.club1 || '').localeCompare(b.club1 || '', 'ja');
+                return c !== 0 ? c : (a.order ?? 999) - (b.order ?? 999);
+            });
+    }
+
+    // 選手が所属しているチームを返す（editingTeamId は除外）
+    function getAssignedTeam(athleteId) {
+        return allTeams.find(t =>
+            t.memberIds.includes(athleteId) && t.id !== editingTeamId
+        ) || null;
+    }
+
+    // ---- 選手リスト描画 ----
+    function renderAthleteList() {
+        const wrap = document.getElementById('athlete-list');
+
+        if (!selectedClass || !selectedGender) {
+            wrap.innerHTML = '<div class="empty-msg">クラスと性別を選択してください</div>';
+            return;
+        }
+
+        const filtered = getFilteredAthletes();
+        if (filtered.length === 0) {
+            wrap.innerHTML = '<div class="empty-msg">該当する選手がいません</div>';
+            return;
+        }
+
+        wrap.innerHTML = '';
+        let lastClub = null;
+
+        filtered.forEach(a => {
+            const assignedTeam = getAssignedTeam(a.id);
+            const disabled = !!assignedTeam;
+            const checked  = checkedIds.has(a.id);
+            const clubName = a.club1 || '（所属なし）';
+
+            // 所属ごとのヘッダー行
+            if (clubName !== lastClub) {
+                const hdr = document.createElement('div');
+                hdr.className = 'club-header';
+                hdr.textContent = `── ${clubName}`;
+                wrap.appendChild(hdr);
+                lastClub = clubName;
+            }
+
+            const item = document.createElement('label');
+            item.className = 'athlete-item' +
+                (disabled ? ' disabled' : '') +
+                (checked  ? ' checked'  : '');
+
+            const badge = assignedTeam
+                ? `<span class="assigned-badge">登録済: ${assignedTeam.teamName}</span>`
+                : '';
+
+            item.innerHTML = `
+                <input type="checkbox" data-id="${a.id}"
+                    ${checked   ? 'checked'  : ''}
+                    ${disabled  ? 'disabled' : ''}>
+                <span class="ath-order">${a.order != null ? 'No.' + a.order : '-'}</span>
+                <span class="ath-name">${a.name1 || ''}</span>
+                <span class="ath-club">${a.club1 || ''}</span>
+                ${badge}
+            `;
+
+            item.querySelector('input').addEventListener('change', e => {
+                if (e.target.checked) checkedIds.add(a.id);
+                else                  checkedIds.delete(a.id);
+                item.classList.toggle('checked', e.target.checked);
+                updateSaveBtn();
+            });
+
+            wrap.appendChild(item);
+        });
+    }
+
+    // ---- 保存ボタン更新 ----
+    function updateSaveBtn() {
+        const teamName = document.getElementById('inp-team-name').value.trim();
+        const count    = checkedIds.size;
+        const btn      = document.getElementById('btn-save-team');
+        const counter  = document.getElementById('sel-counter');
+
+        const ready = count >= 3 && count <= 4 && teamName.length > 0
+            && selectedClass && selectedGender;
+        btn.disabled = !ready;
+
+        if (!selectedClass || !selectedGender) {
+            counter.textContent = 'クラスと性別を選択してください';
+            counter.className = 'sel-counter';
+        } else if (count === 0) {
+            counter.textContent = '選手を3〜4人選択してください';
+            counter.className = 'sel-counter';
+        } else if (count < 3) {
+            counter.textContent = `${count}人選択中（あと${3 - count}人必要）`;
+            counter.className = 'sel-counter warning';
+        } else if (count > 4) {
+            counter.textContent = `${count}人選択中（4人まで）`;
+            counter.className = 'sel-counter error';
+        } else {
+            counter.textContent = `${count}人選択中 ✓`;
+            counter.className = 'sel-counter ok';
+        }
+    }
+
+    // ---- チーム保存 ----
+    document.getElementById('btn-save-team').addEventListener('click', async () => {
+        const teamName = document.getElementById('inp-team-name').value.trim();
+        if (!teamName || checkedIds.size < 3 || checkedIds.size > 4
+            || !selectedClass || !selectedGender) return;
+
+        const memberIds = [...checkedIds];
+        const data = {
+            teamName,
+            class:     selectedClass,
+            gender:    selectedGender,
+            memberIds,
+            updatedAt: serverTimestamp()
+        };
+
+        try {
+            if (editingTeamId) {
+                await setDoc(doc(db, 'tournaments', eventId, 'teams', editingTeamId), data);
+                showToast('✅ チームを更新しました');
+            } else {
+                await addDoc(collection(db, 'tournaments', eventId, 'teams'), data);
+                showToast('✅ チームを保存しました');
+            }
+            cancelEdit();
+            await reloadTeams();
+        } catch (e) {
+            alert('保存に失敗しました: ' + e.message);
+        }
+    });
+
+    // ---- 編集キャンセル ----
+    function cancelEdit() {
+        editingTeamId = null;
+        checkedIds.clear();
+        document.getElementById('inp-team-name').value = '';
+        document.getElementById('editing-notice').style.display = 'none';
+        document.getElementById('btn-cancel-edit').style.display = 'none';
+        renderAthleteList();
+        updateSaveBtn();
+        renderTeamList();
+    }
+    document.getElementById('btn-cancel-edit').addEventListener('click', cancelEdit);
+
+    // ---- チーム編集 ----
+    window.editTeam = function(teamId) {
+        const team = allTeams.find(t => t.id === teamId);
+        if (!team) return;
+
+        editingTeamId = teamId;
+        selectedClass  = team.class;
+        selectedGender = team.gender;
+        checkedIds     = new Set(team.memberIds);
+
+        document.getElementById('sel-class').value    = team.class;
+        document.getElementById('sel-gender').value   = team.gender;
+        document.getElementById('inp-team-name').value = team.teamName;
+        document.getElementById('inp-club-filter').value = '';
+        clubFilter = '';
+
+        document.getElementById('editing-notice').style.display = '';
+        document.getElementById('btn-cancel-edit').style.display = '';
+
+        renderAthleteList();
+        updateSaveBtn();
+        renderTeamList();
+        document.getElementById('new-team-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    // ---- チーム削除 ----
+    window.deleteTeam = async function(teamId) {
+        const team = allTeams.find(t => t.id === teamId);
+        if (!team) return;
+        if (!confirm(`「${team.teamName}」を削除しますか？`)) return;
+        try {
+            await deleteDoc(doc(db, 'tournaments', eventId, 'teams', teamId));
+            if (editingTeamId === teamId) cancelEdit();
+            allTeams = allTeams.filter(t => t.id !== teamId);
+            renderAthleteList();
+            renderTeamList();
+            showToast('🗑️ チームを削除しました');
+        } catch (e) {
+            alert('削除に失敗しました: ' + e.message);
+        }
+    };
+
+    // ---- チーム一覧描画 ----
+    function renderTeamList() {
+        const container = document.getElementById('team-list');
+
+        // 現在のフィルターに合わせて絞り込み（クラス・性別が未選択なら全件表示）
+        const visible = allTeams.filter(t =>
+            (!selectedClass  || t.class  === selectedClass) &&
+            (!selectedGender || t.gender === selectedGender)
+        );
+
+        if (visible.length === 0) {
+            container.innerHTML = '<div class="empty-msg">登録済みのチームはありません</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+        visible.forEach(team => {
+            const members = team.memberIds.map(id => allAthletes.find(a => a.id === id));
+            const card = document.createElement('div');
+            card.className = 'team-card' + (editingTeamId === team.id ? ' editing' : '');
+
+            const memberHtml = members.map(m =>
+                m ? `<span class="member-chip">No.${m.order ?? '-'} ${m.name1 || ''}（${m.club1 || ''}）</span>`
+                  : `<span class="member-chip member-missing">（データなし）</span>`
+            ).join('');
+
+            card.innerHTML = `
+                <div class="team-card-header">
+                    <span class="team-name-disp">🏆 ${team.teamName}</span>
+                    <span class="team-meta-badge">${team.class} ${team.gender}（${members.length}名）</span>
+                    <div class="team-card-btns">
+                        <button class="btn-team-edit" onclick="editTeam('${team.id}')">✏️ 編集</button>
+                        <button class="btn-team-del"  onclick="deleteTeam('${team.id}')">🗑️</button>
+                    </div>
+                </div>
+                <div class="team-members">${memberHtml || '<span class="member-missing">メンバーなし</span>'}</div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // ---- チーム再読み込み ----
+    async function reloadTeams() {
+        const snap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
+        allTeams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderAthleteList();
+        renderTeamList();
+    }
+
+    // ---- フィルター操作 ----
+    document.getElementById('sel-class').addEventListener('change', e => {
+        selectedClass = e.target.value;
+        checkedIds.clear();
+        editingTeamId = null;
+        document.getElementById('editing-notice').style.display = 'none';
+        document.getElementById('btn-cancel-edit').style.display = 'none';
+        renderAthleteList();
+        renderTeamList();
+        updateSaveBtn();
+    });
+    document.getElementById('sel-gender').addEventListener('change', e => {
+        selectedGender = e.target.value;
+        checkedIds.clear();
+        editingTeamId = null;
+        document.getElementById('editing-notice').style.display = 'none';
+        document.getElementById('btn-cancel-edit').style.display = 'none';
+        renderAthleteList();
+        renderTeamList();
+        updateSaveBtn();
+    });
+    document.getElementById('inp-club-filter').addEventListener('input', e => {
+        clubFilter = e.target.value.trim();
+        renderAthleteList();
+    });
+    document.getElementById('btn-clear-filter').addEventListener('click', () => {
+        clubFilter = '';
+        document.getElementById('inp-club-filter').value = '';
+        renderAthleteList();
+    });
+    document.getElementById('inp-team-name').addEventListener('input', updateSaveBtn);
+
+    // ---- 認証 & 初期ロード ----
+    ensureAdmin(async user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+
+        if (!eventId) {
+            document.getElementById('event-name').textContent = 'URLにeventパラメータがありません';
+            return;
+        }
+
+        // 大会情報
+        const tourSnap = await getDoc(doc(db, 'tournaments', eventId));
+        if (!tourSnap.exists()) {
+            document.getElementById('event-name').textContent = '大会が見つかりません';
+            return;
+        }
+        const tourData = tourSnap.data();
+        document.getElementById('event-name').textContent = tourData.name || eventId;
+
+        // クラス一覧を構築（settings.html / athlete_management.html と同じロジック）
+        const normalize = arr => (arr || [])
+            .map((c, i) => ({ name: (typeof c === 'string' ? c : (c.name || '')), display_order: c.display_order ?? i }))
+            .sort((a, b) => a.display_order - b.display_order);
+        const ruleKeys = obj => Object.keys(obj || {}).map((name, i) => ({ name, display_order: i }));
+        const toNames  = arr => arr.map(c => c.name);
+
+        if (tourData.classes && !Array.isArray(tourData.classes) && tourData.classes.individual) {
+            individualClasses = toNames(normalize(tourData.classes.individual));
+        } else if (Array.isArray(tourData.classes) && tourData.classes.length > 0) {
+            individualClasses = toNames(normalize(tourData.classes));
+        } else if (tourData.classRules?.individual) {
+            individualClasses = toNames(ruleKeys(tourData.classRules.individual));
+        }
+
+        // クラス selector 構築
+        const selClass = document.getElementById('sel-class');
+        individualClasses.forEach(cls => {
+            const o = document.createElement('option');
+            o.value = cls; o.textContent = cls;
+            selClass.appendChild(o);
+        });
+
+        // 選手一覧（個人のみ）
+        const athSnap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
+        athSnap.forEach(d => {
+            const a = d.data();
+            if ((a.type || 'individual') !== 'individual') return;
+            if (!a.name1) return;
+            allAthletes.push({
+                id:     d.id,
+                name1:  a.name1  || '',
+                kana1:  a.kana1  || '',
+                club1:  a.club1  || '',
+                clubKana1: a.clubKana1 || '',
+                class:  a.class  || '',
+                gender: a.gender || '',
+                order:  a.order  ?? null,
+            });
+        });
+
+        // チーム一覧
+        await reloadTeams();
+    });
+</script>
+</body>
+</html>
