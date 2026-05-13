@@ -130,10 +130,9 @@
             </div>
             <div class="filter-group" style="flex:1;">
                 <label>所属で絞り込み</label>
-                <div class="club-filter-wrap">
-                    <input type="text" id="inp-club-filter" class="club-filter-input" placeholder="クラブ名を入力...">
-                    <button id="btn-clear-filter" class="btn-clear-filter">クリア</button>
-                </div>
+                <select id="sel-club-filter" class="filter-select" style="width:100%;">
+                    <option value="">（全員表示）</option>
+                </select>
             </div>
         </div>
     </div>
@@ -217,6 +216,35 @@
         return allTeams.find(t =>
             t.memberIds.includes(athleteId) && t.id !== editingTeamId
         ) || null;
+    }
+
+    // ---- 所属プルダウンの選択肢を再構築 ----
+    function buildClubFilterOptions() {
+        const sel = document.getElementById('sel-club-filter');
+        sel.innerHTML = '<option value="">（全員表示）</option>';
+
+        if (!selectedClass || !selectedGender) return;
+
+        const clubs = [...new Set(
+            allAthletes
+                .filter(a => a.class === selectedClass && a.gender === selectedGender)
+                .map(a => a.club1 || '')
+                .filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, 'ja'));
+
+        clubs.forEach(club => {
+            const o = document.createElement('option');
+            o.value = club; o.textContent = club;
+            sel.appendChild(o);
+        });
+
+        // clubFilter が選択肢にあれば維持、なければリセット
+        if (clubFilter && clubs.includes(clubFilter)) {
+            sel.value = clubFilter;
+        } else {
+            sel.value = '';
+            clubFilter = '';
+        }
     }
 
     // ---- 選手リスト描画 ----
@@ -367,8 +395,9 @@
         document.getElementById('sel-class').value    = team.class;
         document.getElementById('sel-gender').value   = team.gender;
         document.getElementById('inp-team-name').value = team.teamName;
-        document.getElementById('inp-club-filter').value = '';
         clubFilter = '';
+        buildClubFilterOptions();   // クラス・性別に合わせて選択肢を更新
+        document.getElementById('sel-club-filter').value = '';
 
         document.getElementById('editing-notice').style.display = '';
         document.getElementById('btn-cancel-edit').style.display = '';
@@ -448,31 +477,38 @@
     // ---- フィルター操作 ----
     document.getElementById('sel-class').addEventListener('change', e => {
         selectedClass = e.target.value;
+        clubFilter = '';
         checkedIds.clear();
         editingTeamId = null;
         document.getElementById('editing-notice').style.display = 'none';
         document.getElementById('btn-cancel-edit').style.display = 'none';
+        document.getElementById('inp-team-name').value = '';
+        buildClubFilterOptions();
         renderAthleteList();
         renderTeamList();
         updateSaveBtn();
     });
     document.getElementById('sel-gender').addEventListener('change', e => {
         selectedGender = e.target.value;
+        clubFilter = '';
         checkedIds.clear();
         editingTeamId = null;
         document.getElementById('editing-notice').style.display = 'none';
         document.getElementById('btn-cancel-edit').style.display = 'none';
+        document.getElementById('inp-team-name').value = '';
+        buildClubFilterOptions();
         renderAthleteList();
         renderTeamList();
         updateSaveBtn();
     });
-    document.getElementById('inp-club-filter').addEventListener('input', e => {
-        clubFilter = e.target.value.trim();
-        renderAthleteList();
-    });
-    document.getElementById('btn-clear-filter').addEventListener('click', () => {
-        clubFilter = '';
-        document.getElementById('inp-club-filter').value = '';
+    document.getElementById('sel-club-filter').addEventListener('change', e => {
+        clubFilter = e.target.value;
+        // 選択した所属をチーム名のデフォルト値として入力（未入力時のみ）
+        const nameInput = document.getElementById('inp-team-name');
+        if (clubFilter && !nameInput.value.trim()) {
+            nameInput.value = clubFilter;
+            updateSaveBtn();
+        }
         renderAthleteList();
     });
     document.getElementById('inp-team-name').addEventListener('input', updateSaveBtn);
