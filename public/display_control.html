@@ -445,8 +445,9 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
+    import { getTournament } from "./cache.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -1074,10 +1075,8 @@
 
         if (!eventId) { document.getElementById('event-name').textContent = 'URLにeventパラメータがありません'; return; }
 
-        const tourSnap = await getDoc(doc(db,'tournaments',eventId));
-        if (!tourSnap.exists()) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
-
-        const tourData = tourSnap.data();
+        const tourData = await getTournament(eventId);
+        if (!tourData) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
         const tournamentName = tourData.name || '';
         document.getElementById('event-name').textContent = tournamentName || eventId;
         document.getElementById('btn-autofill-name').addEventListener('click', () => {

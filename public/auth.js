@@ -1,6 +1,7 @@
 import { db, auth, isLocalDev } from "./firebase-config.js";
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getTournament } from "./cache.js";
 
 // --- Auth Functions ---
 
@@ -74,16 +75,25 @@ export async function getTournaments() {
 
 export async function getTournamentDetails(tournamentId) {
     if (!tournamentId) return null;
-    const tourDoc = await getDoc(doc(db, "tournaments", tournamentId));
-    return tourDoc.exists() ? { id: tourDoc.id, ...tourDoc.data() } : null;
+    // cache.js 経由（メモリ + sessionStorage 10分TTL）
+    return await getTournament(tournamentId);
+}
+
+// Firestore writeBatch は1コミット500件上限のため、450件ずつ分割してコミット
+async function commitInChunks(ops) {
+    const CHUNK = 450;
+    for (let i = 0; i < ops.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        ops.slice(i, i + CHUNK).forEach(fn => fn(batch));
+        await batch.commit();
+    }
 }
 
 export async function bulkSaveSubmissions(eventId, submissions, skillIds) {
     if (!eventId || !submissions?.length || !skillIds?.length) {
         return { success: false, message: "データが不足しています。" };
     }
-    const batch = writeBatch(db);
-    submissions.forEach(sub => {
+    const ops = submissions.map(sub => batch => {
         const subId = `${eventId}_${sub.athleteId}_${sub.round}`;
         batch.set(doc(db, "submissions", subId), {
             eventId, athleteId: sub.athleteId, round: sub.round, skills: skillIds,
@@ -91,7 +101,7 @@ export async function bulkSaveSubmissions(eventId, submissions, skillIds) {
         }, { merge: true });
     });
     try {
-        await batch.commit();
+        await commitInChunks(ops);
         return { success: true, message: `${submissions.length}件の構成を一括登録しました。` };
     } catch (e) {
         return { success: false, message: `一括登録中にエラー: ${e.message}` };
@@ -102,13 +112,12 @@ export async function bulkClearSubmissions(eventId, submissions) {
     if (!eventId || !submissions?.length) {
         return { success: false, message: "削除対象がありません。" };
     }
-    const batch = writeBatch(db);
-    submissions.forEach(sub => {
+    const ops = submissions.map(sub => batch => {
         const subId = `${eventId}_${sub.athleteId}_${sub.round}`;
         batch.delete(doc(db, "submissions", subId));
     });
     try {
-        await batch.commit();
+        await commitInChunks(ops);
         return { success: true, message: `${submissions.length}件の構成を削除しました。` };
     } catch (e) {
         return { success: false, message: `削除中にエラー: ${e.message}` };

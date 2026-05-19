@@ -168,10 +168,11 @@
 <script type="module">
     import { db } from "./firebase-config.js";
     import {
-        doc, getDoc, getDocs, addDoc, setDoc, deleteDoc,
+        doc, getDocs, addDoc, setDoc, deleteDoc,
         collection, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
+    import { getTournament, getAthletes } from "./cache.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -524,13 +525,12 @@
             return;
         }
 
-        // 大会情報
-        const tourSnap = await getDoc(doc(db, 'tournaments', eventId));
-        if (!tourSnap.exists()) {
+        // 大会情報（cache.js 経由でキャッシュ）
+        const tourData = await getTournament(eventId);
+        if (!tourData) {
             document.getElementById('event-name').textContent = '大会が見つかりません';
             return;
         }
-        const tourData = tourSnap.data();
         document.getElementById('event-name').textContent = tourData.name || eventId;
 
         // クラス一覧を構築（settings.html / athlete_management.html と同じロジック）
@@ -556,21 +556,20 @@
             selClass.appendChild(o);
         });
 
-        // 選手一覧（個人のみ）
-        const athSnap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
-        athSnap.forEach(d => {
-            const a = d.data();
+        // 選手一覧（cache.js 経由でキャッシュ、個人のみ）
+        const cachedAthletes = await getAthletes(eventId);
+        cachedAthletes.forEach(a => {
             if ((a.type || 'individual') !== 'individual') return;
             if (!a.name1) return;
             allAthletes.push({
-                id:     d.id,
-                name1:  a.name1  || '',
-                kana1:  a.kana1  || '',
-                club1:  a.club1  || '',
+                id:        a.id,
+                name1:     a.name1     || '',
+                kana1:     a.kana1     || '',
+                club1:     a.club1     || '',
                 clubKana1: a.clubKana1 || '',
-                class:  a.class  || '',
-                gender: a.gender || '',
-                order:  a.order  ?? null,
+                class:     a.class     || '',
+                gender:    a.gender    || '',
+                order:     a.order     ?? null,
             });
         });
 
