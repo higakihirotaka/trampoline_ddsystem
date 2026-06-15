@@ -176,7 +176,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getSkills } from "./cache.js";
 
     const params = new URLSearchParams(location.search);
@@ -562,29 +562,42 @@
     }
 
     // 同じチームの提出済み構成を引用メニューに並べる
+    // 提出有無は submissions コレクション（提出データ本体）を正として判定する
     async function setupTeamReference() {
         const myClubs = new Set();
         if (currentAthlete.club1) myClubs.add(currentAthlete.club1);
         if (currentAthlete.club2) myClubs.add(currentAthlete.club2);
         if (myClubs.size === 0) return 0;
 
-        const snap = await getDocs(collection(db, "tournaments", eventId, "athletes"));
+        // 全選手（所属・氏名照合用）と、この大会の全提出を取得
+        const [athSnap, subSnap] = await Promise.all([
+            getDocs(collection(db, "tournaments", eventId, "athletes")),
+            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId)))
+        ]);
+
+        // 同じ所属の選手（自分以外）を athleteId → データ で保持
+        const teammates = new Map();
+        athSnap.docs.forEach(d => {
+            if (d.id === athleteId) return; // 自分は除外
+            const a = d.data();
+            const inClub = (a.club1 && myClubs.has(a.club1)) || (a.club2 && myClubs.has(a.club2));
+            if (inClub) teammates.set(d.id, a);
+        });
+        if (teammates.size === 0) return 0;
+
         const roundLabels = { pre1: '予選1', pre2: '予選2', final: '決勝' };
         const roundOrder  = { pre1: 0, pre2: 1, final: 2 };
 
         const entries = [];
-        snap.docs.forEach(d => {
-            if (d.id === athleteId) return; // 自分は除外
-            const a = d.data();
-            const inClub = (a.club1 && myClubs.has(a.club1)) || (a.club2 && myClubs.has(a.club2));
-            if (!inClub) return;
-            const subs = a.submissions || {};
-            const nm   = a.type === 'synchro' ? `${a.name1 || ''} / ${a.name2 || ''}` : (a.name1 || '名称未設定');
-            const cls  = a.class ? `（${a.class}）` : '';
-            Object.keys(roundLabels).forEach(r => {
-                if (subs[r] == null) return; // 未提出のラウンドは除外
-                entries.push({ value: `${d.id}|${r}`, label: `${nm}${cls} ー ${roundLabels[r]}`, sortKey: `${nm}_${roundOrder[r]}` });
-            });
+        subSnap.docs.forEach(d => {
+            const s = d.data();
+            const a = teammates.get(s.athleteId);
+            if (!a) return;                                                // 同じチームでなければ除外
+            if (!roundLabels[s.round]) return;                             // 想定外ラウンドは除外
+            if (!Array.isArray(s.skills) || s.skills.length === 0) return; // 空提出は除外
+            const nm  = a.type === 'synchro' ? `${a.name1 || ''} / ${a.name2 || ''}` : (a.name1 || '名称未設定');
+            const cls = a.class ? `（${a.class}）` : '';
+            entries.push({ value: `${s.athleteId}|${s.round}`, label: `${nm}${cls} ー ${roundLabels[s.round]}`, sortKey: `${nm}_${roundOrder[s.round]}` });
         });
 
         entries.sort((x, y) => x.sortKey.localeCompare(y.sortKey, 'ja'));
