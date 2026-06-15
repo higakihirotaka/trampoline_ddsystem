@@ -341,6 +341,14 @@
         }
         calcTotal();
 
+        // 予選引用ボタンのラベル・onclickは提出状況に関わらず設定する
+        // （提出済みでも「内容を修正する」で表示されるため、ここで未設定だと空ボタンになる）
+        if (round === 'pre2' || round === 'final') {
+            const cpBtn = document.getElementById('copy-prev-btn');
+            cpBtn.textContent = round === 'final' ? '📋 予選演技をコピーする' : '📋 予選１の構成をコピーする';
+            cpBtn.onclick = copyPrevRound;
+        }
+
         if (subDocResult.exists()) {
             lockInputs(true);
             document.getElementById('submit-btn').style.display = "none";
@@ -348,9 +356,6 @@
         } else {
             document.getElementById('submit-btn').disabled = false;
             if (round === 'pre2' || round === 'final') {
-                const cpBtn = document.getElementById('copy-prev-btn');
-                cpBtn.textContent = round === 'final' ? '📋 予選演技をコピーする' : '📋 予選１の構成をコピーする';
-                cpBtn.onclick = copyPrevRound;
                 document.getElementById('copy-prev-area').style.display = '';
             }
         }
