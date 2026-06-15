@@ -581,8 +581,29 @@
     let designatedDDIndices = []; // 指定中の技インデックス（0-based）
     let designatedDDManualChanged = false; // 審判が手動で変更したフラグ
 
+    function withTimeout(promise, ms) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), ms))
+        ]);
+    }
+
+    function showLoadState(msg, isError) {
+        document.getElementById('sidebar-list').innerHTML = `
+            <div style="padding:24px;text-align:center;color:${isError ? '#e53935' : '#90a4ae'};">
+                <div style="font-size:2em;margin-bottom:10px;">${isError ? '⚠️' : '⏳'}</div>
+                <div style="font-weight:bold;margin-bottom:${isError ? '14px' : '0'};">${msg}</div>
+                ${isError ? '<button onclick="retryInit()" style="padding:10px 24px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:bold;">🔄 再読み込み</button>' : ''}
+            </div>`;
+        if (isError) document.getElementById('event-name-sidebar').innerText = '読み込みエラー';
+    }
+
+    window.retryInit = () => init();
+    let _initRunning = false;
+
     async function init() {
-        if (!eventId) return;
+        if (!eventId || _initRunning) return;
+        _initRunning = true;
         document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
         document.getElementById('exit-link').href = `judge_role_select.html?event=${eventId}`;
         document.getElementById('panel-role-label').innerText = `PANEL ${panel} | ROLE ${role}`;
@@ -592,14 +613,18 @@
             const el = document.getElementById(id); if (el) el.disabled = true;
         });
 
+        showLoadState('データを読み込んでいます...', false);
         try {
-        const [tourData, athleteList, subSnap, resSnap, smSnap] = await Promise.all([
-            getTournament(eventId),
-            getAthletes(eventId),
-            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
-            getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
-            getDocs(collection(db, "skillMaster"))
-        ]);
+        const [tourData, athleteList, subSnap, resSnap, smSnap] = await withTimeout(
+            Promise.all([
+                getTournament(eventId),
+                getAthletes(eventId),
+                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+                getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
+                getDocs(collection(db, "skillMaster"))
+            ]),
+            20000
+        );
         // Firestore skillMaster → skillMasterMap（ドキュメントID = 数値文字列）
         smSnap.forEach(d => {
             skillMasterMap[d.id] = {
@@ -673,9 +698,12 @@
         }
         } catch(e) {
             console.error('初期化エラー:', e);
-            document.getElementById('ath-name').innerText = '読み込みに失敗しました';
-            document.getElementById('ath-meta').innerText = e.message || 'ネットワークエラー';
+            const msg = e.message === 'TIMEOUT' ? 'ネットワーク接続に時間がかかっています' : 'データの読み込みに失敗しました';
+            showLoadState(msg, true);
+            document.getElementById('ath-name').innerText = msg;
+            document.getElementById('ath-meta').innerText = e.message === 'TIMEOUT' ? '' : (e.message || 'ネットワークエラー');
         } finally {
+            _initRunning = false;
             // 選手選択に依存しないボタンは初期化完了後に常に有効化
             ['btn-calculating','btn-republish','btn-hdts'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.disabled = false;
@@ -1785,15 +1813,23 @@
     }
 
     // ---- QIRA 取得 ----
-    // プロキシ（server.js）→ 直接接続（localhost:8080）の順で試みる
+    // 優先順位:
+    //   1. localhost で動作中 → /api/qira/result プロキシ（server.js が QIRA ホストを解決）
+    //   2. localStorage に別PC IPが設定されている → 直接接続
+    //   3. フォールバック → localhost:8080 直接
     async function tryFetchQira() {
-        try {
-            const r = await fetch('/api/qira/result', { signal: AbortSignal.timeout(1500) });
-            // Content-Type が JSON であればプロキシ経由が機能している
-            const ct = r.headers.get('content-type') || '';
-            if (ct.includes('json')) return r;
-        } catch {}
-        // フォールバック: QIRA に直接接続（同PC内の場合 localhost は HTTPS からでも許可される）
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            try {
+                const r = await fetch('/api/qira/result', { signal: AbortSignal.timeout(2000) });
+                const ct = r.headers.get('content-type') || '';
+                if (ct.includes('json')) return r;
+            } catch {}
+        }
+        const savedBase = localStorage.getItem('qiraBaseUrl');
+        const isRemote  = savedBase && !savedBase.includes('localhost') && !savedBase.includes('127.0.0.1');
+        if (isRemote) {
+            return fetch(savedBase + '/routineresult', { signal: AbortSignal.timeout(5000) });
+        }
         return fetch('http://localhost:8080/routineresult', { signal: AbortSignal.timeout(3000) });
     }
 
@@ -2238,6 +2274,9 @@
         return null;
     }
 
+    window.addEventListener('pageshow', e => {
+        if (e.persisted) { _initRunning = false; init(); }
+    });
     ensureAdmin(() => init());
 </script>
 </body>

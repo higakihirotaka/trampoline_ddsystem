@@ -52,9 +52,32 @@
 
 <h1>📡 QIRA 接続テスト</h1>
 
-<!-- 接続設定 -->
+<!-- CJP連携設定 -->
+<div class="card" style="border-color:#0d9488;">
+  <div class="card-title" style="color:#0d9488;">⚙️ CJP連携設定（CJP画面のHDTSボタンに反映）</div>
+  <div class="row">
+    <label>QIRAの場所</label>
+    <select id="cjp-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:5px 8px;border-radius:4px;font-size:0.82rem;">
+      <option value="local">同一PC（localhost:8080）</option>
+      <option value="remote">別PC（LAN接続）</option>
+    </select>
+  </div>
+  <div class="row" id="cjp-ip-row" style="display:none;">
+    <label>QIRA PC の IP</label>
+    <input type="text" id="cjp-ip" value="192.168.100.2" style="width:160px;">
+    <label style="margin-left:8px;">Port</label>
+    <input type="number" id="cjp-port" value="8080" style="width:70px;">
+  </div>
+  <div class="row" style="margin-top:8px;align-items:center;">
+    <button class="btn-primary" onclick="saveCjpConfig()">💾 CJP画面に設定を保存</button>
+    <span id="cjp-save-status" style="font-size:0.8rem;margin-left:12px;"></span>
+  </div>
+  <div id="cjp-current" style="font-size:0.75rem;color:#484f58;margin-top:8px;font-family:monospace;"></div>
+</div>
+
+<!-- 接続設定（テスト用） -->
 <div class="card">
-  <div class="card-title">接続設定</div>
+  <div class="card-title">接続設定（このページのテスト用）</div>
   <div class="row">
     <label>プロキシ経由</label>
     <input type="text" id="base-url" value="/api/qira" style="width:200px">
@@ -158,6 +181,67 @@
   document.getElementById('base-url').addEventListener('input', updateEpLabels);
   document.getElementById('direct-url').addEventListener('input', updateEpLabels);
   updateEpLabels();
+
+  // ---- CJP連携設定 ----
+  const QIRA_KEY = 'qiraBaseUrl';
+
+  function loadCjpConfig() {
+    const saved = localStorage.getItem(QIRA_KEY);
+    const curEl = document.getElementById('cjp-current');
+    if (saved) {
+      curEl.textContent = '保存済み: ' + saved;
+      const isRemote = !saved.includes('localhost') && !saved.includes('127.0.0.1');
+      document.getElementById('cjp-mode').value = isRemote ? 'remote' : 'local';
+      if (isRemote) {
+        const m = saved.match(/http:\/\/([^:]+):(\d+)/);
+        if (m) { document.getElementById('cjp-ip').value = m[1]; document.getElementById('cjp-port').value = m[2]; }
+        document.getElementById('cjp-ip-row').style.display = '';
+        // テスト用直接接続URLにも反映
+        document.getElementById('direct-url').value = saved;
+        updateEpLabels();
+      }
+    } else {
+      curEl.textContent = '未設定（CJP画面はlocalhost:8080を使用）';
+    }
+  }
+
+  async function saveCjpConfig() {
+    const mode = document.getElementById('cjp-mode').value;
+    const ip   = mode === 'remote' ? document.getElementById('cjp-ip').value.trim()   : 'localhost';
+    const port = mode === 'remote' ? document.getElementById('cjp-port').value.trim() : '8080';
+    const baseUrl = 'http://' + ip + ':' + port;
+
+    // localStorage に保存（CJP画面の直接接続用）
+    localStorage.setItem(QIRA_KEY, baseUrl);
+    document.getElementById('direct-url').value = baseUrl;
+    updateEpLabels();
+
+    const st  = document.getElementById('cjp-save-status');
+    const cur = document.getElementById('cjp-current');
+    cur.textContent = '保存済み: ' + baseUrl;
+
+    // ローカルサーバー（node server.js）が起動中なら /api/config にも送信
+    let serverMsg = '';
+    try {
+      const r = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host: ip, port: parseInt(port) }),
+        signal: AbortSignal.timeout(1000)
+      });
+      if (r.ok) serverMsg = ' ＋ サーバー設定も更新';
+    } catch { /* サーバー未起動の場合は無視 */ }
+
+    st.style.color = '#3fb950';
+    st.textContent = '✅ 保存しました' + serverMsg;
+    setTimeout(() => { st.textContent = ''; }, 4000);
+  }
+
+  document.getElementById('cjp-mode').addEventListener('change', e => {
+    document.getElementById('cjp-ip-row').style.display = e.target.value === 'remote' ? '' : 'none';
+  });
+
+  loadCjpConfig();
 
   function ts() { return new Date().toLocaleTimeString('ja-JP', {hour12:false}); }
 
