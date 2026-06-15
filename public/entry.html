@@ -569,6 +569,7 @@
     // 同じチームの提出済み構成を引用メニューに並べる
     // 提出有無は submissions コレクション（提出データ本体）を正として判定する
     async function setupTeamReference() {
+        if (!currentAthlete) return 0;
         const myClubs = new Set();
         if (currentAthlete.club1) myClubs.add(currentAthlete.club1);
         if (currentAthlete.club2) myClubs.add(currentAthlete.club2);

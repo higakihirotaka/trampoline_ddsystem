@@ -81,7 +81,14 @@ http.createServer((req, res) => {
     // ---- 静的ファイル ----
     let filePath = path.join(PUBLIC, pathname === '/' ? 'index.html' : pathname);
 
-    if (!fs.existsSync(filePath)) {
+    // ディレクトリトラバーサル防止: PUBLIC 配下以外へのアクセスを拒否
+    if (filePath !== PUBLIC && !filePath.startsWith(PUBLIC + path.sep)) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('403 Forbidden');
+        return;
+    }
+
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('404 Not Found');
         return;
@@ -94,5 +101,5 @@ http.createServer((req, res) => {
 
 }).listen(PORT, () => {
     console.log(`✅ Server running at http://localhost:${PORT}/`);
-    console.log(`📡 QIRA proxy: /api/qira/* → http://${QIRA_HOST}:${QIRA_PORT}`);
+    console.log(`📡 QIRA proxy: /api/qira/* → http://${qiraConfig.host}:${qiraConfig.port}`);
 });
