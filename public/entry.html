@@ -167,7 +167,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getSkills } from "./cache.js";
 
     const params = new URLSearchParams(location.search);
@@ -673,9 +673,12 @@
             const athleteUpdateData = {
                 [`submissions.${round}`]: 0 // 0: Submitted
             };
+            // 所属名→所属ふりがな のマップ（同じ所属の他選手へ反映するため）
+            const clubKanaMap = {};
             if (!isSynchro) {
                 athleteUpdateData.kana1 = kana;
                 athleteUpdateData.clubKana1 = clubKana;
+                if (currentAthlete.club1) clubKanaMap[currentAthlete.club1] = clubKana;
             } else {
                 const isDiff = document.getElementById('club-diff-chk')?.checked;
                 const ck1    = isDiff ? document.getElementById('ath-club-kana1').value.trim() : document.getElementById('ath-club-kana-shared').value.trim();
@@ -684,8 +687,17 @@
                 athleteUpdateData.kana2     = document.getElementById('ath-kana2').value.trim();
                 athleteUpdateData.clubKana1 = ck1;
                 athleteUpdateData.clubKana2 = ck2;
+                if (currentAthlete.club1) clubKanaMap[currentAthlete.club1] = ck1;
+                if (currentAthlete.club2) clubKanaMap[currentAthlete.club2] = ck2;
             }
             await updateDoc(doc(db, "tournaments", eventId, "athletes", athleteId), athleteUpdateData);
+
+            // 同じ所属名の他選手にも所属ふりがなを反映（失敗しても提出自体は成立させる）
+            try {
+                await propagateClubKana(clubKanaMap);
+            } catch (e) {
+                console.warn('所属ふりがなの一括反映に失敗しました:', e);
+            }
 
             alert("競技カードを提出しました。");
             location.href = `event.html?event=${eventId}`;
@@ -696,6 +708,32 @@
             btn.textContent = 'この内容で提出する';
         }
     };
+
+    // 同じ所属名を持つ全選手の所属ふりがなを、今回入力した値で揃える
+    async function propagateClubKana(clubKanaMap) {
+        const clubNames = Object.keys(clubKanaMap).filter(name => name && clubKanaMap[name]);
+        if (clubNames.length === 0) return;
+
+        const snap = await getDocs(collection(db, "tournaments", eventId, "athletes"));
+        let batch = writeBatch(db);
+        let ops = 0;
+        for (const d of snap.docs) {
+            if (d.id === athleteId) continue; // 自分は更新済み
+            const a = d.data();
+            const upd = {};
+            if (a.club1 && clubKanaMap[a.club1] != null && a.clubKana1 !== clubKanaMap[a.club1]) {
+                upd.clubKana1 = clubKanaMap[a.club1];
+            }
+            if (a.club2 && clubKanaMap[a.club2] != null && a.clubKana2 !== clubKanaMap[a.club2]) {
+                upd.clubKana2 = clubKanaMap[a.club2];
+            }
+            if (Object.keys(upd).length) {
+                batch.update(d.ref, upd);
+                if (++ops >= 450) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+            }
+        }
+        if (ops > 0) await batch.commit();
+    }
 
     init();
 </script>
