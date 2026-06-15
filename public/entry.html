@@ -138,6 +138,15 @@
     <div id="copy-prev-area" style="display:none; margin-bottom: 12px;">
         <button id="copy-prev-btn" class="btn btn-secondary" style="width:100%;"></button>
     </div>
+    <div id="team-ref-area" style="display:none; margin-bottom: 12px; padding:12px; background:#f1f3f4; border-radius:8px;">
+        <div style="font-size:0.85rem; font-weight:bold; margin-bottom:8px; color:#5f6368;">👥 同じチームの構成を引用</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <select id="team-ref-select" style="flex:1; min-width:180px; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff; font-size:0.9rem;">
+                <option value="">選手・ラウンドを選択...</option>
+            </select>
+            <button id="team-ref-btn" class="btn btn-secondary" style="white-space:nowrap;" onclick="loadTeamComposition()">読込</button>
+        </div>
+    </div>
     <input type="hidden" id="ath-gender">
     <div class="table-wrap">
     <table id="skill-table">
@@ -345,6 +354,12 @@
                 document.getElementById('copy-prev-area').style.display = '';
             }
         }
+
+        // 同じチームの引用メニューを準備（提出済み構成がある場合のみ、編集可能時に表示）
+        const teamRefCount = await setupTeamReference();
+        if (teamRefCount > 0 && !subDocResult.exists()) {
+            document.getElementById('team-ref-area').style.display = '';
+        }
     }
 
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
@@ -503,6 +518,103 @@
         if (round === 'pre2' || round === 'final') {
             document.getElementById('copy-prev-area').style.display = '';
         }
+        // 同じチームの引用メニュー（選択肢があれば表示）
+        if (document.getElementById('team-ref-select').options.length > 1) {
+            document.getElementById('team-ref-area').style.display = '';
+        }
+    };
+
+    // 提出データの skills 配列を技ID配列に変換（複数フォーマット互換）
+    function submissionToSkillIds(srcSkills) {
+        return (srcSkills || []).map(s => {
+            if (s === null || s === undefined) return '';
+            if (typeof s === 'object') {
+                if (s.id) { const byId = skillMaster.find(m => m.id === String(s.id)); if (byId) return byId.id; }
+                const found = skillMaster.find(m => m.symbol === s.skill);
+                return found ? found.id : '';
+            }
+            const sStr = String(s);
+            return skillMaster.find(m => m.id === sStr) ? sStr : '';
+        });
+    }
+
+    // 技ID配列を入力フォーム（系統・宙系・技名）に反映
+    function applySkillIdsToForm(skillIds) {
+        for (let i = 1; i <= 10; i++) {
+            const skillId = skillIds[i - 1] || '';
+            const skill   = skillMaster.find(s => s.id === skillId);
+            const dirEl   = document.getElementById(`dir-${i}`);
+            const somaEl  = document.getElementById(`soma-${i}`);
+            dirEl.value = skill?.direction || '';
+            // 2回宙は doubleSomaGroup で細分化した値にマップ
+            let somaVal = '';
+            if (skill?.direction && skill.direction !== '基礎技') {
+                if (skill.somersaultType === '2回宙') {
+                    somaVal = skill.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）';
+                } else {
+                    somaVal = skill.somersaultType || '';
+                }
+            }
+            somaEl.value = somaVal;
+            updateOptions(i, skillId, false);
+        }
+        calcTotal();
+    }
+
+    // 同じチームの提出済み構成を引用メニューに並べる
+    async function setupTeamReference() {
+        const myClubs = new Set();
+        if (currentAthlete.club1) myClubs.add(currentAthlete.club1);
+        if (currentAthlete.club2) myClubs.add(currentAthlete.club2);
+        if (myClubs.size === 0) return 0;
+
+        const snap = await getDocs(collection(db, "tournaments", eventId, "athletes"));
+        const roundLabels = { pre1: '予選1', pre2: '予選2', final: '決勝' };
+        const roundOrder  = { pre1: 0, pre2: 1, final: 2 };
+
+        const entries = [];
+        snap.docs.forEach(d => {
+            if (d.id === athleteId) return; // 自分は除外
+            const a = d.data();
+            const inClub = (a.club1 && myClubs.has(a.club1)) || (a.club2 && myClubs.has(a.club2));
+            if (!inClub) return;
+            const subs = a.submissions || {};
+            const nm   = a.type === 'synchro' ? `${a.name1 || ''} / ${a.name2 || ''}` : (a.name1 || '名称未設定');
+            const cls  = a.class ? `（${a.class}）` : '';
+            Object.keys(roundLabels).forEach(r => {
+                if (subs[r] == null) return; // 未提出のラウンドは除外
+                entries.push({ value: `${d.id}|${r}`, label: `${nm}${cls} ー ${roundLabels[r]}`, sortKey: `${nm}_${roundOrder[r]}` });
+            });
+        });
+
+        entries.sort((x, y) => x.sortKey.localeCompare(y.sortKey, 'ja'));
+        const sel = document.getElementById('team-ref-select');
+        entries.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.value;
+            opt.textContent = e.label;
+            sel.appendChild(opt);
+        });
+        return entries.length;
+    }
+
+    // 選択した構成を読み込んでフォームへ反映
+    window.loadTeamComposition = async () => {
+        const val = document.getElementById('team-ref-select').value;
+        if (!val) { alert('引用する選手・ラウンドを選択してください。'); return; }
+        const [srcAthleteId, srcRound] = val.split('|');
+        if (!confirm('選択した構成をこの画面に読み込みます。現在の入力内容は上書きされます。よろしいですか？')) return;
+        const btn = document.getElementById('team-ref-btn');
+        btn.disabled = true; btn.textContent = '読込中...';
+        try {
+            const snap = await getDoc(doc(db, 'submissions', `${eventId}_${srcAthleteId}_${srcRound}`));
+            if (!snap.exists()) { alert('選択した構成のデータが見つかりませんでした。'); return; }
+            applySkillIdsToForm(submissionToSkillIds(snap.data().skills || []));
+        } catch (e) {
+            alert('読込に失敗しました: ' + e.message);
+        } finally {
+            btn.disabled = false; btn.textContent = '読込';
+        }
     };
 
     window.copyPrevRound = async () => {
@@ -534,36 +646,7 @@
                 alert('予選の提出データが見つかりませんでした。先に予選を提出してください。');
                 return;
             }
-            const srcSkills = snap.data().skills || [];
-            const skillIds = srcSkills.map(s => {
-                if (s === null || s === undefined) return '';
-                if (typeof s === 'object') {
-                    if (s.id) { const byId = skillMaster.find(m => m.id === String(s.id)); if (byId) return byId.id; }
-                    const found = skillMaster.find(m => m.symbol === s.skill);
-                    return found ? found.id : '';
-                }
-                const sStr = String(s);
-                return skillMaster.find(m => m.id === sStr) ? sStr : '';
-            });
-            for (let i = 1; i <= 10; i++) {
-                const skillId = skillIds[i - 1] || '';
-                const skill   = skillMaster.find(s => s.id === skillId);
-                const dirEl   = document.getElementById(`dir-${i}`);
-                const somaEl  = document.getElementById(`soma-${i}`);
-                dirEl.value = skill?.direction || '';
-                // 2回宙は doubleSomaGroup で細分化した値にマップ
-                let somaVal = '';
-                if (skill?.direction && skill.direction !== '基礎技') {
-                    if (skill.somersaultType === '2回宙') {
-                        somaVal = skill.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）';
-                    } else {
-                        somaVal = skill.somersaultType || '';
-                    }
-                }
-                somaEl.value = somaVal;
-                updateOptions(i, skillId, false);
-            }
-            calcTotal();
+            applySkillIdsToForm(submissionToSkillIds(snap.data().skills || []));
         } catch (e) {
             alert('コピーに失敗しました: ' + e.message);
         } finally {
