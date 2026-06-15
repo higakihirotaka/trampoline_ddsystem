@@ -136,13 +136,9 @@ export function assignRanks(entries) {
     if (idx === 0) { r.rank = 1; return; }
     const prev = entries[idx - 1];
     if (r.qualScore == null || prev.qualScore == null) { r.rank = idx + 1; return; }
-    const isTied =
-      Math.round(r.qualScore * 1000) / 1000 === Math.round(prev.qualScore * 1000) / 1000 &&
-      (r.tbSum      == null || r.tbSum      === prev.tbSum)      &&
-      (r.tb?.tof    == null || r.tb.tof     === prev.tb?.tof)    &&
-      (r.tb?.hd     == null || r.tb.hd      === prev.tb?.hd)     &&
-      (r.tb?.diff   == null || r.tb.diff    === prev.tb?.diff);
-    r.rank = isTied ? prev.rank : idx + 1;
+    // タイ判定はソート基準 (compareRankEntries) と完全一致させる
+    // （独自の === 比較だと浮動小数誤差でソートと食い違い、同着の順位がずれることがある）
+    r.rank = compareRankEntries(r, prev) === 0 ? prev.rank : idx + 1;
   });
   return entries;
 }
