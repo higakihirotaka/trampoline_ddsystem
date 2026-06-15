@@ -43,16 +43,52 @@
     import { ensureAdmin, getTournaments } from './auth.js';
     import { db } from "./firebase-config.js";
 
+    function isPastTournament(tour) {
+        const end = tour.end_date || tour.endDate || tour.start_date || tour.startDate || '';
+        if (!end) return false; // 日付未設定は「開催前・開催中」扱い
+        const today = new Date().toISOString().slice(0, 10);
+        return end < today;
+    }
+
+    function makeOption(tour) {
+        const opt = document.createElement('option');
+        opt.value = tour.id;
+        opt.text = `[${tour.startDate || tour.start_date || '日付未設定'}] ${tour.name || '名称未設定'}`;
+        return opt;
+    }
+
     async function populateTournaments() {
         const tournaments = await getTournaments();
         const select = document.getElementById('tour-select');
-        select.innerHTML = tournaments.length === 0 ? '<option value="">登録された大会がありません</option>' : '';
-        tournaments.forEach(tour => {
-            const opt = document.createElement('option');
-            opt.value = tour.id;
-            opt.text = `[${tour.startDate || tour.start_date || '日付未設定'}] ${tour.name || '名称未設定'}`;
-            select.appendChild(opt);
+        select.innerHTML = '';
+
+        if (tournaments.length === 0) {
+            select.innerHTML = '<option value="">登録された大会がありません</option>';
+            return;
+        }
+
+        const upcoming = tournaments.filter(t => !isPastTournament(t));
+        const past     = tournaments.filter(t => isPastTournament(t));
+
+        // 開催前・開催中は開催日が近い順（昇順）に並べ替え
+        upcoming.sort((a, b) => {
+            const da = a.startDate || a.start_date || '';
+            const db_ = b.startDate || b.start_date || '';
+            return da < db_ ? -1 : da > db_ ? 1 : 0;
         });
+
+        if (upcoming.length) {
+            const grp = document.createElement('optgroup');
+            grp.label = '開催前・開催中';
+            upcoming.forEach(tour => grp.appendChild(makeOption(tour)));
+            select.appendChild(grp);
+        }
+        if (past.length) {
+            const grp = document.createElement('optgroup');
+            grp.label = '過去大会';
+            past.forEach(tour => grp.appendChild(makeOption(tour)));
+            select.appendChild(grp);
+        }
     }
 
     window.goMenu = () => {
