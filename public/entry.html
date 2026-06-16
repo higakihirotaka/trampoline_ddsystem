@@ -149,6 +149,15 @@
             <button id="team-ref-btn" class="btn btn-secondary" style="flex:0 0 auto; white-space:nowrap; padding:8px 20px; font-size:0.9rem; border-width:1px;" onclick="loadTeamComposition()">読込</button>
         </div>
     </div>
+    <div id="past-self-area" style="display:none; margin-bottom: 12px; padding:12px; background:#f1f3f4; border-radius:8px;">
+        <div style="font-size:0.85rem; font-weight:bold; margin-bottom:8px; color:#5f6368;">📅 過去の自分の構成を取得</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <select id="past-self-select" style="flex:1; min-width:180px; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff; font-size:0.9rem;">
+                <option value="">読込中...</option>
+            </select>
+            <button id="past-self-btn" class="btn btn-secondary" style="flex:0 0 auto; white-space:nowrap; padding:8px 20px; font-size:0.9rem; border-width:1px;" onclick="loadPastSelfComposition()">読込</button>
+        </div>
+    </div>
     <input type="hidden" id="ath-gender">
     <div class="table-wrap">
     <table id="skill-table">
@@ -362,10 +371,15 @@
             }
         }
 
-        // 同じチームの引用メニューを準備（編集可能時は常に表示。候補なしは「該当者なし」）
-        await setupTeamReference();
+        // 引用メニューを準備（編集可能時は常に表示。候補なしは「該当者なし」）
+        //   ・同じチーム … 個人/シンクロ両方
+        //   ・過去の自分 … 個人のみ
+        await Promise.all([setupTeamReference(), setupPastSelfReference()]);
         if (!subDocResult.exists()) {
             document.getElementById('team-ref-area').style.display = '';
+            if (currentAthlete && currentAthlete.type !== 'synchro') {
+                document.getElementById('past-self-area').style.display = '';
+            }
         }
     }
 
@@ -525,8 +539,11 @@
         if (round === 'pre2' || round === 'final') {
             document.getElementById('copy-prev-area').style.display = '';
         }
-        // 同じチームの引用メニュー（常に表示。候補なしは「該当者なし」）
+        // 引用メニュー（常に表示。候補なしは「該当者なし」）
         document.getElementById('team-ref-area').style.display = '';
+        if (currentAthlete && currentAthlete.type !== 'synchro') {
+            document.getElementById('past-self-area').style.display = '';
+        }
     };
 
     // 提出データの skills 配列を技ID配列に変換（複数フォーマット互換）
@@ -642,6 +659,103 @@
         btn.disabled = true; btn.textContent = '読込中...';
         try {
             const snap = await getDoc(doc(db, 'submissions', `${eventId}_${srcAthleteId}_${srcRound}`));
+            if (!snap.exists()) { alert('選択した構成のデータが見つかりませんでした。'); return; }
+            applySkillIdsToForm(submissionToSkillIds(snap.data().skills || []));
+        } catch (e) {
+            alert('読込に失敗しました: ' + e.message);
+        } finally {
+            btn.disabled = false; btn.textContent = '読込';
+        }
+    };
+
+    // 過去大会から「自分（氏名一致）」の提出済み構成を集める（個人のみ・所属/ふりがな不問）
+    async function setupPastSelfReference() {
+        const sel = document.getElementById('past-self-select');
+        const btn = document.getElementById('past-self-btn');
+        const renderEmpty = () => {
+            sel.innerHTML = '<option value="">該当者なし</option>';
+            sel.disabled = true; btn.disabled = true;
+            return 0;
+        };
+
+        // シンクロは対象外
+        if (!currentAthlete || currentAthlete.type === 'synchro') return renderEmpty();
+        const myName = (currentAthlete.name1 || '').trim();
+        if (!myName) return renderEmpty();
+
+        // 全大会（現在の大会は除外）
+        const tourSnap = await getDocs(collection(db, 'tournaments'));
+        const tours = tourSnap.docs.filter(d => d.id !== eventId).map(d => ({ id: d.id, ...d.data() }));
+        if (tours.length === 0) return renderEmpty();
+
+        const roundLabels = { pre1: '予選1', pre2: '予選2', final: '決勝' };
+        const roundOrder  = { pre1: 0, pre2: 1, final: 2 };
+
+        // 各大会で氏名一致の個人選手を検索（並列）
+        const perTour = await Promise.all(tours.map(async t => {
+            try {
+                const aSnap = await getDocs(query(
+                    collection(db, 'tournaments', t.id, 'athletes'),
+                    where('name1', '==', myName)
+                ));
+                const matches = aSnap.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .filter(a => (a.type || 'individual') !== 'synchro');
+                return { tour: t, athletes: matches };
+            } catch { return { tour: t, athletes: [] }; }
+        }));
+
+        // 一致選手の提出を取得（並列）
+        const entries = [];
+        await Promise.all(perTour.flatMap(({ tour, athletes }) =>
+            athletes.map(async a => {
+                try {
+                    const sSnap = await getDocs(query(collection(db, 'submissions'), where('athleteId', '==', a.id)));
+                    const yr = ((tour.start_date || tour.startDate || '') + '').slice(0, 4);
+                    sSnap.docs.forEach(d => {
+                        const s = d.data();
+                        if (s.eventId !== tour.id) return;                             // 念のため大会一致を確認
+                        if (!roundLabels[s.round]) return;                             // 想定外ラウンド除外
+                        if (!Array.isArray(s.skills) || s.skills.length === 0) return; // 空提出除外
+                        entries.push({
+                            value: `${tour.id}|${a.id}|${s.round}`,
+                            label: `${yr ? yr + ' ' : ''}${tour.name || '大会名未設定'} ー ${roundLabels[s.round]}`,
+                            year: yr, tourName: tour.name || '', roundOrd: roundOrder[s.round]
+                        });
+                    });
+                } catch {}
+            })
+        ));
+
+        if (entries.length === 0) return renderEmpty();
+
+        // 年は新しい順 → 大会名 → ラウンド順
+        entries.sort((x, y) =>
+            (y.year || '').localeCompare(x.year || '') ||
+            (x.tourName).localeCompare(y.tourName, 'ja') ||
+            (x.roundOrd - y.roundOrd)
+        );
+        sel.disabled = false; btn.disabled = false;
+        sel.innerHTML = '<option value="">大会・ラウンドを選択...</option>';
+        entries.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.value;
+            opt.textContent = e.label;
+            sel.appendChild(opt);
+        });
+        return entries.length;
+    }
+
+    // 選択した過去大会の構成を読み込んでフォームへ反映
+    window.loadPastSelfComposition = async () => {
+        const val = document.getElementById('past-self-select').value;
+        if (!val) { alert('取得する大会・ラウンドを選択してください。'); return; }
+        const [srcEvent, srcAthlete, srcRound] = val.split('|');
+        if (!confirm('選択した過去大会の構成を読み込みます。現在の入力内容は上書きされます。よろしいですか？')) return;
+        const btn = document.getElementById('past-self-btn');
+        btn.disabled = true; btn.textContent = '読込中...';
+        try {
+            const snap = await getDoc(doc(db, 'submissions', `${srcEvent}_${srcAthlete}_${srcRound}`));
             if (!snap.exists()) { alert('選択した構成のデータが見つかりませんでした。'); return; }
             applySkillIdsToForm(submissionToSkillIds(snap.data().skills || []));
         } catch (e) {
