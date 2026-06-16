@@ -58,9 +58,44 @@
             .container { padding: 14px; border-radius: 14px; }
             .info-name { font-size: 1.25em; }
             .info-label { min-width: 70px; font-size: 0.68em; }
-            table { min-width: 460px; }
-            th, td { padding: 9px 3px; font-size: 0.88em; }
-            select { padding: 9px 2px; font-size: 0.88em; border-radius: 6px; }
+            /* ── スキル入力をカード化（横スクロール廃止・タップしやすく） ── */
+            .table-wrap { overflow-x: visible; }
+            #skill-table, #skill-table tbody { display: block; min-width: 0; }
+            #skill-table thead { display: none; }
+            #skill-table tr {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px 10px;
+                border: 1px solid #e3e6ea;
+                border-radius: 12px;
+                padding: 12px 14px;
+                margin-bottom: 12px;
+                background: #fff;
+            }
+            #skill-table td { display: flex; flex-direction: column; gap: 3px; padding: 0; border: none; text-align: left; }
+            #skill-table td::before { font-size: 0.66em; font-weight: bold; color: var(--gray); letter-spacing: 0.03em; }
+            #skill-table td:nth-child(1) {            /* 技番号: カード見出し */
+                grid-row: 1; grid-column: 1; flex-direction: row; align-items: center; gap: 6px;
+                font-size: 1.15em; font-weight: 900; color: var(--primary);
+            }
+            #skill-table td:nth-child(1)::before { content: "技"; font-size: 0.62em; color: var(--gray); }
+            #skill-table td:nth-child(5) { grid-row: 1; grid-column: 2; align-items: flex-end; }  /* DD: 右上 */
+            #skill-table td:nth-child(5)::before { content: "DD"; }
+            #skill-table td:nth-child(5) span { font-size: 1.5em; font-weight: 900; line-height: 1; }
+            #skill-table td:nth-child(2) { grid-row: 2; grid-column: 1; }      /* 系統 */
+            #skill-table td:nth-child(2)::before { content: "系統"; }
+            #skill-table td:nth-child(3) { grid-row: 2; grid-column: 2; }      /* 宙系 */
+            #skill-table td:nth-child(3)::before { content: "宙系"; }
+            #skill-table td:nth-child(4) { grid-row: 3; grid-column: 1 / -1; } /* 技名: 全幅 */
+            #skill-table td:nth-child(4)::before { content: "技名"; }
+            #skill-table td:nth-child(6) {            /* 指定難度 */
+                grid-row: 4; grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 8px;
+            }
+            #skill-table td:nth-child(6)::before { content: "指定難度"; order: 2; }
+            #skill-table select { width: 100%; padding: 12px 10px; font-size: 0.98em; border-radius: 8px; }
+            #skill-table .check-cell input[type="checkbox"] { width: 24px; height: 24px; }
+            .duplicate-row { background: #fff59d !important; border-color: #fdd835 !important; }
+            .duplicate-row td { background: transparent !important; }
             .total-display { flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; }
             .total-val { font-size: 2.4em; }
             .total-val-wrap { align-self: flex-end; }
