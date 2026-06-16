@@ -140,15 +140,6 @@
     <div id="copy-prev-area" style="display:none; margin-bottom: 12px;">
         <button id="copy-prev-btn" class="btn btn-secondary" style="width:100%;"></button>
     </div>
-    <div id="team-ref-area" style="display:none; margin-bottom: 12px; padding:12px; background:#f1f3f4; border-radius:8px;">
-        <div style="font-size:0.85rem; font-weight:bold; margin-bottom:8px; color:#5f6368;">👥 同じチームの選手の構成を読込</div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <select id="team-ref-select" style="flex:1; min-width:180px; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff; font-size:0.9rem;">
-                <option value="">選手・ラウンドを選択...</option>
-            </select>
-            <button id="team-ref-btn" class="btn btn-secondary" style="flex:0 0 auto; white-space:nowrap; padding:8px 20px; font-size:0.9rem; border-width:1px;" onclick="loadTeamComposition()">読込</button>
-        </div>
-    </div>
     <div id="past-self-area" style="display:none; margin-bottom: 12px; padding:12px; background:#f1f3f4; border-radius:8px;">
         <div style="font-size:0.85rem; font-weight:bold; margin-bottom:8px; color:#5f6368;">📅 過去の自分の構成を取得</div>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -156,6 +147,15 @@
                 <option value="">読込中...</option>
             </select>
             <button id="past-self-btn" class="btn btn-secondary" style="flex:0 0 auto; white-space:nowrap; padding:8px 20px; font-size:0.9rem; border-width:1px;" onclick="loadPastSelfComposition()">読込</button>
+        </div>
+    </div>
+    <div id="team-ref-area" style="display:none; margin-bottom: 12px; padding:12px; background:#f1f3f4; border-radius:8px;">
+        <div style="font-size:0.85rem; font-weight:bold; margin-bottom:8px; color:#5f6368;">👥 同じチームの選手の構成を読込</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <select id="team-ref-select" style="flex:1; min-width:180px; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff; font-size:0.9rem;">
+                <option value="">選手・ラウンドを選択...</option>
+            </select>
+            <button id="team-ref-btn" class="btn btn-secondary" style="flex:0 0 auto; white-space:nowrap; padding:8px 20px; font-size:0.9rem; border-width:1px;" onclick="loadTeamComposition()">読込</button>
         </div>
     </div>
     <input type="hidden" id="ath-gender">
