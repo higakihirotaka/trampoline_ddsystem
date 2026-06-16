@@ -683,9 +683,12 @@
         const myName = (currentAthlete.name1 || '').trim();
         if (!myName) return renderEmpty();
 
-        // 全大会（現在の大会は除外）
+        // 全大会（現在の大会・大会名に「テスト」を含む大会は除外）
         const tourSnap = await getDocs(collection(db, 'tournaments'));
-        const tours = tourSnap.docs.filter(d => d.id !== eventId).map(d => ({ id: d.id, ...d.data() }));
+        const tours = tourSnap.docs
+            .filter(d => d.id !== eventId)
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(t => !(t.name || '').includes('テスト'));
         if (tours.length === 0) return renderEmpty();
 
         const roundLabels = { pre1: '予選1', pre2: '予選2', final: '決勝' };
