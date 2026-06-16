@@ -360,9 +360,9 @@
             }
         }
 
-        // 同じチームの引用メニューを準備（提出済み構成がある場合のみ、編集可能時に表示）
-        const teamRefCount = await setupTeamReference();
-        if (teamRefCount > 0 && !subDocResult.exists()) {
+        // 同じチームの引用メニューを準備（編集可能時は常に表示。候補なしは「該当者なし」）
+        await setupTeamReference();
+        if (!subDocResult.exists()) {
             document.getElementById('team-ref-area').style.display = '';
         }
     }
@@ -523,10 +523,8 @@
         if (round === 'pre2' || round === 'final') {
             document.getElementById('copy-prev-area').style.display = '';
         }
-        // 同じチームの引用メニュー（選択肢があれば表示）
-        if (document.getElementById('team-ref-select').options.length > 1) {
-            document.getElementById('team-ref-area').style.display = '';
-        }
+        // 同じチームの引用メニュー（常に表示。候補なしは「該当者なし」）
+        document.getElementById('team-ref-area').style.display = '';
     };
 
     // 提出データの skills 配列を技ID配列に変換（複数フォーマット互換）
@@ -569,11 +567,21 @@
     // 同じチームの提出済み構成を引用メニューに並べる
     // 提出有無は submissions コレクション（提出データ本体）を正として判定する
     async function setupTeamReference() {
-        if (!currentAthlete) return 0;
+        const sel = document.getElementById('team-ref-select');
+        const btn = document.getElementById('team-ref-btn');
+        // 候補なし: ドロップダウンを「該当者なし」にして無効化
+        const renderEmpty = () => {
+            sel.innerHTML = '<option value="">該当者なし</option>';
+            sel.disabled = true;
+            btn.disabled = true;
+            return 0;
+        };
+
+        if (!currentAthlete) return renderEmpty();
         const myClubs = new Set();
         if (currentAthlete.club1) myClubs.add(currentAthlete.club1);
         if (currentAthlete.club2) myClubs.add(currentAthlete.club2);
-        if (myClubs.size === 0) return 0;
+        if (myClubs.size === 0) return renderEmpty();
 
         // 全選手（所属・氏名照合用）と、この大会の全提出を取得
         const [athSnap, subSnap] = await Promise.all([
@@ -589,7 +597,7 @@
             const inClub = (a.club1 && myClubs.has(a.club1)) || (a.club2 && myClubs.has(a.club2));
             if (inClub) teammates.set(d.id, a);
         });
-        if (teammates.size === 0) return 0;
+        if (teammates.size === 0) return renderEmpty();
 
         const roundLabels = { pre1: '予選1', pre2: '予選2', final: '決勝' };
         const roundOrder  = { pre1: 0, pre2: 1, final: 2 };
@@ -606,8 +614,13 @@
             entries.push({ value: `${s.athleteId}|${s.round}`, label: `${nm}${cls} ー ${roundLabels[s.round]}`, sortKey: `${nm}_${roundOrder[s.round]}` });
         });
 
+        if (entries.length === 0) return renderEmpty();
+
+        // 候補あり: プレースホルダ＋候補を並べ、操作可能にする
         entries.sort((x, y) => x.sortKey.localeCompare(y.sortKey, 'ja'));
-        const sel = document.getElementById('team-ref-select');
+        sel.disabled = false;
+        btn.disabled = false;
+        sel.innerHTML = '<option value="">選手・ラウンドを選択...</option>';
         entries.forEach(e => {
             const opt = document.createElement('option');
             opt.value = e.value;
