@@ -126,6 +126,7 @@
         <button class="btn btn-primary" onclick="addRow()">＋ 選手を追加</button>
         <button class="btn btn-outline" onclick="document.getElementById('csv-file-input').click()">↑ CSVインポート</button>
         <button class="btn btn-ghost" onclick="downloadTemplate()">↓ CSVテンプレート</button>
+        <button class="btn btn-ghost" onclick="convertKanaToHira()" title="氏名ふりがなのカタカナをひらがなに変換します（保存は別途必要）">あ ふりがなをひらがなに変換</button>
         <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" onchange="handleCSV(this)">
         <div class="spacer"></div>
         <span class="athlete-count" id="athlete-count"></span>
@@ -402,6 +403,25 @@
             const last = rows[rows.length - 1];
             (last.querySelector('input, select') || {}).focus?.();
         }
+    };
+
+    // 氏名ふりがなのカタカナをひらがなに変換（現在のタブ。個人=kana1 / シンクロ=kana1・kana2）
+    window.convertKanaToHira = () => {
+        const KATA = /[ァ-ヶ]/;                         // ァ〜ヶ
+        const toHira = s => (s || '').replace(/[ァ-ヶ]/g,
+            c => String.fromCharCode(c.charCodeAt(0) - 0x60));  // カタカナ→ひらがな（長音符ーは対象外で保持）
+        const fields = currentTab === 'individual' ? ['kana1'] : ['kana1', 'kana2'];
+        let count = 0;
+        currentList().forEach(a => fields.forEach(f => {
+            if (a[f] && KATA.test(a[f])) {
+                const conv = toHira(a[f]);
+                if (conv !== a[f]) { a[f] = conv; count++; }
+            }
+        }));
+        renderTable();
+        showToast(count > 0
+            ? `${count}件の氏名ふりがなをひらがなに変換しました（保存してください）`
+            : 'カタカナの氏名ふりがなはありませんでした');
     };
 
     // ---- CSV ----
