@@ -46,6 +46,14 @@
         .section-heading::after { content:''; flex:1; height:1px; background:#dde3ec; }
 
         .empty-msg { color: #b0bec5; font-size: 0.88rem; padding: 8px 0; }
+
+        /* 性別×ラウンド グループ */
+        .gr-group { margin-bottom: 14px; }
+        .gr-group:last-child { margin-bottom: 0; }
+        .gr-group-label { font-size: 0.72rem; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 5px; }
+
+        /* クラスまたぎグループの副ラベル */
+        .cls-sublabel { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); margin: -8px 0 10px 2px; }
     </style>
 </head>
 <body>
@@ -62,8 +70,8 @@
         <div class="staff-grid" id="staff-grid">
             <div class="staff-field" id="sw-chief"><span class="staff-label">審判長</span><span class="staff-value empty" id="s-chief">—</span></div>
             <div class="staff-field" id="sw-recorder"><span class="staff-label">記録主任</span><span class="staff-value empty" id="s-recorder">—</span></div>
-            <div class="staff-field" id="sw-senior1"><span class="staff-label">上級審判 1</span><span class="staff-value empty" id="s-senior1">—</span></div>
-            <div class="staff-field" id="sw-senior2"><span class="staff-label">上級審判 2</span><span class="staff-value empty" id="s-senior2">—</span></div>
+            <div class="staff-field" id="sw-senior1"><span class="staff-label">上級審判</span><span class="staff-value empty" id="s-senior1">—</span></div>
+            <div class="staff-field" id="sw-senior2"><span class="staff-label">上級審判</span><span class="staff-value empty" id="s-senior2">—</span></div>
         </div>
     </div>
 
@@ -73,7 +81,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDocFromServer, getDocsFromServer, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -81,7 +89,13 @@
 
     async function init() {
         if (!eventId) return;
-        const snap = await getDoc(doc(db, 'tournaments', eventId));
+
+        // 大会データと選手リストを並列取得（両方ともキャッシュ回避でサーバー直取得）
+        const [snap, athSnap] = await Promise.all([
+            getDocFromServer(doc(db, 'tournaments', eventId)),
+            getDocsFromServer(collection(db, 'tournaments', eventId, 'athletes'))
+        ]);
+
         if (!snap.exists()) return;
         const d = snap.data();
 
@@ -89,29 +103,38 @@
 
     // スタッフ
     const staff = d.judgeConfig?.staff || {};
-    const set = (id, val) => {
-        const el = document.getElementById(id);
-        if (val) { el.textContent = val; el.classList.remove('empty'); }
-        else { el.textContent = '—'; }
+    // 「設定しない」または未入力（空）なら項目ごと非表示。値があれば表示。
+    const showStaff = (wrapId, valId, val, disabled) => {
+        const show = !disabled && !!val;
+        if (!show) { document.getElementById(wrapId).style.display = 'none'; return false; }
+        const el = document.getElementById(valId);
+        el.textContent = val;
+        el.classList.remove('empty');
+        return true;
     };
-    // 「設定しない」フラグがあれば非表示、なければ値を表示
-    if (staff.chiefJudgeDisabled)    { document.getElementById('sw-chief').style.display    = 'none'; }
-    else { set('s-chief',    staff.chiefJudge); }
-    if (staff.chiefRecorderDisabled) { document.getElementById('sw-recorder').style.display = 'none'; }
-    else { set('s-recorder', staff.chiefRecorder); }
-    if (staff.seniorJudge1Disabled)  { document.getElementById('sw-senior1').style.display  = 'none'; }
-    else { set('s-senior1',  staff.seniorJudge1); }
-    if (staff.seniorJudge2Disabled)  { document.getElementById('sw-senior2').style.display  = 'none'; }
-    else { set('s-senior2',  staff.seniorJudge2); }
-    // 全員「設定しない」ならスタッフカードごと非表示
-    if (staff.chiefJudgeDisabled && staff.chiefRecorderDisabled && staff.seniorJudge1Disabled && staff.seniorJudge2Disabled) {
-        document.getElementById('staff-card').style.display = 'none';
-    }
+    const anyShown = [
+        showStaff('sw-chief',    's-chief',    staff.chiefJudge,    staff.chiefJudgeDisabled),
+        showStaff('sw-recorder', 's-recorder', staff.chiefRecorder, staff.chiefRecorderDisabled),
+        showStaff('sw-senior1',  's-senior1',  staff.seniorJudge1,  staff.seniorJudge1Disabled),
+        showStaff('sw-senior2',  's-senior2',  staff.seniorJudge2,  staff.seniorJudge2Disabled),
+    ].some(Boolean);
+    // 表示できる項目が1つもなければスタッフカードごと非表示
+    if (!anyShown) document.getElementById('staff-card').style.display = 'none';
 
-    // クラス別
+    // 選手登録済みクラスのみ対象（サーバーから取得済みのデータを使用）
+    const athClasses = new Set(athSnap.docs.map(ad => {
+        const a = ad.data();
+        return `${a.type || 'individual'}:${a.class || a.category || ''}`;
+    }));
+
+    // クラス別（選手が1人以上いるクラスのみ）
     const cls          = d.classes || {};
-    const individual   = (cls.individual || []).map(c => ({ name: c.name, type: 'individual' }));
-    const synchro      = (cls.synchro    || []).map(c => ({ name: c.name, type: 'synchro' }));
+    const individual   = (cls.individual || [])
+        .filter(c => athClasses.has(`individual:${c.name}`))
+        .map(c => ({ name: c.name, type: 'individual' }));
+    const synchro      = (cls.synchro    || [])
+        .filter(c => athClasses.has(`synchro:${c.name}`))
+        .map(c => ({ name: c.name, type: 'synchro' }));
     const judgeConfig  = d.judgeConfig?.classes || {};
     const classRules   = d.classRules || {};
     const container    = document.getElementById('classes-container');
@@ -128,43 +151,96 @@
         return roles;
     }
 
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ロール配列から審判テーブルを生成
+    function buildJudgeTable(data, ROLES) {
+        const table = document.createElement('table');
+        table.className = 'judge-table';
+        const hasAny = ROLES.some(([k]) => data[k]);
+        let html = '';
+        if (hasAny) {
+            ROLES.forEach(([key, lbl]) => {
+                const val  = data[key]           || '';
+                const kind = data[key + '_kind'] || '';
+                html += `<tr>
+                    <td class="role">${lbl}</td>
+                    <td class="name${val ? '' : ' empty'}">${escHtml(val || '—')}${val && kind ? `<span class="judge-kind">${escHtml(kind)}</span>` : ''}</td>
+                </tr>`;
+            });
+        } else {
+            html = `<tr><td colspan="2" class="name empty">未設定</td></tr>`;
+        }
+        table.innerHTML = `<tbody>${html}</tbody>`;
+        return table;
+    }
+
+    // クラスをまたいで同じ審判構成 (fingerprint) ごとにまとめてカードを生成
+    // fingerprint にはロール種別も含めるため、E審判数が異なるクラスは別グループになる
     function buildSection(list, type) {
         if (list.length === 0) return;
-        const label = type === 'synchro' ? 'シンクロ' : '個人';
-        const heading = document.createElement('div');
-        heading.className = 'section-heading';
-        heading.textContent = label;
-        container.appendChild(heading);
+        const GENDERS = ['男子', '女子'];
+        const ROUNDS  = ['予選', '決勝'];
+
+        // fingerprint → { sections:[{className, gender, round}], data, ROLES }
+        const groupMap = new Map();
 
         list.forEach(({ name }) => {
-            const data   = judgeConfig[name] || {};
-            const ROLES  = getRoles(name, type);
-            const hasAny = ROLES.some(([key]) => data[key]);
+            const classData   = judgeConfig[type]?.[name] || judgeConfig[name] || {};
+            const ROLES       = getRoles(name, type);
+            // 旧形式検出（トップレベルキーに cjp/e1 等が含まれる）
+            const isOldFormat = Object.keys(classData).some(k => ['cjp','e1','e2','e3','e4','d7','d8'].includes(k));
+
+            if (isOldFormat) {
+                const hasAny = ROLES.some(([k]) => classData[k]);
+                if (!hasAny) return;
+                // ロールキー込みのフィンガープリントで識別
+                const fp = JSON.stringify(ROLES.map(([k]) => [k, classData[k]||'', classData[k+'_kind']||'']));
+                if (!groupMap.has(fp)) groupMap.set(fp, { sections: [], data: classData, ROLES });
+                groupMap.get(fp).sections.push({ className: name, gender: '', round: '' });
+            } else {
+                for (const g of GENDERS) {
+                    for (const r of ROUNDS) {
+                        const sec = classData[g]?.[r];
+                        if (!sec) continue;
+                        const hasAny = ROLES.some(([k]) => sec[k]);
+                        if (!hasAny) continue;
+                        const fp = JSON.stringify(ROLES.map(([k]) => [k, sec[k]||'', sec[k+'_kind']||'']));
+                        if (!groupMap.has(fp)) groupMap.set(fp, { sections: [], data: sec, ROLES });
+                        groupMap.get(fp).sections.push({ className: name, gender: g, round: r });
+                    }
+                }
+            }
+        });
+
+        if (groupMap.size === 0) return;
+
+        const typeLabel = type === 'synchro' ? 'シンクロ' : '個人';
+        const heading = document.createElement('div');
+        heading.className = 'section-heading';
+        heading.textContent = typeLabel;
+        container.appendChild(heading);
+
+        groupMap.forEach(({ sections, data, ROLES }) => {
+            const classes = [...new Set(sections.map(s => s.className))];
+            const genders = [...new Set(sections.map(s => s.gender).filter(Boolean))];
+            const rounds  = [...new Set(sections.map(s => s.round).filter(Boolean))];
+            const subLabel = genders.length
+                ? genders.join('・') + ' / ' + rounds.join('・')
+                : '';
 
             const card = document.createElement('div');
             card.className = 'cls-card';
-
-            let rows = '';
-            if (hasAny) {
-                ROLES.forEach(([key, label]) => {
-                    const val  = data[key]           || '';
-                    const kind = data[key + '_kind'] || '';
-                    rows += `<tr>
-                        <td class="role">${label}</td>
-                        <td class="name${val ? '' : ' empty'}">${val || '—'}${val && kind ? `<span class="judge-kind">${kind}</span>` : ''}</td>
-                    </tr>`;
-                });
-            } else {
-                rows = `<tr><td colspan="2" class="name empty">未設定</td></tr>`;
-            }
-
-            card.innerHTML = `
-                <div class="cls-header">
-                    <span class="cls-badge ${type}">${label}</span>
-                    <span class="cls-name">${name}</span>
-                </div>
-                <table class="judge-table"><tbody>${rows}</tbody></table>
-            `;
+            let html = `<div class="cls-header">
+                <span class="cls-badge ${type}">${typeLabel}</span>
+                <span class="cls-name">${escHtml(classes.join('・'))}</span>
+            </div>`;
+            if (subLabel) html += `<div class="cls-sublabel">${escHtml(subLabel)}</div>`;
+            html += '<div class="cls-body"></div>';
+            card.innerHTML = html;
+            card.querySelector('.cls-body').appendChild(buildJudgeTable(data, ROLES));
             container.appendChild(card);
         });
     }
