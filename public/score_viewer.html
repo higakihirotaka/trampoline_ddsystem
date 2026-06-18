@@ -226,18 +226,23 @@
         return 'A';
     }
 
+    // iOS等で getDocs が応答しないハングを防ぐタイムアウト
+    function withTimeout(promise, ms = 8000) {
+        return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+    }
+
     // ---- 初期化 ----
     async function init() {
         if (!eventId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">大会IDが見つかりません</p>'; return; }
         document.getElementById('menu-back').href = `judge_menu.html?event=${eventId}`;
 
-        const [tourData, athleteList, subSnap, resSnap, smSnap] = await Promise.all([
+        const [tourData, athleteList, subSnap, resSnap, smSnap] = await withTimeout(Promise.all([
             getTournament(eventId),
             getAthletes(eventId),
             getDocs(query(collection(db, 'submissions'), where('eventId','==',eventId))),
             getDocs(query(collection(db, 'results'),     where('eventId','==',eventId))),
             getDocs(collection(db, 'skillMaster'))
-        ]);
+        ]));
 
         smSnap.forEach(d => {
             skillMasterMap[d.id] = { id: d.id, symbol: d.data().symbol, dd: parseFloat(d.data().dd) || 0 };
@@ -248,7 +253,7 @@
 
         athleteList.forEach(a => { athletes[a.id] = a; });
         // 決勝試技順（キャッシュ除外）をマージ
-        const finalOrders = await getFinalOrders(eventId);
+        const finalOrders = await withTimeout(getFinalOrders(eventId));
         Object.values(athletes).forEach(a => {
             const fo = finalOrders[a.id];
             if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
@@ -577,7 +582,7 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         document.getElementById('res-e').textContent    = hasData ? execution.toFixed(1) : '0.0';
         document.getElementById('res-t').textContent    = t ? Number(t).toFixed(3) : '0.000';
         document.getElementById('res-hd').textContent   = h ? Number(h).toFixed(3) : '0.000';
-        document.getElementById('res-total').textContent = Math.max(0, totalDD + (hasData ? execution : 0) + Number(t) + Number(h) - p).toFixed(3);
+        document.getElementById('res-total').textContent = Math.max(0, totalDD + (hasData ? execution : 0) + Number(t) + Number(h) - p).toFixed(2);
 
         // HDTS 合計列（技別データは Firestore 未保存のため合計値のみ）
         document.getElementById('sv-hdts-tof-sum').textContent = t ? Number(t).toFixed(3) : '-';
@@ -684,7 +689,12 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         return 'val-filled';
     }
 
-    init();
+    init().catch(e => {
+        console.error('スコア確認の読み込みに失敗:', e);
+        const sl = document.getElementById('sidebar-list');
+        if (sl) sl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">読み込みに失敗しました。'
+            + '<br><button onclick="location.reload()" style="margin-top:12px;padding:8px 18px;border:none;background:var(--accent);color:#fff;border-radius:8px;cursor:pointer;">再読み込み</button></div>';
+    });
 </script>
 </body>
 </html>
