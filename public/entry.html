@@ -371,16 +371,16 @@
             }
         }
 
-        // 引用メニューを準備（編集可能時は常に表示。候補なしは「該当者なし」）
-        //   ・同じチーム … 個人/シンクロ両方
-        //   ・過去の自分 … 個人のみ
-        await Promise.all([setupTeamReference(), setupPastSelfReference()]);
+        // 引用メニューは「取得の成否に依存させず先に枠を表示」する。
+        // （iOS Safari等で取得が失敗/ハングしても枠は出る＝リロード不要。中身は各 setup が後から投入し、
+        //   失敗時は「該当者なし」に倒れる。allSettled で片方の失敗がもう片方を巻き込まない）
         if (!subDocResult.exists()) {
             document.getElementById('team-ref-area').style.display = '';
             if (currentAthlete && currentAthlete.type !== 'synchro') {
                 document.getElementById('past-self-area').style.display = '';
             }
         }
+        Promise.allSettled([setupTeamReference(), setupPastSelfReference()]);
     }
 
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
@@ -583,6 +583,14 @@
         calcTotal();
     }
 
+    // Promise にタイムアウトを付与（iOS等で getDocs が応答しないハングを防ぐ）
+    function withTimeout(promise, ms = 8000) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+        ]);
+    }
+
     // 同じチームの提出済み構成を引用メニューに並べる
     // 提出有無は submissions コレクション（提出データ本体）を正として判定する
     async function setupTeamReference() {
@@ -602,11 +610,17 @@
         if (currentAthlete.club2) myClubs.add(currentAthlete.club2);
         if (myClubs.size === 0) return renderEmpty();
 
-        // 全選手（所属・氏名照合用）と、この大会の全提出を取得
-        const [athSnap, subSnap] = await Promise.all([
-            getDocs(collection(db, "tournaments", eventId, "athletes")),
-            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId)))
-        ]);
+        // 全選手（所属・氏名照合用）と、この大会の全提出を取得（失敗/タイムアウト時は「該当者なし」）
+        let athSnap, subSnap;
+        try {
+            [athSnap, subSnap] = await withTimeout(Promise.all([
+                getDocs(collection(db, "tournaments", eventId, "athletes")),
+                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId)))
+            ]));
+        } catch (e) {
+            console.warn('同じチーム構成の取得に失敗:', e);
+            return renderEmpty();
+        }
 
         // 同じ所属の選手（自分以外）を athleteId → データ で保持
         const teammates = new Map();
@@ -683,8 +697,14 @@
         const myName = (currentAthlete.name1 || '').trim();
         if (!myName) return renderEmpty();
 
-        // 全大会（現在の大会・大会名に「テスト」を含む大会は除外）
-        const tourSnap = await getDocs(collection(db, 'tournaments'));
+        // 全大会（現在の大会・大会名に「テスト」を含む大会は除外。失敗/タイムアウト時は「該当者なし」）
+        let tourSnap;
+        try {
+            tourSnap = await withTimeout(getDocs(collection(db, 'tournaments')));
+        } catch (e) {
+            console.warn('過去大会一覧の取得に失敗:', e);
+            return renderEmpty();
+        }
         const tours = tourSnap.docs
             .filter(d => d.id !== eventId)
             .map(d => ({ id: d.id, ...d.data() }))
@@ -697,10 +717,10 @@
         // 各大会で氏名一致の個人選手を検索（並列）
         const perTour = await Promise.all(tours.map(async t => {
             try {
-                const aSnap = await getDocs(query(
+                const aSnap = await withTimeout(getDocs(query(
                     collection(db, 'tournaments', t.id, 'athletes'),
                     where('name1', '==', myName)
-                ));
+                )));
                 const matches = aSnap.docs
                     .map(d => ({ id: d.id, ...d.data() }))
                     .filter(a => (a.type || 'individual') !== 'synchro');
@@ -713,7 +733,7 @@
         await Promise.all(perTour.flatMap(({ tour, athletes }) =>
             athletes.map(async a => {
                 try {
-                    const sSnap = await getDocs(query(collection(db, 'submissions'), where('athleteId', '==', a.id)));
+                    const sSnap = await withTimeout(getDocs(query(collection(db, 'submissions'), where('athleteId', '==', a.id))));
                     const yr = ((tour.start_date || tour.startDate || '') + '').slice(0, 4);
                     sSnap.docs.forEach(d => {
                         const s = d.data();
