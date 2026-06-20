@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>競技カード提出履歴 - Trampoline System</title>
+    <style>
+        :root { --primary:#263238; --accent:#1a73e8; --bg:#f0f2f5; --card:#fff; --sub:#78909c; --border:#e0e7ef; --green:#1e8e3e; --amber:#f29900; }
+        * { box-sizing:border-box; }
+        body { font-family:'Inter','Hiragino Sans',sans-serif; background:var(--bg); margin:0; padding:20px; color:var(--primary); }
+        .container { max-width:1100px; margin:0 auto; }
+        .header-bar { display:flex; align-items:center; gap:14px; margin-bottom:6px; flex-wrap:wrap; }
+        .btn-back { text-decoration:none; color:var(--sub); font-size:0.9rem; border:1px solid #ccc; padding:8px 18px; border-radius:8px; white-space:nowrap; }
+        h1 { font-size:1.4rem; margin:0; flex:1; }
+        .btn-refresh { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:9px 18px; font-size:0.9rem; font-weight:bold; cursor:pointer; white-space:nowrap; }
+        .btn-refresh:hover { background:#1557b0; }
+        .event-name { color:var(--sub); font-size:0.95rem; margin-bottom:16px; }
+        .summary { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+        .stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 18px; min-width:110px; }
+        .stat .n { font-size:1.5rem; font-weight:900; color:var(--accent); line-height:1.1; }
+        .stat .l { font-size:0.72rem; color:var(--sub); font-weight:bold; }
+        .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+        .toolbar select { padding:8px 12px; border-radius:8px; border:1.5px solid #d0d7de; background:#f8fbff; font-size:0.9rem; }
+        .count-note { font-size:0.82rem; color:var(--sub); margin-left:auto; }
+        .table-wrap { background:var(--card); border-radius:14px; border:1px solid var(--border); overflow:hidden; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+        th { background:#f8f9fb; padding:11px 12px; color:var(--sub); font-size:0.72rem; white-space:nowrap; border-bottom:1px solid var(--border); font-weight:700; text-align:left; }
+        td { padding:10px 12px; border-bottom:1px solid #f3f3f3; vertical-align:middle; white-space:nowrap; }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:#fafcff; }
+        .dt { font-variant-numeric:tabular-nums; color:#37474f; font-weight:600; }
+        .nm { font-weight:700; }
+        .club { font-size:0.74rem; color:var(--sub); }
+        .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:0.72rem; font-weight:bold; }
+        .b-new { background:#e8f0fe; color:var(--accent); }
+        .b-rev { background:#fff3e0; color:var(--amber); }
+        .b-bulk { background:#eceff1; color:var(--sub); }
+        .b-round { background:#eef2f7; color:#455a64; }
+        .st0 { color:var(--sub); }
+        .st1 { color:var(--amber); font-weight:bold; }
+        .st2 { color:var(--green); font-weight:bold; }
+        .msg { text-align:center; padding:48px; color:var(--sub); }
+        .msg button { margin-top:12px; padding:8px 22px; border:none; background:var(--accent); color:#fff; border-radius:8px; cursor:pointer; font-size:0.95em; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-bar">
+        <a class="btn-back" id="btn-back" href="#">← 戻る</a>
+        <h1>🎴 競技カード提出履歴</h1>
+        <button class="btn-refresh" onclick="location.reload()">⟳ 更新</button>
+    </div>
+    <div class="event-name" id="event-name">読み込み中...</div>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="toolbar">
+        <select id="filter-round"><option value="">全ラウンド</option><option value="pre1">予選1</option><option value="pre2">予選2</option><option value="final">決勝</option></select>
+        <select id="sort-order"><option value="desc">新しい順</option><option value="asc">古い順</option></select>
+        <span class="count-note" id="count-note"></span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>#</th><th>提出/修正日時</th><th>氏名</th><th>カテゴリ</th><th>ラウンド</th><th>種別</th><th>状態</th></tr></thead>
+            <tbody id="rows"><tr><td colspan="7" class="msg" id="loading">読み込み中...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin } from "./auth.js";
+    import { getTournament, getAthletes } from "./cache.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    document.getElementById('btn-back').href = `admin_menu.html?event=${eventId}`;
+
+    const ROUND = { pre1:'予選1', pre2:'予選2', final:'決勝' };
+    let allRows = [];
+
+    // iOS等で getDocs が応答しないハングを防ぐタイムアウト
+    function withTimeout(promise, ms = 8000) {
+        return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+    }
+
+    function fmt(ts) {
+        if (!ts) return '—';
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        if (isNaN(d)) return '—';
+        const p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+
+    function kindBadge(rc) {
+        if (rc == null)  return '<span class="badge b-bulk">一括/旧</span>';
+        if (rc <= 1)     return '<span class="badge b-new">新規</span>';
+        return `<span class="badge b-rev">修正 ${rc-1}回</span>`;
+    }
+    function statusLabel(cs) {
+        if (cs === 2) return '<span class="st2">✓ 確認済</span>';
+        if (cs === 1) return '<span class="st1">確認中</span>';
+        return '<span class="st0">確認前</span>';
+    }
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    function render() {
+        const fr   = document.getElementById('filter-round').value;
+        const sort = document.getElementById('sort-order').value;
+        let rows = fr ? allRows.filter(r => r.round === fr) : allRows.slice();
+        rows.sort((a, b) => sort === 'asc' ? a.ts - b.ts : b.ts - a.ts);
+
+        const tbody = document.getElementById('rows');
+        if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="msg">該当する提出はありません。</td></tr>';
+        } else {
+            tbody.innerHTML = rows.map((r, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td class="dt">${fmt(r.updatedAt)}</td>
+                    <td><span class="nm">${esc(r.name)}</span><br><span class="club">${esc(r.club)}</span></td>
+                    <td>${esc(r.cls)}${r.gender ? ' ・' + esc(r.gender) : ''}</td>
+                    <td><span class="badge b-round">${ROUND[r.round] || r.round}</span></td>
+                    <td>${kindBadge(r.revisionCount)}</td>
+                    <td>${statusLabel(r.checkStatus)}</td>
+                </tr>`).join('');
+        }
+        document.getElementById('count-note').textContent = `${rows.length} 件を表示`;
+    }
+
+    async function load() {
+        const [tour, athletes, subSnap] = await withTimeout(Promise.all([
+            getTournament(eventId),
+            getAthletes(eventId),
+            getDocs(query(collection(db, 'submissions'), where('eventId', '==', eventId)))
+        ]));
+
+        document.getElementById('event-name').textContent = (tour?.name || '大会') + ' — 提出された競技カードの時系列';
+        document.title = `${tour?.name || '大会'} — 競技カード提出履歴`;
+
+        const aMap = {};
+        athletes.forEach(a => { aMap[a.id] = a; });
+
+        allRows = subSnap.docs.map(d => {
+            const s = d.data();
+            const a = aMap[s.athleteId] || {};
+            const ts = s.updatedAt?.toDate ? s.updatedAt.toDate().getTime() : 0;
+            return {
+                ts, updatedAt: s.updatedAt, round: s.round,
+                revisionCount: s.revisionCount ?? null, checkStatus: s.checkStatus ?? 0,
+                name: a.name1 || '（不明）', club: a.club1 || '', cls: a.class || a.category || '—', gender: a.gender || ''
+            };
+        });
+
+        // サマリー
+        const total   = allRows.length;
+        const revised = allRows.filter(r => (r.revisionCount ?? 0) > 1).length;
+        const byRound = { pre1:0, pre2:0, final:0 };
+        allRows.forEach(r => { if (byRound[r.round] != null) byRound[r.round]++; });
+        document.getElementById('summary').innerHTML = `
+            <div class="stat"><div class="n">${total}</div><div class="l">総提出数</div></div>
+            <div class="stat"><div class="n">${revised}</div><div class="l">修正あり</div></div>
+            <div class="stat"><div class="n">${byRound.pre1}</div><div class="l">予選1</div></div>
+            <div class="stat"><div class="n">${byRound.pre2}</div><div class="l">予選2</div></div>
+            <div class="stat"><div class="n">${byRound.final}</div><div class="l">決勝</div></div>`;
+
+        render();
+    }
+
+    document.getElementById('filter-round').addEventListener('change', render);
+    document.getElementById('sort-order').addEventListener('change', render);
+
+    ensureAdmin(() => {
+        if (!eventId) { document.getElementById('loading').textContent = '大会IDが指定されていません。'; return; }
+        load().catch(e => {
+            console.error('提出履歴の読み込みに失敗:', e);
+            document.getElementById('rows').innerHTML =
+                '<tr><td colspan="7" class="msg">読み込みに失敗しました。通信状況をご確認ください。'
+                + '<br><button onclick="location.reload()">再読み込み</button></td></tr>';
+        });
+    });
+</script>
+</body>
+</html>
