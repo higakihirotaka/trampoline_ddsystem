@@ -6,7 +6,8 @@
     <title>競技カードチェック - Trampoline Scoring System</title>
     <style>
         :root { --primary: #37474f; --accent: #1a73e8; --bg: #eceff1; --status-none: #cfd8dc; --status-submitted: #0288d1; --status-warning: #f57c00; --status-ok: #388e3c; --indiv-purple: #5e35b1; --sync-teal: #00897b; }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        /* height は iOS のツールバー裏まで含む 100vh を避け、表示領域に一致する 100dvh を使う（縦スクロール不能対策）。100vh は未対応ブラウザ用フォールバック */
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
         .sidebar { width: 280px; background: #fff; border-right: 1px solid #cfd8dc; display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { padding: 14px 16px; background: var(--primary); color: white; position: sticky; top: 0; z-index: 10; }
         .final-toggle { display: flex; gap: 6px; padding: 6px 10px; background: #37474f; border-bottom: 2px solid #cfd8dc; flex-shrink: 0; }
