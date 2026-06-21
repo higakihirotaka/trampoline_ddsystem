@@ -1529,6 +1529,9 @@
     }
     currentMode = 'score';
     stopRankingLoop();
+    // 巡回中にスコアが割り込んだら、残った巡回タイマーが後から発火して
+    // 個人スコア後の順位表を別カテゴリーで上書きするのを防ぐ（巡回はここで止まる）
+    if (carouselTimer) { clearTimeout(carouselTimer); carouselTimer = null; }
     const resultDoc = displayQueue.shift();
     await renderFocusResult(resultDoc);
   }
@@ -1796,6 +1799,8 @@
       tries++;
     }
     if (carouselEntries.length === 0) { carouselStop(); return; }
+    // await（順位データ取得）中にスコア/順位表が割り込んでいたら描画しない（レース対策）
+    if (!carouselActive || currentMode === 'score' || currentMode === 'ranking') return;
     // carousel-mode が消えていた場合（スコア割り込み後など）に再適用
     const _ov = document.getElementById('ranking-overlay');
     if (_ov) _ov.classList.add('carousel-mode');
