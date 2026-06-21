@@ -451,6 +451,7 @@
     .rk-sc{ font-size: calc(2.6cqw  * var(--rk-scale, 1)); font-weight: 700; line-height: 1.0; text-align: right; color: var(--text-muted); }
     .rk-tot{ font-size: calc(3.8cqw  * var(--rk-scale, 1)); font-weight: 900; line-height: 1.0; text-align: right; }
     .rk-current .rk-tot{ color: var(--accent-gold); }
+    .rk-dns{ font-size: 0.55em; font-weight: 800; color: #e040fb; letter-spacing: 0.06em; }
     .rk-page-info{
       /* float:right だと右上の大会名(.rk-event-name)と重なるため、STANDINGS の直後にインライン表示 */
       margin-left: 0.8cqw;
@@ -1734,6 +1735,8 @@
       const rank   = startOffset + i + 1;
       const cur    = e.id === curAthId;
       const hasAny = isFinal ? (e.final !== null || e.pre1 !== null) : (e.pre1 !== null || e.pre2 !== null);
+      // CJPがDNS（棄権）で確定 → スコアの代わりに DNS 表示
+      const isDns  = !hasAny && [e.pre1r, e.pre2r, e.finr].some(r => r?.dns === true);
       const r1val  = isFinal ? e.final : e.pre1;
       const r1col  = showR1 ? `<div class="rk-sc num">${f(r1val)}</div>` : '';
       const r2col  = showR2 ? `<div class="rk-sc num">${f(e.pre2)}</div>` : '';
@@ -1747,7 +1750,7 @@
           }
         </div>
         ${r1col}${r2col}
-        <div class="rk-tot num">${hasAny ? f(e.total) : '--'}</div>
+        <div class="rk-tot num">${isDns ? '<span class="rk-dns">DNS</span>' : (hasAny ? f(e.total) : '--')}</div>
       </div>`;
     }).join('');
 
