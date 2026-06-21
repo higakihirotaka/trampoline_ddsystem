@@ -37,6 +37,9 @@
         .r-dot.current { border: 2px solid #000; transform: scale(1.15); z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .r-dot.current:not(.has-res) { background: #fff; color: var(--accent); }
         .r-dot.has-res.current { background: var(--ok-green); color: #fff; border-color: #000; }
+        /* CJPがDNS（棄権）で確定したラウンドは赤くする */
+        .r-dot.dns-dot { background: var(--danger); color: #fff; border-color: var(--danger); }
+        .r-dot.dns-dot.current { background: var(--danger); color: #fff; border-color: #000; }
 
         /* 【重要】申告相違があるラウンドの文字を赤くする */
         .r-dot.diff-dot { color: var(--danger) !important; font-weight: 900; }
@@ -139,22 +142,46 @@
         return skillMaster.find(m => m.symbol === s) || null;
     }
 
+    function withTimeout(promise, ms) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), ms))
+        ]);
+    }
+
+    function showLoadState(msg, isError) {
+        document.getElementById('sidebar-list').innerHTML = `
+            <div style="padding:24px;text-align:center;color:${isError ? '#e53935' : '#90a4ae'};">
+                <div style="font-size:2em;margin-bottom:10px;">${isError ? '⚠️' : '⏳'}</div>
+                <div style="font-weight:bold;margin-bottom:${isError ? '14px' : '0'};">${msg}</div>
+                ${isError ? '<button onclick="retryInit()" style="padding:10px 24px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:bold;">🔄 再読み込み</button>' : ''}
+            </div>`;
+        if (isError) document.getElementById('event-name').innerText = '読み込みエラー';
+    }
+
+    window.retryInit = () => init();
+    let _initRunning = false;
+
     async function init() {
-        if (!eventId) return;
+        if (!eventId || _initRunning) return;
+        _initRunning = true;
         document.getElementById('menu-back').href = `judge_role_select.html?event=${eventId}`;
         if (panel || role) {
             const parts = [panel && `PANEL ${panel}`, role && `ROLE ${role}`].filter(Boolean);
             document.getElementById('panel-role-label').textContent = parts.join(' | ');
         }
-
+        showLoadState('データを読み込んでいます...', false);
         try {
-            const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await Promise.all([
-                getDoc(doc(db, "tournaments", eventId)),
-                getDocs(collection(db, "tournaments", eventId, "athletes")),
-                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
-                getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
-                getDocs(collection(db, "skillMaster"))
-            ]);
+            const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await withTimeout(
+                Promise.all([
+                    getDoc(doc(db, "tournaments", eventId)),
+                    getDocs(collection(db, "tournaments", eventId, "athletes")),
+                    getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+                    getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
+                    getDocs(collection(db, "skillMaster"))
+                ]),
+                20000
+            );
 
             // skillMaster: ドキュメントID（数値文字列）でソートして配列化（ID=インデックスでアクセスされる）
             skillMaster = smSnap.docs
@@ -177,7 +204,13 @@
 
             renderSidebar();
             if (athleteId) renderScoringArea();
-        } catch (e) { console.error("Init Error:", e); }
+        } catch (e) {
+            console.error("Init Error:", e);
+            const msg = e.message === 'TIMEOUT' ? 'ネットワーク接続に時間がかかっています' : 'データの読み込みに失敗しました';
+            showLoadState(msg, true);
+        } finally {
+            _initRunning = false;
+        }
     }
 
     function checkHasDiff(aid, rid) {
@@ -328,9 +361,12 @@
 
     function getDotHtml(aid, rid, label) {
         const id = `${eventId}_${aid}_${rid}`;
-        const cls = (results[id] ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
+        const r = results[id];
+        const isDns = r?.dns === true; // CJPがDNS（棄権）で確定
+        const cls = (r ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
+                    (isDns ? ' dns-dot' : '') +
                     (aid === athleteId && rid === round ? ' current' : '') +
-                    (checkHasDiff(aid, rid) ? ' diff-dot' : '');
+                    (!isDns && checkHasDiff(aid, rid) ? ' diff-dot' : '');
         return `<a href="#" class="r-dot ${cls}" onclick="selectRound('${aid}','${rid}');return false;">${label}</a>`;
     }
 
@@ -632,6 +668,9 @@
             init(); 
         } catch (e) { console.error(e); btn.disabled = false; }
     };
+    window.addEventListener('pageshow', e => {
+        if (e.persisted) { _initRunning = false; init(); }
+    });
     init();
 </script>
 </body>
