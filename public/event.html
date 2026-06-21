@@ -37,6 +37,7 @@
         .status-link { text-decoration: none; padding: 8px 0; border-radius: 8px; font-size: 0.78em; font-weight: bold; display: block; width: 80px; margin: 0 auto; border: 1px solid transparent; transition: 0.2s; }
         .status-none { background: #fff; color: var(--primary-blue); border-color: var(--primary-blue); }
         .status-done { background: #e8f0fe; color: var(--primary-blue); border-color: transparent; }
+        .status-dns { background: #fdecee; color: #d32f2f; border-color: #f3c2c2; }
         .withdrawn-row { background-color: #f5f5f5; color: #999; }
         .withdrawn-row td { text-decoration: line-through; }
 
@@ -110,6 +111,11 @@
     function updateStatusBadge(athId, round, sub) {
         const el = document.getElementById(`status-${athId}-${round}`);
         if (!el) return;
+        if (dnsSet.has(`${eventId}_${athId}_${round}`)) {
+            el.className = 'status-link status-dns';
+            el.textContent = 'DNS';
+            return;
+        }
         el.className = `status-link ${sub ? 'status-done' : 'status-none'}`;
         el.textContent = sub ? '提出済' : '入力';
     }
@@ -186,8 +192,11 @@
 
     function statusButton(ath, round, subMap) {
         if (ath.isWithdrawn) return `<span style="font-size:0.8em;color:#d32f2f;">棄権</span>`;
-        const sub = subMap.get(`${eventId}_${ath.id}_${round}`);
-        return `<a id="status-${ath.id}-${round}" href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${sub?'status-done':'status-none'}">${sub?'提出済':'入力'}</a>`;
+        const subId = `${eventId}_${ath.id}_${round}`;
+        const isDns = dnsSet.has(subId);
+        const cls   = isDns ? 'status-dns' : (subMap.get(subId) ? 'status-done' : 'status-none');
+        const label = isDns ? 'DNS' : (subMap.get(subId) ? '提出済' : '入力');
+        return `<a id="status-${ath.id}-${round}" href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${cls}">${label}</a>`;
     }
 
     // ── カウントダウンタイマー ────────────────────────────────
@@ -239,6 +248,7 @@
     // ── バックグラウンド差分同期 ─────────────────────────────
     let liveTour     = null;
     let liveAthletes = [];
+    let dnsSet       = new Set(); // CJPがDNS（棄権）で確定したラウンドの submission/result ID
 
     async function backgroundSync() {
         if (!eventId || !liveAthletes.length) return;
@@ -286,22 +296,24 @@
             applyTourInfo(tour);
             startGlobalTimers(tour); // timerStarted フラグで二重起動ガード
 
-            const [subSnap, athSnap] = await withTimeout(Promise.all([
+            const [subSnap, athSnap, resSnap] = await withTimeout(Promise.all([
                 getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
-                getDocs(collection(db, "tournaments", eventId, "athletes"))
+                getDocs(collection(db, "tournaments", eventId, "athletes")),
+                getDocs(query(collection(db, "results"), where("eventId", "==", eventId)))
             ]));
             const freshSubMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
             const allAthletes = athSnap.docs.map(d => ({ ...d.data(), id: d.id }));
             liveAthletes = allAthletes;
+            // CJPがDNS（棄権）で確定したラウンド（results.dns===true）
+            dnsSet = new Set(resSnap.docs.filter(d => d.data().dns === true).map(d => d.id));
 
             if (cache?.athletes) {
-                // キャッシュ描画済み → 差分バッジ更新のみ
+                // キャッシュ描画済み → バッジを最新化（DNS含む）
                 allAthletes.forEach(ath => {
                     ['pre1','pre2','pre3','final'].forEach(round => {
-                        const el = document.getElementById(`status-${ath.id}-${round}`);
-                        if (!el) return;
+                        if (!document.getElementById(`status-${ath.id}-${round}`)) return;
                         const sub = freshSubMap.get(`${eventId}_${ath.id}_${round}`) || null;
-                        if (el.classList.contains('status-done') !== !!sub) updateStatusBadge(ath.id, round, sub);
+                        updateStatusBadge(ath.id, round, sub);
                     });
                 });
             } else {
