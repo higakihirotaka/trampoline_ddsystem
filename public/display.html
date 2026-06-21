@@ -452,7 +452,8 @@
     .rk-tot{ font-size: calc(3.8cqw  * var(--rk-scale, 1)); font-weight: 900; line-height: 1.0; text-align: right; }
     .rk-current .rk-tot{ color: var(--accent-gold); }
     .rk-page-info{
-      float: right;
+      /* float:right だと右上の大会名(.rk-event-name)と重なるため、STANDINGS の直後にインライン表示 */
+      margin-left: 0.8cqw;
       font-size: 0.9cqw;
       color: var(--text-muted);
       letter-spacing: 0.1cqw;
