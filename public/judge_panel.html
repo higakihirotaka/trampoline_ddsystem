@@ -37,9 +37,9 @@
         .r-dot.current { border: 2px solid #000; transform: scale(1.15); z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .r-dot.current:not(.has-res) { background: #fff; color: var(--accent); }
         .r-dot.has-res.current { background: var(--ok-green); color: #fff; border-color: #000; }
-        /* CJPがDNS（棄権）で確定したラウンドは赤くする */
-        .r-dot.dns-dot { background: var(--danger); color: #fff; border-color: var(--danger); }
-        .r-dot.dns-dot.current { background: var(--danger); color: #fff; border-color: #000; }
+        /* CJPがDNS（棄権）で確定したラウンドは薄い赤にする（CJP画面と統一） */
+        .r-dot.dns-dot { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+        .r-dot.dns-dot.current { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
 
         /* 【重要】申告相違があるラウンドの文字を赤くする */
         .r-dot.diff-dot { color: var(--danger) !important; font-weight: 900; }
