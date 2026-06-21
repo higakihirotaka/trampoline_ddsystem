@@ -1740,7 +1740,7 @@
       const r1col  = showR1 ? `<div class="rk-sc num">${f(r1val)}</div>` : '';
       const r2col  = showR2 ? `<div class="rk-sc num">${f(e.pre2)}</div>` : '';
       return `<div class="rk-row${cur ? ' rk-current' : ''}">
-        <div class="rk-rank num">${rank}</div>
+        <div class="rk-rank num">${isDns ? '-' : rank}</div>
         <div class="rk-name-group">
           ${e.a.type === 'synchro' && e.a.name2
             ? `<div class="rk-name">${e.a.name1} <span style="opacity:0.45;font-weight:400">/</span> ${e.a.name2}</div>`
