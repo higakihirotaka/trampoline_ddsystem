@@ -5,11 +5,12 @@
     <title>スコア確認 - Trampoline System</title>
     <style>
         :root {
-            --bg: #edf1f7; --card-bg: #ffffff; --accent: #1a73e8;
-            --success: #2e7d32; --danger: #c62828; --text: #1a2a3a; --text-dim: #607d8b;
-            --sidebar-bg: #f4f7fb; --primary: #1e3a5f;
-            --border: #d4dce8; --th-bg: #1e3a5f; --th-text: #e8f0fa;
-            --cell-bg: #ffffff; --cell-alt: #f5f8fc;
+            /* CJP画面(judge_cjp)と配色を統一 */
+            --bg: #f1f5f9; --card-bg: #ffffff; --accent: #2563eb;
+            --success: #059669; --danger: #dc2626; --text: #0f172a; --text-dim: #64748b;
+            --sidebar-bg: #f8fafc; --primary: #0f172a;
+            --border: #e2e8f0; --th-bg: #1e293b; --th-text: #cbd5e1;
+            --cell-bg: #ffffff; --cell-alt: #f8fafc;
         }
         html { height: 100%; }
         body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100%; display: flex; overflow: hidden; }
@@ -88,10 +89,11 @@
         .sv-hdts-sum { font-weight: bold; }
 
         /* スコア集計 */
-        .score-summary { background: var(--card-bg); padding: 16px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,0.12); }
+        .score-summary { background: #0f172a; padding: 13px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
         .score-box { text-align: center; }
-        .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 4px; font-weight: bold; }
-        .score-box div { font-size: 2rem; font-weight: 900; font-family: monospace; color: var(--text); }
+        .score-box label { font-size: 0.6rem; color: rgba(255,255,255,0.38); display: block; margin-bottom: 4px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+        .score-box div { font-size: 2rem; font-weight: 900; font-family: monospace; color: #e2e8f0; }
+        .score-summary #res-total { color: #34d399 !important; }
         .info-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
         .info-card { background: var(--card-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border); text-align: center; }
         .info-card label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 6px; font-weight: bold; }
