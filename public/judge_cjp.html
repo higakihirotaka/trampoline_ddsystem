@@ -160,6 +160,9 @@
             border-color: #047857 !important;
             box-shadow: 0 2px 5px rgba(5,150,105,0.35);
         }
+        /* CJPがDNS（棄権）で確定したラウンドは薄い赤にする */
+        .r-dot.dns-dot { background: #fee2e2 !important; color: #dc2626 !important; border-color: #fca5a5 !important; }
+        .r-dot.dns-dot.current { background: #fee2e2 !important; color: #dc2626 !important; border-color: #dc2626 !important; box-shadow: 0 2px 5px rgba(220,38,38,0.3); }
 
         /* メインコンソール */
         .console-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; overflow: hidden; }
@@ -838,7 +841,9 @@
 
     function getDotHtml(aid, rid, label) {
         const id = `${eventId}_${aid}_${rid}`;
-        const cls = (results[id]?.published ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
+        const r = results[id];
+        const cls = (r?.published ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
+                    (r?.dns === true ? ' dns-dot' : '') +
                     (aid === athleteId && rid === round ? ' current' : '');
         return `<a href="#" class="r-dot ${cls}" onclick="switchAthlete('${aid}','${rid}');return false;">${label}</a>`;
     }
