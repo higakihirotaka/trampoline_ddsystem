@@ -40,10 +40,11 @@
     <div class="athlete-banner">
         <div>
             <div style="font-size:1.5rem;font-weight:900;" id="ath-name">選手を選択してください</div>
-            <div id="ath-meta" style="color:var(--text-dim);font-size:0.88rem;">— / —</div>
+            <div id="ath-club" style="color:var(--text-dim);font-size:0.8rem;font-weight:600;margin-top:2px;"></div>
         </div>
         <div style="margin-left:auto;text-align:right;">
-            <div id="dd-label" style="font-size:1.2rem;font-weight:900;color:var(--accent);">DD: 0.0</div>
+            <div id="ath-meta" style="color:var(--text-dim);font-size:0.88rem;">— / —</div>
+            <div id="dd-label" style="font-size:1.2rem;font-weight:900;color:var(--accent);margin-top:2px;">DD: 0.0</div>
             <div id="confirmed-badge-banner" style="font-size:0.78rem;margin-top:2px;"></div>
         </div>
     </div>
@@ -320,8 +321,12 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
 
     function setAthleteBanner(ath, rid) {
         const dispName = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
-        document.getElementById('ath-name').textContent = `No.${ath.order} ${dispName}`;
-        document.getElementById('ath-meta').textContent = `${ath.class || ath.category || '-'} / ${rid.toUpperCase()}`;
+        const dispClub = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2 ? `${ath.club1 || ''} / ${ath.club2}` : (ath.club1 || '');
+        const dispOrder = (rid === 'final' && ath.finalOrder != null) ? ath.finalOrder : ath.order;
+        const rl = rid === 'pre1' ? 'Routine 1' : rid === 'pre2' ? 'Routine 2' : rid === 'final' ? 'Final' : rid.toUpperCase();
+        document.getElementById('ath-name').textContent = `No.${dispOrder} ${dispName}`;
+        document.getElementById('ath-club').textContent = dispClub;
+        document.getElementById('ath-meta').textContent = `${ath.class || ath.category || '-'} / ${rl}`;
     }
 
     // ---- Firestore監視 ----

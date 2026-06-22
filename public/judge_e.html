@@ -248,19 +248,67 @@
         });
     }
 
-    // ---- 審判名更新（クラス変わるたびに引き直し） ----
-    function updateJudgeName(athleteClass) {
+    // ---- 審判名更新（クラス・性別・ラウンドが変わるたびに引き直し） ----
+    function updateJudgeName(athleteClass, athleteGender, athleteRound, athleteType) {
         const judgeClasses = currentTourData?.judgeConfig?.classes || {};
         const roleKey = role.toLowerCase();
-        let name = '';
-        // 指定クラスで先に探す
-        if (athleteClass && judgeClasses[athleteClass]) {
-            name = judgeClasses[athleteClass][roleKey] || '';
+        const roundKey = (athleteRound === 'final') ? '決勝' : (athleteRound ? '予選' : '');
+
+        function lookupInClass(clsData) {
+            if (!clsData) return '';
+            // 後方互換: フラット形式
+            if (Object.keys(clsData).some(k => ['cjp','e1','e2','e3','e4','d7','d8'].includes(k))) {
+                return clsData[roleKey] || '';
+            }
+            // 新形式: [gender][round][roleKey]
+            const genders = athleteGender
+                ? [athleteGender, ...(athleteGender === '男子' ? ['女子'] : ['男子'])]
+                : ['男子', '女子'];
+            const rounds = roundKey
+                ? [roundKey, ...(roundKey === '予選' ? ['決勝'] : ['予選'])]
+                : ['予選', '決勝'];
+            for (const g of genders) {
+                for (const r of rounds) {
+                    const v = clsData[g]?.[r]?.[roleKey];
+                    if (v) return v;
+                }
+            }
+            return '';
         }
-        // 見つからなければ全クラスから最初の一致をフォールバック
+
+        // judgeClasses 内の全クラスデータを列挙
+        // 新形式: judgeClasses['individual']['Aクラス'] / 旧形式: judgeClasses['Aクラス']
+        function allClassDataList() {
+            const list = [];
+            for (const [key, val] of Object.entries(judgeClasses)) {
+                if (typeof val !== 'object' || val === null) continue;
+                if (key === 'individual' || key === 'synchro') {
+                    Object.values(val).forEach(v => { if (typeof v === 'object' && v) list.push(v); });
+                } else {
+                    list.push(val);
+                }
+            }
+            return list;
+        }
+
+        let name = '';
+        if (athleteClass) {
+            // 新形式: type > className の順で探す
+            const typesToTry = athleteType
+                ? [athleteType, ...(athleteType === 'individual' ? ['synchro'] : ['individual'])]
+                : ['individual', 'synchro'];
+            for (const t of typesToTry) {
+                const clsData = judgeClasses[t]?.[athleteClass];
+                if (clsData) { name = lookupInClass(clsData); if (name) break; }
+            }
+            // 旧形式フォールバック
+            if (!name) name = lookupInClass(judgeClasses[athleteClass]);
+        }
+        // 全クラスからフォールバック（待機中など）
         if (!name) {
-            for (const cls of Object.values(judgeClasses)) {
-                if (cls[roleKey]) { name = cls[roleKey]; break; }
+            for (const clsData of allClassDataList()) {
+                name = lookupInClass(clsData);
+                if (name) break;
             }
         }
         judgeName = name;
@@ -290,7 +338,7 @@
         currentIndex = 0;
         vLimit       = 10;
 
-        updateJudgeName(state.athleteClass || '');
+        updateJudgeName(state.athleteClass || '', state.athleteGender || '', state.round || '', state.athleteType || '');
         headerAthlete.textContent = state.athleteName || athleteId;
         headerRound.textContent   = roundLabel(round);
         waitingView.style.display = 'none';

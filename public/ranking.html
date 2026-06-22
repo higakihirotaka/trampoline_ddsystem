@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>順位表</title>
   <style>
-    :root { --accent:#1a3a6b; --gold:#b8860b; }
+    :root { --accent:#1a3a6b; --gold:#b8860b; --print-font-size:10px; --print-name-w:140px; }
     * { box-sizing:border-box; }
     body { font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin:0; padding:0; background:#fff; color:#111; font-size:13px; }
 
@@ -76,8 +76,9 @@
     tr.is-qual td { background:#e8f0fe !important; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
     tr.is-resv td { background:#fff3e0 !important; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
 
-    .ath-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ath-name { font-weight:700; font-size:14px; line-height:1.3; }
     .ath-club { font-size:11px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .syn-slash { font-size:.8em; opacity:.45; }
     .ath-yomi { font-size:11px; color:#888; }
 
     .round-label { font-size:11px; color:#555; font-weight:600; white-space:nowrap; }
@@ -88,6 +89,8 @@
     .total-val { font-weight:900; font-size:15px; color:var(--accent); }
 
     .score-na { color:#bbb; font-size:11px; }
+    .dns-badge { background:#7b1fa2; color:#fff; font-size:8px; font-weight:900; padding:1px 5px; border-radius:3px; letter-spacing:0.05em; }
+    .dns-row td { color:#999; }
 
     .loading { text-align:center; padding:60px; color:#999; }
     .no-data { text-align:center; padding:60px; color:#aaa; font-size:.9rem; }
@@ -111,10 +114,15 @@
       body { background:#fff; font-size:11px; }
       .print-area { padding:0; }
       @page { margin:10mm 8mm; size:A4 landscape; }
-      .score-table { font-size:10px; }
-      .score-table th { font-size:9px; padding:3px 2px; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+      .score-table { font-size:var(--print-font-size); }
+      .score-table th { font-size:calc(var(--print-font-size) * 0.9); padding:3px 2px; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
       .score-table td { padding:3px 2px; }
-      .col-name { width:130px; }
+      .ath-name { font-size:var(--print-font-size); }
+      .ath-club { font-size:calc(var(--print-font-size) * 0.85); }
+      .rank-num { font-size:calc(var(--print-font-size) * 1.1); }
+      .score-val { font-size:var(--print-font-size); }
+      .total-val { font-size:calc(var(--print-font-size) * 1.1); }
+      .col-name { width:var(--print-name-w); }
     }
   </style>
 </head>
@@ -142,6 +150,24 @@
     <option value="1">1人</option><option value="2">2人</option>
   </select>
   <button class="btn-load" onclick="loadRanking()">表示</button>
+  <label>印刷文字</label>
+  <select id="sel-print-size" onchange="document.documentElement.style.setProperty('--print-font-size',this.value+'px')">
+    <option value="7">7</option>
+    <option value="8">8</option>
+    <option value="9">9</option>
+    <option value="10" selected>10</option>
+    <option value="11">11</option>
+    <option value="12">12</option>
+  </select>
+  <label>名前列幅</label>
+  <select id="sel-name-w" onchange="document.documentElement.style.setProperty('--print-name-w',this.value+'px')">
+    <option value="110">110</option>
+    <option value="130">130</option>
+    <option value="140" selected>140</option>
+    <option value="160">160</option>
+    <option value="180">180</option>
+    <option value="200">200</option>
+  </select>
   <button class="btn-print" onclick="window.print()">🖨 印刷</button>
 </div>
 
@@ -322,7 +348,16 @@
         tbSum = null; tb = extractTbScores(finr);
       }
 
-      return { a, pre1r, pre2r, finr, pre1, pre2, final, qualScore, numPre, scoreMode, finalScoreMode, tbSum, tb };
+      // DNS（棄権）チェック: 対象ラウンドの result に dns:true があれば最下位扱い
+      const isDns = (() => {
+        if (fRound === 'qualifying') return pre1r?.dns === true || pre2r?.dns === true;
+        if (fRound === 'pre1')  return pre1r?.dns === true;
+        if (fRound === 'pre2')  return pre2r?.dns === true;
+        if (fRound === 'final') return finr?.dns  === true;
+        return false;
+      })();
+      if (isDns) qualScore = null; // null にすることで compareRankEntries が最下位へ
+      return { a, pre1r, pre2r, finr, pre1, pre2, final, qualScore, isDns, numPre, scoreMode, finalScoreMode, tbSum, tb };
     }).sort(compareRankEntries);
 
     assignRanks(rows);
@@ -360,7 +395,7 @@
       <th class="col-land">L</th>
       <th class="col-exe">Exe</th>
       <th class="col-diff">Diff</th>
-      <th class="col-tof">ToF</th>
+      <th class="col-tof">${fType === 'synchro' ? 'Syn' : 'ToF'}</th>
       <th class="col-hd">HD</th>
       <th class="col-pen">Pen</th>
       <th class="col-score">Score</th>
@@ -388,8 +423,8 @@
       const isLast = idx === rows.length - 1;
       const isQual = nQual > 0 && rank <= nQual;
       const isResv = nResv > 0 && rank > nQual && rank <= nQual + nResv;
-      const rankCls = isQual ? ' is-qual' : isResv ? ' is-resv' : '';
-      const qmark = isQual ? '<span class="q-mark">Q</span>' : isResv ? '<span class="r-mark">R</span>' : '';
+      const rankCls = r.isDns ? ' dns-row' : isQual ? ' is-qual' : isResv ? ' is-resv' : '';
+      const qmark = r.isDns ? '' : isQual ? '<span class="q-mark">Q</span>' : isResv ? '<span class="r-mark">R</span>' : '';
       const medal = '';
 
       // rowspanセルは最終選手かつ複数ラウンド時のみ底線を直接付与（CSSのlast-childでは届かない）
@@ -403,15 +438,32 @@
 
       const totalCell = isFinal
         ? (r.finalScoreMode === 'combined'
-            ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt3(r.qualScore) : '<span class="score-na">−</span>'}</td>`
+            ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt2(r.qualScore) : '<span class="score-na">−</span>'}</td>`
             : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.a.finalOrder != null ? `No.${r.a.finalOrder}` : '−'}</td>`)
-        : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt3(r.qualScore) : '<span class="score-na">−</span>'}</td>`;
+        : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt2(r.qualScore) : '<span class="score-na">−</span>'}</td>`;
 
       showRounds.forEach((rnd, ri) => {
         const res = rnd === 'pre1' ? r.pre1r : rnd === 'pre2' ? r.pre2r : r.finr;
         const rndLabel = rnd === 'pre1' ? '予選1' : rnd === 'pre2' ? '予選2' : '決勝';
         const isFirst = ri === 0;
         const rowCls = `ath-row-${ri+1}${rankCls}`;
+
+        // DNS行: 全セルを空にして DNS バッジのみ表示
+        if (r.isDns) {
+          const dnsTotalCell = isFirst && showTotalCol
+            ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}><span class="dns-badge">DNS</span></td>`
+            : '';
+          const emptySkills = Array(11).fill('<td></td>').join('');
+          tbodyHtml += `<tr class="${rowCls}">
+            ${isFirst ? `<td class="col-rank" rowspan="${showRounds.length}"${rsStyle}><span class="dns-badge">DNS</span></td>` : ''}
+            ${isFirst ? `<td rowspan="${showRounds.length}"${rsStyle}>${nameHtml}</td>` : ''}
+            ${showRoundCol ? `<td class="round-label">${rndLabel}</td>` : ''}
+            ${emptySkills}
+            <td></td><td></td><td></td><td></td><td></td><td></td>
+            ${dnsTotalCell}
+          </tr>`;
+          return;
+        }
 
         // S1-S10, L
         let skillCells = '';
@@ -442,7 +494,7 @@
         const tof  = res?.tof          != null ? fmt3(res.tof)          : null;
         const hd   = res?.hd?.total    != null ? fmt2(res.hd.total)     : null;
         const pen  = (res?.penalty != null && res.penalty !== 0) ? fmt1(res.penalty) : null;
-        const sc   = res?.officialTotal!= null ? fmt3(res.officialTotal): null;
+        const sc   = res?.officialTotal!= null ? fmt2(res.officialTotal): null;
 
         const cell = v => v != null ? v : '<span class="score-na">−</span>';
 
@@ -479,8 +531,8 @@
     if (fType === 'synchro') groupParts.push('シンクロ'); else groupParts.push('個人');
     if (fGender) groupParts.push(fGender);
     if (fClass)  groupParts.push(fClass);
+    groupParts.push(roundLabels[fRound] || fRound);
     const groupText = groupParts.join(' / ');
-    const roundBadge = roundLabels[fRound] || fRound;
 
     document.getElementById('output').innerHTML = `
       <div class="sheet-header">
@@ -498,7 +550,7 @@
         </div>
         <hr class="sheet-divider">
       </div>
-      <div class="group-label">${groupText}<span class="round-badge">· ${roundBadge}</span></div>
+      <div class="group-label">${groupText}</div>
       <div style="overflow-x:auto">
         <table class="score-table">${colgroup}${thead}<tbody>${tbodyHtml}</tbody></table>
       </div>`;

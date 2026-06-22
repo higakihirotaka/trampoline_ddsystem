@@ -85,6 +85,7 @@
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
     import { normalizeClassRules } from './shared.js';
+    import { invalidateCache } from './cache.js';
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
@@ -454,6 +455,9 @@
                 classRules: { individual, synchro },
                 updatedAt: serverTimestamp()
             });
+
+            // キャッシュをクリア（judge_cjp 等が stale なデータを読まないよう）
+            invalidateCache(eventId);
 
             location.href = `admin_menu.html?event=${eventId}`;
         } catch (e) {
