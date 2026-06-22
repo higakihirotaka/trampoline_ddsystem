@@ -201,86 +201,88 @@
         const classes = [...tourClassDefs.filter(c => rawClasses.includes(c)), ...rawClasses.filter(c => !tourClassDefs.includes(c))];
         const genders   = [...new Set(filtered.map(a => a.gender || ''))].filter(Boolean);
 
-        // フィルターUI
+        // フィルターUI（judge_cjp と同一: 種目 → クラス → 性別 → ラウンド）
         const filtersEl = document.getElementById('sidebar-filters');
-        let fHtml = `<div class="filter-row"><span class="filter-label">種目</span>
-            <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
-            <button class="tab-btn ${fType==='synchro'?'active':''}"    onclick="setFilter('type','synchro')">シンクロ</button>
-        </div>`;
-        fHtml += `<div class="filter-row"><span class="filter-label">ラウンド</span>
-            <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">予選</button>
-            <button class="tab-btn ${fFinalOnly?'active':''}"  onclick="setFilter('finalOnly',true)">🏆 決勝</button>
-        </div>`;
-        if (classes.length > 1) {
-            fHtml += `<div class="filter-row"><span class="filter-label">CLS</span>
-                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">ALL</button>
+        const hasType = Object.values(athletes).some(a => (a.type || 'individual') === 'synchro');
+        let fHtml = '';
+        if (hasType) {
+            fHtml += `<div class="filter-row"><span class="filter-label">種目</span>
+                <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
+                <button class="tab-btn ${fType==='synchro'?'active':''}"    onclick="setFilter('type','synchro')">シンクロ</button>
+            </div>`;
+        }
+        if (classes.length >= 1) {
+            fHtml += `<div class="filter-row"><span class="filter-label">クラス</span>
+                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">全て</button>
                 ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c.replace(/'/g,"\\'")}')">${c}</button>`).join('')}
             </div>`;
         }
         if (genders.length > 1) {
             fHtml += `<div class="filter-row"><span class="filter-label">性別</span>
-                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">ALL</button>
+                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">全て</button>
                 ${genders.map(g => `<button class="tab-btn ${fGender===g?'active':''}" onclick="setFilter('gender','${g}')">${g}</button>`).join('')}
             </div>`;
         }
+        fHtml += `<div class="filter-row"><span class="filter-label">ラウンド</span>
+            <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">予選</button>
+            <button class="tab-btn ${fFinalOnly?'active':''}"  onclick="setFilter('finalOnly',true)">🏆 決勝</button>
+        </div>`;
+        filtersEl.style.display = fHtml ? '' : 'none';
         filtersEl.innerHTML = fHtml;
 
-        // 選手リスト
+        // 選手リスト（judge_cjp と同一のソート・グループ分け）
         let listHtml = '';
-        const display = fFinalOnly
-            ? filtered
+        let display;
+        if (fFinalOnly) {
+            display = filtered
                 .filter(a => a.isInFinal && a.finalOrder != null)
                 .filter(a => (!fClass  || (a.class||a.category||'') === fClass))
                 .filter(a => (!fGender || a.gender === fGender))
-                .sort((a, b) => a.finalOrder - b.finalOrder)
-            : filtered
+                .sort((a, b) => a.finalOrder - b.finalOrder);
+        } else {
+            display = filtered
                 .filter(a => (!fClass  || (a.class||a.category||'') === fClass))
                 .filter(a => (!fGender || a.gender === fGender))
-                .sort((a, b) => (a.order||0) - (b.order||0));
-
-        const byClass = {};
-        display.forEach(a => {
-            const c = a.class || a.category || '—';
-            if (!byClass[c]) byClass[c] = {};
-            const g = a.gender || '—';
-            if (!byClass[c][g]) byClass[c][g] = [];
-            byClass[c][g].push(a);
-        });
-
-        // フィルターボタンと同じ順序でクラスグループを表示
-        const orderedClasses = [
-            ...classes.filter(c => byClass[c]),
-            ...Object.keys(byClass).filter(c => !classes.includes(c))
-        ];
-        orderedClasses.forEach(cls => {
-            const genderMap = byClass[cls];
-            if (!genderMap) return;
-            listHtml += `<div class="cat-group">${cls}</div>`;
-            Object.entries(genderMap).forEach(([gnd, athl]) => {
-                if (Object.keys(genderMap).length > 1) listHtml += `<div class="gender-group">${gnd}</div>`;
-                athl.forEach(a => {
-                    const dispName = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
-                    const dispClub = a.type === 'synchro' && a.club2 && a.club1 !== a.club2 ? `${a.club1 || ''} / ${a.club2}` : (a.club1 || '');
-                    const isActive = a.id === athleteId;
-                    const rounds = fFinalOnly ? [{ key:'final', label:'F' }] : getRoundsForAth(a);
-                    const defaultRound = fFinalOnly ? 'final' : round;
-                    const orderNum = fFinalOnly ? a.finalOrder : (a.order || '');
-                    const dotsHtml = rounds.map(r => {
-                        const key = `${eventId}_${a.id}_${r.key}`;
-                        const cls2 = (results[key]?.published ? 'has-res' : submissions[key] ? 'has-sub' : '') +
-                            (results[key]?.dns === true ? ' dns-dot' : '') +
-                            (a.id === athleteId && r.key === round ? ' current' : '');
-                        return `<span class="r-dot ${cls2}" onclick="selectAthlete('${a.id}','${r.key}');event.stopPropagation()">${r.label}</span>`;
-                    }).join('');
-                    listHtml += `<div class="athlete-row ${isActive?'active-athlete':''}" onclick="selectAthlete('${a.id}','${defaultRound}')">
-                        <div style="flex:1;min-width:0;">
-                            <div class="ath-name-text"><span class="ath-order">${orderNum}.</span>${dispName}</div>
-                            <div class="ath-club-text">${dispClub}</div>
-                        </div>
-                        <div class="round-box">${dotsHtml}</div>
-                    </div>`;
+                .sort((a, b) => {
+                    const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                    if (ca !== cb) return ca.localeCompare(cb);
+                    const ga = a.gender || '', gb = b.gender || '';
+                    if (ga !== gb) return ga.localeCompare(gb);
+                    return (a.order ?? 999) - (b.order ?? 999);
                 });
-            });
+        }
+
+        let lastCat = '', lastGender = '';
+        display.forEach(a => {
+            const cls = a.class || a.category || '';
+            if (cls !== lastCat) {
+                listHtml += `<div class="cat-group">${cls}</div>`;
+                lastCat = cls; lastGender = '';
+            }
+            if (!fFinalOnly && (a.gender || '') !== lastGender) {
+                listHtml += `<div class="gender-group">${a.gender || ''}</div>`;
+                lastGender = a.gender || '';
+            }
+            const dispName = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
+            const dispClub = a.type === 'synchro' && a.club2 && a.club1 !== a.club2 ? `${a.club1 || ''} / ${a.club2}` : (a.club1 || '');
+            const isActive = a.id === athleteId;
+            const rounds = fFinalOnly ? [{ key:'final', label:'F' }] : getRoundsForAth(a);
+            const defaultRound = fFinalOnly ? 'final' : round;
+            const orderNum = fFinalOnly ? a.finalOrder : (a.order || '');
+            const dotsHtml = rounds.map(r => {
+                const key = `${eventId}_${a.id}_${r.key}`;
+                const cls2 = (results[key]?.published ? 'has-res' : submissions[key] ? 'has-sub' : '') +
+                    (results[key]?.dns === true ? ' dns-dot' : '') +
+                    (a.id === athleteId && r.key === round ? ' current' : '');
+                return `<span class="r-dot ${cls2}" onclick="selectAthlete('${a.id}','${r.key}');event.stopPropagation()">${r.label}</span>`;
+            }).join('');
+            listHtml += `<div class="athlete-row ${isActive?'active-athlete':''}" onclick="selectAthlete('${a.id}','${defaultRound}')">
+                <div style="flex:1;min-width:0;">
+                    <div class="ath-name-text"><span class="ath-order">${orderNum}.</span>${dispName}</div>
+                    <div class="ath-club-text">${dispClub}</div>
+                </div>
+                <div class="round-box">${dotsHtml}</div>
+            </div>`;
         });
         document.getElementById('sidebar-list').innerHTML = listHtml || '<div style="padding:20px;color:#94a3b8;font-size:0.8rem;text-align:center;">選手なし</div>';
     }
