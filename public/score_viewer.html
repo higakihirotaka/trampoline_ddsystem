@@ -3,97 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>スコア確認 - Trampoline System</title>
+    <link rel="stylesheet" href="cjp_panel.css">
     <style>
-        :root {
-            /* CJP画面(judge_cjp)と配色を統一 */
-            --bg: #f1f5f9; --card-bg: #ffffff; --accent: #2563eb;
-            --success: #059669; --danger: #dc2626; --text: #0f172a; --text-dim: #64748b;
-            --sidebar-bg: #f8fafc; --primary: #0f172a;
-            --border: #e2e8f0; --th-bg: #1e293b; --th-text: #cbd5e1;
-            --cell-bg: #ffffff; --cell-alt: #f8fafc;
-        }
-        html { height: 100%; }
-        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100%; display: flex; overflow: hidden; }
-
-        /* ===== サイドバー ===== */
-        .sidebar { width: 300px; min-height: 0; flex-shrink: 0; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: 2px 0 8px rgba(0,0,0,0.06); }
-        .sidebar-header { background: var(--primary); padding: 14px 20px 12px; flex-shrink: 0; }
-        .sidebar-header::after { content: ''; display: block; height: 3px; margin-top: 12px; background: linear-gradient(90deg, var(--accent) 0%, rgba(30,115,232,0) 100%); border-radius: 2px; }
-        .sb-system-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.18em; color: rgba(255,255,255,0.45); text-transform: uppercase; margin-bottom: 5px; }
-        .sb-event-name { font-size: 0.98rem; font-weight: 900; color: #fff; line-height: 1.25; }
-        .sb-back-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.68rem; color: rgba(255,255,255,0.5); text-decoration: none; }
-        .sb-back-link:hover { color: rgba(255,255,255,0.85); }
-
-        /* フィルター */
-        .sidebar-filters { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; }
-        .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
-        .filter-label { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #94a3b8; min-width: 28px; margin-right: 2px; }
-        .tab-btn { padding: 3px 9px; border-radius: 20px; border: 1.5px solid #dde3ec; background: #fff; color: #64748b; font-size: 0.68rem; font-weight: 700; cursor: pointer; transition: all 0.12s; white-space: nowrap; line-height: 1.6; }
-        .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
-        .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-        /* 選手リスト */
-        .sidebar-list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 20px; }
-        .cat-group { padding: 7px 16px 5px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); background: #f0f5ff; border-top: 1px solid #dde6f7; border-bottom: 1px solid #dde6f7; }
-        .gender-group { padding: 4px 16px; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; background: #f8fafc; }
-        .athlete-row { padding: 7px 14px 7px 12px; border-bottom: 1px solid #f0f4f8; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.1s; border-left: 3px solid transparent; }
-        .athlete-row:hover { background: #f5f8ff; }
-        .active-athlete { background: #eef4ff !important; border-left-color: var(--accent) !important; }
-        .ath-name-text { font-size: 0.82rem; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1e293b; }
-        .ath-order { color: var(--accent); margin-right: 4px; font-family: monospace; font-size: 0.75rem; font-weight: 900; }
-        .active-athlete .ath-name-text { color: var(--accent); }
-        .round-box { display: flex; gap: 3px; flex-shrink: 0; margin-left: 6px; }
-        .r-dot { min-width: 28px; height: 22px; border-radius: 5px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; text-decoration: none; font-weight: 800; border: 1.5px solid transparent; transition: all 0.1s; cursor: pointer; letter-spacing: -0.02em; }
-        .r-dot.has-sub { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
-        .r-dot.has-res { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
-        .r-dot.current { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
-
-        /* ===== メインエリア ===== */
-        .console-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-        .top-bar { background: var(--primary); padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; flex-shrink: 0; }
+        /* score_viewer-only styles (everything else is shared via cjp_panel.css) */
+        /* score_viewer は console-scroll ラッパーが無いため main-content 自身をスクロール領域にする */
+        .main-content { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .readonly-badge { background: #43a047; color: #fff; font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.1em; }
-        .athlete-banner { background: var(--card-bg); padding: 12px 22px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.06); flex-shrink: 0; }
-        .main-content { flex: 1; min-height: 0; padding: 16px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 16px; }
-
-        /* テーブル */
-        .monitor-table { width: 100%; min-width: 680px; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
-        .monitor-table th, .monitor-table td { padding: 8px 6px; text-align: center; border-radius: 4px; background: var(--cell-bg); font-size: 1.1rem; overflow: hidden; white-space: nowrap; color: var(--text); border: 1px solid transparent; }
-        .monitor-table th { background: var(--th-bg); font-size: 0.65rem; color: var(--th-text); border-color: #0d2440; font-weight: 700; letter-spacing: 0.03em; }
-        .monitor-table thead th { font-size: 0.82rem; }
-        .val-filled { color: #2e7d32; font-weight: bold; }
-        .middle-cell { background: #c8e6c9 !important; color: #1b5e20 !important; font-weight: 900; outline: 2px solid #66bb6a; }
-        .low-cell-mild { background: #e8f1fb !important; color: #2c5fa8 !important; font-weight: 700; outline: 1px solid #a8c4e8; }
-        .low-cell { background: #cfe0f7 !important; color: #1a3d7a !important; font-weight: 900; outline: 2px solid #7aaee0; }
-        .high-cell-mild { background: #fdf0f0 !important; color: #a83232 !important; font-weight: 700; outline: 1px solid #e8a8a8; }
-        .high-cell { background: #f7d5d5 !important; color: #7a1a1a !important; font-weight: 900; outline: 2px solid #e07a7a; }
-        .middle-row td { background: rgba(67,160,71,0.08) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(67,160,71,0.3) !important; }
-        .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
-        .sn-th { user-select: none; }
-        .sn-th.sn-valid { background: rgba(67,160,71,0.18); color: #1b5e20; }
-        .sn-th.sn-cutoff { background: var(--accent) !important; color: #fff !important; font-weight: 900; outline: 2px solid #0d47a1; }
-        .sn-th.sn-invalid { opacity: 0.4; }
-        .d-info-row th { font-size: 0.9rem; color: var(--text-dim); background: rgba(26,115,232,0.07); font-weight: normal; border-color: rgba(26,115,232,0.15) !important; }
-        .d-info-row.d-confirmed th { background: rgba(67,160,71,0.1); color: var(--success); }
-        .cell-blank { background: transparent !important; border-color: transparent !important; }
-        .d-badge { font-size: 0.72rem; background: #43a047; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
-        #dd-total-cell { white-space: normal; line-height: 1.3; }
-        .d-dup { background: rgba(255, 193, 7, 0.22) !important; }
-        #skill-symbols-row:not(.d-confirmed) th { opacity: 0.65; filter: grayscale(0.2); }
-        #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; font-weight: bold; color: #003c8f !important; }
-        #skill-symbols-row th.d-mismatch { color: var(--danger) !important; opacity: 1 !important; filter: none !important; }
-
-        /* HDTS 行 (read-only) */
         .sv-hdts-head th { background: #f0fdfa !important; color: #0f766e !important; font-weight: bold; border-bottom: 2px solid #5eead4 !important; }
         .sv-hdts-row th { background: #f0fdfa !important; color: #0f766e !important; border-color: #99f6e4 !important; font-size: 0.78rem !important; font-family: monospace; }
         .sv-hdts-label { font-size: 0.63rem !important; font-family: inherit !important; white-space: normal; line-height: 1.4; }
         .sv-hdts-sum { font-weight: bold; }
-
-        /* スコア集計 */
-        .score-summary { background: #0f172a; padding: 13px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
-        .score-box { text-align: center; }
-        .score-box label { font-size: 0.6rem; color: rgba(255,255,255,0.38); display: block; margin-bottom: 4px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-        .score-box div { font-size: 2rem; font-weight: 900; font-family: monospace; color: #e2e8f0; }
-        .score-summary #res-total { color: #34d399 !important; }
         .info-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
         .info-card { background: var(--card-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border); text-align: center; }
         .info-card label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 6px; font-weight: bold; }
