@@ -463,10 +463,15 @@
             const nameHtml = isSynchro
                 ? `<span class="ath-order">${orderNum}.</span>${ath.name1} / ${ath.name2 || ''}`
                 : `<span class="ath-order">${orderNum}.</span>${ath.name1}`;
+            const clubHtml = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+                ? `${ath.club1 || ''} / ${ath.club2}` : (ath.club1 || '');
 
             parts.push(`
                 <div class="athlete-row ${isActive ? 'active-athlete' : ''}">
-                    <div class="ath-name-text">${nameHtml}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="ath-name-text">${nameHtml}</div>
+                        <div class="ath-club-text">${clubHtml}</div>
+                    </div>
                     <div class="round-box">${dotsHtml}</div>
                 </div>`);
         });

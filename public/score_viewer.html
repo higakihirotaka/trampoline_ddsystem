@@ -263,6 +263,7 @@
                 if (Object.keys(genderMap).length > 1) listHtml += `<div class="gender-group">${gnd}</div>`;
                 athl.forEach(a => {
                     const dispName = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
+                    const dispClub = a.type === 'synchro' && a.club2 && a.club1 !== a.club2 ? `${a.club1 || ''} / ${a.club2}` : (a.club1 || '');
                     const isActive = a.id === athleteId;
                     const rounds = fFinalOnly ? [{ key:'final', label:'F' }] : getRoundsForAth(a);
                     const defaultRound = fFinalOnly ? 'final' : round;
@@ -270,12 +271,14 @@
                     const dotsHtml = rounds.map(r => {
                         const key = `${eventId}_${a.id}_${r.key}`;
                         const cls2 = (results[key]?.published ? 'has-res' : submissions[key] ? 'has-sub' : '') +
+                            (results[key]?.dns === true ? ' dns-dot' : '') +
                             (a.id === athleteId && r.key === round ? ' current' : '');
                         return `<span class="r-dot ${cls2}" onclick="selectAthlete('${a.id}','${r.key}');event.stopPropagation()">${r.label}</span>`;
                     }).join('');
                     listHtml += `<div class="athlete-row ${isActive?'active-athlete':''}" onclick="selectAthlete('${a.id}','${defaultRound}')">
                         <div style="flex:1;min-width:0;">
-                            <div class="ath-name-text"><span class="ath-order">${orderNum}</span>${dispName}</div>
+                            <div class="ath-name-text"><span class="ath-order">${orderNum}.</span>${dispName}</div>
+                            <div class="ath-club-text">${dispClub}</div>
                         </div>
                         <div class="round-box">${dotsHtml}</div>
                     </div>`;
@@ -288,7 +291,7 @@
     function getRoundsForAth(a) {
         const rule = currentTour?.classRules?.[a.type||'individual']?.[a.class||a.category||''] || {};
         const n = rule.qualifyingRoutines || 2;
-        const rounds = Array.from({length:n}, (_, i) => ({ key:`pre${i+1}`, label:`P${i+1}` }));
+        const rounds = Array.from({length:n}, (_, i) => ({ key:`pre${i+1}`, label:`R${i+1}` }));
 if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         return rounds;
     }
@@ -401,14 +404,15 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
 
         // D確定バッジ
         const badge = document.getElementById('d-confirmed-badge');
-        const skillsRow = document.getElementById('skill-symbols-row');
+        // CJPと同様、申請・実施・DDの3行すべてを確定色にする
+        const dRows = ['declared-row','skill-symbols-row','dd-row'].map(id => document.getElementById(id)).filter(Boolean);
         if (data.dConfirmedAt) {
             badge.textContent = '確定'; badge.className = 'd-badge';
-            skillsRow.classList.add('d-confirmed');
+            dRows.forEach(r => r.classList.add('d-confirmed'));
         } else {
             badge.textContent = '未確定'; badge.style.cssText = 'font-size:0.68rem;color:#90a4ae;font-weight:normal;margin-left:4px;';
             badge.className = '';
-            skillsRow.classList.remove('d-confirmed');
+            dRows.forEach(r => r.classList.remove('d-confirmed'));
         }
 
         // DD行
