@@ -57,7 +57,7 @@
         .col-dd      { width: 60px; text-align: center; }
         .col-triple  { width: 52px; text-align: center; }
         .col-dir     { width: 70px; }
-        .col-soma    { width: 70px; }
+        .col-soma    { width: 100px; }
         .col-note    { min-width: 140px; color: #777; font-size: 0.85rem; }
         .col-act     { width: 110px; text-align: right; white-space: nowrap; }
 
@@ -156,10 +156,18 @@
                 <div class="add-field-label">宙系</div>
                 <select class="add-input" id="new-soma">
                     <option value="">-- なし --</option>
-                    <option value="1回宙">1回宙</option>
-                    <option value="2回宙">2回宙</option>
-                    <option value="3回宙">3回宙</option>
-                    <option value="4回宙">4回宙</option>
+                    <optgroup label="宙系">
+                        <option value="1回宙">1回宙</option>
+                        <option value="2回宙">2回宙</option>
+                        <option value="3回宙">3回宙</option>
+                        <option value="4回宙">4回宙</option>
+                    </optgroup>
+                    <optgroup label="開始姿勢（基礎技）">
+                        <option value="スタンドから">スタンドから</option>
+                        <option value="腰から">腰から</option>
+                        <option value="腹から">腹から</option>
+                        <option value="背から">背から</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="add-field-wrap">
@@ -187,6 +195,7 @@
         <button class="filter-btn" data-soma="3回宙" onclick="setSoma(this)">3回宙</button>
         <button class="filter-btn" data-soma="4回宙" onclick="setSoma(this)">4回宙</button>
         <button class="filter-btn" onclick="autoAssignSoma()" title="Symbolの先頭数字から宙系を自動割り当て">🔄 宙系自動割当</button>
+        <button class="filter-btn" onclick="assignBasePosture()" title="開始姿勢が未設定の基礎技に「スタンドから」を一括設定">🤸 基礎技の開始姿勢を初期化</button>
         <button class="filter-btn" onclick="bulkCopySymbolToDisplay()" title="未設定の表示用にSymbolを一括コピー">📋 表示用一括コピー</button>
         <span style="width:1px; background:#ddd; align-self:stretch; margin:0 4px;"></span>
         <button class="filter-btn" onclick="sortByDD()" title="難度点の低い順に並べ替え（保存が必要）" style="border-color:#7e57c2; color:#7e57c2;">📊 難度順に並替</button>
@@ -296,6 +305,8 @@
         let newSoma = document.getElementById('new-soma').value;
         // 宙系未選択の場合はSymbolから自動検出
         if (!newSoma && newDir !== '基礎技') newSoma = detectSomaType(symbol);
+        // 基礎技で開始姿勢が未選択なら「スタンドから」を既定にする
+        if (newDir === '基礎技' && !newSoma) newSoma = 'スタンドから';
         const newDisplaySymbol = document.getElementById('new-display-symbol').value.trim() || symbol;
         const data = {
             symbol,
@@ -417,12 +428,20 @@
                             </select>
                         </td>
                         <td class="col-soma">
-                            <select class="edit-input" data-id="${s.id}" data-field="somersaultType" style="width:78px;">
+                            <select class="edit-input" data-id="${s.id}" data-field="somersaultType" style="width:112px;">
                                 <option value="" ${!s.somersaultType ? 'selected' : ''}>--</option>
-                                <option value="1回宙" ${s.somersaultType === '1回宙' ? 'selected' : ''}>1回宙</option>
-                                <option value="2回宙" ${s.somersaultType === '2回宙' ? 'selected' : ''}>2回宙</option>
-                                <option value="3回宙" ${s.somersaultType === '3回宙' ? 'selected' : ''}>3回宙</option>
-                                <option value="4回宙" ${s.somersaultType === '4回宙' ? 'selected' : ''}>4回宙</option>
+                                <optgroup label="宙系">
+                                    <option value="1回宙" ${s.somersaultType === '1回宙' ? 'selected' : ''}>1回宙</option>
+                                    <option value="2回宙" ${s.somersaultType === '2回宙' ? 'selected' : ''}>2回宙</option>
+                                    <option value="3回宙" ${s.somersaultType === '3回宙' ? 'selected' : ''}>3回宙</option>
+                                    <option value="4回宙" ${s.somersaultType === '4回宙' ? 'selected' : ''}>4回宙</option>
+                                </optgroup>
+                                <optgroup label="開始姿勢">
+                                    <option value="スタンドから" ${s.somersaultType === 'スタンドから' ? 'selected' : ''}>スタンドから</option>
+                                    <option value="腰から" ${s.somersaultType === '腰から' ? 'selected' : ''}>腰から</option>
+                                    <option value="腹から" ${s.somersaultType === '腹から' ? 'selected' : ''}>腹から</option>
+                                    <option value="背から" ${s.somersaultType === '背から' ? 'selected' : ''}>背から</option>
+                                </optgroup>
                             </select>
                         </td>
                         <td class="col-note">
@@ -690,7 +709,8 @@
         if (!confirm('Symbolの先頭数字から宙系を自動判定して一括更新します。\n4始まり→1回宙、8始まり→2回宙、12始まり→3回宙、16始まり→4回宙\nよろしいですか？')) return;
         const updates = [];
         for (const s of skills) {
-            const soma = s.direction === '基礎技' ? '' : detectSomaType(s.symbol);
+            if (s.direction === '基礎技') continue; // 基礎技の「開始姿勢」は自動割当の対象外（維持する）
+            const soma = detectSomaType(s.symbol);
             if (soma !== (s.somersaultType || '')) {
                 s.somersaultType = soma;
                 updates.push(setDoc(doc(db, 'skillMaster', s.id), { somersaultType: soma }, { merge: true }));
@@ -700,6 +720,26 @@
         await Promise.all(updates);
         alert(`${updates.length}件を更新しました`);
         render();
+    };
+
+    // 基礎技の「開始姿勢」を一括初期化（未設定のものに「スタンドから」を代入）
+    window.assignBasePosture = async function() {
+        const POSTURES = ['スタンドから', '腰から', '腹から', '背から'];
+        const targets = skills.filter(s => s.direction === '基礎技' && !POSTURES.includes(s.somersaultType || ''));
+        if (targets.length === 0) { alert('対象なし（すべての基礎技に開始姿勢が設定済みです）'); return; }
+        if (!confirm(`開始姿勢が未設定の基礎技 ${targets.length} 件に「スタンドから」を設定します。\n（すでに 腰から/腹から/背から 等が設定済みのものは変更しません）\nよろしいですか？`)) return;
+        const updates = targets.map(s => {
+            s.somersaultType = 'スタンドから';
+            return setDoc(doc(db, 'skillMaster', s.id), { somersaultType: 'スタンドから' }, { merge: true });
+        });
+        try {
+            await Promise.all(updates);
+            alert(`${targets.length}件の基礎技に「スタンドから」を設定しました`);
+            render();
+        } catch (e) {
+            console.error('assignBasePosture error:', e);
+            alert('設定に失敗しました: ' + e.message);
+        }
     };
 
     init();
