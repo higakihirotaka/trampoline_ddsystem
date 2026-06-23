@@ -54,6 +54,10 @@
         .nav-icon.red    { background: #fce4ec; }
         .nav-icon.gold   { background: #fff8e1; }
         .nav-icon.sky    { background: #e1f5fe; }
+        .nav-icon.gray   { background: #eceff1; }
+
+        /* 管理メニュー（要権限）— 審判用ツールと少し区切る */
+        .nav-admin { margin-top: 10px; }
         .nav-title { font-size: 0.95rem; font-weight: 700; }
         .nav-desc  { font-size: 0.7rem; color: var(--sub); margin-top: 1px; }
         .nav-arrow { margin-left: auto; color: #ccc; font-size: 1.1rem; flex-shrink: 0; }
@@ -117,6 +121,11 @@
         <div><div class="nav-title">選手用入力画面</div></div>
         <span class="nav-arrow">›</span>
     </a>
+    <a class="nav-card nav-admin" id="nav-admin" href="#">
+        <div class="nav-icon gray">⚙️</div>
+        <div><div class="nav-title">管理メニュー（要権限）</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
 </div>
 
 <div class="footer-credit">
@@ -138,6 +147,7 @@
     document.getElementById('nav-score').href   = `score_viewer.html?event=${eventId}`;
     document.getElementById('nav-ranking').href = `ranking.html?event=${eventId}`;
     document.getElementById('nav-display').href = `display.html?event=${eventId}`;
+    document.getElementById('nav-admin').href   = `admin_menu.html?event=${eventId}`;
 
     let timerInterval = null, warmupData = {}, _serverOffset = 0, _timerRefMs = null;
     function startTimerTick() {
