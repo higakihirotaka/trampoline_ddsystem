@@ -53,7 +53,7 @@
         /* 技テーブル（左）＋ サイドパネル（右：有効本数・合計・縦長の確定ボタン）の横並び */
         .score-body { display: flex; gap: 18px; align-items: stretch; }
         .table-wrap { flex: 1; min-width: 0; }
-        .side-panel { width: 210px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+        .side-panel { width: 230px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
 
         .comparison-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .comparison-table th, .comparison-table td { padding: 7px 5px; border-bottom: 1px solid #f0f0f0; text-align: center; font-size: 1.05em; transition: 0.3s; }
@@ -77,8 +77,9 @@
         .dd-zero { color: var(--danger) !important; font-weight: 900; }
 
         .valid-count-area { margin: 0; padding: 10px; background: #f8f9fa; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 1px solid #eee; }
-        .footer-stats { margin: 0; padding: 7px 8px; border-top: none; display: flex; flex-direction: column; align-items: center; gap: 1px; background: #f1f8e9; border-radius: 12px; border: 1px solid #c8e6c9; }
-        .total-official { font-size: 2.5em; font-weight: 900; color: var(--ok-green); line-height: 1.05; }
+        .footer-stats { margin: 0; padding: 10px 8px; border-top: none; display: flex; flex-direction: column; align-items: center; gap: 3px; background: #f1f8e9; border-radius: 12px; border: 1px solid #c8e6c9; }
+        .total-official { font-size: 2.4em; font-weight: 900; color: var(--ok-green); line-height: 1.0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .total-official span { white-space: nowrap; }
         .total-official.diff-skill { color: var(--danger); }
 
         .action-area { margin: 0; flex: 1; display: flex; }
