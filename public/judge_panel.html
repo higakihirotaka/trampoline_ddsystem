@@ -428,8 +428,31 @@
             }
 
             calcTotal();
+            scheduleFit();
         });
     }
+
+    // ディスプレイサイズに合わせてスコアカード全体を自動フィット（縮小/拡大）させる
+    function fitScoreCard() {
+        const mc = document.getElementById('main-content');
+        const card = mc && mc.querySelector('.score-card');
+        if (!card) return;
+        card.style.zoom = '1';
+        const cs = getComputedStyle(mc);
+        const availW = mc.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        const availH = mc.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
+        const natW = card.offsetWidth, natH = card.offsetHeight;
+        if (!natW || !natH) return;
+        let z = Math.min(availW / natW, (availH - 6) / natH);
+        z = Math.max(0.5, Math.min(z, 1.4)); // 縮小は0.5倍まで・拡大は1.4倍まで
+        card.style.zoom = String(z);
+    }
+    let _fitRAF = null;
+    function scheduleFit() {
+        if (_fitRAF) cancelAnimationFrame(_fitRAF);
+        _fitRAF = requestAnimationFrame(() => { _fitRAF = null; fitScoreCard(); });
+    }
+    window.addEventListener('resize', scheduleFit);
 
     function renderScoringArea() {
         const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId], resData = results[subId], ath = athletes.find(a => a.id === athleteId);
@@ -559,6 +582,7 @@
         }
         calcTotal();
         watchValidCount(subId);
+        scheduleFit();
     }
 
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
