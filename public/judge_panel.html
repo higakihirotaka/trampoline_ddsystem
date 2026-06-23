@@ -86,6 +86,8 @@
         .btn { width: 100%; height: 100%; min-height: 110px; padding: 18px 12px; border: none; border-radius: 14px; font-size: 1.25em; font-weight: bold; cursor: pointer; transition: 0.2s; line-height: 1.4; }
         .btn-submit { background: var(--ok-green); color: white; box-shadow: 0 8px 20px rgba(46, 125, 50, 0.2); }
         .btn-modify { background: white; color: var(--warn-orange); border: 3px solid var(--warn-orange); }
+        .btn-fetch-declared { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--accent); background: #e8f0fe; color: var(--accent); font-size: 0.82em; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.15s; }
+        .btn-fetch-declared:hover { background: var(--accent); color: #fff; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
         .status-badge { display: inline-block; font-size: 0.75em; font-weight: bold; padding: 4px 12px; border-radius: 20px; }
         .badge-locked { background: #e8f5e9; color: var(--ok-green); border: 1px solid #c8e6c9; }
@@ -521,10 +523,13 @@
         document.getElementById('main-content').innerHTML = `
             <div class="score-card">
                 <div class="header-info">
-                    <div style="display:flex; justify-content:space-between;">
-                        <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
-                        ${cjpConfirmed ? '<span class="status-badge badge-cjp-locked">🔒 CJP確定済</span>' : dSaved ? '<span class="status-badge badge-locked">✓ D確定済</span>' : ''}
-                        ${noSub ? '<span style="font-size:0.85em; font-weight:bold; color:var(--warn-orange); background:#fff3e0; padding:4px 10px; border-radius:6px; border:1px solid #ffcc80;">⚠ 選手未申告</span>' : ''}
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
+                            ${cjpConfirmed ? '<span class="status-badge badge-cjp-locked">🔒 CJP確定済</span>' : dSaved ? '<span class="status-badge badge-locked">✓ D確定済</span>' : ''}
+                            ${noSub ? '<span style="font-size:0.85em; font-weight:bold; color:var(--warn-orange); background:#fff3e0; padding:4px 10px; border-radius:6px; border:1px solid #ffcc80;">⚠ 選手未申告</span>' : ''}
+                        </div>
+                        <button class="btn-fetch-declared" onclick="loadDeclaredSkills()" title="選手の申請種目をD入力欄に取り込みます。CJPがDなしで確定する等で空欄になった場合の救済用です。">📥 申請種目を取得</button>
                     </div>
                     <h2>No.${ath.order} ${headerName} <span style="font-size:0.5em; color:#666;">${headerKana ? `(${headerKana})` : ''}</span></h2>
                     ${headerClub ? `<div style="font-size:0.9em; color:#78909c; margin-top:2px;">${headerClub}</div>` : ''}
@@ -678,6 +683,34 @@
 
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
         totalDDContainer.innerHTML = `${(baseDD + bonus).toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>`;
+    };
+
+    // 申請種目（選手申告）をD入力欄に取り込む（CJPがDなしで確定した等で空欄化した場合の救済用）
+    window.loadDeclaredSkills = function() {
+        const subId = `${eventId}_${athleteId}_${round}`;
+        const declared = submissions[subId]?.skills || [];
+        if (cjpConfirmed) { alert('CJPが確定済みのため取得できません。\n先にCJP側で確定を解除してください。'); return; }
+        if (!declared.length) { alert('この選手の申請種目データがありません。'); return; }
+        const hasExisting = Array.from({ length: 10 }, (_, i) => document.getElementById(`skill-${i + 1}`)?.value).some(v => v);
+        if (hasExisting && !confirm('現在のD入力を、選手の申請種目で上書きします。よろしいですか？')) return;
+        // ソフトロック中（「修正する」ボタン状態）なら編集を有効化してから取り込む
+        if (document.getElementById('skill-1')?.disabled) enableEditing();
+        for (let i = 1; i <= 10; i++) {
+            const dirEl = document.getElementById(`dir-${i}`);
+            const somaEl = document.getElementById(`soma-${i}`);
+            if (!dirEl) continue;
+            const m = resolveSubSkill(declared[i - 1]);
+            if (m) {
+                dirEl.value = m.direction || '';
+                if (somaEl) somaEl.value = (m.direction && m.direction !== '基礎技') ? (m.somersaultType || '') : '';
+                updateOptions(i, m.id, false);
+            } else {
+                dirEl.value = '';
+                if (somaEl) somaEl.value = '';
+                updateOptions(i, '', false);
+            }
+        }
+        calcTotal();
     };
 
     window.enableEditing = () => {
