@@ -168,7 +168,7 @@
     <option value="180">180</option>
     <option value="200">200</option>
   </select>
-  <button class="btn-print" onclick="window.print()">🖨 印刷</button>
+  <button class="btn-print" onclick="printRanking()">🖨 印刷</button>
 </div>
 
 <div class="print-area">
@@ -289,11 +289,30 @@
   const fmt2 = v => v != null ? Number(v).toFixed(2) : null;
   const fmt1 = v => v != null ? Number(v).toFixed(1) : null;
 
+  // 印刷/PDF保存時の既定ファイル名にクラス・男女・ラウンド・大会名を反映
+  // （ブラウザの「PDFで保存」は document.title を既定ファイル名に使う）
+  function setPrintTitle() {
+    const gSel = document.getElementById('sel-group');
+    const rSel = document.getElementById('sel-round');
+    const gLabel = (gSel && gSel.value && gSel.options[gSel.selectedIndex]?.text) || '';
+    const rLabel = (rSel && rSel.options[rSel.selectedIndex]?.text) || '';
+    const parts = [(tourData?.name || '').trim(), gLabel, rLabel, '順位表'].filter(Boolean);
+    // ファイル名に使えない文字を除去し、空白を整理
+    const t = parts.join(' ').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+    if (t) document.title = t;
+  }
+
+  window.printRanking = function() {
+    setPrintTitle();
+    window.print();
+  };
+
   window.loadRanking = async function() {
     const selGroup = document.getElementById('sel-group').value;
     if (!selGroup) { document.getElementById('output').innerHTML = '<div class="no-data">グループを選択してください</div>'; return; }
     const [fType, fClass, fGender] = selGroup.split('::');
     const fRound  = document.getElementById('sel-round').value;
+    setPrintTitle();
 
     document.getElementById('output').innerHTML = '<div class="loading">読み込み中...</div>';
 
