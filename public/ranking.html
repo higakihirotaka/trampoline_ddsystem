@@ -114,6 +114,10 @@
       body { background:#fff; font-size:11px; }
       .print-area { padding:0; }
       @page { margin:10mm 8mm; size:A4 landscape; }
+      /* 全クラス印刷: クラス/性別が変わるブロックの前で改ページ */
+      .print-block.page-break { break-before: page; page-break-before: always; }
+      /* 見出しが表と切り離されないように */
+      .group-label { break-after: avoid; page-break-after: avoid; }
       .score-table { font-size:var(--print-font-size); }
       .score-table th { font-size:calc(var(--print-font-size) * 0.9); padding:3px 2px; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
       .score-table td { padding:3px 2px; }
@@ -169,6 +173,7 @@
     <option value="200">200</option>
   </select>
   <button class="btn-print" onclick="printRanking()">🖨 印刷</button>
+  <button class="btn-print" onclick="printAllClasses()" style="background:#1a3a6b;">🖨 全クラス印刷</button>
 </div>
 
 <div class="print-area">
@@ -296,9 +301,9 @@
     const rSel = document.getElementById('sel-round');
     const gLabel = (gSel && gSel.value && gSel.options[gSel.selectedIndex]?.text) || '';
     const rLabel = (rSel && rSel.options[rSel.selectedIndex]?.text) || '';
-    const parts = [(tourData?.name || '').trim(), gLabel, rLabel, '順位表'].filter(Boolean);
-    // ファイル名に使えない文字を除去し、空白を整理
-    const t = parts.join(' ').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+    const parts = [gLabel, rLabel].filter(Boolean);
+    // ファイル名に使えない文字を除去し、各要素をアンダーバーで連結
+    const t = parts.join(' ').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
     if (t) document.title = t;
   }
 
@@ -307,26 +312,8 @@
     window.print();
   };
 
-  window.loadRanking = async function() {
-    const selGroup = document.getElementById('sel-group').value;
-    if (!selGroup) { document.getElementById('output').innerHTML = '<div class="no-data">グループを選択してください</div>'; return; }
-    const [fType, fClass, fGender] = selGroup.split('::');
-    const fRound  = document.getElementById('sel-round').value;
-    setPrintTitle();
-
-    document.getElementById('output').innerHTML = '<div class="loading">読み込み中...</div>';
-
-    const classRules = normalizeClassRules(tourData.classRules);
-    let filtered = athletes.filter(a =>
-      (a.type || 'individual') === fType &&
-      (!fGender || (a.gender || '') === fGender) &&
-      (!fClass  || (a.class || a.category || '') === fClass)
-    );
-    // 決勝は試技順が確定した選手のみ表示
-    if (fRound === 'final') filtered = filtered.filter(a => a.finalOrder != null);
-    if (!filtered.length) { document.getElementById('output').innerHTML = '<div class="no-data">該当する選手がいません</div>'; return; }
-
-    // published な結果取得
+  // published な結果を {athleteId: {round: result}} で取得
+  async function fetchResultsByAth() {
     const resSnap = await getDocs(query(
       collection(db, 'results'),
       where('eventId', '==', eventId),
@@ -338,6 +325,19 @@
       if (!byAth[r.athleteId]) byAth[r.athleteId] = {};
       byAth[r.athleteId][r.round] = r;
     });
+    return byAth;
+  }
+
+  // 1グループ（種目/クラス/性別/ラウンド）の「見出し＋表」HTMLを返す（該当者なしは ''）
+  function buildGroupSectionHtml(fType, fClass, fGender, fRound, byAth, classRules, nQual, nResv) {
+    let filtered = athletes.filter(a =>
+      (a.type || 'individual') === fType &&
+      (!fGender || (a.gender || '') === fGender) &&
+      (!fClass  || (a.class || a.category || '') === fClass)
+    );
+    // 決勝は試技順が確定した選手のみ表示
+    if (fRound === 'final') filtered = filtered.filter(a => a.finalOrder != null);
+    if (!filtered.length) return '';
 
     // 各選手のスコア計算 ─ shared.js の共通関数を使用
     const rows = filtered.map(a => {
@@ -431,9 +431,6 @@
       <col class="col-score">
       ${showTotalCol ? '<col class="col-total">' : ''}
     </colgroup>`;
-
-    const nQual = parseInt(document.getElementById('sel-qual').value) || 0;
-    const nResv = parseInt(document.getElementById('sel-resv').value) || 0;
 
     // tbody
     let tbodyHtml = '';
@@ -533,6 +530,21 @@
       });
     });
 
+    const groupParts = [];
+    if (fType === 'synchro') groupParts.push('シンクロ'); else groupParts.push('個人');
+    if (fGender) groupParts.push(fGender);
+    if (fClass)  groupParts.push(fClass);
+    groupParts.push(roundLabels[fRound] || fRound);
+    const groupText = groupParts.join(' / ');
+
+    return `<div class="group-label">${groupText}</div>
+      <div style="overflow-x:auto">
+        <table class="score-table">${colgroup}${thead}<tbody>${tbodyHtml}</tbody></table>
+      </div>`;
+  }
+
+  // 大会ヘッダー（大会名／会場／日付）のHTML
+  function buildSheetHeaderHtml() {
     function toJpDate(ds) {
       if (!ds) return '';
       const d = new Date(ds + 'T00:00:00');
@@ -545,15 +557,7 @@
     const e = tourData.end_date   || tourData.endDate   || '';
     const jpS = toJpDate(s), jpE = toJpDate(e);
     const dateStr = jpS && jpE && s !== e ? `${jpS} 〜 ${jpE}` : (jpS || jpE);
-
-    const groupParts = [];
-    if (fType === 'synchro') groupParts.push('シンクロ'); else groupParts.push('個人');
-    if (fGender) groupParts.push(fGender);
-    if (fClass)  groupParts.push(fClass);
-    groupParts.push(roundLabels[fRound] || fRound);
-    const groupText = groupParts.join(' / ');
-
-    document.getElementById('output').innerHTML = `
+    return `
       <div class="sheet-header">
         <div class="header-top">
           <div class="header-main">
@@ -568,11 +572,65 @@
           </div>
         </div>
         <hr class="sheet-divider">
-      </div>
-      <div class="group-label">${groupText}</div>
-      <div style="overflow-x:auto">
-        <table class="score-table">${colgroup}${thead}<tbody>${tbodyHtml}</tbody></table>
       </div>`;
+  }
+
+  // 選択中の1グループを表示
+  window.loadRanking = async function() {
+    const selGroup = document.getElementById('sel-group').value;
+    const output = document.getElementById('output');
+    if (!selGroup) { output.innerHTML = '<div class="no-data">グループを選択してください</div>'; return; }
+    const [fType, fClass, fGender] = selGroup.split('::');
+    const fRound  = document.getElementById('sel-round').value;
+    setPrintTitle();
+    output.innerHTML = '<div class="loading">読み込み中...</div>';
+    const classRules = normalizeClassRules(tourData.classRules);
+    const byAth = await fetchResultsByAth();
+    const nQual = parseInt(document.getElementById('sel-qual').value) || 0;
+    const nResv = parseInt(document.getElementById('sel-resv').value) || 0;
+    const section = buildGroupSectionHtml(fType, fClass, fGender, fRound, byAth, classRules, nQual, nResv);
+    if (!section) { output.innerHTML = '<div class="no-data">該当する選手がいません</div>'; return; }
+    output.innerHTML = buildSheetHeaderHtml() + section;
+  };
+
+  // 全クラス印刷（クラス設定順／男子→女子／予選→決勝、クラス・性別が変わるとページ送り）
+  window.printAllClasses = async function() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div class="loading">全クラスを読み込み中...</div>';
+    const classRules = normalizeClassRules(tourData.classRules);
+    const byAth = await fetchResultsByAth();
+    const genderRank = g => g === '男子' ? 0 : g === '女子' ? 1 : 2;
+    let html = '';
+    let first = true;
+    ['individual', 'synchro'].forEach(type => {
+      const byType = athletes.filter(a => (a.type || 'individual') === type);
+      if (!byType.length) return;
+      const tourClassDefs = (tourData?.classes?.[type] || [])
+        .slice().sort((a, b) => (a.display_order ?? 99) - (b.display_order ?? 99)).map(c => c.name);
+      const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
+      const classes = [...tourClassDefs.filter(c => rawClasses.includes(c)), ...rawClasses.filter(c => !tourClassDefs.includes(c))];
+      classes.forEach(cls => {
+        const genders = [...new Set(
+          byType.filter(a => (a.class || a.category || '') === cls).map(a => a.gender || '').filter(Boolean)
+        )].sort((a, b) => genderRank(a) - genderRank(b));
+        (genders.length ? genders : ['']).forEach(gender => {
+          const sections = [];
+          const q = buildGroupSectionHtml(type, cls, gender, 'qualifying', byAth, classRules, 0, 0);
+          if (q) sections.push(q);
+          const f = buildGroupSectionHtml(type, cls, gender, 'final', byAth, classRules, 0, 0);
+          if (f) sections.push(f);
+          if (!sections.length) return;
+          html += `<div class="print-block${first ? '' : ' page-break'}">${buildSheetHeaderHtml()}${sections.join('')}</div>`;
+          first = false;
+        });
+      });
+    });
+    if (!html) { output.innerHTML = '<div class="no-data">印刷できるデータがありません</div>'; return; }
+    output.innerHTML = html;
+    document.title = '全クラス';
+    const restore = () => { window.removeEventListener('afterprint', restore); loadRanking(); };
+    window.addEventListener('afterprint', restore);
+    setTimeout(() => window.print(), 60);
   };
 
   init();
