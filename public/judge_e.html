@@ -144,6 +144,29 @@
             .key { font-size: 1.6rem; border-radius: 10px; }
             .key-undo { font-size: 1rem; }
         }
+        /* ---- 会場練習タイマー（カウント中のみ中央オーバーレイ表示） ---- */
+        .warmup-overlay {
+            position: fixed; inset: 0; z-index: 60;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none; /* 入力を妨げない */
+        }
+        .warmup-card {
+            background: rgba(0,0,0,0.82);
+            border: 3px solid var(--accent); border-radius: 24px;
+            padding: 20px 46px; text-align: center;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.7);
+        }
+        .warmup-card .wu-label {
+            font-size: 0.95rem; color: var(--accent); font-weight: bold; letter-spacing: 3px;
+        }
+        .warmup-classes {
+            font-size: 1rem; color: #ddd; font-weight: bold; margin-top: 4px; min-height: 1em;
+        }
+        .warmup-time {
+            font-size: clamp(4rem, 17vw, 9rem); font-weight: 900;
+            font-variant-numeric: tabular-nums; line-height: 1.05; color: #fff; margin-top: 6px;
+        }
+        .warmup-time.warning { color: #ff9100; }
     </style>
 </head>
 <body>
@@ -171,6 +194,15 @@
     <div class="keypad" id="keypad"></div>
 </div>
 
+<!-- 会場練習タイマー（カウント中のみ表示） -->
+<div class="warmup-overlay" id="warmup-overlay" style="display:none;">
+    <div class="warmup-card">
+        <div class="wu-label">会場練習 残り時間</div>
+        <div class="warmup-classes" id="warmup-classes"></div>
+        <div class="warmup-time" id="warmup-time">00:00</div>
+    </div>
+</div>
+
 <script type="module">
     import { db } from "./firebase-config.js";
     import { doc, onSnapshot, setDoc, serverTimestamp }
@@ -188,6 +220,7 @@
     let isLocked = false;
     let judgeName = '';
     let currentTourData = null;
+    let warmupData = {}, warmupInterval = null;
 
     // ---- ラウンド表示名 ----
     function roundLabel(r) {
@@ -224,6 +257,40 @@
     headerRole.textContent = `PANEL ${panel} | ${role}`;
     exitLink.href = `judge_role_select.html?event=${eventId}`;
 
+    // ---- 会場練習タイマー（カウント中のみ中央表示・大画面と同じ計算で端末間同期） ----
+    function warmupEndMs(wu) {
+        // 開始時に Date.now()+残り時間 で確定した絶対終了時刻。旧データは timerRef + 残り時間で推定。
+        return wu.timerEndMs != null ? wu.timerEndMs
+            : (wu.timerRef?.toMillis ? wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0) : null);
+    }
+    function startWarmupTick() {
+        clearInterval(warmupInterval); warmupInterval = null;
+        const overlay = document.getElementById('warmup-overlay');
+        const valEl   = document.getElementById('warmup-time');
+        document.getElementById('warmup-classes').textContent =
+            [warmupData.class1, warmupData.class2].filter(Boolean).join(' / ');
+
+        function tick() {
+            const wu = warmupData;
+            const endMs = warmupEndMs(wu);
+            const running = !wu.timerPaused && endMs != null;       // 設定だけ/一時停止は false
+            const rem = running ? Math.max(0, endMs - Date.now()) : 0;
+            if (!running || rem <= 0) {                              // カウント中(残り>0)のみ表示
+                overlay.style.display = 'none';
+                clearInterval(warmupInterval); warmupInterval = null;
+                return;
+            }
+            const s = Math.ceil(rem / 1000);
+            valEl.textContent = `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+            valEl.className = 'warmup-time' + (rem < 60000 ? ' warning' : '');
+            overlay.style.display = '';
+        }
+        tick();
+        const endMs0 = warmupEndMs(warmupData);
+        const running0 = !warmupData.timerPaused && endMs0 != null && (endMs0 - Date.now()) > 0;
+        if (running0) warmupInterval = setInterval(tick, 250);
+    }
+
     // ---- 初期化 ----
     function init() {
         if (!eventId) { headerAthlete.textContent = 'エラー: 大会IDがありません'; return; }
@@ -232,6 +299,10 @@
             if (!snap.exists()) return;
             const d = snap.data();
             currentTourData = d;  // 常に最新を保持（審判名の引き直しに使う）
+
+            // 会場練習タイマー（カウント中のみ中央オーバーレイ表示）
+            warmupData = d.warmupSettings || {};
+            startWarmupTick();
 
             const state = d?.liveState?.[panel];
             if (!state?.athleteId) { showWaiting(); return; }
