@@ -736,6 +736,12 @@
         designatedDDIndices = [...(submissionIdx || [])];
         designatedDDManualChanged = false;
         renderDesignatedRow();
+        // 「修正」を押した瞬間に確定前の状態へ戻す（D非表示・未確定バッジなど）。Firestore往復を待たず即時反映。
+        _dConfirmed = false;
+        if (latestData) {
+            delete latestData.dConfirmedAt; delete latestData.verifiedAt; latestData.published = false;
+            renderScores(latestData);
+        }
         await Promise.all([
             setDoc(doc(db, 'tournaments', eventId), {
                 liveState: { [panel]: { locked: false } }
