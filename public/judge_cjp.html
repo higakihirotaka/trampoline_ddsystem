@@ -188,6 +188,7 @@
     let lockedOfficialSkills = null; // 確定時にスナップショットした実施技（D審判の更新を遮断）
     let _preciseE = 0; // 表示は第1位だが保存用に全精度を保持（シンクロ4人時の第2位など）
     let _lastEc   = null; // 最後に計算した calcExecution 結果（publish 時に per-skill E を保存するため）
+    let _dChanged = false; // D が申告と相違しているか（内訳Dの色・枠線判定用）
 
     function roundLabel(r) {
         if (r === 'pre1')  return 'Routine 1';
@@ -1360,6 +1361,7 @@
             document.getElementById('hd').value  = data.hdByPanel?.[panel] ?? data.hd?.total ?? "";
         }
         if (penMode === 'auto') document.getElementById('pen').value = data.penalty ?? 0;
+        _dChanged = hasDeclaredMismatch; // 申告と実施の相違有無を内訳Dの色判定へ
         updateScoreSummary(ec, hasJudgeData);
 
         // 確定済みロック状態を反映
@@ -1398,20 +1400,75 @@
         if (resLbl) resLbl.textContent = isSyn ? 'Syn' : 'T';
     }
 
+    // 内訳の色（暗い背景でも見やすい明るめのシェード）
+    const _BD_GREEN = '#34d399', _BD_RED = '#ef4444', _BD_YELLOW = '#facc15';
+    // E: 全審判が有効本数分（vLimit本 + vLimit===10なら着地）を入力済みか
+    function isEComplete(ec) {
+        if (!ec) return false;
+        const judges = ec.judges || {}, jKeys = ec.jKeys || [], vLimit = ec.vLimit ?? 0;
+        for (const k of jKeys) {
+            const ded = judges[k]?.deductions || [];
+            for (let i = 0; i < vLimit; i++) if (ded[i] == null) return false;
+            if (vLimit === 10 && judges[k]?.landing == null) return false;
+        }
+        return true; // vLimit===0 も全員入力済み扱い（0本でも表示）
+    }
+
     function updateScoreSummary(ec, hasJudgeData = true) {
-        const d    = parseFloat(document.getElementById('res-d').innerText) || 0;
-        const e    = ec ? (hasJudgeData ? ec.execution : 0)
-                       : (parseFloat(document.getElementById('res-e').innerText) || 0);
+        const dEl   = document.getElementById('res-d');
+        const eEl   = document.getElementById('res-e');
+        const tEl   = document.getElementById('res-t');
+        const hEl   = document.getElementById('res-hd');
+        const totEl = document.getElementById('res-total');
+        const summary = document.querySelector('.score-summary');
+
+        const d    = parseFloat(dEl.innerText) || 0;
+        const eVal = ec ? (hasJudgeData ? ec.execution : 0)
+                        : (parseFloat(eEl.innerText) || 0);
         const tRaw = parseFloat(document.getElementById('tof').value) || 0;
         const t    = (fType === 'synchro') ? tRaw * 2 : tRaw; // シンクロは×2表示
         const h    = parseFloat(document.getElementById('hd').value) || 0;
         const p    = parseFloat(document.getElementById('pen').value) || 0;
+        _preciseE = eVal; // 全精度を保持（保存時に使用）
 
-        _preciseE = e; // 全精度を保持（保存時に使用）
-        document.getElementById('res-e').innerText     = (fType === 'synchro') ? e.toFixed(3) : e.toFixed(1);
-        document.getElementById('res-t').innerText     = t.toFixed(3);
-        document.getElementById('res-hd').innerText    = h.toFixed(3);
-        document.getElementById('res-total').innerText = Math.max(0, d + e + t + h - p).toFixed(2);
+        const vLimit = ec ? (ec.vLimit ?? 0)
+                          : (parseInt(document.getElementById('valid-count').value) || 0);
+
+        // --- 各項目の状態: 'green' | 'red' | 'blank'（未入力） ---
+        // D: 申告と相違あれば赤、無ければ緑
+        const dState = _dChanged ? 'red' : 'green';
+        // E: 全審判が有効本数分入力済みなら緑表示、未完了は空欄
+        const eComplete = ec ? isEComplete(ec) : (eEl.innerText.trim() !== '');
+        const eState = eComplete ? 'green' : 'blank';
+        // T: 入力されていれば緑
+        const tEntered = document.getElementById('tof').value.trim() !== '';
+        const tState = tEntered ? 'green' : 'blank';
+        // HD: 入力されていれば、有効本数×0.5〜×1.0 内で緑・範囲外で赤
+        const hEntered = document.getElementById('hd').value.trim() !== '';
+        const hdInRange = h >= vLimit * 0.5 - 1e-9 && h <= vLimit * 1.0 + 1e-9;
+        const hState = hEntered ? (hdInRange ? 'green' : 'red') : 'blank';
+
+        // --- 値の表示（未入力/未完了は空欄。D値は呼び出し元が設定済みなので色のみ） ---
+        eEl.innerText = eComplete ? (fType === 'synchro' ? eVal.toFixed(3) : eVal.toFixed(1)) : '';
+        tEl.innerText = tEntered ? t.toFixed(3) : '';
+        hEl.innerText = hEntered ? h.toFixed(3) : '';
+        const total = Math.max(0, d + (eComplete ? eVal : 0) + (tEntered ? t : 0) + (hEntered ? h : 0) - p);
+        totEl.innerText = total.toFixed(2);
+
+        // --- 枠線色（赤 > 黄 > 緑） ---
+        const states = [dState, eState, tState, hState];
+        const borderColor = states.includes('red') ? _BD_RED
+                          : states.includes('blank') ? _BD_YELLOW
+                          : _BD_GREEN;
+
+        // --- 文字色 ---
+        const colorOf = st => st === 'red' ? _BD_RED : st === 'green' ? _BD_GREEN : '';
+        dEl.style.color = colorOf(dState);
+        eEl.style.color = colorOf(eState);
+        tEl.style.color = colorOf(tState);
+        hEl.style.color = colorOf(hState);
+        totEl.style.setProperty('color', borderColor, 'important'); // CSS の !important を上書き
+        if (summary) summary.style.borderColor = borderColor;
     }
 
     window.toggleRowManual = function(jKey, on) {
@@ -1643,15 +1700,10 @@
     // DD手動入力セルのリアルタイム合計更新（Eスコアをリセットしないよう直接計算）
     document.addEventListener('input', function(e) {
         if (!e.target.classList.contains('d-dd') && e.target.id !== 'dd-bonus-cell' && e.target.id !== 'dd-total-cell') return;
-        const eVal = parseFloat(document.getElementById('res-e').innerText) || 0;
-        const t    = parseFloat(document.getElementById('tof').value) || 0;
-        const h    = parseFloat(document.getElementById('hd').value) || 0;
-        const p    = parseFloat(document.getElementById('pen').value) || 0;
         if (e.target.id === 'dd-total-cell') {
             // 合計セルを直接編集 → その値をそのまま D として反映
             const totalDD = parseFloat(e.target.textContent) || 0;
             document.getElementById('res-d').innerText = totalDD.toFixed(1);
-            document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(2);
         } else {
             // 個技セルまたはボーナスセルを編集 → 合計を再計算して合計セルにも反映
             let baseDD = 0;
@@ -1662,8 +1714,8 @@
             const totalDD = baseDD + bonus;
             document.getElementById('dd-total-cell').textContent = totalDD.toFixed(1);
             document.getElementById('res-d').innerText = totalDD.toFixed(1);
-            document.getElementById('res-total').innerText = Math.max(0, totalDD + eVal + t + h - p).toFixed(2);
         }
+        calc(); // 合計再計算＋内訳の色/枠線を更新
     });
 
     // 確定のみ（会場ディスプレイをスキップ）
@@ -1877,17 +1929,10 @@
         const basePerSkill = isSynchro ? 1.0 : 2.0;
         const execution = (vLimit * basePerSkill) - totalDed;
         cells[12].textContent = hasData ? (isSynchro ? execution.toFixed(3) : execution.toFixed(1)) : '-';
-        // 青い箱のEスコア・Totalもリアルタイム更新
-        if (hasData) {
-            _preciseE = execution; // 全精度を保持（保存時に使用）
-            document.getElementById('res-e').innerText = isSynchro ? execution.toFixed(3) : execution.toFixed(1);
-            const d    = parseFloat(document.getElementById('res-d').innerText) || 0;
-            const tRaw = parseFloat(document.getElementById('tof').value) || 0;
-            const t    = (fType === 'synchro') ? tRaw * 2 : tRaw;
-            const h    = parseFloat(document.getElementById('hd').value) || 0;
-            const p    = parseFloat(document.getElementById('pen').value) || 0;
-            document.getElementById('res-total').innerText = Math.max(0, d + execution + t + h - p).toFixed(2);
-        }
+        // 青い箱のEスコア・Total・色・枠線を updateScoreSummary 経由で更新（未完了はE空欄）
+        const judgesNoPrefix = {};
+        jKeys.forEach(k => { const fk = `${panel}_${k}`; if (mergedJudges[fk]) judgesNoPrefix[k] = mergedJudges[fk]; });
+        updateScoreSummary({ judges: judgesNoPrefix, jKeys, vLimit, execution }, hasData);
     }
 
     window.fillDummyData = function() {
