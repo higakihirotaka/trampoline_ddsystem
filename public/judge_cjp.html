@@ -189,6 +189,7 @@
     let _preciseE = 0; // 表示は第1位だが保存用に全精度を保持（シンクロ4人時の第2位など）
     let _lastEc   = null; // 最後に計算した calcExecution 結果（publish 時に per-skill E を保存するため）
     let _dChanged = false; // D が申告と相違しているか（内訳Dの色・枠線判定用）
+    let _dConfirmed = false; // D審判が確定済みか（内訳Dは確定まで非表示）
 
     function roundLabel(r) {
         if (r === 'pre1')  return 'Routine 1';
@@ -1362,6 +1363,7 @@
         }
         if (penMode === 'auto') document.getElementById('pen').value = data.penalty ?? 0;
         _dChanged = hasDeclaredMismatch; // 申告と実施の相違有無を内訳Dの色判定へ
+        _dConfirmed = !!data.dConfirmedAt; // D審判の確定有無（確定まで内訳Dは非表示）
         updateScoreSummary(ec, hasJudgeData);
 
         // 確定済みロック状態を反映
@@ -1435,8 +1437,8 @@
                           : (parseInt(document.getElementById('valid-count').value) || 0);
 
         // --- 各項目の状態: 'green' | 'red' | 'blank'（未入力） ---
-        // D: 申告と相違あれば赤、無ければ緑
-        const dState = _dChanged ? 'red' : 'green';
+        // D: D審判が確定するまで非表示(blank)。確定後は申告相違で赤、無ければ緑
+        const dState = !_dConfirmed ? 'blank' : (_dChanged ? 'red' : 'green');
         // E: 全審判が有効本数分入力済みなら緑表示、未完了は空欄
         const eComplete = ec ? isEComplete(ec) : (eEl.innerText.trim() !== '');
         const eState = eComplete ? 'green' : 'blank';
@@ -1448,11 +1450,12 @@
         const hdInRange = h >= vLimit * 0.5 - 1e-9 && h <= vLimit * 1.0 + 1e-9;
         const hState = hEntered ? (hdInRange ? 'green' : 'red') : 'blank';
 
-        // --- 値の表示（未入力/未完了は空欄。D値は呼び出し元が設定済みなので色のみ） ---
+        // --- 値の表示（未入力/未完了/D未確定は空欄） ---
+        dEl.innerText = _dConfirmed ? d.toFixed(1) : '';
         eEl.innerText = eComplete ? (fType === 'synchro' ? eVal.toFixed(3) : eVal.toFixed(1)) : '';
         tEl.innerText = tEntered ? t.toFixed(3) : '';
         hEl.innerText = hEntered ? h.toFixed(3) : '';
-        const total = Math.max(0, d + (eComplete ? eVal : 0) + (tEntered ? t : 0) + (hEntered ? h : 0) - p);
+        const total = Math.max(0, (_dConfirmed ? d : 0) + (eComplete ? eVal : 0) + (tEntered ? t : 0) + (hEntered ? h : 0) - p);
         totEl.innerText = total.toFixed(2);
 
         // --- 枠線色（赤 > 黄 > 緑） ---
