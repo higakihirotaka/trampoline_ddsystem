@@ -117,7 +117,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim();
@@ -717,6 +717,11 @@
         if (cjpConfirmed) return; // CJP確定済のため修正不可
         document.querySelectorAll('select').forEach(s => s.disabled = false);
         document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">修正を保存</button>`;
+        // 修正開始 → D確定を解除（CJP画面を「未確定」表示に戻す）。再度「修正を保存」で確定される。
+        if (athleteId && round) {
+            setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { dConfirmedAt: deleteField() }, { merge: true })
+                .catch(e => console.error('D確定解除に失敗:', e));
+        }
     };
 
     window.saveOfficialScore = async () => {
