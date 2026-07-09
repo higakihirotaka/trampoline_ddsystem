@@ -1371,6 +1371,7 @@
         _dChanged = hasDeclaredMismatch; // 申告と実施の相違有無を内訳Dの色判定へ
         _dConfirmed = !!data.dConfirmedAt; // D審判の確定有無（確定まで内訳Dは非表示）
         updateScoreSummary(ec, hasJudgeData);
+        renderHdtsRows(data); // HDTS 技別 ToF/HD を保存値から復元表示
 
         // 確定済みロック状態を反映
         applyLock(data.published === true);
@@ -1515,6 +1516,26 @@
         });
     }
 
+    // ---- HDTS 技別 ToF/HD を Firestore の保存値（パネル別）から復元表示 ----
+    function renderHdtsRows(data) {
+        const ps = data?.hdtsPerSkillByPanel?.[panel];
+        let hdSum = 0, hasHd = false;
+        for (let i = 1; i <= 10; i++) {
+            const tofCell = document.getElementById(`hdts-tof-${i}`);
+            const hdCell  = document.getElementById(`hdts-hd-${i}`);
+            const tv = ps?.tof?.[i - 1];
+            const hv = ps?.hd?.[i - 1];
+            if (tofCell) tofCell.textContent = (tv != null) ? Number(tv).toFixed(3) : '-';
+            if (hdCell)  hdCell.textContent  = (hv != null) ? hv : '-';
+            if (hv != null) { hdSum += hv; hasHd = true; }
+        }
+        const tofSumEl = document.getElementById('hdts-tof-sum');
+        const hdSumEl  = document.getElementById('hdts-hd-sum');
+        const tofTotal = ps?.tofTotal ?? data?.tofByPanel?.[panel] ?? data?.tof;
+        if (tofSumEl) tofSumEl.textContent = (tofTotal != null && tofTotal !== '') ? Number(tofTotal).toFixed(3) : '-';
+        if (hdSumEl)  hdSumEl.textContent  = hasHd ? hdSum : (ps?.hdTotal != null ? ps.hdTotal : '-');
+    }
+
     // ---- HDTS 技別行リセット ----
     function resetHdtsRows() {
         for (let i = 1; i <= 10; i++) {
@@ -1589,28 +1610,36 @@
                 if (hdMode !== 'manual') toggleHdMode();
                 document.getElementById('hd').value  = hdVal.toFixed(1);  calc();
             }
-            // 技別データを HDTS 行に表示
+            // 技別データを HDTS 行に表示 + Firestore に保存（再読込・再表示・別端末でも復元されるように）
             if (r.elements && r.elements.length > 0) {
                 let hdDedTotal = 0;
+                const perSkillTof = Array(10).fill(null);
+                const perSkillHd  = Array(10).fill(null);
                 r.elements.forEach((el, i) => {
                     if (i >= 10) return;
                     const tofCell = document.getElementById(`hdts-tof-${i + 1}`);
                     const hdCell  = document.getElementById(`hdts-hd-${i + 1}`);
-                    if (tofCell) tofCell.textContent = el.timeOfFlightInSeconds != null ? el.timeOfFlightInSeconds.toFixed(3) : '-';
-                    if (hdCell) {
-                        if (el.horizontalDisplacement != null) {
-                            const ded = Math.round((1.0 - el.horizontalDisplacement) * 10);
-                            hdCell.textContent = ded;
-                            hdDedTotal += ded;
-                        } else {
-                            hdCell.textContent = '-';
-                        }
-                    }
+                    if (el.timeOfFlightInSeconds != null) {
+                        perSkillTof[i] = el.timeOfFlightInSeconds;
+                        if (tofCell) tofCell.textContent = el.timeOfFlightInSeconds.toFixed(3);
+                    } else if (tofCell) { tofCell.textContent = '-'; }
+                    if (el.horizontalDisplacement != null) {
+                        const ded = Math.round((1.0 - el.horizontalDisplacement) * 10);
+                        perSkillHd[i] = ded;
+                        hdDedTotal += ded;
+                        if (hdCell) hdCell.textContent = ded;
+                    } else if (hdCell) { hdCell.textContent = '-'; }
                 });
                 const tofSumEl = document.getElementById('hdts-tof-sum');
                 const hdSumEl  = document.getElementById('hdts-hd-sum');
                 if (tofSumEl && tofVal != null) tofSumEl.textContent = tofVal.toFixed(3);
                 if (hdSumEl) hdSumEl.textContent = hdDedTotal;
+                // 技別データを Firestore に保存（パネル別。合計も保存し確定前でも復元できるように）
+                if (athleteId) {
+                    setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
+                        { hdtsPerSkillByPanel: { [panel]: { tof: perSkillTof, hd: perSkillHd, tofTotal: (tofVal ?? null), hdTotal: hdDedTotal } } },
+                        { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
+                }
             }
             statusEl.style.color = '#66bb6a';
             statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}`;
