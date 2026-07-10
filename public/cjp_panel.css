@@ -201,6 +201,12 @@
         .input-card label { display: block; font-size: 0.68rem; color: var(--text-dim); margin-bottom: 5px; font-weight: bold; }
         .input-card input, .input-card select { width: 100%; background: #f5f8fc; border: 1px solid var(--border); color: var(--text); padding: 7px 10px; font-size: 1.15rem; border-radius: 6px; box-sizing: border-box; }
         .input-card input:focus, .input-card select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+        /* CJPペナルティ チップ */
+        .pen-chips { display: flex; flex-wrap: wrap; gap: 3px; margin: 5px 0 4px; }
+        .pen-chip { display: inline-flex; align-items: center; gap: 3px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 6px; padding: 2px 3px 2px 7px; font-size: 0.68rem; font-weight: bold; white-space: nowrap; }
+        .pen-chip button { background: none; border: none; color: #b91c1c; cursor: pointer; font-size: 0.72rem; line-height: 1; padding: 0 2px; }
+        .pen-chip button:hover { color: #7f1d1d; }
+        .pen-chip button:disabled { opacity: 0.3; cursor: default; }
 
         /* スコア集計 — ダークカードで視線を集める */
         .score-summary { background: #0f172a; padding: 13px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 3px solid transparent; box-sizing: border-box; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }

@@ -142,8 +142,10 @@
                 <input type="number" id="hd" step="0.1" onchange="calc()">
             </div>
             <div class="input-card">
-                <label>PENALTY (P) <button class="btn-th-mode" id="pen-mode-btn" onclick="togglePenMode()">読込</button></label>
-                <input type="number" id="pen" step="0.1" value="0.0" onchange="calc()">
+                <label>PENALTY (P)</label>
+                <select id="pen-select" onchange="addPenaltyFromSelect()" style="font-size:0.82rem;"></select>
+                <div id="pen-chips" class="pen-chips"></div>
+                <input type="number" id="pen" step="0.1" value="0.0" onchange="onPenManualChange()" placeholder="手動加点" title="一覧にない場合の手動加点">
             </div>
         </div>
 
@@ -185,7 +187,19 @@
     let teamCategoryKeys = new Set(); // 団体戦: チーム登録のあるカテゴリー "class|gender"
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null, unsubscribeSub = null;
-    let tofMode = 'auto', hdMode = 'auto', penMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
+    let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
+    // CJPペナルティ（読込なし＝常にCJP入力。日本語で選択し Display Text(英字) も保持・保存）
+    const CJP_PENALTIES = [
+      { ja:'服装・装飾品の違反',                  en:'Violation of dress / jewellery',              display:'DRESS VIOLATION',   points:0.2 },
+      { ja:'国名・連盟エンブレムの違反',            en:'Violation of National Identification / emblem', display:'EMBLEM VIOLATION',  points:0.2 },
+      { ja:'規定のウォームアップ時間超過',          en:'Abuse of warm-up time limit',                 display:'OVER WARM-UP TIME', points:0.2 },
+      { ja:'演技開始合図後の時間超過（61〜90秒）',   en:'Exceeded time limit after CJP signal (61s)',  display:'START DELAY 61S',   points:0.2 },
+      { ja:'演技開始合図後の時間超過（91〜120秒）',  en:'Exceeded time limit after CJP signal (91s)',  display:'START DELAY 91S',   points:0.4 },
+      { ja:'演技開始合図後の時間超過（121〜180秒）', en:'Exceeded time limit after CJP signal (121s)', display:'START DELAY 121S',  points:0.6 },
+      { ja:'演技中の補助員からの声かけ・合図',        en:'Talking / giving signal by spotter',          display:'SPOTTER TALKING',   points:0.6 },
+    ];
+    let appliedPenalties = []; // 選択中の違反 [{ja,en,display,points}]
+    let _penDirty = false;     // CJPがペナルティを操作したか（renderScoresでの上書き抑制）
     let isLocked = false;
     let lockedOfficialSkills = null; // 確定時にスナップショットした実施技（D審判の更新を遮断）
     let _preciseE = 0; // 表示は第1位だが保存用に全精度を保持（シンクロ4人時の第2位など）
@@ -561,7 +575,8 @@
             const _saR   = currentTour?.classRules?.[_saT]?.[_saC] || {};
             tofMode = 'auto'; _resetMode('tof-mode-btn', 'tof');
             hdMode  = 'auto'; _resetMode('hd-mode-btn',  'hd');
-            penMode = 'auto'; _resetMode('pen-mode-btn', 'pen', '0');
+            _resetMode('pen-mode-btn', 'pen', '0');
+            appliedPenalties = []; _penDirty = false; renderPenaltyChips(); // ペナルティも選手切替でリセット
             // classRulesの初期モードをリセット直後に適用
             if ((_saR.tofDefaultMode || _saR.tofHdDefaultMode) === 'manual') toggleTofMode();
             if ((_saR.hdDefaultMode  || _saR.tofHdDefaultMode) === 'manual') toggleHdMode();
@@ -711,7 +726,8 @@
         // 確定後: 手動切替・有効本数・入力欄をロック
         document.getElementById('tof-mode-btn').disabled = locked;
         document.getElementById('hd-mode-btn').disabled  = locked;
-        document.getElementById('pen-mode-btn').disabled = locked;
+        const _penSel = document.getElementById('pen-select'); if (_penSel) _penSel.disabled = locked;
+        renderPenaltyChips(); // チップの✕ボタンのロック状態を反映
         document.getElementById('valid-count').disabled  = locked;
         document.getElementById('tof').disabled          = locked;
         document.getElementById('hd').disabled           = locked;
@@ -1401,7 +1417,8 @@
         if (hdMode === 'auto' || data.published === true) {
             document.getElementById('hd').value  = data.hdByPanel?.[panel] ?? data.hd?.total ?? "";
         }
-        if (penMode === 'auto') document.getElementById('pen').value = data.penalty ?? 0;
+        // ペナルティは常にCJP入力。CJP未操作 or 確定済みのときだけ保存値から復元
+        if (!_penDirty || data.published === true) restorePenalty(data);
         _dChanged = hasDeclaredMismatch; // 申告と実施の相違有無を内訳Dの色判定へ
         _dConfirmed = !!data.dConfirmedAt; // D審判の確定有無（確定まで内訳Dは非表示）
         updateScoreSummary(ec, hasJudgeData);
@@ -1471,7 +1488,7 @@
         const tRaw = parseFloat(document.getElementById('tof').value) || 0;
         const t    = (fType === 'synchro') ? tRaw * 2 : tRaw; // シンクロは×2表示
         const h    = parseFloat(document.getElementById('hd').value) || 0;
-        const p    = parseFloat(document.getElementById('pen').value) || 0;
+        const p    = penTotal(); // 選択した違反の合計 ＋ 手動加点
         _preciseE = eVal; // 全精度を保持（保存時に使用）
 
         const vLimit = ec ? (ec.vLimit ?? 0)
@@ -1720,21 +1737,58 @@
         }
     };
 
-    window.togglePenMode = function() {
+    // ==== CJPペナルティ（プルダウン複数選択 ＋ 手動加点） ====
+    function populatePenaltySelect() {
+        const sel = document.getElementById('pen-select');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">＋ 違反を追加…</option>' +
+            CJP_PENALTIES.map((p, i) => `<option value="${i}">${p.ja}（-${p.points.toFixed(1)}）</option>`).join('');
+    }
+    function penTotal() {
+        const manual = parseFloat(document.getElementById('pen').value) || 0;
+        return appliedPenalties.reduce((s, p) => s + (Number(p.points) || 0), 0) + manual;
+    }
+    function renderPenaltyChips() {
+        const el = document.getElementById('pen-chips');
+        if (!el) return;
+        el.innerHTML = appliedPenalties.map((p, idx) =>
+            `<span class="pen-chip" title="${(p.en || '').replace(/"/g,'&quot;')}">${p.ja} <span style="opacity:0.65;">-${Number(p.points).toFixed(1)}</span><button onclick="removePenalty(${idx})" ${isLocked ? 'disabled' : ''}>✕</button></span>`
+        ).join('');
+    }
+    window.addPenaltyFromSelect = function() {
         if (isLocked) return;
-        penMode = penMode === 'auto' ? 'manual' : 'auto';
-        const btn = document.getElementById('pen-mode-btn');
-        const inp = document.getElementById('pen');
-        if (penMode === 'manual') {
-            btn.textContent = '手動'; btn.classList.add('manual');
-            inp.style.borderColor = '#ff9800'; inp.style.color = '#ff9800';
-            inp.style.background = 'rgba(255,152,0,0.06)';
-        } else {
-            btn.textContent = '読込'; btn.classList.remove('manual');
-            inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
-            inp.value = latestData.penalty ?? 0; calc();
-        }
+        const sel = document.getElementById('pen-select');
+        const i = parseInt(sel.value);
+        sel.value = '';
+        if (isNaN(i) || !CJP_PENALTIES[i]) return;
+        appliedPenalties.push({ ...CJP_PENALTIES[i] });
+        _penDirty = true;
+        renderPenaltyChips();
+        calc();
     };
+    window.removePenalty = function(idx) {
+        if (isLocked) return;
+        appliedPenalties.splice(idx, 1);
+        _penDirty = true;
+        renderPenaltyChips();
+        calc();
+    };
+    window.onPenManualChange = function() {
+        _penDirty = true;
+        calc();
+    };
+    // 保存値（penaltyItems / penaltyManual、旧データは penalty のみ）から復元
+    function restorePenalty(data) {
+        appliedPenalties = Array.isArray(data.penaltyItems) ? data.penaltyItems.map(p => ({ ...p })) : [];
+        const itemsSum = appliedPenalties.reduce((s, p) => s + (Number(p.points) || 0), 0);
+        const manual = (data.penaltyManual != null)
+            ? data.penaltyManual
+            : Math.max(0, (data.penalty ?? 0) - itemsSum);
+        const inp = document.getElementById('pen');
+        if (inp) inp.value = (Math.round(manual * 100) / 100) || 0;
+        renderPenaltyChips();
+    }
+    populatePenaltySelect();
 
     window.toggleDMode = function(on) {
         dMode = on ? 'manual' : 'auto';
@@ -1802,7 +1856,7 @@
         const e      = _preciseE; // 表示（第1位）ではなく全精度値を使用
         const t      = parseFloat(document.getElementById('res-t').innerText) || 0;
         const h      = parseFloat(document.getElementById('res-hd').innerText) || 0;
-        const p      = parseFloat(document.getElementById('pen').value) || 0;
+        const p      = penTotal();
         const th     = t + h;
         const total  = Math.max(0, d + e + t + h - p); // 全精度で保持（表示値ではなく計算値）
 
@@ -1811,6 +1865,9 @@
             published: true, publishedAt: serverTimestamp(),
             verifiedAt: serverTimestamp(),
             tof: t, hd: { total: h }, penalty: p,
+            // CJPペナルティの内訳（日本語・英文・表示用テキスト・点数）と手動加点も保存（再読込で復元・会場表示用）
+            penaltyItems: appliedPenalties.map(x => ({ ja: x.ja, en: x.en, display: x.display, points: x.points })),
+            penaltyManual: parseFloat(document.getElementById('pen').value) || 0,
             tofByPanel: { [panel]: t }, hdByPanel: { [panel]: h },
             officialD: d, officialE: e, officialTH: th, officialTotal: total,
             // 技ごとのE減点（会場ディスプレイの per-skill 表示をCJP値と一致させる）
