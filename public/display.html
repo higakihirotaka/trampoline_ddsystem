@@ -501,6 +501,48 @@
     padding:4vw;
   }
   .venue-screen.active{ opacity:1; pointer-events:auto; }
+  /* ===== 団体順位表 画面 ===== */
+  #vs-team-ranking{ container-type:size; padding:0; }
+  .tr-layout{ width:100%; height:100%; display:grid; grid-template-rows: 7% 11.5% 77.5% 4%; padding: 0 3cqw; }
+  .tr-conv{ border-bottom:1.5px solid rgba(0,242,255,0.2); display:flex; align-items:center; justify-content:center;
+    font-size:1.1cqw; font-weight:700; letter-spacing:0.8cqw; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tr-cat{ display:flex; align-items:center; justify-content:space-between; padding:0.6cqh 0.2cqw 0.2cqh; }
+  .tr-cat-title{ font-size:2.6cqw; font-weight:900; letter-spacing:-0.5px; line-height:1; }
+  .tr-cat-title .disc{ color:#00f2ff; margin-left:0.6cqw; }
+  .tr-cat-right{ text-align:right; line-height:1.25; }
+  .tr-cat-sub{ font-size:1.35cqw; font-weight:800; color:#ffd700; }
+  .tr-cat-note{ font-size:0.85cqw; font-weight:700; color:#cbd5e0; letter-spacing:0.05cqw; }
+  .tr-list{ display:grid; grid-auto-rows:1fr; row-gap:0.7cqh; padding:0.6cqh 0; min-height:0; }
+  .tr-row{ display:grid; grid-template-columns: 5.2cqw 22cqw 1fr 12cqw; align-items:center; column-gap:1.2cqw;
+    background:rgba(255,255,255,0.06); border:1.5px solid rgba(0,242,255,0.2); border-left:4px solid rgba(0,242,255,0.35);
+    border-radius:6px; padding:0 1.2cqw; min-height:0; box-shadow: inset 0 0 20px rgba(0,242,255,0.03); }
+  .tr-rank{ font-size:3cqw; font-weight:900; text-align:center; letter-spacing:-1px; line-height:1; font-variant-numeric:tabular-nums; }
+  .tr-info{ min-width:0; }
+  .tr-name{ font-size:1.9cqw; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.05;
+    text-shadow: 0 0 22px rgba(0,242,255,0.15); }
+  .tr-club{ font-size:1cqw; font-weight:700; color:#cbd5e0; margin-top:0.3cqh; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tr-members{ display:flex; gap:0.7cqw; justify-content:flex-end; flex-wrap:nowrap; }
+  .tr-mem{ min-width:6.4cqw; background:rgba(0,0,0,0.28); border:1px solid rgba(0,242,255,0.2); border-radius:5px;
+    padding:0.5cqh 0.7cqw; display:flex; flex-direction:column; align-items:center; gap:0.1cqh; }
+  .tr-mem.count{ border-color:rgba(0,242,255,0.55); background:rgba(0,242,255,0.09); box-shadow: inset 0 0 12px rgba(0,242,255,0.06); }
+  .tr-mem.drop{ opacity:0.42; }
+  .tr-mem-name{ font-size:0.92cqw; font-weight:800; color:#fff; white-space:nowrap; }
+  .tr-mem.drop .tr-mem-name{ color:#cbd5e0; }
+  .tr-mem-score{ font-size:1.5cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; }
+  .tr-mem.count .tr-mem-score{ color:#fff; }
+  .tr-mem.drop .tr-mem-score{ color:#cbd5e0; text-decoration:line-through; text-decoration-thickness:1.5px; }
+  .tr-mem-two{ display:flex; gap:0.5cqw; }
+  .tr-mem-two span{ font-size:1.15cqw; font-weight:900; color:#e2e8f0; font-variant-numeric:tabular-nums; }
+  .tr-total{ text-align:right; }
+  .tr-total label{ display:block; font-size:0.8cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
+  .tr-total-num{ font-size:3cqw; font-weight:900; letter-spacing:-1.5px; line-height:1; font-variant-numeric:tabular-nums; }
+  .tr-row.r1{ border-color:rgba(255,215,0,0.55); border-left-color:#ffd700; background:rgba(255,215,0,0.06); }
+  .tr-row.r1 .tr-rank, .tr-row.r1 .tr-total-num{ color:#ffd700; text-shadow: 0 0 16px rgba(255,215,0,0.25); }
+  .tr-row.r2{ border-left-color:#d6e0ea; } .tr-row.r2 .tr-rank{ color:#d6e0ea; }
+  .tr-row.r3{ border-left-color:#e8a06a; } .tr-row.r3 .tr-rank{ color:#e8a06a; }
+  .tr-credit{ display:flex; justify-content:flex-end; align-items:center; font-size:0.8cqw; color:rgba(255,255,255,0.2);
+    letter-spacing:0.2cqw; font-weight:700; text-transform:uppercase; }
+  .tr-empty{ grid-row:3; display:flex; align-items:center; justify-content:center; font-size:1.6cqw; color:#cbd5e0; }
   /* ===== 集計中画面 ===== */
   #vs-calculating{ container-type:size; padding:0; align-items:stretch; justify-content:flex-start; }
   .calc-layout{
@@ -948,6 +990,11 @@
   <!-- 決勝スタートリスト画面 -->
   <div id="vs-final-startlist" class="venue-screen">
     <div class="fsl-layout" id="fsl-layout"></div>
+  </div>
+
+  <!-- 団体順位表画面 -->
+  <div id="vs-team-ranking" class="venue-screen">
+    <div class="tr-layout" id="tr-layout"></div>
   </div>
 
   <!-- 選手紹介画面 -->
@@ -1677,6 +1724,104 @@
     } catch(e) { console.error(e); return []; }
   }
 
+  // ==== 団体順位表：teams + results から都度集計（保存なし） ====
+  async function computeTeamRanking(classVal, genderVal, selType) {
+    const rule = getClassRule({ class: classVal, type: selType });
+    const scoreMode = rule.scoreMode || 'best';
+    const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
+    const teamDocs = teamSnap.docs.filter(d => {
+      const t = d.data();
+      return (t.class || '') === classVal && (t.gender || '') === genderVal;
+    });
+    const resultDocs = await _getPublishedResultDocs();
+    // 棄権・未実施は全項目0
+    const comp = r => (r.dns === true)
+      ? { total: 0, T: 0, H: 0, D: 0 }
+      : { total: r.officialTotal ?? 0, T: r.tof ?? 0, H: r.hd?.total ?? 0, D: r.officialD ?? 0 };
+    const byAth = {};
+    resultDocs.forEach(d => {
+      const r = d.data();
+      if (r.round !== 'pre1' && r.round !== 'pre2') return;
+      (byAth[r.athleteId] ||= {})[r.round] = comp(r);
+    });
+    const ZERO = { total: 0, T: 0, H: 0, D: 0 };
+    const top3 = arr => [...arr].sort((a, b) => b - a).slice(0, 3).reduce((s, v) => s + v, 0);
+
+    const teams = teamDocs.map(td => {
+      const t = td.data();
+      const members = (t.memberIds || []).map(id => {
+        const ath  = athleteMap[id];
+        const name = ath ? (ath.name1 || id) : id;
+        const p1 = byAth[id]?.pre1 || ZERO;
+        const p2 = byAth[id]?.pre2 || ZERO;
+        if (scoreMode === 'best') {
+          const adopt = (p2.total > p1.total) ? p2 : p1; // 採用演技（合計が高い方）
+          return { name, score: adopt.total, T: adopt.T, H: adopt.H, D: adopt.D };
+        }
+        return { name, p1, p2 };
+      });
+      let score, tbT, tbH, tbD;
+      if (scoreMode === 'best') {
+        score = top3(members.map(m => m.score));
+        tbT   = top3(members.map(m => m.T));
+        tbH   = top3(members.map(m => m.H));
+        tbD   = top3(members.map(m => m.D));
+        members.sort((a, b) => b.score - a.score);
+        members.forEach((m, i) => { m._count = i < 3; }); // 上位3名を採用表示
+      } else {
+        score = top3(members.map(m => m.p1.total)) + top3(members.map(m => m.p2.total));
+        tbT   = top3(members.map(m => m.p1.T)) + top3(members.map(m => m.p2.T));
+        tbH   = top3(members.map(m => m.p1.H)) + top3(members.map(m => m.p2.H));
+        tbD   = top3(members.map(m => m.p1.D)) + top3(members.map(m => m.p2.D));
+      }
+      return { teamName: t.teamName || '—', members, score, tbT, tbH, tbD };
+    });
+    // 団体得点 → T → H → D の降順
+    teams.sort((a, b) => b.score - a.score || b.tbT - a.tbT || b.tbH - a.tbH || b.tbD - a.tbD);
+    return { teams, scoreMode };
+  }
+
+  async function renderTeamRanking(target) {
+    const layout = document.getElementById('tr-layout');
+    if (!layout) return;
+    const classVal = target.class || '', genderVal = target.gender || '', selType = target.type || 'individual';
+    const conv = tournamentName || '';
+    const catLabel = [classVal, genderVal].filter(Boolean).join(' ');
+    const disc = selType === 'synchro' ? 'SYN' : 'TRA';
+    const header = note => `
+      <div class="tr-conv">${conv}</div>
+      <div class="tr-cat">
+        <div class="tr-cat-title">団体競技<span class="disc">${disc}</span></div>
+        <div class="tr-cat-right">
+          <div class="tr-cat-sub">${catLabel} ・ 予選</div>
+          <div class="tr-cat-note">${note}</div>
+        </div>
+      </div>`;
+    const credit = `<footer class="tr-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
+    layout.innerHTML = header('') + `<div class="tr-list"><div class="tr-empty">集計中...</div></div>` + credit;
+
+    const { teams, scoreMode } = await computeTeamRanking(classVal, genderVal, selType);
+    const note = scoreMode === 'best' ? 'ベストスコア上位3名の合計' : '各本 上位3名の合計';
+    const listHtml = teams.length === 0
+      ? `<div class="tr-empty">この区分の登録チームがありません</div>`
+      : teams.map((t, idx) => {
+          const rank = idx + 1;
+          const rcls = rank <= 3 ? ` r${rank}` : '';
+          const membersHtml = t.members.map(m => scoreMode === 'best'
+            ? `<div class="tr-mem ${m._count ? 'count' : 'drop'}"><span class="tr-mem-name">${m.name}</span><span class="tr-mem-score">${m.score.toFixed(2)}</span></div>`
+            : `<div class="tr-mem"><span class="tr-mem-name">${m.name}</span><span class="tr-mem-two"><span>${m.p1.total.toFixed(2)}</span><span>${m.p2.total.toFixed(2)}</span></span></div>`
+          ).join('');
+          return `
+            <div class="tr-row${rcls}">
+              <div class="tr-rank">${rank}</div>
+              <div class="tr-info"><div class="tr-name">${t.teamName}</div></div>
+              <div class="tr-members">${membersHtml}</div>
+              <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span></div>
+            </div>`;
+        }).join('');
+    layout.innerHTML = header(note) + `<div class="tr-list">${listHtml}</div>` + credit;
+  }
+
   async function fetchRankingEntries() {
     if (!lastShownResData) return [];
     const ath = lastShownAth || {};
@@ -1941,7 +2086,7 @@
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
     // 全画面を一旦非表示
-    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-final-startlist'].forEach(id => {
+    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-final-startlist','vs-team-ranking'].forEach(id => {
       document.getElementById(id)?.classList.remove('active');
     });
     // スコア表示中にwarmupを退避している場合はタイマーを止めない
@@ -1975,6 +2120,14 @@
           <div class="calc-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>
         </div>`;
       calcEl.classList.add('active');
+      return;
+    }
+
+    // 団体順位表（CJPが明示表示。スコア表示中でも最前面に出す）
+    if (screen === 'teamRanking') {
+      stopRankingLoop();
+      document.getElementById('vs-team-ranking').classList.add('active');
+      renderTeamRanking(tourData.teamRankingTarget || {});
       return;
     }
 
