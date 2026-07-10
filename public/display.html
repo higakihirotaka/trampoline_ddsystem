@@ -236,6 +236,20 @@
       font-size: 2cqw; font-weight:900;
       line-height:1;
     }
+    /* ===== HDTS: 技別 ToF / HD（HDTSデータがある選手のみ6段表示） ===== */
+    .ribbon-wrapper.has-hdts .row-labels,
+    .ribbon-wrapper.has-hdts .skill-stack{ grid-template-rows: 9fr 34fr 14fr 14fr 14fr 15fr; }
+    .card.tof-card{
+      grid-row:5; background: rgba(0,0,0,0.3); border-color: var(--border-ui);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .tof-val{ font-size: 1.35cqw; font-weight:800; color: var(--text-white); line-height:1; letter-spacing:-0.3px; }
+    .card.hd-card{
+      grid-row:6; background: rgba(0,0,0,0.3); border-color: var(--border-ui);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .hd-val{ font-size: 1.5cqw; font-weight:800; color: var(--text-white); line-height:1; }
+    .skill-stack.bonus-style .empty-card{ background: rgba(255,255,255,0.01); border:1px dashed rgba(0,242,255,0.06); border-radius:4px; }
     /* ===== LAN列 ===== */
     .skill-stack.bonus-style .col-idx{
       font-size: 0.95cqw;
@@ -1208,6 +1222,17 @@
 
     const hasManualDDValues = !!(resData.officialDDValues && resData.officialDDValues.length > 0);
 
+    // ---- HDTS 技別 ToF/HD（アクティブパネルの保存値。存在する時だけ表示） ----
+    const _hdtsMap = resData.hdtsPerSkillByPanel;
+    let hdtsPerSkill = null;
+    if (_hdtsMap && Object.keys(_hdtsMap).length) {
+      const _counts = {};
+      Object.keys(resData.execution?.judges || {}).forEach(k => { const p = k.split('_')[0]; _counts[p] = (_counts[p] || 0) + 1; });
+      const _active = Object.entries(_counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      hdtsPerSkill = _hdtsMap[_active] || _hdtsMap[Object.keys(_hdtsMap)[0]] || null;
+    }
+    const hasHdts = !!(hdtsPerSkill && ((hdtsPerSkill.tof || []).some(v => v != null) || (hdtsPerSkill.hd || []).some(v => v != null)));
+
     const skillCols = [];
     for (let i = 0; i < 10; i++) {
       if (i >= vLimit) {
@@ -1219,6 +1244,7 @@
               <div class="d-code">-</div>
               <div class="d-val num">-</div>
             </div>
+            ${hasHdts ? '<div class="card tof-card"><div class="tof-val num">-</div></div><div class="card hd-card"><div class="hd-val num">-</div></div>' : ''}
           </div>`);
         continue;
       }
@@ -1289,6 +1315,8 @@
       const dimCode = !isDesigSkill && !codeAlert; // 非指定かつ差異なし→薄く
       const dimVal  = !isDesigSkill && !valAlert;
 
+      const tofTxt = (hdtsPerSkill?.tof?.[i] != null) ? Number(hdtsPerSkill.tof[i]).toFixed(3) : '-';
+      const hdTxt  = (hdtsPerSkill?.hd?.[i]  != null) ? hdtsPerSkill.hd[i] : '-';
       skillCols.push(`
         <div class="skill-stack">
           <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
@@ -1297,6 +1325,7 @@
             <div class="d-code${codeAlert ? ' alert' : dimCode ? ' dim' : ''}">${dCodeTxt}</div>
             <div class="d-val num${valAlert ? ' alert' : dimVal ? ' dim' : ''}">${dValTxt}</div>
           </div>
+          ${hasHdts ? `<div class="card tof-card"><div class="tof-val num">${tofTxt}</div></div><div class="card hd-card"><div class="hd-val num">${hdTxt}</div></div>` : ''}
         </div>`);
     }
 
@@ -1320,6 +1349,7 @@
         <div class="bonus-dval" style="${bonus > 0 ? '' : 'opacity:0.25;'}">
           <span class="bonus-val num">+${bonus.toFixed(1)}</span>
         </div>
+        ${hasHdts ? '<div class="empty-card" style="grid-row:5;"></div><div class="empty-card" style="grid-row:6;"></div>' : ''}
       </div>`;
 
     // ---- スコア集計 ----
@@ -1408,12 +1438,13 @@
         </div>
       </div>
 
-      <div class="ribbon-wrapper">
+      <div class="ribbon-wrapper${hasHdts ? ' has-hdts' : ''}">
         <div class="row-labels">
           <div class="row-title idx-label">Skill No</div>
           <div class="row-title e-label">E-Deduction</div>
           <div class="row-title d-sub-label">Skill Code</div>
           <div class="row-title d-sub-label">D-Score</div>
+          ${hasHdts ? '<div class="row-title d-sub-label">ToF (s)</div><div class="row-title d-sub-label">HD (減)</div>' : ''}
         </div>
         ${skillCols.join('')}
         ${bonusCol}
