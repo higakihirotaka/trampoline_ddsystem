@@ -154,6 +154,7 @@
             <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
             <div class="score-box"><label id="res-t-label">T</label><div id="res-t">0.000</div></div>
             <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
+            <div class="score-box"><label>Penalty</label><div id="res-pen">0.0</div></div>
             <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.00</div></div>
         </div>
 
@@ -1513,6 +1514,8 @@
         eEl.innerText = eComplete ? (fType === 'synchro' ? eVal.toFixed(3) : eVal.toFixed(1)) : '';
         tEl.innerText = tEntered ? t.toFixed(3) : '';
         hEl.innerText = hEntered ? h.toFixed(3) : '';
+        const penEl = document.getElementById('res-pen');
+        if (penEl) { penEl.innerText = p > 0 ? `-${p.toFixed(1)}` : '0.0'; penEl.style.color = p > 0 ? _BD_RED : ''; }
         const total = Math.max(0, (_dConfirmed ? d : 0) + (eComplete ? eVal : 0) + (tEntered ? t : 0) + (hEntered ? h : 0) - p);
         totEl.innerText = total.toFixed(2);
 
