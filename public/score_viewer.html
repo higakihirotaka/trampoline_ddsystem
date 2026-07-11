@@ -17,6 +17,8 @@
         .info-card { background: var(--card-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border); text-align: center; }
         .info-card label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 6px; font-weight: bold; }
         .info-card .val { font-size: 1.5rem; font-weight: 900; font-family: monospace; }
+        .pen-reasons { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; justify-content: center; }
+        .pen-reason-chip { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 6px; padding: 3px 9px; font-size: 0.8rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -115,8 +117,11 @@
             <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
             <div class="score-box"><label id="res-t-label">T</label><div id="res-t">0.000</div></div>
             <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
+            <div class="score-box"><label>Penalty</label><div id="res-pen">0.0</div></div>
             <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
         </div>
+        <!-- ペナルティ内容 -->
+        <div id="pen-reasons" class="pen-reasons" style="display:none;"></div>
     </div>
 </div>
 
@@ -526,6 +531,15 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         document.getElementById('res-e').textContent   = eComplete ? execution.toFixed(isSynchro ? 3 : 1) : '';
         document.getElementById('res-t').textContent   = tEntered ? tNum.toFixed(3) : '';
         document.getElementById('res-hd').textContent  = hEntered ? hNum.toFixed(3) : '';
+        const _penEl = document.getElementById('res-pen');
+        if (_penEl) { _penEl.textContent = p > 0 ? `-${p.toFixed(1)}` : '0.0'; _penEl.style.color = p > 0 ? '#ef4444' : ''; }
+        // ペナルティ内容（違反名・点数）
+        const _prEl = document.getElementById('pen-reasons');
+        if (_prEl) {
+            const _items = Array.isArray(data.penaltyItems) ? data.penaltyItems : [];
+            _prEl.innerHTML = _items.map(it => `<span class="pen-reason-chip">${it.ja || it.display || ''} <span style="opacity:0.65;">-${Number(it.points).toFixed(1)}</span></span>`).join('');
+            _prEl.style.display = _items.length ? '' : 'none';
+        }
         const _total = Math.max(0, (_dConfirmed ? totalDD : 0) + (eComplete ? execution : 0) + (tEntered ? tNum : 0) + (hEntered ? hNum : 0) - p);
         document.getElementById('res-total').textContent = _total.toFixed(2);
 
