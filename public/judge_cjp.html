@@ -763,10 +763,9 @@
         designatedDDIndices = [...(submissionIdx || [])];
         designatedDDManualChanged = false;
         renderDesignatedRow();
-        // 「修正」を押した瞬間に確定前の状態へ戻す（D非表示・未確定バッジなど）。Firestore往復を待たず即時反映。
-        _dConfirmed = false;
+        // 「修正」はスコアのロック解除のみ。Dの確定(dConfirmedAt)は維持し内訳Dを消さない。Firestore往復を待たず即時反映。
         if (latestData) {
-            delete latestData.dConfirmedAt; delete latestData.verifiedAt; latestData.published = false;
+            delete latestData.verifiedAt; latestData.published = false;
             renderScores(latestData);
         }
         await Promise.all([
@@ -775,8 +774,7 @@
             }, { merge: true }),
             athleteId ? setDoc(doc(db, 'results', resId), {
                 verifiedAt: deleteField(),
-                dConfirmedAt: deleteField(),
-                published: false   // D審判の修正を許可
+                published: false   // スコアのロック解除（Dの確定は維持。D審判が「修正する」を押すと解除される）
             }, { merge: true }) : Promise.resolve()
         ]);
     };
