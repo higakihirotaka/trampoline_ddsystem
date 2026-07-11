@@ -66,7 +66,9 @@
     <span id="auto-status" style="font-size:0.82rem;margin-left:8px;"></span>
   </div>
   <div class="endpoint-label" id="auto-url" style="margin-top:8px;">—</div>
-  <div class="card-title" style="margin-top:12px;">生レスポンス（RAW）</div>
+  <div class="card-title" style="margin-top:12px; display:flex; align-items:center; gap:10px;">生レスポンス（RAW）
+    <button class="btn-secondary" style="padding:3px 12px; font-size:0.72rem;" onclick="copyText('auto-raw', this)">📋 コピー</button>
+  </div>
   <pre id="auto-raw">（未取得）ボタンを押すとQIRAから届いた生の内容をそのまま表示します。</pre>
   <div class="ts" id="auto-ts"></div>
 </div>
@@ -155,6 +157,7 @@
   <div class="endpoint-label" id="ep-result">—</div>
   <div class="row">
     <button class="btn-primary" id="btn-result" onclick="fetchEndpoint('result')">📥 取得</button>
+    <button class="btn-secondary" style="padding:5px 14px;" onclick="copyText('out-result', this)">📋 コピー</button>
     <span id="status-result" style="font-size:0.8rem;margin-left:8px;"></span>
   </div>
   <pre id="out-result">（未取得）</pre>
@@ -380,6 +383,26 @@
   })();
 
   function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c])); }
+
+  // 生データをクリップボードにコピー（表示テキストをそのまま）
+  window.copyText = function(id, btn) {
+    const el = document.getElementById(id);
+    const text = el ? el.textContent : '';
+    const done = () => { const o = btn.textContent; btn.textContent = '✅ コピー済み'; setTimeout(() => { btn.textContent = o; }, 1500); };
+    if (!text) { const o = btn.textContent; btn.textContent = '（空です）'; setTimeout(() => { btn.textContent = o; }, 1500); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  };
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { alert('コピーに失敗しました。手動で選択してください。'); }
+    document.body.removeChild(ta);
+  }
 
   function diagnose(e, url) {
     if (location.protocol === 'https:' && url.startsWith('http://'))
