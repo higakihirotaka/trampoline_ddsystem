@@ -1495,8 +1495,10 @@
                           : (parseInt(document.getElementById('valid-count').value) || 0);
 
         // --- 各項目の状態: 'green' | 'red' | 'blank'（未入力） ---
-        // D: D審判が確定するまで非表示(blank)。確定後は申告相違で赤、無ければ緑
+        // D: D審判が確定するまで非表示(blank)。確定後は申告相違で赤、無ければ緑（＝文字色用）
         const dState = !_dConfirmed ? 'blank' : (_dChanged ? 'red' : 'green');
+        // 枠線用: Dの相違（変更有）では枠を赤にしない。未確定は黄、確定済みは緑扱い
+        const dBorder = !_dConfirmed ? 'blank' : 'green';
         // E: 全審判が有効本数分入力済みなら緑表示、未完了は空欄
         const eComplete = ec ? isEComplete(ec) : (eEl.innerText.trim() !== '');
         const eState = eComplete ? 'green' : 'blank';
@@ -1519,7 +1521,7 @@
         totEl.innerText = total.toFixed(2);
 
         // --- 枠線色（赤 > 黄 > 緑） ---
-        const states = [dState, eState, tState, hState];
+        const states = [dBorder, eState, tState, hState];
         const borderColor = states.includes('red') ? _BD_RED
                           : states.includes('blank') ? _BD_YELLOW
                           : _BD_GREEN;

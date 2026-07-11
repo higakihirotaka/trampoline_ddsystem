@@ -522,7 +522,8 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         }
         const tEntered = tNum > 0, hEntered = hNum > 0;
         const hdInRange = hNum >= vLimit * 0.5 - 1e-9 && hNum <= vLimit * 1.0 + 1e-9;
-        const dState = !_dConfirmed ? 'blank' : (hasDeclaredMismatch ? 'red' : 'green');
+        const dState = !_dConfirmed ? 'blank' : (hasDeclaredMismatch ? 'red' : 'green'); // 文字色用
+        const dBorder = !_dConfirmed ? 'blank' : 'green'; // 枠線用: Dの相違では枠を赤にしない
         const eState = eComplete ? 'green' : 'blank';
         const tState = tEntered ? 'green' : 'blank';
         const hState = hEntered ? (hdInRange ? 'green' : 'red') : 'blank';
@@ -545,7 +546,7 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
 
         // 枠線色（赤 > 黄 > 緑）、文字色も連動
         const _G = '#34d399', _R = '#ef4444', _Y = '#facc15';
-        const _states = [dState, eState, tState, hState];
+        const _states = [dBorder, eState, tState, hState];
         const _border = _states.includes('red') ? _R : _states.includes('blank') ? _Y : _G;
         const _colorOf = st => st === 'red' ? _R : st === 'green' ? _G : '';
         document.getElementById('res-d').style.color   = _colorOf(dState);
