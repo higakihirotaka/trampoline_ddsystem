@@ -1627,6 +1627,26 @@
         return fetch('http://localhost:8080/routineresult', { signal: AbortSignal.timeout(3000) });
     }
 
+    // QIRAの startPenalty(点数) / delayBeforeStartInSeconds(秒) から開始遅延ペナルティ区分を判定
+    function pickStartDelayPenalty(delaySec, startPen) {
+        const pts = Number(startPen);
+        const sec = Number(delaySec);
+        const find = disp => CJP_PENALTIES.find(p => p.display === disp);
+        // 点数優先（QIRA算出のペナルティ点から該当区分＝秒数レンジを予測）
+        if (!isNaN(pts) && pts > 0.05) {
+            if (pts >= 0.55) return find('START DELAY 121S'); // -0.6 → 121〜180秒
+            if (pts >= 0.35) return find('START DELAY 91S');  // -0.4 → 91〜120秒
+            return find('START DELAY 61S');                    // -0.2 → 61〜90秒
+        }
+        // 点数が無い/0でも、遅延秒が閾値を超えていれば秒数から判定（保険）
+        if (!isNaN(sec)) {
+            if (sec >= 121) return find('START DELAY 121S');
+            if (sec >= 91)  return find('START DELAY 91S');
+            if (sec >= 61)  return find('START DELAY 61S');
+        }
+        return null;
+    }
+
     window.getFromQira = async function() {
         const statusEl = document.getElementById('qira-status');
         const btn      = document.getElementById('btn-hdts');
@@ -1696,8 +1716,21 @@
                         { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
                 }
             }
+            // 開始遅延ペナルティを自動適用（QIRA の startPenalty / delayBeforeStartInSeconds から）
+            const _delaySec = r.delayBeforeStartInSeconds;
+            const _delayPen = pickStartDelayPenalty(_delaySec, r.startPenalty);
+            // 既存の START DELAY 系を除去してから適用（再取得時の重複防止。他の違反チップは残す）
+            appliedPenalties = appliedPenalties.filter(pp => !(pp.display || '').startsWith('START DELAY'));
+            if (_delayPen) appliedPenalties.push({ ..._delayPen });
+            _penDirty = true;
+            renderPenaltyChips();
+            calc();
+
             statusEl.style.color = '#66bb6a';
-            statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}`;
+            const _delayTxt = (_delaySec != null) ? `　開始まで: ${Number(_delaySec).toFixed(1)}s` : '';
+            const _penTxt   = _delayPen ? `　→ ${_delayPen.display} (-${_delayPen.points.toFixed(1)})`
+                                        : (_delaySec != null ? '　→ 遅延ペナルティなし' : '');
+            statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}${_delayTxt}${_penTxt}`;
         } catch(e) {
             statusEl.style.color = '#e57373';
             statusEl.textContent = 'QIRAに接続できません（起動確認）';
