@@ -209,7 +209,7 @@
         .pen-chip button:disabled { opacity: 0.3; cursor: default; }
 
         /* スコア集計 — ダークカードで視線を集める */
-        .score-summary { background: #0f172a; padding: 13px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 3px solid transparent; box-sizing: border-box; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
+        .score-summary { background: #0f172a; padding: 13px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 6px solid transparent; box-sizing: border-box; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
         .score-box { text-align: center; }
         .score-box label { font-size: 0.6rem; color: rgba(255,255,255,0.38); display: block; margin-bottom: 4px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
         .score-box div { font-size: 2rem; font-weight: 900; font-family: monospace; color: #e2e8f0; }
