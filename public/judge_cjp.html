@@ -164,10 +164,11 @@
             <button class="btn-action btn-unlock"         id="btn-unlock"         onclick="unlock()">修正</button>
             <button class="btn-action btn-republish"      id="btn-republish"      onclick="republish()">再表示</button>
             <button class="btn-action btn-calculating"    id="btn-calculating"    onclick="showCalculating()">集計中</button>
-            <button class="btn-action"                    id="btn-team-ranking"   onclick="showTeamRanking()" style="display:none; background:#7e57c2; color:#fff;">団体順位表</button>
             <button class="btn-action btn-hdts"           id="btn-hdts"           onclick="getFromQira()">HDTS</button>
-            <!-- 2行目（今後ここに追加） -->
+            <!-- 2行目 -->
             <button class="btn-action btn-confirm-silent" id="btn-confirm-silent" onclick="publishSilent()">確定のみ</button>
+            <!-- 団体順位表は常に最後尾（表示/非表示しても他ボタンのレイアウトが変わらないように） -->
+            <button class="btn-action"                    id="btn-team-ranking"   onclick="showTeamRanking()" style="display:none; background:#7e57c2; color:#fff;">団体順位表</button>
         </div>
         <div id="qira-status" class="qira-status-bar"></div>
     </div>
