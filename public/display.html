@@ -315,6 +315,20 @@
       letter-spacing: -1.5px;
       line-height:1;
     }
+    /* Penalty セル: ペナルティ内容がある時のみ、数字の下に内訳チップを積む（横線内に収める） */
+    .stat-item.pen-item{ flex-direction:column; gap:0.4cqh; }
+    .stat-item.pen-item .pen-top{ display:flex; align-items:center; justify-content:center; gap:1cqw; }
+    .stat-item.pen-item .pen-top .val{ font-size:2.8cqw; } /* 内容を収めるため数字をやや縮小 */
+    .pen-reasons{ display:flex; flex-direction:column; align-items:center; gap:0.28cqh; max-width:100%; line-height:1; }
+    .pen-reason-chip{
+      display:inline-flex; align-items:center; gap:0.4cqw; max-width:100%;
+      padding:0.18cqh 0.7cqw; border-radius:999px;
+      background:rgba(255,61,61,0.12); border:1px solid rgba(255,61,61,0.55);
+      color:#ff6b6b; font-size:0.74cqw; font-weight:800;
+      letter-spacing:0.02cqw; text-transform:uppercase;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .pen-reason-chip .pt{ font-weight:900; opacity:0.85; }
     /* ===== 5. 結果 ===== */
     .result-section{
       display:grid;
@@ -750,7 +764,7 @@
     opacity:0; pointer-events:none;
   }
   .intro-layout.intro-flash::before{
-    animation: intro-flash-glow 900ms ease-out forwards;
+    animation: intro-flash-glow 1800ms ease-out forwards;
   }
   @keyframes intro-flash-glow{
     0%  { opacity:1; }
@@ -762,7 +776,7 @@
     background:linear-gradient(90deg, transparent, rgba(0,242,255,0.6), transparent);
   }
   .intro-anim .intro-divider{
-    animation: intro-line-expand 600ms 350ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-line-expand 1200ms 700ms cubic-bezier(0.22,1,0.36,1) both;
   }
   @keyframes intro-line-expand{
     from{ width:0; }
@@ -774,13 +788,81 @@
     padding: 2.2cqh 4cqw;
   }
   .intro-event-lbl{
-    font-size:1.2cqw; font-weight:700; letter-spacing:0.55em;
+    font-size:1.5cqw; font-weight:700; letter-spacing:0.25em;
     color:rgba(255,255,255,0.28); text-transform:uppercase;
+    /* 大会名は隠さない: 長い場合は折り返し（カウンタには届かない幅まで） */
+    max-width:70cqw; line-height:1.4;
   }
-  .intro-counter-lbl{
-    font-size:1.2cqw; font-weight:700; letter-spacing:0.15em;
-    color:rgba(255,255,255,0.28);
+  /* 右上: 選手紹介ループ中の会場練習 残り時間（タイマーがカウント中のみ表示） */
+  .intro-warmup-timer{
+    font-size:60px; font-weight:900; letter-spacing:0.06em;  /* タイマー本体は60px固定 */
+    color:var(--accent-gold); line-height:1;
+    text-shadow:0 0 24px rgba(255,215,0,0.25);
+    text-align:center;                   /* ラベルと時間を互いにセンタリング */
   }
+  .intro-warmup-timer .lbl{
+    display:block;                       /* ラベルと時間を縦積み */
+    font-size:0.6em; font-weight:800; letter-spacing:0.18em;  /* =36px（現状の大きさを維持） */
+    color:rgba(255,255,255,0.6);
+    margin:0 0 0.8cqh;
+  }
+  .intro-warmup-timer.warning{ color:#ff6b35; text-shadow:0 0 24px rgba(255,107,53,0.35); }
+  /* ループ開始時のタイトル画面「選手紹介」（currentIndex=-1 のとき表示） */
+  .intro-title-screen{
+    position:absolute; inset:0;
+    display:none; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+  .intro-title-screen.active{ display:flex; }
+  .intro-title-big{
+    font-size:9cqw; font-weight:900; letter-spacing:0.3em; text-indent:0.3em;
+    color:var(--accent-gold); white-space:nowrap;
+    text-shadow:0 0 80px rgba(255,215,0,0.28);
+  }
+  .intro-title-screen.active .intro-title-big{
+    animation: intro-title-in 1600ms 150ms cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes intro-title-in{
+    0%  { opacity:0; transform:scale(1.15); filter:blur(14px); }
+    60% { opacity:1; filter:blur(0); }
+    100%{ opacity:1; transform:scale(1); filter:blur(0); }
+  }
+  /* ループ最後の選手一覧ページ（currentIndex = 選手数 のとき表示） */
+  .intro-roster-screen{
+    position:absolute; inset:0;
+    display:none; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:3cqh; padding:9cqh 6cqw 5cqh;
+    pointer-events:none;
+  }
+  .intro-roster-screen.active{ display:flex; }
+  .intro-roster-title{
+    font-size:3.2cqw; font-weight:900; letter-spacing:0.4em; text-indent:0.4em;
+    color:var(--accent-gold); line-height:1;
+    text-shadow:0 0 40px rgba(255,215,0,0.2);
+  }
+  .intro-roster-screen.active .intro-roster-title{
+    animation: intro-fade-up 1000ms 0ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  .intro-roster-grid{
+    width:88cqw; height:70cqh; column-gap:4cqw;
+  }
+  .intro-roster-screen.active .intro-roster-grid{
+    animation: intro-fade-up 1000ms 300ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  .intro-roster-head{
+    break-inside:avoid; font-weight:900; color:var(--accent-gold);
+    margin:0.7em 0 0.25em; letter-spacing:0.12em; font-size:0.72em;
+    border-bottom:1px solid rgba(0,242,255,0.25); padding-bottom:0.12em;
+  }
+  .intro-roster-head:first-child{ margin-top:0; }
+  .intro-roster-item{
+    break-inside:avoid; display:flex; align-items:baseline; gap:0.55em;
+    color:#fff; font-weight:700; line-height:1.5;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .intro-roster-item .rno{ color:var(--text-muted); font-weight:800; min-width:3em; text-align:right; flex-shrink:0; }
+  .intro-roster-item .rclub{ color:rgba(255,255,255,0.45); font-size:0.6em; font-weight:600; overflow:hidden; text-overflow:ellipsis; }
   .intro-card{
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
@@ -793,7 +875,7 @@
   }
   /* クラスラベル: 左からスライド */
   .intro-anim .intro-class-lbl{
-    animation: intro-from-left 600ms 0ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-from-left 1200ms 0ms cubic-bezier(0.22,1,0.36,1) both;
   }
   @keyframes intro-from-left{
     from{ opacity:0; transform:translateX(-4cqw); }
@@ -801,11 +883,11 @@
   }
   /* 順番ラベル */
   .intro-anim .intro-order-lbl{
-    animation: intro-fade-up 500ms 80ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-fade-up 1000ms 200ms cubic-bezier(0.22,1,0.36,1) both;
   }
   /* 名前: 最派手 — 拡縮＋ブラー */
   .intro-anim .intro-name-lbl{
-    animation: intro-name-burst 800ms 150ms cubic-bezier(0.16,1,0.3,1) both;
+    animation: intro-name-burst 1600ms 300ms cubic-bezier(0.16,1,0.3,1) both;
   }
   @keyframes intro-name-burst{
     0%  { opacity:0; transform:scale(1.18) translateY(1.5cqh); filter:blur(18px); }
@@ -815,45 +897,36 @@
   }
   /* かな */
   .intro-anim .intro-kana-lbl{
-    animation: intro-fade-up 500ms 380ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-fade-up 1000ms 800ms cubic-bezier(0.22,1,0.36,1) both;
   }
   /* 所属 */
   .intro-anim .intro-club-lbl{
-    animation: intro-fade-up 500ms 500ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-fade-up 1000ms 1000ms cubic-bezier(0.22,1,0.36,1) both;
   }
   @keyframes intro-fade-up{
     from{ opacity:0; transform:translateY(2cqh); }
     to  { opacity:1; transform:translateY(0); }
   }
   .intro-class-lbl{
-    font-size:2.2cqw; font-weight:800; letter-spacing:0.4em;
+    font-size:2.8cqw; font-weight:800; letter-spacing:0.4em;
     color:var(--accent-gold); text-transform:uppercase; line-height:1;
   }
   .intro-order-lbl{
-    font-size:1.7cqw; font-weight:700; letter-spacing:0.2em;
+    font-size:2.2cqw; font-weight:700; letter-spacing:0.2em;
     color:var(--text-muted); line-height:1;
   }
   .intro-name-lbl{
-    font-size:11cqw; font-weight:900; line-height:0.9;
+    font-size:12cqw; font-weight:900; line-height:0.9;
     letter-spacing:-2px; color:#ffffff; white-space:nowrap;
     text-shadow:0 0 80px rgba(255,255,255,0.12);
   }
   .intro-kana-lbl{
-    font-size:2.6cqw; font-weight:600; letter-spacing:0.25em;
+    font-size:3.2cqw; font-weight:600; letter-spacing:0.25em;
     color:rgba(255,255,255,0.45); line-height:1;
   }
   .intro-club-lbl{
-    font-size:3.2cqw; font-weight:800; letter-spacing:0.12em;
+    font-size:4cqw; font-weight:800; letter-spacing:0.12em;
     color:rgba(255,255,255,0.75); line-height:1;
-  }
-  .intro-progress-wrap{
-    position:absolute; bottom:0; left:0; right:0;
-    height:3px; background:rgba(255,255,255,0.06); overflow:hidden;
-  }
-  .intro-progress-fill{
-    height:100%; width:0%;
-    background:linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-gold) 100%);
-    transition:none;
   }
   /* ===== 決勝スタートリスト画面 ===== */
   #vs-final-startlist{
@@ -1002,7 +1075,14 @@
     <div class="intro-layout" id="intro-layout">
       <div class="intro-top-bar">
         <div class="intro-event-lbl" id="intro-event-lbl"></div>
-        <div class="intro-counter-lbl" id="intro-counter-lbl"></div>
+        <div class="intro-warmup-timer num" id="intro-warmup-timer" style="display:none"></div>
+      </div>
+      <div class="intro-title-screen" id="intro-title-screen">
+        <div class="intro-title-big">選手紹介</div>
+      </div>
+      <div class="intro-roster-screen" id="intro-roster-screen">
+        <div class="intro-roster-title">出場選手</div>
+        <div class="intro-roster-grid" id="intro-roster-grid"></div>
       </div>
       <div class="intro-card" id="intro-card">
         <div class="intro-class-lbl" id="intro-class-lbl"></div>
@@ -1011,9 +1091,6 @@
         <div class="intro-name-lbl" id="intro-name-lbl"></div>
         <div class="intro-kana-lbl" id="intro-kana-lbl"></div>
         <div class="intro-club-lbl" id="intro-club-lbl"></div>
-      </div>
-      <div class="intro-progress-wrap">
-        <div class="intro-progress-fill" id="intro-progress-fill"></div>
       </div>
     </div>
   </div>
@@ -1465,6 +1542,17 @@
       ? `No.${ath.finalOrder}`
       : `No.${ath.order || '?'}`;
 
+    // ---- ペナルティ内容（penaltyItems があれば数字の下にチップ表示、無ければ数値のみ） ----
+    const penItems = Array.isArray(resData.penaltyItems) ? resData.penaltyItems : [];
+    const penCellHTML = penItems.length
+      ? `<div class="stat-item pen-item">
+            <div class="pen-top"><label>Penalty</label><div class="val num alert">${fmt1(pScore)}</div></div>
+            <div class="pen-reasons">
+              ${penItems.map(it => `<span class="pen-reason-chip">${it.display || it.en || it.ja || ''} <span class="pt">−${Number(it.points || 0).toFixed(1)}</span></span>`).join('')}
+            </div>
+          </div>`
+      : `<div class="stat-item"><label>Penalty</label><div class="val num${pScore > 0 ? ' alert' : ''}">${fmt1(pScore)}</div></div>`;
+
     // ---- フルHTML生成 ----
     const html = `
       <div class="convention-header">${tournamentName}</div>
@@ -1491,7 +1579,7 @@
           <div class="row-title e-label">E-Deduction</div>
           <div class="row-title d-sub-label">Skill Code</div>
           <div class="row-title d-sub-label">D-Score</div>
-          ${hasHdts ? '<div class="row-title d-sub-label">ToF (s)</div><div class="row-title d-sub-label">HD (減)</div>' : ''}
+          ${hasHdts ? '<div class="row-title d-sub-label" style="text-transform:none">ToF</div><div class="row-title d-sub-label">HD</div>' : ''}
         </div>
         ${skillCols.join('')}
         ${bonusCol}
@@ -1500,9 +1588,9 @@
       <div class="breakdown-row">
         <div class="stat-item"><label>Exec.</label><div class="val num">${fmt3(eScore)}</div></div>
         <div class="stat-item"><label>Diff.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(dScore)}</div></div>
-        <div class="stat-item"><label>${synchro ? 'Syn' : 'ToF'}</label><div class="val num">${fmt3(tScore)}</div></div>
+        <div class="stat-item"><label${synchro ? '' : ' style="text-transform:none"'}>${synchro ? 'Syn' : 'ToF'}</label><div class="val num">${fmt3(tScore)}</div></div>
         <div class="stat-item"><label>HD</label><div class="val num">${fmt2(hdScore)}</div></div>
-        <div class="stat-item"><label>Penalty</label><div class="val num${pScore > 0 ? ' alert' : ''}">${fmt1(pScore)}</div></div>
+        ${penCellHTML}
       </div>
 
       <div class="result-section">
@@ -2050,6 +2138,32 @@
 
   // ---- 会場画面オーバーレイ管理 ----
   let warmupTimerInterval = null;
+  // 会場練習タイマーのサーバー時刻補正。
+  // timerRef(=serverTimestamp) が変わった時だけ自PCの時計とサーバー時刻の差を測り、
+  // 以降その差で補正する。これによりPC間でシステムクロックがずれても表示が一致する。
+  // ※毎回測ると refMs-Date.now() が相殺してタイマーが固まるので、必ず refMs 変化時のみ更新する。
+  let _wuServerOffset = 0, _wuRefMs = null;
+  function warmupRem(w) {
+    if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
+    if (w.timerRef?.toMillis) {
+      const refMs = w.timerRef.toMillis();
+      if (refMs !== _wuRefMs) {
+        const newOffset = refMs - Date.now();
+        // 初回、または現行オフセットと大きく食い違う時だけ採用する。
+        // ・通常運用（開始時に新鮮な ref を受信）→ latency ぶんのゆらぎは無視され安定。
+        // ・カウント途中でリロード → 最初は stale な ref で誤オフセットを持つが、
+        //   制御PCが定期配信する新鮮な ref との差が大きいためここで再較正され復帰する。
+        if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+        _wuRefMs = refMs;
+      }
+      const endServer = refMs + (w.timerRemainingMs ?? 0);
+      const nowServer = Date.now() + _wuServerOffset;
+      return { rem: Math.max(0, endServer - nowServer), running: true };
+    }
+    // timerRef 未確定（書込直後の一瞬のみ・自PC以外では通常発生しない）: 自PC時計で暫定表示
+    if (w.timerEndMs != null) return { rem: Math.max(0, w.timerEndMs - Date.now()), running: true };
+    return { rem: w.timerRemainingMs ?? 0, running: false };
+  }
 
   function applyVenueScreen(tourData) {
     const screen = tourData.venueScreen || 'score';
@@ -2174,24 +2288,19 @@
   }
 
   function startWarmupDisplay(warmup) {
-    // timerEndMs（開始時に Date.now()+残り時間 で確定した絶対終了時刻）を使用。
-    // 旧データ互換: timerEndMs がない場合は timerRef + timerRemainingMs で終了時刻を推定。
+    // サーバー時刻基準（warmupRem）で残り時間を計算する。
+    // snapshot 毎にこの関数が再呼び出しされるため、warmup は毎回最新に更新される。
     clearInterval(warmupTimerInterval);
     warmupTimerInterval = null;
-    const timerEndMs = warmup.timerEndMs != null ? warmup.timerEndMs
-      : (warmup.timerRef?.toMillis ? warmup.timerRef.toMillis() + (warmup.timerRemainingMs ?? 0) : null);
     const timerEl = document.getElementById('vs-timer');
     function tick() {
       if (!timerEl) return;
-      const running = !warmup.timerPaused && timerEndMs != null;
-      const rem = running
-        ? Math.max(0, timerEndMs - Date.now())
-        : (warmup.timerRemainingMs ?? 0);
+      const { rem, running } = warmupRem(warmup);
       showTimerDisplay(timerEl, rem);
       if (rem === 0 && running) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
     }
     tick();
-    if (!warmup.timerPaused && timerEndMs != null) {
+    if (warmupRem(warmup).running) {
       warmupTimerInterval = setInterval(tick, 500);
     }
   }
@@ -2209,12 +2318,45 @@
     const athletes  = settings.athletes  || [];
     const idx       = settings.currentIndex ?? 0;
     const total     = athletes.length;
-    const durationMs= settings.durationMs || 5000;
     if (total === 0) return;
-    const ath = athletes[Math.min(idx, total - 1)];
 
-    document.getElementById('intro-event-lbl').textContent   = tournamentName;
-    document.getElementById('intro-counter-lbl').textContent = `${idx + 1} / ${total}`;
+    document.getElementById('intro-event-lbl').textContent = tournamentName;
+
+    const titleScr  = document.getElementById('intro-title-screen');
+    const rosterScr = document.getElementById('intro-roster-screen');
+    const _layout   = document.getElementById('intro-layout');
+    const _card     = document.getElementById('intro-card');
+
+    // ループ開始・一周ごとのタイトルフェーズ（currentIndex = -1）: 「選手紹介」画面を表示
+    if (idx < 0) {
+      _card.classList.remove('intro-anim');
+      _card.style.visibility = 'hidden';
+      rosterScr.classList.remove('active');
+      _layout.classList.remove('intro-flash');
+      titleScr.classList.remove('active');
+      void titleScr.offsetWidth;
+      titleScr.classList.add('active');
+      _layout.classList.add('intro-flash');
+      return;
+    }
+    titleScr.classList.remove('active');
+
+    // ループ最後の選手一覧ページ（currentIndex = 選手数）
+    if (idx >= total) {
+      _card.classList.remove('intro-anim');
+      _card.style.visibility = 'hidden';
+      renderIntroRoster(athletes);
+      _layout.classList.remove('intro-flash');
+      rosterScr.classList.remove('active');
+      void rosterScr.offsetWidth;
+      rosterScr.classList.add('active');
+      _layout.classList.add('intro-flash');
+      return;
+    }
+    rosterScr.classList.remove('active');
+    _card.style.visibility = '';
+
+    const ath = athletes[Math.min(idx, total - 1)];
 
     const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
     const orderStr    = ath.order ? `No. ${ath.order}` : '';
@@ -2239,15 +2381,49 @@
     void card.offsetWidth;
     layout.classList.add('intro-flash');
     card.classList.add('intro-anim');
-
-    // プログレスバー（durationMs かけて 0→100% で残り時間を表示）
-    const fill = document.getElementById('intro-progress-fill');
-    fill.style.transition = 'none';
-    fill.style.width = '0%';
-    void fill.offsetWidth;
-    fill.style.transition = `width ${durationMs}ms linear`;
-    fill.style.width = '100%';
   }
+
+  // 選手一覧ページ描画（クラス見出し＋No./氏名/所属。人数に応じて列数・文字サイズを自動調整）
+  function renderIntroRoster(athletes) {
+    const grid = document.getElementById('intro-roster-grid');
+    if (!grid) return;
+    const n = athletes.length;
+    const cols = n <= 8 ? 1 : n <= 18 ? 2 : 3;
+    const rowsPerCol = Math.ceil(n / cols) + 2;                  // クラス見出しぶんの余裕
+    const fs = Math.max(2.1, Math.min(4.5, 66 / rowsPerCol));    // cqh
+    grid.style.columnCount = cols;
+    grid.style.fontSize = fs + 'cqh';
+    let html = '', lastGroup = null;
+    athletes.forEach(a => {
+      const group = [a.class, a.gender].filter(Boolean).join(' ');
+      if (group && group !== lastGroup) {
+        html += `<div class="intro-roster-head">${group}</div>`;
+        lastGroup = group;
+      }
+      const name = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : (a.name1 || '');
+      const club = a.type === 'synchro' && a.club2 && a.club1 !== a.club2
+                   ? `${a.club1 || ''} / ${a.club2 || ''}` : (a.club1 || '');
+      html += `<div class="intro-roster-item"><span class="rno num">${a.order ? 'No.' + a.order : ''}</span><span>${name}</span><span class="rclub">${club}</span></div>`;
+    });
+    grid.innerHTML = html;
+  }
+
+  // 選手紹介ループ中の会場練習残り時間（右上）
+  // warmupSettings を常時監視し、タイマーがカウント中のみ表示する。
+  // （要素は vs-intro 内にあるため、紹介画面表示中しか見えない＝他画面には影響しない）
+  setInterval(() => {
+    const el = document.getElementById('intro-warmup-timer');
+    if (!el) return;
+    const w = tournamentData?.warmupSettings || {};
+    const { rem, running } = warmupRem(w);   // サーバー時刻補正で会場ディスプレイ用PCと一致
+    if (!running || rem <= 0) { el.style.display = 'none'; return; }
+    const totalSec = Math.ceil(rem / 1000);
+    const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const ss = String(totalSec % 60).padStart(2, '0');
+    el.innerHTML = `<span class="lbl">会場練習</span>${mm}:${ss}`;
+    el.classList.toggle('warning', rem < 60000);
+    el.style.display = 'block';
+  }, 500);
 
   // ---- 決勝スタートリスト描画 ----
   function renderFinalStartlist(target) {

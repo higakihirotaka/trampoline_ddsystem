@@ -149,27 +149,37 @@
     document.getElementById('nav-display').href = `display.html?event=${eventId}`;
     document.getElementById('nav-admin').href   = `admin_menu.html?event=${eventId}`;
 
-    let timerInterval = null, warmupData = {}, _serverOffset = 0, _timerRefMs = null;
+    let timerInterval = null, warmupData = {}, _wuServerOffset = 0, _wuRefMs = null;
+    // サーバー時刻補正（会場ディスプレイ/制御PC/E審判画面と同一ロジック）。
+    // timerRef(=serverTimestamp) 受信時に自端末の時計とサーバー時刻の差を測り補正するため、
+    // 端末ごとの時計ズレがあっても表示が一致する。offset は refMs 変化時のみ測定する。
+    // ※以前は書き込まれない timerEndTime を参照しておりカウントしなかったが、
+    //   timerRef + timerRemainingMs 方式に統一して復活させる。
+    function warmupRem(w) {
+        if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
+        if (w.timerRef?.toMillis) {
+            const refMs = w.timerRef.toMillis();
+            if (refMs !== _wuRefMs) {
+                const newOffset = refMs - Date.now();
+                // 初回 or 大きな食い違い時のみ採用（微小な遅延ゆらぎでの毎回スナップを防ぐ）。
+                if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+                _wuRefMs = refMs;
+            }
+            const endServer = refMs + (w.timerRemainingMs ?? 0);
+            const nowServer = Date.now() + _wuServerOffset;
+            return { rem: Math.max(0, endServer - nowServer), running: true };
+        }
+        if (w.timerEndMs != null) return { rem: Math.max(0, w.timerEndMs - Date.now()), running: true };
+        return { rem: w.timerRemainingMs ?? 0, running: false };
+    }
     function startTimerTick() {
         clearInterval(timerInterval);
-        // timerRef が変わった時（タイマー操作時）だけ再計算する
-        // 古い timerRef で毎回再計算するとオフセットがずれてタイマーが狂う
-        if (warmupData.timerRef?.toMillis) {
-            const refMs = warmupData.timerRef.toMillis();
-            if (refMs !== _timerRefMs) {
-                _serverOffset = refMs - Date.now();
-                _timerRefMs   = refMs;
-            }
-        }
         const el = document.getElementById('timer-val');
         function tick() {
-            const wu = warmupData;
-            let ms, running;
-            if (wu.timerPaused || !wu.timerEndTime) { ms = wu.timerRemainingMs ?? 0; running = false; }
-            else { ms = Math.max(0, wu.timerEndTime - (Date.now() + _serverOffset)); running = true; }
-            const s = Math.ceil(ms / 1000);
+            const { rem, running } = warmupRem(warmupData);
+            const s = Math.ceil(rem / 1000);
             el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-            el.className = 'timer-val' + (ms === 0 ? ' done' : ms < 60000 ? ' warning' : running ? ' running' : '');
+            el.className = 'timer-val' + (rem === 0 ? ' done' : rem < 60000 ? ' warning' : running ? ' running' : '');
         }
         tick(); timerInterval = setInterval(tick, 500);
     }

@@ -392,6 +392,10 @@
                     <input type="number" id="intro-duration-val" class="val-box" min="3" max="30" value="5">
                     <span class="unit">秒</span>
                 </div>
+                <label style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:0.85rem;font-weight:700;color:var(--text-main);cursor:pointer;">
+                    <input type="checkbox" id="intro-show-roster" checked style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+                    ループの最後に選手一覧ページを表示
+                </label>
                 <div class="intro-mode-wrap">
                     <button class="intro-mode-btn active" data-mode="qualifying">予選試技順</button>
                     <button class="intro-mode-btn" data-mode="final">決勝試技順</button>
@@ -533,6 +537,12 @@
     let warmupData     = {};
     let classCombos    = [];  // 既存クラス一覧
     let ctrlTimerInterval = null;
+    // 会場練習タイマーのサーバー時刻補正（timerRef 変化時のみ測定）。
+    // 会場ディスプレイ用PCと制御PCでシステムクロックがずれても表示を一致させるため。
+    let _wuServerOffset = 0, _wuRefMs = null;
+    // 稼働中は制御PCが一定間隔で新しい timerRef を配信し、途中参加/リロードした端末を再較正させる。
+    let _wuLastRefresh = 0;
+    const WU_REFRESH_MS = 10000;
 
     const SCREEN_LABELS = {
         score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
@@ -663,15 +673,17 @@
                 const sel = getSelectedIntroAthletes();
                 if (sel.length === 0) { alert('表示する選手を選択してください'); return; }
                 const durMs = Number(document.getElementById('intro-duration-val').value) * 1000;
+                const showRoster = document.getElementById('intro-show-roster')?.checked ?? true;
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: 'intro',
                     'rankingCarousel.active': false,
                     'introSettings.athletes': sel,
                     'introSettings.durationMs': durMs,
-                    'introSettings.currentIndex': 0,
+                    'introSettings.currentIndex': -1,  // -1 = ループ開始時の「選手紹介」タイトル画面
+                    'introSettings.showRoster': showRoster,
                     'introSettings.isRunning': true
                 });
-                startIntroSequence(sel, durMs);
+                startIntroSequence(sel, durMs, showRoster);
             } else if (pendingScreen === 'final_startlist') {
                 const target = document.getElementById('fsl-target')?.value || '';
                 if (!target) {
@@ -773,6 +785,7 @@
     let introAthletes   = [];
     let introTimerItv   = null;
     let introCurIdx     = 0;
+    let introShowRoster = false;   // ループ最後に選手一覧ページを挟むか
     let introAthList    = [];
     let introClassDefs  = [];
     let introFilterKey  = '';          // '' = 全員, 'class|gender|type' = 絞り込み
@@ -901,7 +914,11 @@
     function updateIntroStatus(idx, total) {
         const st = document.getElementById('intro-run-status');
         if (!st) return;
-        st.textContent = `紹介中: ${idx + 1} / ${total} 人目`;
+        st.textContent = idx < 0
+            ? '「選手紹介」タイトル表示中…'
+            : idx >= total
+              ? '選手一覧ページ表示中…'
+              : `紹介中: ${idx + 1} / ${total} 人目`;
         st.className = 'intro-run-status running';
     }
 
@@ -913,16 +930,19 @@
         if (stopBtn) stopBtn.style.display = 'none';
     }
 
-    function startIntroSequence(athletes, durationMs) {
+    function startIntroSequence(athletes, durationMs, showRoster) {
         stopIntroSequence();
-        introAthList = athletes;
-        introCurIdx  = 0;
-        updateIntroStatus(0, athletes.length);
+        introAthList    = athletes;
+        introShowRoster = !!showRoster;
+        introCurIdx     = -1;  // タイトル画面から開始（最初の刻みで1人目へ）
+        updateIntroStatus(-1, athletes.length);
         document.getElementById('intro-stop-btn').style.display = '';
         introTimerItv = setInterval(async () => {
             introCurIdx++;
-            if (introCurIdx >= introAthList.length) {
-                introCurIdx = 0; // ループ: 先頭に戻る
+            // 末尾: 一覧ONなら 選手数（=一覧ページ）まで進み、超えたらタイトル(-1)へ戻る（毎周）
+            const maxIdx = introAthList.length - 1 + (introShowRoster ? 1 : 0);
+            if (introCurIdx > maxIdx) {
+                introCurIdx = -1; // 一周 → 毎回「選手紹介」タイトルから
             }
             await updateDoc(doc(db,'tournaments',eventId), {
                 'introSettings.currentIndex': introCurIdx
@@ -940,8 +960,29 @@
     });
 
     // ---- タイマー制御 ----
-    // timerRef（Firestore serverTimestamp）+ timerRemainingMs から終了時刻を計算。
-    // クライアント側の _serverOffset を使わないため、どのデバイス・どのタイミングでも一致する。
+    // サーバー時刻(timerRef=serverTimestamp)を基準に残り時間を計算する。
+    // 各PCは timerRef 受信時に自分の時計とサーバー時刻の差(_wuServerOffset)を測り、
+    // それで補正するため、PC間でシステムクロックがずれても表示が一致する。
+    function computeWarmupRem(wu) {
+        if (!wu || wu.timerPaused) return { rem: (wu && wu.timerRemainingMs) ?? 0, running: false };
+        if (wu.timerRef?.toMillis) {
+            const refMs = wu.timerRef.toMillis();
+            // ※ offset は refMs が変わった時だけ測る。毎回測ると refMs-Date.now() が相殺して固まる。
+            // 初回 or 大きな食い違い時のみ採用（微小な遅延ゆらぎでの毎回スナップ＝ガタつきを防ぐ）。
+            if (refMs !== _wuRefMs) {
+                const newOffset = refMs - Date.now();
+                if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+                _wuRefMs = refMs;
+            }
+            const endServer = refMs + (wu.timerRemainingMs ?? 0);
+            const nowServer = Date.now() + _wuServerOffset;
+            return { rem: Math.max(0, endServer - nowServer), running: true };
+        }
+        // timerRef 未確定（自PCで書込んだ直後の一瞬）: 自PC時計の絶対終了時刻で暫定表示
+        if (wu.timerEndMs != null) return { rem: Math.max(0, wu.timerEndMs - Date.now()), running: true };
+        return { rem: wu.timerRemainingMs ?? 0, running: false };
+    }
+
     function syncCtrlTimer() {
         clearInterval(ctrlTimerInterval); ctrlTimerInterval = null;
         const timerEl  = document.getElementById('ctrl-timer');
@@ -950,21 +991,25 @@
 
         function tick() {
             const wu = warmupData;
-            // timerEndMs（開始時に Date.now()+残り時間 で確定した絶対終了時刻）を使用。
-            // 旧データ互換: timerEndMs がない場合は timerRef + timerRemainingMs で終了時刻を推定。
-            const timerEndMs = wu.timerEndMs != null ? wu.timerEndMs
-                : (wu.timerRef?.toMillis ? wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0) : null);
-            const running = !wu.timerPaused && timerEndMs != null;
-            let rem;
-            if (running) {
-                rem = Math.max(0, timerEndMs - Date.now());
-            } else {
-                rem = wu.timerRemainingMs ?? 0;
-            }
+            const { rem, running } = computeWarmupRem(wu);
             renderCtrlTimer(timerEl, rem, running);
             startBtn.textContent = '▶ 開始';
             startBtn.disabled = running || rem === 0;
             pauseBtn.disabled = !running;
+
+            // 定期リフレッシュ: 稼働中に新しい timerRef を配り、途中でリロードした
+            // 会場ディスプレイ用PC等を10秒以内に再較正させる（残り2秒未満では再基準化しない）。
+            // 残り時間は制御PC自身のローカル絶対終了時刻(timerEndMs)から算出して配信する。
+            // ← 表示推定(rem)を書き戻すと latency ぶんの累積ドリフトが乗るため、それを避ける。
+            // timerEndMs 自体は据え置き（絶対終了時刻のアンカー）。
+            const localRem = wu.timerEndMs != null ? Math.max(0, wu.timerEndMs - Date.now()) : rem;
+            if (running && localRem > 2000 && Date.now() - _wuLastRefresh > WU_REFRESH_MS) {
+                _wuLastRefresh = Date.now();
+                updateDoc(doc(db,'tournaments',eventId), {
+                    'warmupSettings.timerRef':        serverTimestamp(),
+                    'warmupSettings.timerRemainingMs':localRem,
+                }).catch(() => {});
+            }
 
             if (rem === 0 && running) {
                 clearInterval(ctrlTimerInterval); ctrlTimerInterval = null;
@@ -972,7 +1017,9 @@
                 if (wu.timerRepeat) {
                     const defaultMs = wu.timerDefaultMs ?? 5 * 60 * 1000;
                     setTimeout(async () => {
+                        _wuLastRefresh = Date.now();
                         await updateDoc(doc(db,'tournaments',eventId), {
+                            'warmupSettings.timerRef':        serverTimestamp(),
                             'warmupSettings.timerEndMs':      Date.now() + defaultMs,
                             'warmupSettings.timerRemainingMs':defaultMs,
                             'warmupSettings.timerPaused':     false,
@@ -982,10 +1029,7 @@
             }
         }
         tick();
-        const wu = warmupData;
-        const _timerEndMs = wu.timerEndMs != null ? wu.timerEndMs
-            : (wu.timerRef?.toMillis ? wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0) : null);
-        if (!wu.timerPaused && _timerEndMs != null) {
+        if (computeWarmupRem(warmupData).running) {
             ctrlTimerInterval = setInterval(tick, 500);
         }
     }
@@ -999,22 +1043,25 @@
     document.getElementById('timer-start-btn').addEventListener('click', async () => {
         const rem = warmupData.timerRemainingMs ?? 0;
         if (rem <= 0) return;
-        // Date.now() + 残り時間 = 絶対終了時刻をその場で計算して書き込む。
-        // serverTimestamp を待たないので開始と同時に正確な残り時間を表示できる。
+        _wuLastRefresh = Date.now();
+        // timerRef=serverTimestamp を全PC共通の時刻基準にする。
+        // timerEndMs は timerRef 確定までの一瞬、この操作PC自身の即時表示に使うフォールバック。
         await updateDoc(doc(db,'tournaments',eventId), {
+            'warmupSettings.timerRef':        serverTimestamp(),
             'warmupSettings.timerEndMs':      Date.now() + rem,
             'warmupSettings.timerRemainingMs':rem,
             'warmupSettings.timerPaused':     false,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-pause-btn').addEventListener('click', async () => {
-        const wu = warmupData;
-        if (wu.timerEndMs == null) return;
-        const rem = Math.max(0, wu.timerEndMs - Date.now());
+        // サーバー時刻補正込みで残りを確定してから固定値として保存（どのPCで押しても同じ結果）。
+        const { rem, running } = computeWarmupRem(warmupData);
+        if (!running) return;
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-reset-btn').addEventListener('click', async () => {
@@ -1023,6 +1070,7 @@
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
     });
     // ---- タイマー手入力：onSnapshot で上書きされないよう「更新」ボタンでのみ反映 ----
@@ -1041,6 +1089,7 @@
             'warmupSettings.timerRemainingMs': ms,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
         // 入力欄をクリア
         minEl.value = ''; secEl.value = '';
@@ -1063,6 +1112,7 @@
                 'warmupSettings.timerRemainingMs': ms,
                 'warmupSettings.timerPaused':      true,
                 'warmupSettings.timerEndMs':       null,
+                'warmupSettings.timerRef':         null,
             }).catch(e => alert('失敗: '+e.message));
         });
     });

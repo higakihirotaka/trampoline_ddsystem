@@ -221,6 +221,10 @@
     let judgeName = '';
     let currentTourData = null;
     let warmupData = {}, warmupInterval = null;
+    // 会場練習タイマーのサーバー時刻補正（会場ディスプレイ/制御PCと同一ロジック）。
+    // timerRef(=serverTimestamp) 受信時に自端末の時計とサーバー時刻の差を測り補正するため、
+    // 端末ごとの時計ズレがあっても表示が一致する。offset は refMs 変化時のみ測定する。
+    let _wuServerOffset = 0, _wuRefMs = null;
 
     // ---- ラウンド表示名 ----
     function roundLabel(r) {
@@ -258,10 +262,25 @@
     exitLink.href = `judge_role_select.html?event=${eventId}`;
 
     // ---- 会場練習タイマー（カウント中のみ中央表示・大画面と同じ計算で端末間同期） ----
-    function warmupEndMs(wu) {
-        // 開始時に Date.now()+残り時間 で確定した絶対終了時刻。旧データは timerRef + 残り時間で推定。
-        return wu.timerEndMs != null ? wu.timerEndMs
-            : (wu.timerRef?.toMillis ? wu.timerRef.toMillis() + (wu.timerRemainingMs ?? 0) : null);
+    function warmupRem(w) {
+        // サーバー時刻基準で残りを算出（各端末が timerRef で自分の時計を補正）。
+        if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
+        if (w.timerRef?.toMillis) {
+            const refMs = w.timerRef.toMillis();
+            if (refMs !== _wuRefMs) {
+                const newOffset = refMs - Date.now();
+                // 初回 or 大きな食い違い時のみ採用（微小な遅延ゆらぎでの毎回スナップを防ぐ）。
+                // 途中でリロードした端末は制御PCの定期配信で届く新鮮な ref で再較正される。
+                if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+                _wuRefMs = refMs;
+            }
+            const endServer = refMs + (w.timerRemainingMs ?? 0);
+            const nowServer = Date.now() + _wuServerOffset;
+            return { rem: Math.max(0, endServer - nowServer), running: true };
+        }
+        // timerRef 未確定（旧データ等）: 絶対終了時刻で暫定表示
+        if (w.timerEndMs != null) return { rem: Math.max(0, w.timerEndMs - Date.now()), running: true };
+        return { rem: w.timerRemainingMs ?? 0, running: false };
     }
     function startWarmupTick() {
         clearInterval(warmupInterval); warmupInterval = null;
@@ -271,10 +290,7 @@
             [warmupData.class1, warmupData.class2].filter(Boolean).join(' / ');
 
         function tick() {
-            const wu = warmupData;
-            const endMs = warmupEndMs(wu);
-            const running = !wu.timerPaused && endMs != null;       // 設定だけ/一時停止は false
-            const rem = running ? Math.max(0, endMs - Date.now()) : 0;
+            const { rem, running } = warmupRem(warmupData);
             if (!running || rem <= 0) {                              // カウント中(残り>0)のみ表示
                 overlay.style.display = 'none';
                 clearInterval(warmupInterval); warmupInterval = null;
@@ -286,9 +302,8 @@
             overlay.style.display = '';
         }
         tick();
-        const endMs0 = warmupEndMs(warmupData);
-        const running0 = !warmupData.timerPaused && endMs0 != null && (endMs0 - Date.now()) > 0;
-        if (running0) warmupInterval = setInterval(tick, 250);
+        const r0 = warmupRem(warmupData);
+        if (r0.running && r0.rem > 0) warmupInterval = setInterval(tick, 250);
     }
 
     // ---- 初期化 ----
