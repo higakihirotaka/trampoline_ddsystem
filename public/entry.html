@@ -312,30 +312,14 @@
         for (let i = 1; i <= 10; i++) {
             const skillId = savedSkillIds[i-1] || "";
             const skill = skillMaster.find(s => s.id === skillId) || {};
-            const hasSoma = skill.direction && skill.direction !== '基礎技';
-            // 2回宙は doubleSomaGroup で細分化したオプション値にマップ
-            let somaVal = '';
-            if (hasSoma) {
-                if (skill.somersaultType === '2回宙') {
-                    somaVal = skill.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）';
-                } else {
-                    somaVal = skill.somersaultType || '';
-                }
-            }
+            // 2段目セレクタ（宙系 or 基礎技の開始姿勢）は updateOptions() が系統に応じて動的構築する
             const checkStyle = designatedDDCount > 0 ? 'text-align:center' : 'display:none';
             rows += `<tr id="row-${i}"><td>${i}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
                     <option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方系</option>
                     <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方系</option>
                     <option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎技</option></select></td>
-                <td><select id="soma-${i}" onchange="updateOptions(${i})" style="${hasSoma ? '' : 'visibility:hidden'}">
-                    <option value="">--</option>
-                    <option value="1回宙"       ${somaVal==='1回宙'       ?'selected':''}>1回宙系</option>
-                    <option value="2回宙（1.5以下）" ${somaVal==='2回宙（1.5以下）'?'selected':''}>2回宙系（1.5以下）</option>
-                    <option value="2回宙（1.6以上）" ${somaVal==='2回宙（1.6以上）'?'selected':''}>2回宙系（1.6以上）</option>
-                    <option value="3回宙"       ${somaVal==='3回宙'       ?'selected':''}>3回宙系</option>
-                    <option value="4回宙"       ${somaVal==='4回宙'       ?'selected':''}>4回宙系</option>
-                </select></td>
+                <td><select id="soma-${i}" onchange="updateOptions(${i})"></select></td>
                 <td><select id="skill-${i}" onchange="calcTotal()"></select></td>
                 <td><span id="dd-${i}">0.0</span></td>
                 <td class="check-cell" style="${checkStyle}"><input type="checkbox" id="chk-${i}" onchange="onCheckChange(${i})"></td></tr>`;
@@ -385,16 +369,36 @@
         Promise.allSettled([setupTeamReference(), setupPastSelfReference()]);
     }
 
+    // 2段目セレクタの選択肢（系統で出し分け: 基礎技=開始姿勢 / 宙技=宙系）
+    const SOMA_OPTIONS = {
+        basic:  [['','--（全て）'], ['スタンドから','スタンドから'], ['腰から','腰から'], ['腹から','腹から'], ['背から','背から']],
+        aerial: [['','--'], ['1回宙','1回宙系'], ['2回宙（1.5以下）','2回宙系（1.5以下）'], ['2回宙（1.6以上）','2回宙系（1.6以上）'], ['3回宙','3回宙系'], ['4回宙','4回宙系']]
+    };
+
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
         const dir    = document.getElementById(`dir-${idx}`).value;
         const somaEl = document.getElementById(`soma-${idx}`);
         const sel    = document.getElementById(`skill-${idx}`);
         const currentVal = sel.value;
-        // 基礎技は宙系不要
+        const isBasic = dir === '基礎技';
+        // 2段目セレクタ: 系統に応じて選択肢を再構築（基礎技でも表示し、開始姿勢を選べるようにする）
         if (somaEl) {
-            const showSoma = dir && dir !== '基礎技';
+            const showSoma = !!dir;
             somaEl.style.visibility = showSoma ? '' : 'hidden';
-            if (!showSoma) somaEl.value = '';
+            // 復元したい値: selectedId 指定時はその技から、なければ現在値を維持
+            let want = somaEl.value;
+            if (selectedId) {
+                const sk = skillMaster.find(s => s.id === selectedId);
+                if (sk) {
+                    want = (sk.direction === '基礎技') ? (sk.somersaultType || '')
+                         : (sk.somersaultType === '2回宙')
+                             ? (sk.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）')
+                             : (sk.somersaultType || '');
+                }
+            }
+            const opts = isBasic ? SOMA_OPTIONS.basic : SOMA_OPTIONS.aerial;
+            somaEl.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+            somaEl.value = (showSoma && opts.some(([v]) => v === want)) ? want : '';
         }
         const soma = somaEl?.value || '';
         // '2回宙（1.5以下）' / '2回宙（1.6以上）' を somersaultType + doubleSomaGroup にマップ
