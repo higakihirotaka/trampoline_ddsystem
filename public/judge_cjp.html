@@ -193,12 +193,13 @@
     // CJPペナルティ（読込なし＝常にCJP入力。日本語で選択し Display Text(英字) も保持・保存）
     const CJP_PENALTIES = [
       { ja:'服装・装飾品の違反',                  en:'Violation of dress / jewellery',              display:'DRESS VIOLATION',   points:0.2 },
-      { ja:'国名・連盟エンブレムの違反',            en:'Violation of National Identification / emblem', display:'EMBLEM VIOLATION',  points:0.2 },
       { ja:'規定のウォームアップ時間超過',          en:'Abuse of warm-up time limit',                 display:'OVER WARM-UP TIME', points:0.2 },
-      { ja:'演技開始合図後の時間超過（61〜90秒）',   en:'Exceeded time limit after CJP signal (61s)',  display:'START DELAY 61S',   points:0.2 },
-      { ja:'演技開始合図後の時間超過（91〜120秒）',  en:'Exceeded time limit after CJP signal (91s)',  display:'START DELAY 91S',   points:0.4 },
-      { ja:'演技開始合図後の時間超過（121〜180秒）', en:'Exceeded time limit after CJP signal (121s)', display:'START DELAY 121S',  points:0.6 },
+      { ja:'演技開始合図後の時間超過（61〜90秒）',   en:'Exceeded time limit after CJP signal (61s)',  display:'START DELAY',       points:0.2 },
+      { ja:'演技開始合図後の時間超過（91〜120秒）',  en:'Exceeded time limit after CJP signal (91s)',  display:'START DELAY',       points:0.4 },
+      { ja:'演技開始合図後の時間超過（121〜180秒）', en:'Exceeded time limit after CJP signal (121s)', display:'START DELAY',       points:0.6 },
       { ja:'演技中の補助員からの声かけ・合図',        en:'Talking / giving signal by spotter',          display:'SPOTTER TALKING',   points:0.6 },
+      { ja:'演技中のコーチからの声かけ・合図',        en:'Talking / giving signal by coach',            display:'COACH TALKING',     points:0.6 },
+      { ja:'特別要求の欠如',                        en:'Missing special requirement',                 display:'MISSING SPECIAL REQ', points:2.0 },
     ];
     let appliedPenalties = []; // 選択中の違反 [{ja,en,display,points}]
     let _penDirty = false;     // CJPがペナルティを操作したか（renderScoresでの上書き抑制）
@@ -1482,7 +1483,7 @@
         const totEl = document.getElementById('res-total');
         const summary = document.querySelector('.score-summary');
 
-        const d    = parseFloat(dEl.innerText) || 0;
+        let d      = parseFloat(dEl.innerText) || 0;
         const eVal = ec ? (hasJudgeData ? ec.execution : 0)
                         : (parseFloat(eEl.innerText) || 0);
         const tRaw = parseFloat(document.getElementById('tof').value) || 0;
@@ -1494,11 +1495,37 @@
         const vLimit = ec ? (ec.vLimit ?? 0)
                           : (parseInt(document.getElementById('valid-count').value) || 0);
 
-        // --- 各項目の状態: 'green' | 'red' | 'blank'（未入力） ---
-        // D: D審判が確定するまで非表示(blank)。確定後は申告相違で赤、無ければ緑（＝文字色用）
-        const dState = !_dConfirmed ? 'blank' : (_dChanged ? 'red' : 'green');
-        // 枠線用: Dの相違（変更有）では枠を赤にしない。未確定は黄、確定済みは緑扱い
-        const dBorder = !_dConfirmed ? 'blank' : 'green';
+        // --- 各項目の状態: 'green' | 'red' | 'yellow' | 'blank'（未入力） ---
+        // D: 手動入力モードか、D審判の確定有無で分岐
+        const dManual = (dMode === 'manual');
+        // 手動: SUM(合計)セルと各技DDから完成度を判定
+        let dComplete = false;
+        if (dManual) {
+            const ddCells = document.querySelectorAll('.d-dd');
+            let filled = 0;
+            for (let i = 0; i < vLimit; i++) {
+                const t = (ddCells[i]?.textContent || '').trim();
+                if (t !== '' && t !== '-') filled++;
+            }
+            const sumTxt = (document.getElementById('dd-total-cell')?.textContent || '').trim();
+            const sumFilled = sumTxt !== '' && sumTxt !== '-';
+            // 各技を1つも入れていない＝SUM直接入力 → SUMが入っていれば緑
+            // 各技を入力中 → 有効本数すべて入力で緑
+            dComplete = (filled === 0) ? sumFilled : (filled >= vLimit);
+            // 内訳のD値は SUM(合計)セルの値を使う
+            const sumVal = parseFloat(sumTxt);
+            if (!isNaN(sumVal)) d = sumVal;
+        }
+        // 手動入力時は D審判の確定が無くても内訳に表示する
+        const dShow = dManual || _dConfirmed;
+        // 文字色用: 手動=完成で緑・未完成で黄／通常=未確定は非表示、確定後は相違で赤・無ければ緑
+        const dState = dManual
+            ? (dComplete ? 'green' : 'yellow')
+            : (!_dConfirmed ? 'blank' : (_dChanged ? 'red' : 'green'));
+        // 枠線用: 手動=完成で緑・未完成で黄(blank)／通常=未確定は黄、確定済みは緑
+        const dBorder = dManual
+            ? (dComplete ? 'green' : 'blank')
+            : (!_dConfirmed ? 'blank' : 'green');
         // E: 全審判が有効本数分入力済みなら緑表示、未完了は空欄
         const eComplete = ec ? isEComplete(ec) : (eEl.innerText.trim() !== '');
         const eState = eComplete ? 'green' : 'blank';
@@ -1511,13 +1538,13 @@
         const hState = hEntered ? (hdInRange ? 'green' : 'red') : 'blank';
 
         // --- 値の表示（未入力/未完了/D未確定は空欄） ---
-        dEl.innerText = _dConfirmed ? d.toFixed(1) : '';
+        dEl.innerText = dShow ? d.toFixed(1) : '';
         eEl.innerText = eComplete ? (fType === 'synchro' ? eVal.toFixed(3) : eVal.toFixed(1)) : '';
         tEl.innerText = tEntered ? t.toFixed(3) : '';
         hEl.innerText = hEntered ? h.toFixed(3) : '';
         const penEl = document.getElementById('res-pen');
         if (penEl) { penEl.innerText = p > 0 ? `-${p.toFixed(1)}` : '0.0'; penEl.style.color = p > 0 ? _BD_RED : ''; }
-        const total = Math.max(0, (_dConfirmed ? d : 0) + (eComplete ? eVal : 0) + (tEntered ? t : 0) + (hEntered ? h : 0) - p);
+        const total = Math.max(0, (dShow ? d : 0) + (eComplete ? eVal : 0) + (tEntered ? t : 0) + (hEntered ? h : 0) - p);
         totEl.innerText = total.toFixed(2);
 
         // --- 枠線色（赤 > 黄 > 緑） ---
@@ -1527,7 +1554,7 @@
                           : _BD_GREEN;
 
         // --- 文字色 ---
-        const colorOf = st => st === 'red' ? _BD_RED : st === 'green' ? _BD_GREEN : '';
+        const colorOf = st => st === 'red' ? _BD_RED : st === 'green' ? _BD_GREEN : st === 'yellow' ? _BD_YELLOW : '';
         dEl.style.color = colorOf(dState);
         eEl.style.color = colorOf(eState);
         tEl.style.color = colorOf(tState);
@@ -1631,18 +1658,19 @@
     function pickStartDelayPenalty(delaySec, startPen) {
         const pts = Number(startPen);
         const sec = Number(delaySec);
-        const find = disp => CJP_PENALTIES.find(p => p.display === disp);
+        // START DELAY は display 共通なので points(0.2/0.4/0.6)で区分を特定
+        const byPts = pt => CJP_PENALTIES.find(p => p.display === 'START DELAY' && Math.abs(p.points - pt) < 1e-9);
         // 点数優先（QIRA算出のペナルティ点から該当区分＝秒数レンジを予測）
         if (!isNaN(pts) && pts > 0.05) {
-            if (pts >= 0.55) return find('START DELAY 121S'); // -0.6 → 121〜180秒
-            if (pts >= 0.35) return find('START DELAY 91S');  // -0.4 → 91〜120秒
-            return find('START DELAY 61S');                    // -0.2 → 61〜90秒
+            if (pts >= 0.55) return byPts(0.6); // -0.6 → 121〜180秒
+            if (pts >= 0.35) return byPts(0.4); // -0.4 → 91〜120秒
+            return byPts(0.2);                   // -0.2 → 61〜90秒
         }
         // 点数が無い/0でも、遅延秒が閾値を超えていれば秒数から判定（保険）
         if (!isNaN(sec)) {
-            if (sec >= 121) return find('START DELAY 121S');
-            if (sec >= 91)  return find('START DELAY 91S');
-            if (sec >= 61)  return find('START DELAY 61S');
+            if (sec >= 121) return byPts(0.6);
+            if (sec >= 91)  return byPts(0.4);
+            if (sec >= 61)  return byPts(0.2);
         }
         return null;
     }
@@ -1851,6 +1879,7 @@
                 totalCell.contentEditable = 'true'; totalCell.classList.add('d-manual-cell');
                 if (totalCell.textContent.trim() === '-') totalCell.textContent = '';
             }
+            calc(); // 切替直後に内訳D（緑/黄）を即反映
         } else {
             ddCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
             execCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
