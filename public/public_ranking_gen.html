@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>観客用順位表 — 書き出し</title>
+  <style>
+    :root { --accent:#1a3a6b; --green:#2e7d32; --red:#c62828; }
+    * { box-sizing:border-box; }
+    body { font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin:0; background:#f4f6fa; color:#111; }
+    .topbar { background:var(--accent); color:#fff; padding:12px 18px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    .topbar h1 { font-size:1.05rem; margin:0; font-weight:800; }
+    .topbar a { color:#cfe0ff; font-size:.8rem; text-decoration:none; }
+    .wrap { max-width:920px; margin:0 auto; padding:16px; }
+    .meta { background:#fff; border-radius:12px; padding:14px 16px; margin-bottom:14px; box-shadow:0 2px 10px rgba(0,0,0,.05); font-size:.85rem; }
+    .meta b { color:var(--accent); }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+    .btn { padding:8px 16px; border:none; border-radius:8px; font-weight:700; font-size:.82rem; cursor:pointer; }
+    .btn-all { background:var(--accent); color:#fff; }
+    .btn-pub { background:#1565c0; color:#fff; padding:5px 12px; font-size:.76rem; }
+    .btn-pub.done { background:#e8f0fe; color:#1565c0; border:1px solid #90caf9; }
+    .btn-stop { background:#fff; color:var(--red); border:1px solid #ef9a9a; padding:5px 10px; font-size:.72rem; }
+    .btn:disabled { opacity:.5; cursor:default; }
+    table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    th, td { padding:9px 10px; text-align:left; font-size:.82rem; border-bottom:1px solid #eef1f5; }
+    th { background:#eef2f8; color:#3a4a63; font-weight:800; font-size:.72rem; letter-spacing:.03em; }
+    td.c { text-align:center; }
+    .cls-name { font-weight:700; }
+    .cls-sub { color:#78889c; font-size:.7rem; }
+    .status { font-size:.72rem; color:#78889c; }
+    .status.pub { color:var(--green); font-weight:700; }
+    .rnd-cell { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#111; color:#fff; padding:9px 18px; border-radius:20px; font-size:.82rem; opacity:0; transition:.25s; pointer-events:none; }
+    #toast.show { opacity:.95; }
+    .loading { text-align:center; padding:50px; color:#999; }
+    .note { font-size:.75rem; color:#78889c; margin-top:12px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="admin_menu.html" id="back-link">← メニュー</a>
+    <h1>👥 観客用順位表 — 書き出し</h1>
+  </div>
+  <div class="wrap">
+    <div class="meta" id="meta">読み込み中...</div>
+    <div class="actions">
+      <button class="btn btn-all" onclick="publishAll('qualifying')">🔄 全クラス公開（予選）</button>
+      <button class="btn btn-all" style="background:#4a2f7a" onclick="publishAll('final')">🔄 全クラス公開（決勝）</button>
+      <a class="btn" id="preview-link" target="_blank" style="background:#eef2f8;color:var(--accent);text-decoration:none;line-height:1.9">👁 観客ページを確認</a>
+    </div>
+    <div id="list"><div class="loading">読み込み中...</div></div>
+    <div class="note">
+      「公開」を押すと、その時点の順位表を計算して観客用スナップショットに書き出します（観客は1クリックあたり1〜2read）。<br>
+      スコアが更新されたら再度「公開」で最新化してください。「停止」で観客ページから非表示になります。
+    </div>
+  </div>
+  <div id="toast"></div>
+
+  <script type="module">
+    import { getDocs, collection, query, where, doc, setDoc, deleteDoc, deleteField, serverTimestamp }
+      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from "./firebase-config.js";
+    import { normalizeClassRules, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks }
+      from "./shared.js";
+    import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
+    import { ensureAdmin } from "./auth.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    let tourData = null, athletes = [], classRules = {}, skillById = {}, skillBySymbol = {};
+    let byAth = {}, publishedIndex = {};
+
+    const fmtDate = () => new Date().toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const groupKey = (type, cls, gender, round) =>
+      `${type}__${cls}__${gender}__${round}`.replace(/[\/#?\[\]]/g, '_');
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    // ===== 技別データ抽出（ranking_detail と同一ロジック） =====
+    function calcSkillTotals(result) {
+      const judges = Object.values(result.execution?.judges || {});
+      if (judges.length === 0) return { skills: Array(10).fill(null), land: null };
+      const mid2sum = vals => {
+        const filled = vals.filter(v => v !== null && v !== undefined);
+        if (filled.length < 2) return filled.length === 1 ? Math.round(filled[0] * 10) : null;
+        filled.sort((a, b) => a - b);
+        const mid = Math.floor((filled.length - 2) / 2);
+        return Math.round((filled[mid] + filled[mid + 1]) * 10);
+      };
+      const skills = Array.from({ length: 10 }, (_, i) => mid2sum(judges.map(j => (j.deductions || [])[i] ?? null)));
+      const land = mid2sum(judges.map(j => j.landing ?? null));
+      return { skills, land };
+    }
+    function getDetailPerSkill(res, rule) {
+      const { skills, land } = calcSkillTotals(res);
+      const officialSkills = res.officialSkills || [];
+      const hdtsMap = res.hdtsPerSkillByPanel;
+      let hp = null;
+      if (hdtsMap && Object.keys(hdtsMap).length) {
+        const counts = {};
+        Object.keys(res.execution?.judges || {}).forEach(k => { const p = k.split('_')[0]; counts[p] = (counts[p] || 0) + 1; });
+        const active = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        hp = hdtsMap[active] || hdtsMap[Object.keys(hdtsMap)[0]] || null;
+      }
+      const dCodes = Array.from({ length: 10 }, (_, i) => {
+        const off = officialSkills[i];
+        if (off == null || off === '') return null;
+        const m = skillById[String(off)] || skillBySymbol[String(off)];
+        return m ? (m.displaySymbol || m.symbol) : String(off);
+      });
+      const tofs = Array.from({ length: 10 }, (_, i) => (hp?.tof?.[i] != null) ? Number(hp.tof[i]) : null);
+      const hds  = Array.from({ length: 10 }, (_, i) => (hp?.hd?.[i]  != null) ? hp.hd[i] : null);
+      // 各技の難度点が実際に加算されているか（重複=ダブルカウント / 指定難度で無効 は false）
+      const desigRaw = rule?.designatedDDCount ?? -1;
+      const validDesig = desigRaw >= 0 && rule?.qualifyingRoutines === 2 && rule?.scoreMode === 'total' && res.round === 'pre1';
+      const desigCount = validDesig ? desigRaw : -1;
+      const desigIndices = res.officialDesignatedDDIndices || [];
+      const hasManual = !!(res.officialDDValues && res.officialDDValues.length > 0);
+      const vLimit = res.validCount ?? 10;
+      const seen = new Set();
+      const dCounted = Array(10).fill(false);
+      for (let i = 0; i < 10; i++) {
+        if (i >= vLimit) continue;
+        const off = officialSkills[i];
+        const sk = off ? (skillById[String(off)] || skillBySymbol[String(off)]) : null;
+        const repeatKey = sk ? sk.id : String(off);
+        const isRepeat = !!(sk && seen.has(repeatKey));
+        const isDesig = desigCount < 0 || (desigCount > 0 && desigIndices.includes(i));
+        let ddVal = 0;
+        if (hasManual) {
+          if (!isRepeat && off && isDesig) ddVal = Number(res.officialDDValues[i]) || 0;
+          if (sk && !isRepeat) seen.add(repeatKey);
+        } else if (sk && !isRepeat) {
+          seen.add(repeatKey);
+          if (isDesig) ddVal = sk.dd || 0;
+        }
+        dCounted[i] = ddVal > 0;
+      }
+      return { skills, land, dCodes, tofs, hds, dCounted };
+    }
+
+    // ===== 1グループの順位表スナップショット（構造化データ）を計算 =====
+    function buildGroupSnapshot(fType, fClass, fGender, fRound) {
+      let filtered = athletes.filter(a =>
+        (a.type || 'individual') === fType &&
+        (!fGender || (a.gender || '') === fGender) &&
+        (!fClass  || (a.class || a.category || '') === fClass));
+      if (fRound === 'final') filtered = filtered.filter(a => a.finalOrder != null);
+      if (!filtered.length) return null;
+
+      const rows = filtered.map(a => {
+        const rMap = byAth[a.id] || {};
+        const rule = (classRules[fType] || {})[a.class || a.category || ''] || {};
+        const numPre         = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
+        const scoreMode      = rule.scoreMode || 'best';
+        const finalScoreMode = rule.finalScoreMode ?? 'zero';
+        const pre1r = rMap['pre1'] || null, pre2r = rMap['pre2'] || null, finr = rMap['final'] || null;
+        const pre1 = pre1r?.officialTotal ?? null, pre2 = pre2r?.officialTotal ?? null, final = finr?.officialTotal ?? null;
+        let qualScore, tbSum = null, tb;
+        if (fRound === 'qualifying') {
+          qualScore = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
+          ({ tbSum, tb } = calcQualifyingTb(pre1, pre2, pre1r, pre2r, numPre, scoreMode));
+        } else {
+          const qualPart = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
+          qualScore = calcFinalScore(qualPart, final, finalScoreMode);
+          tb = extractTbScores(finr);
+        }
+        const isDns = fRound === 'qualifying'
+          ? (pre1r?.dns === true || pre2r?.dns === true)
+          : (finr?.dns === true);
+        if (isDns) qualScore = null;
+        return { a, pre1r, pre2r, finr, qualScore, isDns, numPre, scoreMode, finalScoreMode, tbSum, tb };
+      }).sort(compareRankEntries);
+      assignRanks(rows);
+
+      const showRounds = fRound === 'qualifying'
+        ? (rows[0]?.numPre >= 2 ? ['pre1','pre2'] : ['pre1'])
+        : ['final'];
+      const isFinal = fRound === 'final';
+      const _rule = (classRules[fType] || {})[fClass] || {};
+      const scoreMode = _rule.scoreMode || 'best';
+      const finalScoreMode = _rule.finalScoreMode ?? 'zero';
+      const totalLabel = isFinal ? (finalScoreMode === 'combined' ? 'Total' : 'No.')
+                                 : (scoreMode === 'total' ? 'Total' : 'Best');
+      const showTotalCol = !isFinal || finalScoreMode === 'combined';
+
+      const routineOf = res => {
+        if (!res) return null;
+        const det = getDetailPerSkill(res, _rule);
+        return {
+          exe: res.officialE ?? null, diff: res.officialD ?? null,
+          tof: res.tof ?? null, hd: res.hd?.total ?? null,
+          pen: (res.penalty != null && res.penalty !== 0) ? res.penalty : null,
+          score: res.officialTotal ?? null,
+          vLimit: res.validCount ?? 10, land: det.land,
+          e: det.skills, d: det.dCodes, t: det.tofs, h: det.hds, dCounted: det.dCounted,
+          penReasons: (Array.isArray(res.penaltyItems) ? res.penaltyItems : [])
+            .map(it => it.display || it.en || it.ja || '').filter(Boolean)
+        };
+      };
+
+      const outRows = rows.map(r => {
+        const routines = {};
+        showRounds.forEach(rnd => {
+          const res = rnd === 'pre1' ? r.pre1r : rnd === 'pre2' ? r.pre2r : r.finr;
+          routines[rnd] = routineOf(res);
+        });
+        return {
+          rank: r.rank, isDns: r.isDns,
+          name1: r.a.name1 || '', name2: r.a.name2 || '', club1: r.a.club1 || '', club2: r.a.club2 || '',
+          type: r.a.type || 'individual',
+          qualScore: r.qualScore, finalOrder: r.a.finalOrder ?? null,
+          routines
+        };
+      });
+
+      const labelType = fType === 'synchro' ? 'シンクロ' : '個人';
+      const roundLabels = { qualifying:'予選', final:'決勝' };
+      const label = [labelType, fClass, fGender, roundLabels[fRound]].filter(Boolean).join(' ');
+
+      return {
+        eventId, type: fType, cls: fClass, gender: fGender, round: fRound, label,
+        tournamentName: tourData.name || '', venue: tourData.venue || '',
+        totalLabel, showTotalCol, showRounds,
+        rows: outRows
+      };
+    }
+
+    // ===== 公開（書き出し） =====
+    async function publishGroup(type, cls, gender, round, silent = false) {
+      const snap = buildGroupSnapshot(type, cls, gender, round);
+      const key = groupKey(type, cls, gender, round);
+      if (!snap) {
+        if (!silent) toast('該当データがありません');
+        return false;
+      }
+      await setDoc(doc(db, 'tournaments', eventId, 'publicRankings', key),
+        { ...snap, generatedAt: serverTimestamp() });
+      // 一覧インデックス更新
+      await setDoc(doc(db, 'tournaments', eventId, 'publicRankings', '_index'), {
+        tournamentName: tourData.name || '', venue: tourData.venue || '', updatedAt: serverTimestamp(),
+        groups: { [key]: { type, cls, gender, round, label: snap.label, rowCount: snap.rows.length, generatedAt: fmtDate() } }
+      }, { merge: true });
+      publishedIndex[key] = { label: snap.label, rowCount: snap.rows.length, generatedAt: fmtDate() };
+      if (!silent) toast(`公開しました: ${snap.label}（${snap.rows.length}名）`);
+      return true;
+    }
+    async function stopGroup(type, cls, gender, round) {
+      const key = groupKey(type, cls, gender, round);
+      await deleteDoc(doc(db, 'tournaments', eventId, 'publicRankings', key)).catch(()=>{});
+      await setDoc(doc(db, 'tournaments', eventId, 'publicRankings', '_index'),
+        { groups: { [key]: deleteField() } }, { merge: true });
+      delete publishedIndex[key];
+      toast('公開を停止しました');
+    }
+    window.__pub = publishGroup;
+    window.__stop = stopGroup;
+
+    window.publishAll = async (round) => {
+      const btns = document.querySelectorAll('.btn'); btns.forEach(b => b.disabled = true);
+      let n = 0;
+      for (const g of enumerateGroups()) {
+        const ok = await publishGroup(g.type, g.cls, g.gender, round, true);
+        if (ok) n++;
+      }
+      btns.forEach(b => b.disabled = false);
+      toast(`${round === 'final' ? '決勝' : '予選'}: ${n}クラスを公開しました`);
+      renderList();
+    };
+
+    window.pubOne = async (type, cls, gender, round) => {
+      await publishGroup(type, cls, gender, round);
+      renderList();
+    };
+    window.stopOne = async (type, cls, gender, round) => {
+      await stopGroup(type, cls, gender, round);
+      renderList();
+    };
+
+    // ===== グループ列挙 =====
+    function enumerateGroups() {
+      const groups = [], seen = new Set();
+      ['individual','synchro'].forEach(type => {
+        const tourClassDefs = (tourData?.classes?.[type] || [])
+          .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+        const byType = athletes.filter(a => (a.type || 'individual') === type);
+        const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
+        const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
+        classes.forEach(cls => {
+          const genders = [...new Set(byType.filter(a => (a.class || a.category || '') === cls).map(a => a.gender || '').filter(Boolean))];
+          (genders.length ? genders : ['']).forEach(gender => {
+            const k = `${type}::${cls}::${gender}`;
+            if (seen.has(k)) return; seen.add(k);
+            const count = byType.filter(a => (a.class||a.category||'')===cls && (a.gender||'')===gender).length;
+            const finalCount = byType.filter(a => (a.class||a.category||'')===cls && (a.gender||'')===gender && a.finalOrder != null).length;
+            groups.push({ type, cls, gender, count, finalCount });
+          });
+        });
+      });
+      return groups;
+    }
+
+    function renderList() {
+      const hasBoth = athletes.some(a => (a.type||'individual')==='synchro') && athletes.some(a => (a.type||'individual')==='individual');
+      const rowsHtml = enumerateGroups().map(g => {
+        const disp = `${hasBoth ? (g.type==='synchro'?'シンクロ ':'個人 ') : ''}${g.cls}${g.gender?' '+g.gender:''}`;
+        const rndBtn = (round, avail) => {
+          const key = groupKey(g.type, g.cls, g.gender, round);
+          const pub = publishedIndex[key];
+          if (!avail) return '<span class="status">—</span>';
+          return `<div class="rnd-cell">
+            <button class="btn btn-pub ${pub?'done':''}" onclick="pubOne('${g.type}','${g.cls.replace(/'/g,"\\'")}','${g.gender}','${round}')">${pub?'再公開':'公開'}</button>
+            ${pub ? `<button class="btn btn-stop" onclick="stopOne('${g.type}','${g.cls.replace(/'/g,"\\'")}','${g.gender}','${round}')">停止</button>` : ''}
+            ${pub ? `<span class="status pub">✓ ${pub.generatedAt}</span>` : '<span class="status">未公開</span>'}
+          </div>`;
+        };
+        return `<tr>
+          <td><span class="cls-name">${disp}</span></td>
+          <td class="c">${g.count}</td>
+          <td>${rndBtn('qualifying', g.count>0)}</td>
+          <td>${rndBtn('final', g.finalCount>0)}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('list').innerHTML =
+        `<table><thead><tr><th>クラス</th><th class="c">人数</th><th>予選 順位表</th><th>決勝 順位表</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
+    }
+
+    async function fetchResultsByAth() {
+      const snap = await getDocs(query(collection(db, 'results'),
+        where('eventId', '==', eventId), where('published', '==', true)));
+      const map = {};
+      snap.docs.forEach(d => { const r = d.data(); (map[r.athleteId] = map[r.athleteId] || {})[r.round] = r; });
+      return map;
+    }
+
+    async function init() {
+      if (!eventId) { document.getElementById('meta').textContent = 'URLに event がありません'; return; }
+      document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+      document.getElementById('preview-link').href = `public_ranking.html?event=${eventId}`;
+      const [tour, ath, smSnap] = await Promise.all([
+        getTournament(eventId), getAthletes(eventId), getDocs(collection(db, 'skillMaster'))
+      ]);
+      tourData = tour; athletes = ath;
+      smSnap.docs.forEach(d => {
+        const data = d.data();
+        const m = { id: d.id, symbol: data.symbol, displaySymbol: data.displaySymbol || data.symbol, dd: parseFloat(data.dd) || 0 };
+        skillById[String(d.id)] = m;
+        if (m.symbol) skillBySymbol[String(m.symbol)] = m;
+      });
+      const finalOrders = await getFinalOrders(eventId);
+      athletes.forEach(a => { const fo = finalOrders[a.id]; if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; } });
+      classRules = normalizeClassRules(tourData.classRules);
+      byAth = await fetchResultsByAth();
+
+      // 既存の公開インデックスを取得
+      try {
+        const idxSnap = await getDocs(collection(db, 'tournaments', eventId, 'publicRankings'));
+        idxSnap.docs.forEach(d => { if (d.id === '_index') { const g = d.data().groups || {};
+          Object.entries(g).forEach(([k,v]) => publishedIndex[k] = { label:v.label, rowCount:v.rowCount, generatedAt:v.generatedAt }); } });
+      } catch {}
+
+      document.getElementById('meta').innerHTML =
+        `<b>${tourData.name || ''}</b>　選手 ${athletes.length}名　公開済 ${Object.keys(publishedIndex).length}グループ`;
+      renderList();
+    }
+
+    ensureAdmin(() => init());
+  </script>
+</body>
+</html>
