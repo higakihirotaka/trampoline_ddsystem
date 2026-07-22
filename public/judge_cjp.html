@@ -209,6 +209,8 @@
     let _lastEc   = null; // 最後に計算した calcExecution 結果（publish 時に per-skill E を保存するため）
     let _dChanged = false; // D が申告と相違しているか（内訳Dの色・枠線判定用）
     let _dConfirmed = false; // D審判が確定済みか（内訳Dは確定まで非表示）
+    let _eComplete = false;  // E: 全審判が有効本数分入力済みか（最後の全体描画時の値を保持）
+    let _eConfirmed = false; // E: 全審判が「確定」押下済みか（calc(ec無し)でも状態を保つため保持）
 
     function roundLabel(r) {
         if (r === 'pre1')  return 'Routine 1';
@@ -1341,7 +1343,12 @@
             const isManual = manualRows.has(jKey);
             const pe = pendingEdits[jKey];
 
-            const rowStyle = isManual ? ' style="background:rgba(255,152,0,0.05)"' : '';
+            // E審判が「確定」を押すまでは行を薄字表示（確定済み or 代理入力 or 確定済みラウンドは通常）
+            const jConfirmed = (data.published === true) || isJudgeConfirmed(ec, jKey);
+            const styleParts = [];
+            if (isManual)     styleParts.push('background:rgba(255,152,0,0.05)');
+            if (!jConfirmed)  styleParts.push('opacity:0.4');
+            const rowStyle = styleParts.length ? ` style="${styleParts.join(';')}"` : '';
             let row = `<tr${rowStyle}><td>${jKey}</td>`;
 
             for (let i = 0; i < 10; i++) {
@@ -1474,6 +1481,22 @@
         }
         return true; // vLimit===0 も全員入力済み扱い（0本でも表示）
     }
+    // E: 全審判が「確定」を押したか（CJPが代理入力している行は確定扱い）。
+    // 未確定の間は内訳Eを薄字＋枠を黄色にする。
+    function isEConfirmed(ec) {
+        if (!ec) return false;
+        const judges = ec.judges || {}, jKeys = ec.jKeys || [];
+        for (const k of jKeys) {
+            if (manualRows.has(k)) continue;        // CJP代理入力は確定扱い
+            if (!judges[k]?.confirmedAt) return false;
+        }
+        return true;
+    }
+    // 個々のE審判が確定済みか（各審判行の薄字判定用）
+    function isJudgeConfirmed(ec, jKey) {
+        if (manualRows.has(jKey)) return true;      // CJP代理入力は確定扱い
+        return !!(ec?.judges?.[jKey]?.confirmedAt);
+    }
 
     function updateScoreSummary(ec, hasJudgeData = true) {
         const dEl   = document.getElementById('res-d');
@@ -1526,9 +1549,19 @@
         const dBorder = dManual
             ? (dComplete ? 'green' : 'blank')
             : (!_dConfirmed ? 'blank' : 'green');
-        // E: 全審判が有効本数分入力済みなら緑表示、未完了は空欄
-        const eComplete = ec ? isEComplete(ec) : (eEl.innerText.trim() !== '');
-        const eState = eComplete ? 'green' : 'blank';
+        // E: eComplete=全審判入力済み、eConfirmed=全審判が「確定」押下（or 確定済みラウンド）。
+        //    未確定の間は内訳Eを薄字＋枠を黄色にし、確定で通常表示・緑にする。
+        //    ec が渡された全体描画時に状態を確定し、calc(ec無し=ToF/HD/ペナルティ編集)では保持値を使う。
+        const ePublished = !!latestData?.published;
+        if (ec) {
+            _eComplete  = isEComplete(ec);
+            _eConfirmed = ePublished || (_eComplete && isEConfirmed(ec));
+        } else if (ePublished) {
+            _eConfirmed = true;
+        }
+        const eComplete  = _eComplete;
+        const eConfirmed = _eConfirmed;
+        const eBorder = eConfirmed ? 'green' : 'blank'; // 未確定は blank→黄色枠
         // T: 入力されていれば緑
         const tEntered = document.getElementById('tof').value.trim() !== '';
         const tState = tEntered ? 'green' : 'blank';
@@ -1548,7 +1581,7 @@
         totEl.innerText = total.toFixed(2);
 
         // --- 枠線色（赤 > 黄 > 緑） ---
-        const states = [dBorder, eState, tState, hState];
+        const states = [dBorder, eBorder, tState, hState];
         const borderColor = states.includes('red') ? _BD_RED
                           : states.includes('blank') ? _BD_YELLOW
                           : _BD_GREEN;
@@ -1556,7 +1589,9 @@
         // --- 文字色 ---
         const colorOf = st => st === 'red' ? _BD_RED : st === 'green' ? _BD_GREEN : st === 'yellow' ? _BD_YELLOW : '';
         dEl.style.color = colorOf(dState);
-        eEl.style.color = colorOf(eState);
+        // E: 完了していれば緑。ただし全審判の確定前は薄字（opacity）で表示する。
+        eEl.style.color = eComplete ? _BD_GREEN : '';
+        eEl.style.opacity = (eComplete && !eConfirmed) ? '0.35' : '';
         tEl.style.color = colorOf(tState);
         hEl.style.color = colorOf(hState);
         totEl.style.setProperty('color', borderColor, 'important'); // CSS の !important を上書き

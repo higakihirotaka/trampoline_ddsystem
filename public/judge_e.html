@@ -85,6 +85,14 @@
             grid-column: span 6; font-size: 1rem;
             background: #2a2020; color: #ff8a65; border-color: #111;
         }
+        /* 確定ボタン（有効演技数を全て入力すると下段に出現） */
+        .key-confirm {
+            grid-column: span 6; font-size: 1.15rem; font-weight: bold;
+            background: #16351b; color: #6ee7a0; border-color: #06210d;
+        }
+        .key-confirm.confirmed {
+            background: #14532d; color: #d1fae5; border-color: #052e16;
+        }
 
         /* ---- 現在技パネル（スマホ縦向けのみ表示） ---- */
         .current-panel {
@@ -218,6 +226,7 @@
     let deductions = Array(10).fill(null), landing = null;
     let unsubResult = null;
     let isLocked = false;
+    let confirmed = false; // E審判自身が「確定」を押したか（CJP内訳の薄字/黄色判定に使う）
     let judgeName = '';
     let currentTourData = null;
     let warmupData = {}, warmupInterval = null;
@@ -423,6 +432,7 @@
         landing      = null;
         currentIndex = 0;
         vLimit       = 10;
+        confirmed    = false;
 
         updateJudgeName(state.athleteClass || '', state.athleteGender || '', state.round || '', state.athleteType || '');
         headerAthlete.textContent = state.athleteName || athleteId;
@@ -444,6 +454,7 @@
             const j = data.execution?.judges?.[`${panel}_${role}`] || {};  // パネル付きキー
             deductions = sanitizeDeductions([...(j.deductions || Array(10).fill(null))]);
             landing    = sanitizeLanding(j.landing ?? null);
+            confirmed  = !!j.confirmedAt;
 
             if (firstLoad) {
                 // 初回のみ：currentIndex を入力済み本数から決める
@@ -530,24 +541,33 @@
 
         const isInterrupted = (vLimit < 10 && currentIndex >= vLimit);
 
+        // 有効演技数分すべて入力し終えたら確定ボタンを下段に出す（UNDOは廃止＝打ち直しはセルタップ）
+        const confirmBtn = allEntered()
+            ? `<button class="key key-confirm${confirmed ? ' confirmed' : ''}" onclick="confirmScore()">${confirmed ? '確定済み ✓（修正で解除）' : '確定'}</button>`
+            : '';
+
+        keypad.className = 'keypad';
         if (isInterrupted) {
-            keypad.className = 'keypad';
-            keypad.innerHTML = `<button class="key key-undo" onclick="undo()">UNDO</button>`;
+            // 中断（有効本数<10で全入力済み）: 数字キーは無く確定のみ
+            keypad.innerHTML = confirmBtn;
         } else if (currentIndex < 10) {
-            keypad.className = 'keypad';
             keypad.innerHTML =
                 [0, 0.1, 0.2, 0.3, 0.4, 0.5].map(v =>
                     `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v})">${Math.round(v * 10)}</button>`
-                ).join('') +
-                `<button class="key key-undo" onclick="undo()">UNDO</button>`;
+                ).join('') + confirmBtn;
         } else {
-            keypad.className = 'keypad';
             keypad.innerHTML =
                 [0, 1, 2, 3, 5, 10].map(v =>
                     `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v / 10})">${v}</button>`
-                ).join('') +
-                `<button class="key key-undo" onclick="undo()">UNDO</button>`;
+                ).join('') + confirmBtn;
         }
+    }
+
+    // 有効演技数分（+ vLimit===10 なら着地）をすべて入力済みか
+    function allEntered() {
+        for (let i = 0; i < vLimit; i++) if (deductions[i] == null) return false;
+        if (vLimit === 10 && landing == null) return false;
+        return true;
     }
 
     // ---- ステップ移動（打ち直し） ----
@@ -573,6 +593,7 @@
             if (!isValidLanding(v)) return;     // 0,1,2,3,5,10以外は無視
             landing = v;
         }
+        confirmed = false; // 入力を変更したら確定は解除（再度「確定」を押す必要がある）
         refresh();
 
         const sum   = deductions.reduce((a, b) => a + (b ?? 0), 0) + (landing ?? 0);
@@ -581,34 +602,21 @@
             eventId, athleteId, round,
             execution: {
                 judges: {
-                    [`${panel}_${role}`]: { deductions, landing, totalDeduction: sum, updatedAt: serverTimestamp() }
+                    [`${panel}_${role}`]: { deductions, landing, totalDeduction: sum, confirmedAt: null, updatedAt: serverTimestamp() }
                 }
             }
         }, { merge: true });
     };
 
-    window.undo = async () => {
-        if (!athleteId || !round) return;
-
-        const isInterrupted = (vLimit < 10 && currentIndex >= vLimit);
-        if (isInterrupted) {
-            const idx = vLimit - 1;
-            deductions[idx] = null;
-            currentIndex = idx;
-        } else if (currentIndex === 10) {
-            if (landing !== null) { landing = null; }
-            else { deductions[9] = null; currentIndex = 9; }
-        } else if (currentIndex > 0) {
-            deductions[currentIndex - 1] = null;
-            currentIndex = currentIndex - 1;
-        } else {
-            return;
-        }
+    // ---- 確定（有効演技数を全入力後に出現。CJP内訳の薄字→通常表示・黄色解除に反映） ----
+    window.confirmScore = async () => {
+        if (!athleteId || !round || isLocked) return;
+        if (!allEntered()) return;
+        confirmed = true;   // 楽観的に即反映（serverTimestamp 解決前のちらつき防止）
         refresh();
-
         const resId = `${eventId}_${athleteId}_${round}`;
         await setDoc(doc(db, 'results', resId), {
-            execution: { judges: { [`${panel}_${role}`]: { deductions, landing } } }
+            execution: { judges: { [`${panel}_${role}`]: { confirmedAt: serverTimestamp() } } }
         }, { merge: true });
     };
 
