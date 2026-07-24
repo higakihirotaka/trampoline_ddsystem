@@ -577,7 +577,7 @@
 
         // 有効演技数分すべて入力し終えたら確定ボタンを下段に出す（UNDOは廃止＝打ち直しはセルタップ）
         const confirmBtn = allEntered()
-            ? `<button class="key key-confirm${confirmed ? ' confirmed' : ''}" onclick="confirmScore()">${confirmed ? '確定済み ✓（修正で解除）' : '確定'}</button>`
+            ? `<button class="key key-confirm${confirmed ? ' confirmed' : ''}" onclick="confirmScore()">${confirmed ? '確定済み ✓（押して修正）' : '確定'}</button>`
             : '';
 
         keypad.className = 'keypad';
@@ -642,15 +642,16 @@
         }, { merge: true });
     };
 
-    // ---- 確定（有効演技数を全入力後に出現。CJP内訳の薄字→通常表示・黄色解除に反映） ----
+    // ---- 確定/確定解除（有効演技数を全入力後に出現。CJP内訳の薄字→通常表示・黄色解除に反映） ----
+    // 未確定→押すと確定。確定済み→押すと解除して修正できる状態に戻す（トグル）。
     window.confirmScore = async () => {
         if (!athleteId || !round || isLocked) return;
         if (!allEntered()) return;
-        confirmed = true;   // 楽観的に即反映（serverTimestamp 解決前のちらつき防止）
+        confirmed = !confirmed;   // トグル。楽観的に即反映（serverTimestamp 解決前のちらつき防止）
         refresh();
         const resId = `${eventId}_${athleteId}_${round}`;
         await setDoc(doc(db, 'results', resId), {
-            execution: { judges: { [`${panel}_${role}`]: { confirmedAt: serverTimestamp() } } }
+            execution: { judges: { [`${panel}_${role}`]: { confirmedAt: confirmed ? serverTimestamp() : null } } }
         }, { merge: true });
     };
 
