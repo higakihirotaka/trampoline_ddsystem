@@ -196,7 +196,7 @@
     </div>
     <div class="header-right">
         <span class="header-judge" id="header-judge"></span>
-        <button id="warmup-toggle-btn" class="btn-warmup-toggle" style="display:none;" onclick="toggleWarmupView()">⏱ 練習を隠す</button>
+        <button id="warmup-toggle-btn" class="btn-warmup-toggle" style="display:none;" onclick="toggleWarmupView()">会場練習非表示</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
     </div>
 </div>
@@ -326,7 +326,7 @@
             overlay.style.display = warmupHidden ? 'none' : '';      // 手動非表示なら隠す
             if (btn) {                                               // カウント中はボタン表示
                 btn.style.display = '';
-                btn.textContent = warmupHidden ? '⏱ 練習を表示' : '⏱ 練習を隠す';
+                btn.textContent = warmupHidden ? '会場練習表示' : '会場練習非表示';
                 btn.classList.toggle('off', warmupHidden);
             }
         }
@@ -344,7 +344,7 @@
         const btn     = document.getElementById('warmup-toggle-btn');
         overlay.style.display = warmupHidden ? 'none' : '';
         if (btn) {
-            btn.textContent = warmupHidden ? '⏱ 練習を表示' : '⏱ 練習を隠す';
+            btn.textContent = warmupHidden ? '会場練習表示' : '会場練習非表示';
             btn.classList.toggle('off', warmupHidden);
         }
     };
