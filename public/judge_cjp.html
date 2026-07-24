@@ -1764,8 +1764,8 @@
             if (isSyn) {
                 if (synScore != null) {
                     if (tofMode !== 'manual') toggleTofMode();
-                    // Syn欄は「1/2」入力＝calcで×2される慣習に合わせ synScore/2 を入れ、合計が synScore になるようにする
-                    document.getElementById('tof').value = (synScore / 2).toFixed(3); calc();
+                    // Syn欄には synScore(8.37等) をそのまま入力。calcで×2され内訳Synは倍になる。
+                    document.getElementById('tof').value = synScore.toFixed(2); calc();
                 }
             } else {
                 if (tofVal != null) {
