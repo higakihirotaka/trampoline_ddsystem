@@ -107,7 +107,7 @@
                 </tr>
                 <!-- HDTS 技別 ToF 行 -->
                 <tr class="d-info-row hdts-row" id="hdts-tof-row">
-                    <th class="hdts-label">HDTS<br>ToF(s)</th>
+                    <th class="hdts-label" id="hdts-tof-label">HDTS<br>ToF(s)</th>
                     <th id="hdts-tof-1">-</th><th id="hdts-tof-2">-</th><th id="hdts-tof-3">-</th><th id="hdts-tof-4">-</th><th id="hdts-tof-5">-</th>
                     <th id="hdts-tof-6">-</th><th id="hdts-tof-7">-</th><th id="hdts-tof-8">-</th><th id="hdts-tof-9">-</th><th id="hdts-tof-10">-</th>
                     <th>-</th><th class="hdts-sum" id="hdts-tof-sum">-</th><th class="toggle-col"></th>
@@ -1466,6 +1466,9 @@
         if (tofLbl) tofLbl.textContent = isSyn ? 'SYN（1/2）' : 'ToF (T)';
         const resLbl = document.getElementById('res-t-label');
         if (resLbl) resLbl.textContent = isSyn ? 'Syn' : 'T';
+        // HDTS技別行のToF見出しはシンクロでは Syn（同期スコア）になる
+        const hdtsLbl = document.getElementById('hdts-tof-label');
+        if (hdtsLbl) hdtsLbl.innerHTML = isSyn ? 'HDTS<br>Syn' : 'HDTS<br>ToF(s)';
     }
 
     // 内訳の色（暗い背景でも見やすい明るめのシェード）
@@ -1636,6 +1639,23 @@
     // ---- HDTS 技別 ToF/HD を Firestore の保存値（パネル別）から復元表示 ----
     function renderHdtsRows(data) {
         const ps = data?.hdtsPerSkillByPanel?.[panel];
+        // シンクロ保存データ（Syn + 2人分HD）の復元
+        if (ps && (ps.isSynchro || ps.syn || ps.hd1 || ps.hd2)) {
+            for (let i = 1; i <= 10; i++) {
+                const synCell = document.getElementById(`hdts-tof-${i}`);
+                const hdCell  = document.getElementById(`hdts-hd-${i}`);
+                const sv = ps.syn?.[i - 1];
+                const d1 = ps.hd1?.[i - 1], d2 = ps.hd2?.[i - 1];
+                if (synCell) synCell.textContent = (sv != null) ? Number(sv).toFixed(2) : '-';
+                if (hdCell)  hdCell.textContent  = (d1 != null || d2 != null) ? `${d1 ?? '-'} / ${d2 ?? '-'}` : '-';
+            }
+            const tofSumEl = document.getElementById('hdts-tof-sum');
+            const hdSumEl  = document.getElementById('hdts-hd-sum');
+            if (tofSumEl) tofSumEl.textContent = (ps.synTotal != null) ? Number(ps.synTotal).toFixed(2) : '-';
+            if (hdSumEl)  hdSumEl.textContent  = (ps.hd1Total != null || ps.hd2Total != null) ? `${ps.hd1Total ?? '-'} / ${ps.hd2Total ?? '-'}` : '-';
+            return;
+        }
+        // 個人
         let hdSum = 0, hasHd = false;
         for (let i = 1; i <= 10; i++) {
             const tofCell = document.getElementById(`hdts-tof-${i}`);
@@ -1724,10 +1744,12 @@
             const r    = data.type === 'synchronized' ? data.synchronizedResult : data.individualResult;
             if (!r) { statusEl.style.color = '#e57373'; statusEl.textContent = 'データ形式不明'; return; }
 
-            const tofVal = r.timeOfFlightInSeconds;
-            const hdVal  = r.horizontalDisplacement;
-            const vcVal  = r.elementCount;
-            const label  = data.maturity === 'confirmed' ? '確定' : '暫定';
+            const isSyn    = data.type === 'synchronized';
+            const hdVal    = r.horizontalDisplacement;               // HD欄へ（個人=合計 / シンクロ=2人平均の合計）
+            const vcVal    = r.elementCount;
+            const synScore = isSyn ? r.synchronizedScore : null;     // シンクロ: Syn合計（内訳のSyn欄へ）
+            const tofVal   = isSyn ? null : r.timeOfFlightInSeconds; // 個人: ToF
+            const label    = data.maturity === 'confirmed' ? '確定' : '暫定';
 
             // 有効本数をセット
             if (vcVal != null) {
@@ -1738,45 +1760,85 @@
                     await updateValid(vcVal);
                 }
             }
-            // ToF を手動モードにして値をセット
-            if (tofVal != null) {
-                if (tofMode !== 'manual') toggleTofMode();
-                document.getElementById('tof').value = tofVal.toFixed(3); calc();
+            // ToF / Syn を手動モードにして値をセット
+            if (isSyn) {
+                if (synScore != null) {
+                    if (tofMode !== 'manual') toggleTofMode();
+                    // Syn欄は「1/2」入力＝calcで×2される慣習に合わせ synScore/2 を入れ、合計が synScore になるようにする
+                    document.getElementById('tof').value = (synScore / 2).toFixed(3); calc();
+                }
+            } else {
+                if (tofVal != null) {
+                    if (tofMode !== 'manual') toggleTofMode();
+                    document.getElementById('tof').value = tofVal.toFixed(3); calc();
+                }
             }
-            // HD を手動モードにして値をセット
+            // HD を手動モードにして値をセット（シンクロは2人平均で0.05刻みになり得るため2桁）
             if (hdVal != null) {
                 if (hdMode !== 'manual') toggleHdMode();
-                document.getElementById('hd').value  = hdVal.toFixed(1);  calc();
+                document.getElementById('hd').value  = hdVal.toFixed(isSyn ? 2 : 1);  calc();
             }
-            // 技別データを HDTS 行に表示 + Firestore に保存（再読込・再表示・別端末でも復元されるように）
+            // 技別データを HDTS 行に表示 + Firestore に保存（再読込・別端末でも復元されるように）
             if (r.elements && r.elements.length > 0) {
-                let hdDedTotal = 0;
-                const perSkillTof = Array(10).fill(null);
-                const perSkillHd  = Array(10).fill(null);
-                r.elements.forEach((el, i) => {
-                    if (i >= 10) return;
-                    const tofCell = document.getElementById(`hdts-tof-${i + 1}`);
-                    const hdCell  = document.getElementById(`hdts-hd-${i + 1}`);
-                    if (el.timeOfFlightInSeconds != null) {
-                        perSkillTof[i] = el.timeOfFlightInSeconds;
-                        if (tofCell) tofCell.textContent = el.timeOfFlightInSeconds.toFixed(3);
-                    } else if (tofCell) { tofCell.textContent = '-'; }
-                    if (el.horizontalDisplacement != null) {
-                        const ded = Math.round((1.0 - el.horizontalDisplacement) * 10);
-                        perSkillHd[i] = ded;
-                        hdDedTotal += ded;
-                        if (hdCell) hdCell.textContent = ded;
-                    } else if (hdCell) { hdCell.textContent = '-'; }
-                });
-                const tofSumEl = document.getElementById('hdts-tof-sum');
-                const hdSumEl  = document.getElementById('hdts-hd-sum');
-                if (tofSumEl && tofVal != null) tofSumEl.textContent = tofVal.toFixed(3);
-                if (hdSumEl) hdSumEl.textContent = hdDedTotal;
-                // 技別データを Firestore に保存（パネル別。合計も保存し確定前でも復元できるように）
-                if (athleteId) {
-                    setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
-                        { hdtsPerSkillByPanel: { [panel]: { tof: perSkillTof, hd: perSkillHd, tofTotal: (tofVal ?? null), hdTotal: hdDedTotal } } },
-                        { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
+                if (isSyn) {
+                    // シンクロ: ToF行→Syn（各要素の synchronizedScore）、HD行→2人分をスラッシュ表示
+                    const perSkillSyn = Array(10).fill(null);
+                    const perSkillHd1 = Array(10).fill(null);
+                    const perSkillHd2 = Array(10).fill(null);
+                    let hd1Total = 0, hd2Total = 0;
+                    r.elements.forEach((el, i) => {
+                        if (i >= 10) return;
+                        const synCell = document.getElementById(`hdts-tof-${i + 1}`);
+                        const hdCell  = document.getElementById(`hdts-hd-${i + 1}`);
+                        if (el.synchronizedScore != null) {
+                            perSkillSyn[i] = el.synchronizedScore;
+                            if (synCell) synCell.textContent = el.synchronizedScore.toFixed(2);
+                        } else if (synCell) synCell.textContent = '-';
+                        const d1 = el.horizontalDisplacementTrampoline1 != null ? Math.round((1.0 - el.horizontalDisplacementTrampoline1) * 10) : null;
+                        const d2 = el.horizontalDisplacementTrampoline2 != null ? Math.round((1.0 - el.horizontalDisplacementTrampoline2) * 10) : null;
+                        perSkillHd1[i] = d1; perSkillHd2[i] = d2;
+                        if (d1 != null) hd1Total += d1;
+                        if (d2 != null) hd2Total += d2;
+                        if (hdCell) hdCell.textContent = (d1 != null || d2 != null) ? `${d1 ?? '-'} / ${d2 ?? '-'}` : '-';
+                    });
+                    const synSum   = synScore != null ? synScore : perSkillSyn.reduce((a, b) => a + (b || 0), 0);
+                    const tofSumEl = document.getElementById('hdts-tof-sum');
+                    const hdSumEl  = document.getElementById('hdts-hd-sum');
+                    if (tofSumEl) tofSumEl.textContent = synSum.toFixed(2);
+                    if (hdSumEl)  hdSumEl.textContent  = `${hd1Total} / ${hd2Total}`;
+                    if (athleteId) {
+                        setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
+                            { hdtsPerSkillByPanel: { [panel]: { isSynchro: true, syn: perSkillSyn, hd1: perSkillHd1, hd2: perSkillHd2, synTotal: synSum, hd1Total, hd2Total } } },
+                            { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
+                    }
+                } else {
+                    let hdDedTotal = 0;
+                    const perSkillTof = Array(10).fill(null);
+                    const perSkillHd  = Array(10).fill(null);
+                    r.elements.forEach((el, i) => {
+                        if (i >= 10) return;
+                        const tofCell = document.getElementById(`hdts-tof-${i + 1}`);
+                        const hdCell  = document.getElementById(`hdts-hd-${i + 1}`);
+                        if (el.timeOfFlightInSeconds != null) {
+                            perSkillTof[i] = el.timeOfFlightInSeconds;
+                            if (tofCell) tofCell.textContent = el.timeOfFlightInSeconds.toFixed(3);
+                        } else if (tofCell) { tofCell.textContent = '-'; }
+                        if (el.horizontalDisplacement != null) {
+                            const ded = Math.round((1.0 - el.horizontalDisplacement) * 10);
+                            perSkillHd[i] = ded;
+                            hdDedTotal += ded;
+                            if (hdCell) hdCell.textContent = ded;
+                        } else if (hdCell) { hdCell.textContent = '-'; }
+                    });
+                    const tofSumEl = document.getElementById('hdts-tof-sum');
+                    const hdSumEl  = document.getElementById('hdts-hd-sum');
+                    if (tofSumEl && tofVal != null) tofSumEl.textContent = tofVal.toFixed(3);
+                    if (hdSumEl) hdSumEl.textContent = hdDedTotal;
+                    if (athleteId) {
+                        setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
+                            { hdtsPerSkillByPanel: { [panel]: { tof: perSkillTof, hd: perSkillHd, tofTotal: (tofVal ?? null), hdTotal: hdDedTotal } } },
+                            { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
+                    }
                 }
             }
             // 開始遅延ペナルティを自動適用（QIRA の startPenalty / delayBeforeStartInSeconds から）
@@ -1793,7 +1855,8 @@
             const _delayTxt = (_delaySec != null) ? `　開始まで: ${Number(_delaySec).toFixed(1)}s` : '';
             const _penTxt   = _delayPen ? `　→ ${_delayPen.display} (-${_delayPen.points.toFixed(1)})`
                                         : (_delaySec != null ? '　→ 遅延ペナルティなし' : '');
-            statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　ToF: ${tofVal?.toFixed(3) ?? '-'}s　HD: ${hdVal?.toFixed(1) ?? '-'}${_delayTxt}${_penTxt}`;
+            const _thTxt = isSyn ? `Syn: ${synScore?.toFixed(2) ?? '-'}` : `ToF: ${tofVal?.toFixed(3) ?? '-'}s`;
+            statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　${_thTxt}　HD: ${hdVal?.toFixed(1) ?? '-'}${_delayTxt}${_penTxt}`;
         } catch(e) {
             statusEl.style.color = '#e57373';
             statusEl.textContent = 'QIRAに接続できません（起動確認）';
