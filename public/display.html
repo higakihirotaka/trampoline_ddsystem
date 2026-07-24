@@ -1654,6 +1654,7 @@
 
   let rankingTimer     = null;   // スコア表示→順位表遷移タイマー
   let rankingPageTimer = null;   // 順位表ページ切替タイマー
+  let calcFlashTimer   = null;   // キュー滞留中に集計中を1秒だけ見せて戻すタイマー
   let currentMode      = 'idle'; // 'idle' | 'score' | 'ranking' | 'carousel'
   let displayQueue     = [];     // 表示待ちの resultDoc キュー
   let lastShownResData = null;   // 最後に表示したスコアのデータ（順位表用）
@@ -2234,8 +2235,20 @@
           <div class="calc-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>
         </div>`;
       calcEl.classList.add('active');
+      // キューに待機中の結果があるときは、集計中を1秒だけ見せてキュー表示に戻す。
+      // （バックログのスコアを集計中でずっと覆い隠さないため。キューが空なら従来どおり出し続ける）
+      if (displayQueue.length > 0 && !calcFlashTimer) {
+        calcFlashTimer = setTimeout(() => {
+          calcFlashTimer = null;
+          document.getElementById('vs-calculating')?.classList.remove('active');
+          // 進行中スコアがあれば後続タイマーで自然に消化される。滞留時のみ処理を促す。
+          if (currentMode !== 'score' && displayQueue.length > 0) processQueue();
+        }, 1000);
+      }
       return;
     }
+    // 集計中でない: 未発火のフラッシュタイマーを片付ける
+    if (calcFlashTimer) { clearTimeout(calcFlashTimer); calcFlashTimer = null; }
 
     // 団体順位表（CJPが明示表示。スコア表示中でも最前面に出す）
     if (screen === 'teamRanking') {
@@ -2589,6 +2602,8 @@
               displayQueue.length = 0;
               // calculating:false はCJPのpublish()側で書き込む（venue_displayは非ログインのため不可）
             }
+            // 集計中フラッシュ待ちがあれば解除（新規公開でキュー処理が走るため二重処理を防ぐ）
+            if (calcFlashTimer) { clearTimeout(calcFlashTimer); calcFlashTimer = null; }
             // スコア確定時：全会場画面を即時非表示にし、復元しない
             ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-final-startlist'].forEach(id => {
               document.getElementById(id)?.classList.remove('active');
