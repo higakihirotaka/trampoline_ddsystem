@@ -31,6 +31,14 @@
             border: 1px solid var(--danger); padding: 5px 12px;
             border-radius: 4px; font-size: 0.75rem; font-weight: bold; flex-shrink: 0;
         }
+        /* 会場練習タイマーの表示/非表示トグル（カウント中のみ表示） */
+        .btn-warmup-toggle {
+            background: transparent; color: var(--accent);
+            border: 1px solid var(--accent); padding: 5px 10px;
+            border-radius: 4px; font-size: 0.75rem; font-weight: bold;
+            flex-shrink: 0; cursor: pointer; white-space: nowrap;
+        }
+        .btn-warmup-toggle.off { color: #888; border-color: #555; }
 
         /* 待機画面 */
         .waiting {
@@ -123,6 +131,7 @@
                 flex-direction: column; align-items: flex-end; gap: 3px;
             }
             .btn-exit { padding: 4px 10px; font-size: 0.7rem; }
+            .btn-warmup-toggle { padding: 4px 8px; font-size: 0.65rem; }
 
             /* ステップバーをコンパクトに */
             .steps {
@@ -187,6 +196,7 @@
     </div>
     <div class="header-right">
         <span class="header-judge" id="header-judge"></span>
+        <button id="warmup-toggle-btn" class="btn-warmup-toggle" style="display:none;" onclick="toggleWarmupView()">⏱ 練習を隠す</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
     </div>
 </div>
@@ -230,6 +240,7 @@
     let judgeName = '';
     let currentTourData = null;
     let warmupData = {}, warmupInterval = null;
+    let warmupHidden = false; // 会場練習タイマーをこの端末で手動非表示にしているか
     // 会場練習タイマーのサーバー時刻補正（会場ディスプレイ/制御PCと同一ロジック）。
     // timerRef(=serverTimestamp) 受信時に自端末の時計とサーバー時刻の差を測り補正するため、
     // 端末ごとの時計ズレがあっても表示が一致する。offset は refMs 変化時のみ測定する。
@@ -298,22 +309,45 @@
         document.getElementById('warmup-classes').textContent =
             [warmupData.class1, warmupData.class2].filter(Boolean).join(' / ');
 
+        const btn = document.getElementById('warmup-toggle-btn');
+
         function tick() {
             const { rem, running } = warmupRem(warmupData);
             if (!running || rem <= 0) {                              // カウント中(残り>0)のみ表示
                 overlay.style.display = 'none';
+                if (btn) btn.style.display = 'none';                 // トグルボタンも隠す
+                warmupHidden = false;                                // 練習終了で次回に備えリセット
                 clearInterval(warmupInterval); warmupInterval = null;
                 return;
             }
             const s = Math.ceil(rem / 1000);
             valEl.textContent = `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
             valEl.className = 'warmup-time' + (rem < 60000 ? ' warning' : '');
-            overlay.style.display = '';
+            overlay.style.display = warmupHidden ? 'none' : '';      // 手動非表示なら隠す
+            if (btn) {                                               // カウント中はボタン表示
+                btn.style.display = '';
+                btn.textContent = warmupHidden ? '⏱ 練習を表示' : '⏱ 練習を隠す';
+                btn.classList.toggle('off', warmupHidden);
+            }
         }
         tick();
         const r0 = warmupRem(warmupData);
         if (r0.running && r0.rem > 0) warmupInterval = setInterval(tick, 250);
     }
+
+    // ---- 会場練習タイマー 表示/非表示トグル（ヘッダーのボタン） ----
+    window.toggleWarmupView = () => {
+        warmupHidden = !warmupHidden;
+        const { rem, running } = warmupRem(warmupData);
+        if (!running || rem <= 0) return;                            // 表示中のみ有効
+        const overlay = document.getElementById('warmup-overlay');
+        const btn     = document.getElementById('warmup-toggle-btn');
+        overlay.style.display = warmupHidden ? 'none' : '';
+        if (btn) {
+            btn.textContent = warmupHidden ? '⏱ 練習を表示' : '⏱ 練習を隠す';
+            btn.classList.toggle('off', warmupHidden);
+        }
+    };
 
     // ---- 初期化 ----
     function init() {
