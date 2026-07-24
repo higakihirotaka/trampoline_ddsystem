@@ -146,7 +146,7 @@
                     <option value="基礎技">基礎技</option></select></td>
                 <td><select id="soma-${i}" onchange="updateOptions(${i})"></select></td>
                 <td><select id="skill-${i}" onchange="onSkillSelect(${i})"><option value="">選択してください</option></select></td>
-                <td><input type="text" class="skill-text" list="skill-datalist" id="skill-text-${i}" onchange="onSkillText(${i})" placeholder="技名で検索"></td>
+                <td><input type="text" class="skill-text" list="skill-datalist" id="skill-text-${i}" oninput="onSkillText(${i})" onchange="onSkillText(${i})" placeholder="技名で検索"></td>
                 <td><span id="dd-${i}">0.0</span></td></tr>`;
         }
         document.getElementById('skill-rows').innerHTML = rows;
@@ -155,7 +155,7 @@
     }
 
     // 系統・宙系に応じて技名ドロップダウンを構築（entry.html と同一ロジック＋末尾で予測欄を同期）
-    window.updateOptions = (idx, selectedId = "", doCalc = true) => {
+    window.updateOptions = (idx, selectedId = "", doCalc = true, syncTextBack = true) => {
         const dir    = document.getElementById(`dir-${idx}`).value;
         const somaEl = document.getElementById(`soma-${idx}`);
         const sel    = document.getElementById(`skill-${idx}`);
@@ -198,27 +198,28 @@
             });
         }
         if (!selectedId && currentVal) sel.value = currentVal;
-        syncText(idx);              // 予測欄を現在の技選択に同期
+        if (syncTextBack) syncText(idx);   // 予測欄を現在の技選択に同期（入力途中は呼ばずカーソル移動を防ぐ）
         if (doCalc) calcTotal();
     };
 
     // 技名ドロップダウンを直接変更したとき
     window.onSkillSelect = (idx) => { syncText(idx); calcTotal(); };
 
-    // 予測欄に入力/選択したとき → ラベルから技IDを逆引きして左のドロップダウンを自動入力
+    // 予測欄に入力/選択したとき（input＝候補選択の瞬間に発火）→ ラベルから技IDを逆引きして
+    // 左のドロップダウンを即入力。完全一致したときだけ入り、打ちかけでは何もしない。
     window.onSkillText = (idx) => {
         const v = document.getElementById(`skill-text-${idx}`).value.trim();
-        if (!v) return;             // 空欄は現状維持（クリアはドロップダウンで）
+        if (!v) return;                   // 空欄は現状維持（クリアはドロップダウンで）
         const id = LABEL_TO_ID.get(v);
-        if (id) fillRow(idx, id);   // 一致しなければ何もしない（打ちかけ）
+        if (id) fillRow(idx, id, false);  // テキストは上書きしない（入力途中のカーソル移動を防ぐ）
     };
 
     // 技IDから系統・宙系・技名ドロップダウンを埋める
-    window.fillRow = (idx, skillId) => {
+    window.fillRow = (idx, skillId, syncTextBack = true) => {
         const skill = skillMaster.find(s => s.id === skillId);
         if (!skill) return;
         document.getElementById(`dir-${idx}`).value = skill.direction || '';
-        updateOptions(idx, skillId, true);   // 宙系・技名を構築して選択・予測欄同期・再計算
+        updateOptions(idx, skillId, true, syncTextBack);   // 宙系・技名を構築して選択・再計算
     };
 
     // 予測欄を「現在ドロップダウンで選択中の技名ラベル」に合わせる
