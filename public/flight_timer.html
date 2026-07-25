@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Timer（滞空時間計測） - Trampoline Scoring System</title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --danger: #d32f2f; --ok: #1e8e3e; --warn: #f29900; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); padding: 15px; margin: 0; color: #202124; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 22px; border-radius: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .page-title { margin: 0 0 4px; font-size: 1.45em; }
+        .page-sub { margin: 0 0 16px; font-size: 0.84em; color: #70757a; line-height: 1.6; }
+        .settings { display: flex; flex-wrap: wrap; gap: 14px 20px; background: #f1f3f4; padding: 14px 16px; border-radius: 12px; margin-bottom: 14px; align-items: center; }
+        .set-item { display: flex; align-items: center; gap: 8px; font-size: 0.85em; }
+        .set-item label { font-weight: bold; color: #5f6368; white-space: nowrap; }
+        select, input[type="file"], input[type="number"] { padding: 7px 9px; border-radius: 7px; border: 1px solid #ccc; font-size: 0.9em; background: #fff; }
+        input[type="number"] { width: 62px; text-align: right; }
+        .video-wrap { text-align: center; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+        #video { width: 100%; display: block; margin: 0 auto; background: #000; }
+        .no-video { color: #9aa0a6; padding: 60px 20px; font-size: 0.95em; }
+        .pos-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-bottom: 12px; }
+        .pos-now { font-family: 'SF Mono', Menlo, monospace; font-size: 1.5em; font-weight: 900; color: var(--primary); letter-spacing: 1px; }
+        .pos-now small { font-size: 0.5em; color: #80868b; font-weight: normal; letter-spacing: 0; }
+        .jump-group { display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: #5f6368; }
+        .score-box { margin-left: auto; text-align: right; }
+        .score-label { font-size: 0.7em; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; }
+        .score-val { font-size: 2em; font-weight: 900; color: var(--primary); line-height: 1; font-variant-numeric: tabular-nums; }
+        .phase { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 10px; font-weight: bold; font-size: 0.95em; margin-bottom: 12px; background: #e8f0fe; color: var(--primary); }
+        .phase.landing { background: #fff3e0; color: #e65100; }
+        .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .btn { padding: 12px 14px; border-radius: 10px; font-size: 0.92em; font-weight: bold; cursor: pointer; border: 2px solid transparent; background: #fff; color: var(--primary); border-color: #cddcf3; }
+        .btn:hover { background: #f5f9ff; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn.wide { flex: 1; min-width: 90px; }
+        .btn-measure { background: var(--primary); color: #fff; border-color: var(--primary); flex: 1.4; min-width: 120px; font-size: 1.05em; }
+        .btn-play { background: #202124; color: #fff; border-color: #202124; }
+        .btn-danger { color: var(--danger); border-color: #f3cfce; }
+        .btn-save { background: var(--ok); color: #fff; border-color: var(--ok); }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        th, td { padding: 9px 6px; border-bottom: 1px solid #eee; text-align: center; font-size: 0.9em; font-variant-numeric: tabular-nums; }
+        th { background: #f1f3f4; color: #5f6368; font-size: 0.78em; }
+        tr.pending td { background: #fffde7; color: #f29900; font-weight: bold; }
+        .tbl-wrap { overflow-x: auto; }
+        .kbd-note { font-size: 0.78em; color: #80868b; margin: 4px 2px 14px; line-height: 1.7; }
+        .kbd { display: inline-block; padding: 1px 7px; border: 1px solid #ccc; border-bottom-width: 2px; border-radius: 5px; background: #fafafa; font-family: monospace; font-size: 0.9em; }
+        .btn-group-bottom { display: flex; gap: 12px; margin-top: 22px; }
+        .btn-back { flex: 0 0 auto; text-decoration: none; color: #5f6368; border: 1px solid #ccc; padding: 12px 20px; border-radius: 10px; font-weight: bold; font-size: 0.9em; }
+        @media (max-width: 700px) {
+            body { padding: 8px; }
+            .container { padding: 14px; border-radius: 14px; }
+            .btn { padding: 12px 10px; font-size: 0.86em; }
+            .pos-now { font-size: 1.25em; }
+            .score-val { font-size: 1.6em; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="page-title">Flight Timer（滞空時間計測）</h1>
+    <p class="page-sub">動画のコマ送りで各技の離床・着床フレームを指定し、滞空時間(ToF)を計測します。計測結果はCSVで保存できます。（この端末内で完結し、提出はされません）</p>
+
+    <div class="settings">
+        <div class="set-item"><label>動画を選択</label><input type="file" id="file" accept="video/*"></div>
+        <div class="set-item"><label>フレームレート</label>
+            <select id="fps" onchange="onFpsChange()">
+                <option value="25">25 fps</option>
+                <option value="30" selected>30 fps</option>
+                <option value="50">50 fps</option>
+                <option value="60">60 fps</option>
+                <option value="100">100 fps</option>
+                <option value="120">120 fps</option>
+            </select>
+        </div>
+        <div class="set-item"><label>動画サイズ</label>
+            <select id="size" onchange="onSizeChange()">
+                <option value="100">100%</option>
+                <option value="75" selected>75%</option>
+                <option value="50">50%</option>
+                <option value="25">25%</option>
+            </select>
+        </div>
+        <div class="set-item"><label>競技種別</label>
+            <select id="etype" onchange="render()">
+                <option value="個人" selected>個人</option>
+                <option value="シンクロ">シンクロ</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="video-wrap" id="video-wrap" style="width:75%;">
+        <video id="video" controls tabindex="-1" playsinline></video>
+        <div class="no-video" id="no-video">▲ 上の「動画を選択」から動画ファイルを読み込んでください</div>
+    </div>
+
+    <div class="pos-bar">
+        <div class="pos-now" id="pos">00:00:00 <small>(分:秒:フレーム)</small></div>
+        <div class="jump-group">
+            再生位置:
+            <input type="number" id="jm" min="0" value="0" title="分">分
+            <input type="number" id="js" min="0" max="59" value="0" title="秒">秒
+            <input type="number" id="jf" min="0" value="0" title="フレーム">F
+            <button class="btn" onclick="doJump()">ジャンプ</button>
+        </div>
+        <div class="score-box">
+            <div class="score-label">滞空時間 合計</div>
+            <div class="score-val"><span id="score">0.000</span> <span style="font-size:0.5em;color:#80868b;">s</span></div>
+        </div>
+    </div>
+
+    <div class="phase" id="phase">次の測定：離床（技1）</div>
+
+    <div class="controls">
+        <button class="btn wide" onclick="stepSec(-1)" title="1秒戻る">◀◀ 1秒</button>
+        <button class="btn wide" onclick="stepFrame(-1)" title="1フレーム戻る">◀ 1F</button>
+        <button class="btn btn-play wide" id="play-btn" onclick="togglePlay()">▶ 再生</button>
+        <button class="btn wide" onclick="stepFrame(1)" title="1フレーム進む">1F ▶</button>
+        <button class="btn wide" onclick="stepSec(1)" title="1秒進む">1秒 ▶▶</button>
+        <button class="btn btn-measure" onclick="measure()">● 測定（離床/着床）</button>
+        <button class="btn wide" onclick="prevSkill()" title="直前の測定を取り消し">↩ ひとつ戻す</button>
+        <button class="btn btn-danger wide" onclick="resetAll()">記録リセット</button>
+        <button class="btn btn-save wide" onclick="downloadCSV()">💾 CSV</button>
+    </div>
+
+    <p class="kbd-note">
+        キー操作（入力欄からフォーカスを外して）：
+        <span class="kbd">→</span> 1フレーム進む・<span class="kbd">←</span> 戻る・
+        <span class="kbd">Space</span> 再生/停止・<span class="kbd">Enter</span> 測定（離床→着床の順に記録）
+    </p>
+
+    <div class="tbl-wrap">
+    <table>
+        <thead><tr>
+            <th style="width:44px;">技</th>
+            <th>離床時刻</th>
+            <th>着床時刻</th>
+            <th>滞空時間 (s)</th>
+            <th>累計 (s)</th>
+        </tr></thead>
+        <tbody id="rows"><tr><td colspan="5" style="color:#9aa0a6;padding:18px;">まだ計測がありません</td></tr></tbody>
+    </table>
+    </div>
+
+    <div class="btn-group-bottom">
+        <a id="back-link" class="btn-back" href="#">← メニューに戻る</a>
+    </div>
+</div>
+
+<script>
+    const eventId = new URLSearchParams(location.search).get('event');
+    document.getElementById('back-link').href = eventId ? `admin_menu.html?event=${eventId}` : 'admin_index.html';
+
+    const video   = document.getElementById('video');
+    const posEl   = document.getElementById('pos');
+    const scoreEl = document.getElementById('score');
+    const phaseEl = document.getElementById('phase');
+    const rowsEl  = document.getElementById('rows');
+    const playBtn = document.getElementById('play-btn');
+
+    let fps = 30;
+    let phase = 'takeoff';       // 'takeoff'（離床待ち） | 'landing'（着床待ち）
+    let pendingTakeoff = null;    // 離床だけ記録済みの時刻(s)
+    let skills = [];             // [{ takeoff, landing, flight }]（秒・フレームスナップ済み）
+
+    const pad = n => String(n).padStart(2, '0');
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+    const dur = () => (isFinite(video.duration) ? video.duration : 0);
+
+    // 秒 → 分:秒:フレーム 表示
+    function fmtMSF(t) {
+        const totalFrames = Math.round(t * fps);
+        const ff = totalFrames % fps;
+        const totalSec = Math.floor(totalFrames / fps);
+        return `${pad(Math.floor(totalSec / 60))}:${pad(totalSec % 60)}:${pad(ff)}`;
+    }
+    function updatePos() { posEl.innerHTML = `${fmtMSF(video.currentTime)} <small>(分:秒:フレーム)</small>`; }
+
+    // ---- 動画読み込み ----
+    document.getElementById('file').addEventListener('change', e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        video.src = URL.createObjectURL(f);
+        document.getElementById('no-video').style.display = 'none';
+        video.load();
+    });
+    video.addEventListener('loadedmetadata', () => { updatePos(); video.blur(); });
+    video.addEventListener('timeupdate', updatePos);
+    video.addEventListener('seeked', updatePos);
+    video.addEventListener('play',  () => { playBtn.textContent = '⏸ 停止'; });
+    video.addEventListener('pause', () => { playBtn.textContent = '▶ 再生'; });
+
+    // ---- 設定変更 ----
+    window.onFpsChange  = () => { fps = parseInt(document.getElementById('fps').value, 10) || 30; updatePos(); };
+    window.onSizeChange = () => { document.getElementById('video-wrap').style.width = document.getElementById('size').value + '%'; };
+
+    // ---- 再生・シーク ----
+    window.togglePlay = () => { if (!video.src) return; video.paused ? video.play() : video.pause(); };
+    function seekTo(t) { if (!video.src) return; video.pause(); video.currentTime = clamp(t, 0, dur()); }
+    window.stepFrame = (d) => { if (!video.src) return; const f = Math.round(video.currentTime * fps) + d; seekTo(f / fps); };
+    window.stepSec   = (d) => seekTo(video.currentTime + d);
+    window.doJump = () => {
+        const m = parseInt(document.getElementById('jm').value, 10) || 0;
+        const s = parseInt(document.getElementById('js').value, 10) || 0;
+        const f = parseInt(document.getElementById('jf').value, 10) || 0;
+        seekTo(m * 60 + s + f / fps);
+    };
+
+    // ---- 測定（離床→着床の順に記録） ----
+    window.measure = () => {
+        if (!video.src) return;
+        const t = Math.round(video.currentTime * fps) / fps;   // フレームにスナップした時刻(s)
+        if (phase === 'takeoff') {
+            pendingTakeoff = t;
+            phase = 'landing';
+        } else {
+            const flight = Math.max(0, t - pendingTakeoff);
+            skills.push({ takeoff: pendingTakeoff, landing: t, flight });
+            pendingTakeoff = null;
+            phase = 'takeoff';
+        }
+        render();
+    };
+
+    // ひとつ戻す（着床待ち→離床取消 / それ以外→直前の技を削除）
+    window.prevSkill = () => {
+        if (phase === 'landing') { pendingTakeoff = null; phase = 'takeoff'; }
+        else if (skills.length) { skills.pop(); }
+        render();
+    };
+
+    window.resetAll = () => {
+        if (skills.length && !confirm('計測結果をすべてリセットします。よろしいですか？')) return;
+        skills = []; pendingTakeoff = null; phase = 'takeoff';
+        render();
+    };
+
+    // ---- 表示更新 ----
+    function render() {
+        let cum = 0, html = '';
+        skills.forEach((s, i) => {
+            cum += s.flight;
+            html += `<tr><td>${i + 1}</td><td>${fmtMSF(s.takeoff)}</td><td>${fmtMSF(s.landing)}</td>` +
+                    `<td>${s.flight.toFixed(3)}</td><td>${cum.toFixed(3)}</td></tr>`;
+        });
+        if (pendingTakeoff != null) {
+            html += `<tr class="pending"><td>${skills.length + 1}</td><td>${fmtMSF(pendingTakeoff)}</td>` +
+                    `<td>着床待ち…</td><td>—</td><td>—</td></tr>`;
+        }
+        rowsEl.innerHTML = html || `<tr><td colspan="5" style="color:#9aa0a6;padding:18px;">まだ計測がありません</td></tr>`;
+        scoreEl.textContent = cum.toFixed(3);
+        const nextNo = skills.length + 1;
+        phaseEl.textContent = `次の測定：${phase === 'takeoff' ? '離床' : '着床'}（技${nextNo}）`;
+        phaseEl.classList.toggle('landing', phase === 'landing');
+    }
+
+    // ---- CSV 保存 ----
+    const csvCell = v => { v = String(v ?? ''); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+    window.downloadCSV = () => {
+        const etype = document.getElementById('etype').value;
+        const now = new Date();
+        const stamp    = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const readable = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+        const rows = [];
+        rows.push(['Flight Timer 計測結果']);
+        rows.push(['競技種別', etype]);
+        rows.push(['フレームレート', `${fps} fps`]);
+        rows.push(['日時', readable]);
+        rows.push([]);
+        rows.push(['技', '離床(分:秒:フレーム)', '着床(分:秒:フレーム)', '離床(秒)', '着床(秒)', '滞空時間(秒)', '累計(秒)']);
+        let cum = 0;
+        skills.forEach((s, i) => {
+            cum += s.flight;
+            rows.push([i + 1, fmtMSF(s.takeoff), fmtMSF(s.landing), s.takeoff.toFixed(3), s.landing.toFixed(3), s.flight.toFixed(3), cum.toFixed(3)]);
+        });
+        rows.push([]);
+        rows.push(['合計滞空時間(秒)', cum.toFixed(3)]);
+
+        const csv  = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `flight_timer_${etype}_${stamp}.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
+    // ---- キーボード操作（入力欄にフォーカスがある時は無効） ----
+    document.addEventListener('keydown', e => {
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+        if (e.key === 'ArrowRight')      { e.preventDefault(); stepFrame(1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); stepFrame(-1); }
+        else if (e.key === ' ')          { e.preventDefault(); togglePlay(); }
+        else if (e.key === 'Enter')      { e.preventDefault(); measure(); }
+    });
+
+    render();
+</script>
+</body>
+</html>
