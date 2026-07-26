@@ -11,6 +11,7 @@
         .container { max-width: 1000px; margin: auto; background: white; padding: 22px; border-radius: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
         .page-title { margin: 0 0 4px; font-size: 1.45em; }
         .page-sub { margin: 0 0 16px; font-size: 0.84em; color: #70757a; line-height: 1.6; }
+        .page-title-en { margin: 0 0 18px; font-size: 0.92em; color: #80868b; font-weight: bold; letter-spacing: 0.4px; }
         .settings { display: flex; flex-wrap: wrap; gap: 14px 20px; background: #f1f3f4; padding: 14px 16px; border-radius: 12px; margin-bottom: 14px; align-items: center; }
         .set-item { display: flex; align-items: center; gap: 8px; font-size: 0.85em; }
         .set-item label { font-weight: bold; color: #5f6368; white-space: nowrap; }
@@ -69,7 +70,7 @@
 <body>
 <div class="container">
     <h1 class="page-title">トランポリン動画検証システム</h1>
-    <p class="page-sub">動画のコマ送りで各技の離床・着床フレームを指定し、滞空時間(ToF)を計測します。計測結果はCSVで保存できます。（この端末内で完結し、提出はされません）</p>
+    <div class="page-title-en">Trampoline Video Verification System</div>
 
     <div class="settings">
         <div class="set-item"><label>動画を選択</label><input type="file" id="file" accept="video/*"></div>
