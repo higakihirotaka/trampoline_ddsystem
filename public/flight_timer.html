@@ -31,7 +31,8 @@
         .loop-title { font-weight: bold; color: #5f6368; font-size: 0.85em; white-space: nowrap; }
         .loop-range { font-size: 0.9em; color: #5f6368; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .loop-range b { color: var(--primary); }
-        .btn-loop.on { background: var(--ok); color: #fff; border-color: var(--ok); }
+        .btn.btn-loop { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn.btn-loop.on { background: var(--ok); color: #fff; border-color: var(--ok); }
         .phase { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 10px; font-weight: bold; font-size: 0.95em; margin-bottom: 12px; background: #e8f0fe; color: var(--primary); }
         .phase.landing { background: #fff3e0; color: #e65100; }
         .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
@@ -121,7 +122,7 @@
         <button class="btn" onclick="setLoopA()" title="現在フレームを開始点に">A（開始）に設定</button>
         <button class="btn" onclick="setLoopB()" title="現在フレームを終了点に">B（終了）に設定</button>
         <span class="loop-range">区間 <b id="loop-a">—</b> → <b id="loop-b">—</b></span>
-        <button class="btn btn-loop" id="loop-btn" onclick="toggleLoop()">ループ OFF</button>
+        <button class="btn btn-loop" id="loop-btn" onclick="toggleLoop()">▶ ループ再生</button>
         <button class="btn" onclick="clearLoop()">クリア</button>
     </div>
 
@@ -279,7 +280,7 @@
     function setLoop(on) {
         loopOn = on;
         const btn = document.getElementById('loop-btn');
-        btn.textContent = on ? 'ループ ON' : 'ループ OFF';
+        btn.textContent = on ? '⏹ ループ停止' : '▶ ループ再生';
         btn.classList.toggle('on', on);
         cancelAnimationFrame(loopRAF); loopRAF = null;
         if (on) loopRAF = requestAnimationFrame(loopTick);
