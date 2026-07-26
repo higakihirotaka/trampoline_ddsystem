@@ -31,6 +31,8 @@
         .loop-title { font-weight: bold; color: #5f6368; font-size: 0.85em; white-space: nowrap; }
         .loop-range { font-size: 0.9em; color: #5f6368; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .loop-range b { color: var(--primary); }
+        .loop-speed { display: flex; align-items: center; gap: 6px; font-size: 0.85em; font-weight: bold; color: #5f6368; white-space: nowrap; }
+        .loop-speed select { padding: 6px 8px; font-size: 0.9em; }
         .btn.btn-loop { background: var(--primary); color: #fff; border-color: var(--primary); }
         .btn.btn-loop.on { background: var(--ok); color: #fff; border-color: var(--ok); }
         .phase { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 10px; font-weight: bold; font-size: 0.95em; margin-bottom: 12px; background: #e8f0fe; color: var(--primary); }
@@ -124,6 +126,17 @@
         <span class="loop-range">区間 <b id="loop-a">—</b> → <b id="loop-b">—</b></span>
         <button class="btn btn-loop" id="loop-btn" onclick="toggleLoop()">▶ ループ再生</button>
         <button class="btn" onclick="clearLoop()">クリア</button>
+        <label class="loop-speed">速度
+            <select id="speed" onchange="onSpeedChange()">
+                <option value="0.1">0.1x</option>
+                <option value="0.25">0.25x</option>
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+            </select>
+        </label>
     </div>
 
     <div class="phase" id="phase">次の測定：離床（技1）</div>
@@ -214,6 +227,7 @@
     window.onFpsChange  = () => { fps = parseInt(document.getElementById('fps').value, 10) || 30;
                                   document.getElementById('fps-detect').textContent = ''; updatePos(); };
     window.onSizeChange = () => { document.getElementById('video-wrap').style.width = document.getElementById('size').value + '%'; };
+    window.onSpeedChange = () => { video.playbackRate = parseFloat(document.getElementById('speed').value) || 1; };
 
     // ---- フレームレート自動検出（requestVideoFrameCallback で数フレーム再生し、表示間隔から推定） ----
     function snapStdFps(raw) {                       // 29.97→30 等、最寄りの標準fpsへ丸める
@@ -235,9 +249,10 @@
     async function detectFps() {
         const el = document.getElementById('fps-detect');
         if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) {
-            el.textContent = '（自動検出はこのブラウザ非対応・手動で選択）'; return;
+            el.textContent = '（自動検出はこのブラウザ非対応・手動で選択）'; onSpeedChange(); return;
         }
         el.textContent = '（検出中…）';
+        video.playbackRate = 1;   // 検出は等速で（スロー設定でもフレームを取りこぼさない）
         try {
             const times = await new Promise((resolve) => {
                 const arr = []; const N = 24; const wasMuted = video.muted; video.muted = true; let done = false;
@@ -257,6 +272,8 @@
             applyDetectedFps(snapped, `検出: 約${raw.toFixed(2)}fps → ${snapped}fps`);
         } catch (e) {
             el.textContent = '（自動検出できません・手動で選択）';
+        } finally {
+            onSpeedChange();       // 検出後に選択中の再生速度を反映
         }
     }
 
