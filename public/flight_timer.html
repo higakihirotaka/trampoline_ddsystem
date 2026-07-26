@@ -27,6 +27,11 @@
         .score-box { margin-left: auto; text-align: right; }
         .score-label { font-size: 0.7em; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; }
         .score-val { font-size: 2em; font-weight: 900; color: var(--primary); line-height: 1; font-variant-numeric: tabular-nums; }
+        .loop-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: #f1f3f4; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
+        .loop-title { font-weight: bold; color: #5f6368; font-size: 0.85em; white-space: nowrap; }
+        .loop-range { font-size: 0.9em; color: #5f6368; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .loop-range b { color: var(--primary); }
+        .btn-loop.on { background: var(--ok); color: #fff; border-color: var(--ok); }
         .phase { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 10px; font-weight: bold; font-size: 0.95em; margin-bottom: 12px; background: #e8f0fe; color: var(--primary); }
         .phase.landing { background: #fff3e0; color: #e65100; }
         .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
@@ -111,6 +116,15 @@
         </div>
     </div>
 
+    <div class="loop-bar">
+        <span class="loop-title">🔁 区間ループ</span>
+        <button class="btn" onclick="setLoopA()" title="現在フレームを開始点に">A（開始）に設定</button>
+        <button class="btn" onclick="setLoopB()" title="現在フレームを終了点に">B（終了）に設定</button>
+        <span class="loop-range">区間 <b id="loop-a">—</b> → <b id="loop-b">—</b></span>
+        <button class="btn btn-loop" id="loop-btn" onclick="toggleLoop()">ループ OFF</button>
+        <button class="btn" onclick="clearLoop()">クリア</button>
+    </div>
+
     <div class="phase" id="phase">次の測定：離床（技1）</div>
 
     <div class="controls">
@@ -128,7 +142,8 @@
     <p class="kbd-note">
         キー操作（入力欄からフォーカスを外して）：
         <span class="kbd">→</span> 1フレーム進む・<span class="kbd">←</span> 戻る・
-        <span class="kbd">Space</span> 再生/停止・<span class="kbd">Enter</span> 測定（離床→着床の順に記録）
+        <span class="kbd">Space</span> 再生/停止・<span class="kbd">Enter</span> 測定（離床→着床の順に記録）・
+        <span class="kbd">I</span> ループA設定・<span class="kbd">O</span> ループB設定・<span class="kbd">L</span> ループ切替
     </p>
 
     <div class="tbl-wrap">
@@ -164,6 +179,7 @@
     let phase = 'takeoff';       // 'takeoff'（離床待ち） | 'landing'（着床待ち）
     let pendingTakeoff = null;    // 離床だけ記録済みの時刻(s)
     let skills = [];             // [{ takeoff, landing, flight }]（秒・フレームスナップ済み）
+    let loopA = null, loopB = null, loopOn = false, loopRAF = null;  // 区間ループ（A→B）
 
     const pad = n => String(n).padStart(2, '0');
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
@@ -185,6 +201,7 @@
         video.src = URL.createObjectURL(f);
         document.getElementById('no-video').style.display = 'none';
         video.load();
+        loopA = null; loopB = null; setLoop(false); renderLoop();   // 区間ループを初期化
     });
     video.addEventListener('loadedmetadata', () => { updatePos(); video.blur(); detectFps(); });
     video.addEventListener('timeupdate', updatePos);
@@ -252,6 +269,43 @@
         const s = parseInt(document.getElementById('js').value, 10) || 0;
         const f = parseInt(document.getElementById('jf').value, 10) || 0;
         seekTo(m * 60 + s + f / fps);
+    };
+
+    // ---- 区間ループ（A→B を繰り返し再生） ----
+    function renderLoop() {
+        document.getElementById('loop-a').textContent = loopA != null ? fmtMSF(loopA) : '—';
+        document.getElementById('loop-b').textContent = loopB != null ? fmtMSF(loopB) : '—';
+    }
+    function setLoop(on) {
+        loopOn = on;
+        const btn = document.getElementById('loop-btn');
+        btn.textContent = on ? 'ループ ON' : 'ループ OFF';
+        btn.classList.toggle('on', on);
+        cancelAnimationFrame(loopRAF); loopRAF = null;
+        if (on) loopRAF = requestAnimationFrame(loopTick);
+    }
+    function loopTick() {
+        if (!loopOn) return;
+        // 再生中に終了点Bに達したら開始点Aへ戻す（rAFで毎フレーム監視）
+        if (loopA != null && loopB != null && !video.paused && video.currentTime >= loopB - 0.0005) {
+            video.currentTime = loopA;
+        }
+        loopRAF = requestAnimationFrame(loopTick);
+    }
+    window.setLoopA = () => { if (!video.src) return; loopA = Math.round(video.currentTime * fps) / fps; renderLoop(); };
+    window.setLoopB = () => { if (!video.src) return; loopB = Math.round(video.currentTime * fps) / fps; renderLoop(); };
+    window.clearLoop = () => { loopA = null; loopB = null; setLoop(false); renderLoop(); };
+    window.toggleLoop = () => {
+        if (!video.src) return;
+        if (!loopOn) {
+            if (loopA == null || loopB == null) { alert('先に「A（開始）に設定」「B（終了）に設定」で区間を指定してください。'); return; }
+            if (loopB <= loopA) { alert('B（終了）はA（開始）より後にしてください。'); return; }
+            setLoop(true);
+            video.currentTime = loopA;
+            video.play();
+        } else {
+            setLoop(false);
+        }
     };
 
     // ---- 測定（離床→着床の順に記録） ----
@@ -342,6 +396,9 @@
         else if (e.key === 'ArrowLeft')  { e.preventDefault(); stepFrame(-1); }
         else if (e.key === ' ')          { e.preventDefault(); togglePlay(); }
         else if (e.key === 'Enter')      { e.preventDefault(); measure(); }
+        else if (e.key === 'i' || e.key === 'I') { e.preventDefault(); setLoopA(); }
+        else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); setLoopB(); }
+        else if (e.key === 'l' || e.key === 'L') { e.preventDefault(); toggleLoop(); }
     });
 
     render();
