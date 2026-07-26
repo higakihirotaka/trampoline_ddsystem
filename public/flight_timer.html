@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flight Timer（滞空時間計測） - Trampoline Scoring System</title>
+    <title>トランポリン動画検証システム - Trampoline Scoring System</title>
     <style>
         :root { --primary: #1a73e8; --bg: #f8f9fa; --danger: #d32f2f; --ok: #1e8e3e; --warn: #f29900; }
         * { box-sizing: border-box; }
@@ -15,6 +15,8 @@
         .set-item { display: flex; align-items: center; gap: 8px; font-size: 0.85em; }
         .set-item label { font-weight: bold; color: #5f6368; white-space: nowrap; }
         .fps-detect { font-size: 0.78em; color: #80868b; white-space: nowrap; }
+        .fps-warning { background: #fff3e0; border: 1px solid #ffb74d; border-left: 5px solid #f29900; color: #e65100; border-radius: 8px; padding: 11px 15px; margin-bottom: 12px; font-size: 0.9em; font-weight: bold; line-height: 1.6; }
+        .fps-warning b { color: #d84315; }
         select, input[type="file"], input[type="number"] { padding: 7px 9px; border-radius: 7px; border: 1px solid #ccc; font-size: 0.9em; background: #fff; }
         input[type="number"] { width: 62px; text-align: right; }
         .video-wrap { text-align: center; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
@@ -66,7 +68,7 @@
 </head>
 <body>
 <div class="container">
-    <h1 class="page-title">Flight Timer（滞空時間計測）</h1>
+    <h1 class="page-title">トランポリン動画検証システム</h1>
     <p class="page-sub">動画のコマ送りで各技の離床・着床フレームを指定し、滞空時間(ToF)を計測します。計測結果はCSVで保存できます。（この端末内で完結し、提出はされません）</p>
 
     <div class="settings">
@@ -81,7 +83,6 @@
                 <option value="100">100 fps</option>
                 <option value="120">120 fps</option>
             </select>
-            <span id="fps-detect" class="fps-detect"></span>
         </div>
         <div class="set-item"><label>動画サイズ</label>
             <select id="size" onchange="onSizeChange()">
@@ -98,6 +99,8 @@
             </select>
         </div>
     </div>
+
+    <div class="fps-warning" id="fps-warning" style="display:none;"></div>
 
     <div class="video-wrap" id="video-wrap" style="width:100%;">
         <video id="video" controls tabindex="-1" playsinline></video>
@@ -216,66 +219,59 @@
         document.getElementById('no-video').style.display = 'none';
         video.load();
         loopA = null; loopB = null; setLoop(false); renderLoop();   // 区間ループを初期化
+        _fpsSamples = []; stopFpsMonitor(); hideFpsWarning();       // fps照合の状態を初期化
     });
-    video.addEventListener('loadedmetadata', () => { updatePos(); video.blur(); detectFps(); });
+    video.addEventListener('loadedmetadata', () => { updatePos(); video.blur(); onSpeedChange(); });
     video.addEventListener('timeupdate', updatePos);
     video.addEventListener('seeked', updatePos);
-    video.addEventListener('play',  () => { playBtn.textContent = '⏸ 停止'; });
-    video.addEventListener('pause', () => { playBtn.textContent = '▶ 再生'; });
+    video.addEventListener('play',  () => { playBtn.textContent = '⏸ 停止'; startFpsMonitor(); });
+    video.addEventListener('pause', () => { playBtn.textContent = '▶ 再生'; stopFpsMonitor(); });
 
     // ---- 設定変更 ----
     window.onFpsChange  = () => { fps = parseInt(document.getElementById('fps').value, 10) || 30;
-                                  document.getElementById('fps-detect').textContent = ''; updatePos(); };
+                                  updatePos(); checkFpsMatch(); };   // 設定変更で警告を即再判定
     window.onSizeChange = () => { document.getElementById('video-wrap').style.width = document.getElementById('size').value + '%'; };
     window.onSpeedChange = () => { video.playbackRate = parseFloat(document.getElementById('speed').value) || 1; };
 
-    // ---- フレームレート自動検出（requestVideoFrameCallback で数フレーム再生し、表示間隔から推定） ----
+    // ---- 再生中のフレームレート照合（自動再生はしない。ユーザーの再生中だけ実測を監視） ----
+    // requestVideoFrameCallback で表示フレームの間隔を測り、設定fpsと合わない時だけ画面に警告を出す。
+    // 再生は止めない（あくまで注意喚起）。
     function snapStdFps(raw) {                       // 29.97→30 等、最寄りの標準fpsへ丸める
         const std = [24, 25, 30, 50, 60, 100, 120];
         let best = std[0], bd = Infinity;
         for (const s of std) { const d = Math.abs(s - raw); if (d < bd) { bd = d; best = s; } }
         return best;
     }
-    function applyDetectedFps(value, note) {
-        fps = value;
-        const sel = document.getElementById('fps');
-        if (![...sel.options].some(o => Number(o.value) === value)) {
-            const o = document.createElement('option'); o.value = value; o.textContent = value + ' fps'; sel.appendChild(o);
-        }
-        sel.value = String(value);
-        updatePos();
-        document.getElementById('fps-detect').textContent = note || '';
+    let _fpsSamples = [], _fpsMonitoring = false;
+    function showFpsWarning(detected, raw) {
+        const el = document.getElementById('fps-warning');
+        el.innerHTML = `⚠️ 設定フレームレート <b>${fps}fps</b> と、動画の実測 <b>約${raw.toFixed(1)}fps（≈${detected}fps）</b> が一致していません。` +
+                       `上の「フレームレート」を <b>${detected}fps</b> に合わせてください（コマ送り・計測が正確になります）。`;
+        el.style.display = '';
     }
-    async function detectFps() {
-        const el = document.getElementById('fps-detect');
-        if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) {
-            el.textContent = '（自動検出はこのブラウザ非対応・手動で選択）'; onSpeedChange(); return;
-        }
-        el.textContent = '（検出中…）';
-        video.playbackRate = 1;   // 検出は等速で（スロー設定でもフレームを取りこぼさない）
-        try {
-            const times = await new Promise((resolve) => {
-                const arr = []; const N = 24; const wasMuted = video.muted; video.muted = true; let done = false;
-                const finish = () => { if (done) return; done = true; video.pause(); video.muted = wasMuted; resolve(arr); };
-                const cb = (now, meta) => { arr.push(meta.mediaTime); if (arr.length >= N) finish(); else video.requestVideoFrameCallback(cb); };
-                video.currentTime = 0;
-                video.play().then(() => video.requestVideoFrameCallback(cb)).catch(finish);
-                setTimeout(finish, 3000);
-            });
-            video.pause(); video.currentTime = 0;
-            const deltas = [];
-            for (let i = 1; i < times.length; i++) { const d = times[i] - times[i - 1]; if (d > 1e-4) deltas.push(d); }
-            if (deltas.length < 3) { el.textContent = '（自動検出できません・手動で選択）'; return; }
-            deltas.sort((a, b) => a - b);
-            const raw = 1 / deltas[Math.floor(deltas.length / 2)];   // 間隔の中央値から fps
-            const snapped = snapStdFps(raw);
-            applyDetectedFps(snapped, `検出: 約${raw.toFixed(2)}fps → ${snapped}fps`);
-        } catch (e) {
-            el.textContent = '（自動検出できません・手動で選択）';
-        } finally {
-            onSpeedChange();       // 検出後に選択中の再生速度を反映
-        }
+    function hideFpsWarning() { document.getElementById('fps-warning').style.display = 'none'; }
+    function checkFpsMatch() {
+        const s = _fpsSamples, deltas = [];
+        for (let i = 1; i < s.length; i++) { const d = s[i] - s[i - 1]; if (d > 1e-4) deltas.push(d); }
+        if (deltas.length < 6) return;              // 十分なフレームが集まるまで判定しない
+        deltas.sort((a, b) => a - b);
+        const raw = 1 / deltas[Math.floor(deltas.length / 2)];   // 表示間隔の中央値から実測fps
+        const detected = snapStdFps(raw);
+        if (detected !== fps) showFpsWarning(detected, raw); else hideFpsWarning();
     }
+    function startFpsMonitor() {                     // 再生開始時に呼ぶ
+        if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype) || _fpsMonitoring) return;
+        _fpsMonitoring = true; _fpsSamples = [];
+        const cb = (now, meta) => {
+            if (!_fpsMonitoring) return;
+            _fpsSamples.push(meta.mediaTime);
+            if (_fpsSamples.length > 40) _fpsSamples.shift();   // 直近40フレームの移動窓
+            checkFpsMatch();
+            if (!video.paused) video.requestVideoFrameCallback(cb); else _fpsMonitoring = false;
+        };
+        video.requestVideoFrameCallback(cb);
+    }
+    function stopFpsMonitor() { _fpsMonitoring = false; }
 
     // ---- 再生・シーク ----
     window.togglePlay = () => { if (!video.src) return; video.paused ? video.play() : video.pause(); };
