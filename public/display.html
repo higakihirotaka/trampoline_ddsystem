@@ -2166,8 +2166,10 @@
     return { rem: w.timerRemainingMs ?? 0, running: false };
   }
 
+  let _teamRankKey = null;  // 表示中の団体順位表の対象キー（同一なら再描画せずちらつき防止）
   function applyVenueScreen(tourData) {
     const screen = tourData.venueScreen || 'score';
+    if (screen !== 'teamRanking') _teamRankKey = null;  // 他画面へ移ったら次回は再描画する
     const warmup = tourData.warmupSettings  || {};
     const ts     = tourData.titleSettings   || {};
     const cs     = tourData.ceremonySettings|| {};
@@ -2254,7 +2256,12 @@
     if (screen === 'teamRanking') {
       stopRankingLoop();
       document.getElementById('vs-team-ranking').classList.add('active');
-      renderTeamRanking(tourData.teamRankingTarget || {});
+      // 同じ対象を表示中なら再描画しない（選手選択等の無関係な大会ドキュメント更新でのちらつきを防ぐ）
+      const _trKey = JSON.stringify(tourData.teamRankingTarget || {});
+      if (_trKey !== _teamRankKey) {
+        _teamRankKey = _trKey;
+        renderTeamRanking(tourData.teamRankingTarget || {});
+      }
       return;
     }
 
