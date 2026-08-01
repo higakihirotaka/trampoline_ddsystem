@@ -526,29 +526,32 @@
   .tr-cat-right{ text-align:right; line-height:1.25; }
   .tr-cat-sub{ font-size:1.35cqw; font-weight:800; color:#ffd700; }
   .tr-cat-note{ font-size:0.85cqw; font-weight:700; color:#cbd5e0; letter-spacing:0.05cqw; }
-  .tr-list{ display:grid; grid-auto-rows:1fr; row-gap:0.7cqh; padding:0.6cqh 0; min-height:0; }
-  .tr-row{ display:grid; grid-template-columns: 5.2cqw 22cqw 1fr 12cqw; align-items:center; column-gap:1.2cqw;
-    background:rgba(255,255,255,0.06); border:1.5px solid rgba(0,242,255,0.2); border-left:4px solid rgba(0,242,255,0.35);
-    border-radius:6px; padding:0 1.2cqw; min-height:0; box-shadow: inset 0 0 20px rgba(0,242,255,0.03); }
-  .tr-rank{ font-size:3cqw; font-weight:900; text-align:center; letter-spacing:-1px; line-height:1; font-variant-numeric:tabular-nums; }
-  .tr-info{ min-width:0; }
-  .tr-name{ font-size:1.9cqw; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.05;
+  /* 3チーム固定（1画面3チーム・1,2チームでも同サイズ。4以上はJSでページ送り） */
+  .tr-list{ display:grid; grid-template-rows:repeat(3,1fr); row-gap:1cqh; padding:0.6cqh 0; min-height:0; }
+  .tr-row{ display:grid; grid-template-columns: 6cqw 1fr 13cqw; align-items:stretch; column-gap:1.4cqw;
+    background:rgba(255,255,255,0.05); border:1.5px solid rgba(0,242,255,0.2); border-left:5px solid rgba(0,242,255,0.35);
+    border-radius:8px; padding:0.5cqh 1.4cqw; min-height:0; overflow:hidden; box-shadow: inset 0 0 20px rgba(0,242,255,0.03); }
+  .tr-rank{ display:flex; align-items:center; justify-content:center; font-size:3.2cqw; font-weight:900; letter-spacing:-1px; line-height:1; font-variant-numeric:tabular-nums; }
+  .tr-body{ min-width:0; display:grid; grid-template-rows:auto 1fr; gap:0.4cqh; padding:0.3cqh 0; min-height:0; }
+  .tr-name{ font-size:1.7cqw; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.05;
     text-shadow: 0 0 22px rgba(0,242,255,0.15); }
-  .tr-club{ font-size:1cqw; font-weight:700; color:#cbd5e0; margin-top:0.3cqh; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .tr-members{ display:flex; gap:0.7cqw; justify-content:flex-end; flex-wrap:nowrap; }
-  .tr-mem{ min-width:6.4cqw; background:rgba(0,0,0,0.28); border:1px solid rgba(0,242,255,0.2); border-radius:5px;
-    padding:0.5cqh 0.7cqw; display:flex; flex-direction:column; align-items:center; gap:0.1cqh; }
+  /* 出場選手を縦並び（4枠。3人でも同配置＝空き枠でそろえる） */
+  .tr-members{ display:grid; grid-auto-rows:1fr; gap:0.35cqh; min-height:0; }
+  .tr-mem{ display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:1cqw; min-height:0; overflow:hidden;
+    background:rgba(0,0,0,0.28); border:1px solid rgba(0,242,255,0.18); border-radius:5px; padding:0 0.9cqw; }
+  .tr-mem-empty{ background:transparent; border:1px dashed rgba(255,255,255,0.05); }
   .tr-mem.count{ border-color:rgba(0,242,255,0.55); background:rgba(0,242,255,0.09); box-shadow: inset 0 0 12px rgba(0,242,255,0.06); }
-  .tr-mem.drop{ opacity:0.42; }
-  .tr-mem-name{ font-size:0.92cqw; font-weight:800; color:#fff; white-space:nowrap; }
+  .tr-mem.drop{ opacity:0.45; }
+  .tr-mem-name{ font-size:1.25cqw; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tr-mem.drop .tr-mem-name{ color:#cbd5e0; }
-  .tr-mem-score{ font-size:1.5cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; }
-  .tr-mem.count .tr-mem-score{ color:#fff; }
-  .tr-mem.drop .tr-mem-score{ color:#cbd5e0; text-decoration:line-through; text-decoration-thickness:1.5px; }
-  .tr-mem-two{ display:flex; gap:0.5cqw; }
-  .tr-mem-two span{ font-size:1.15cqw; font-weight:900; color:#e2e8f0; font-variant-numeric:tabular-nums; }
-  .tr-total{ text-align:right; }
-  .tr-total label{ display:block; font-size:0.8cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
+  /* 予選2本は1本目・2本目の得点を横に並べる */
+  .tr-mem-scores{ display:flex; gap:0.9cqw; flex-shrink:0; }
+  .tr-mem-scores span{ font-size:1.4cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; min-width:4.4cqw; text-align:right; }
+  .tr-mem.count .tr-mem-scores span{ color:#fff; }
+  .tr-mem.drop .tr-mem-scores span{ color:#cbd5e0; text-decoration:line-through; text-decoration-thickness:1.5px; }
+  .tr-page{ margin-left:0.8cqw; color:#00f2ff; font-weight:900; }
+  .tr-total{ display:flex; flex-direction:column; justify-content:center; align-items:flex-end; text-align:right; }
+  .tr-total label{ display:block; font-size:0.85cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
   .tr-total-num{ font-size:3cqw; font-weight:900; letter-spacing:-1.5px; line-height:1; font-variant-numeric:tabular-nums; }
   .tr-row.r1{ border-color:rgba(255,215,0,0.55); border-left-color:#ffd700; background:rgba(255,215,0,0.06); }
   .tr-row.r1 .tr-rank, .tr-row.r1 .tr-total-num{ color:#ffd700; text-shadow: 0 0 16px rgba(255,215,0,0.25); }
@@ -556,7 +559,7 @@
   .tr-row.r3{ border-left-color:#e8a06a; } .tr-row.r3 .tr-rank{ color:#e8a06a; }
   .tr-credit{ display:flex; justify-content:flex-end; align-items:center; font-size:0.8cqw; color:rgba(255,255,255,0.2);
     letter-spacing:0.2cqw; font-weight:700; text-transform:uppercase; }
-  .tr-empty{ grid-row:3; display:flex; align-items:center; justify-content:center; font-size:1.6cqw; color:#cbd5e0; }
+  .tr-empty{ grid-row:1 / -1; display:flex; align-items:center; justify-content:center; font-size:1.6cqw; color:#cbd5e0; }
   /* ===== 集計中画面 ===== */
   #vs-calculating{ container-type:size; padding:0; align-items:stretch; justify-content:flex-start; }
   .calc-layout{
@@ -1870,45 +1873,83 @@
     return { teams, scoreMode };
   }
 
+  // ---- 団体順位表（1画面3チーム固定・4チーム以上はページ送り・出場選手を縦並び） ----
+  let _trTeams = [], _trScoreMode = 'best', _trPage = 0, _trPageTimer = null, _trHead = null;
+  const TR_PER_PAGE = 3;
+
+  function trHeaderHtml(noteHtml) {
+    const h = _trHead || {};
+    return `
+      <div class="tr-conv">${h.conv || ''}</div>
+      <div class="tr-cat">
+        <div class="tr-cat-title">団体競技<span class="disc">${h.disc || ''}</span></div>
+        <div class="tr-cat-right">
+          <div class="tr-cat-sub">${h.catLabel || ''} ・ 予選</div>
+          <div class="tr-cat-note">${noteHtml}</div>
+        </div>
+      </div>`;
+  }
+  const trCreditHtml = () => `<footer class="tr-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
+
+  function renderTeamRankPage() {
+    const layout = document.getElementById('tr-layout');
+    if (!layout) return;
+    const totalPages = Math.max(1, Math.ceil(_trTeams.length / TR_PER_PAGE));
+    const page = ((_trPage % totalPages) + totalPages) % totalPages;
+    const note = _trScoreMode === 'best' ? 'ベストスコア上位3名の合計' : '各本 上位3名の合計';
+    if (_trTeams.length === 0) {
+      layout.innerHTML = trHeaderHtml(note) + `<div class="tr-list"><div class="tr-empty">この区分の登録チームがありません</div></div>` + trCreditHtml();
+      return;
+    }
+    const pageInd = totalPages > 1 ? `<span class="tr-page">${page + 1}/${totalPages}</span>` : '';
+    const pageTeams = _trTeams.slice(page * TR_PER_PAGE, page * TR_PER_PAGE + TR_PER_PAGE);
+    const listHtml = pageTeams.map((t, i) => {
+      const rank = page * TR_PER_PAGE + i + 1;
+      const rcls = rank <= 3 ? ` r${rank}` : '';
+      const slots = Math.max(4, t.members.length);   // 4枠固定（3人でも空き枠でそろえる）
+      let mems = '';
+      for (let k = 0; k < slots; k++) {
+        const m = t.members[k];
+        if (!m) { mems += `<div class="tr-mem tr-mem-empty"></div>`; continue; }
+        if (_trScoreMode === 'best') {
+          mems += `<div class="tr-mem ${m._count ? 'count' : 'drop'}"><span class="tr-mem-name">${m.name}</span>` +
+                  `<span class="tr-mem-scores"><span>${m.score.toFixed(2)}</span></span></div>`;
+        } else {   // 予選2本: 1本目・2本目を横に並べる
+          mems += `<div class="tr-mem"><span class="tr-mem-name">${m.name}</span>` +
+                  `<span class="tr-mem-scores"><span>${m.p1.total.toFixed(2)}</span><span>${m.p2.total.toFixed(2)}</span></span></div>`;
+        }
+      }
+      return `<div class="tr-row${rcls}">
+          <div class="tr-rank">${rank}</div>
+          <div class="tr-body"><div class="tr-name">${t.teamName}</div><div class="tr-members">${mems}</div></div>
+          <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span></div>
+        </div>`;
+    }).join('');
+    layout.innerHTML = trHeaderHtml(note + pageInd) + `<div class="tr-list">${listHtml}</div>` + trCreditHtml();
+  }
+
+  function startTeamRankCycle() {
+    stopTeamRankCycle();
+    _trPageTimer = setInterval(() => {
+      const totalPages = Math.max(1, Math.ceil(_trTeams.length / TR_PER_PAGE));
+      _trPage = (_trPage + 1) % totalPages;
+      renderTeamRankPage();
+    }, (displaySettings.rankingPageSec || 8) * 1000);
+  }
+  function stopTeamRankCycle() { if (_trPageTimer) { clearInterval(_trPageTimer); _trPageTimer = null; } }
+
   async function renderTeamRanking(target) {
+    stopTeamRankCycle();
     const layout = document.getElementById('tr-layout');
     if (!layout) return;
     const classVal = target.class || '', genderVal = target.gender || '', selType = target.type || 'individual';
-    const conv = tournamentName || '';
-    const catLabel = [classVal, genderVal].filter(Boolean).join(' ');
-    const disc = selType === 'synchro' ? 'SYN' : 'TRA';
-    const header = note => `
-      <div class="tr-conv">${conv}</div>
-      <div class="tr-cat">
-        <div class="tr-cat-title">団体競技<span class="disc">${disc}</span></div>
-        <div class="tr-cat-right">
-          <div class="tr-cat-sub">${catLabel} ・ 予選</div>
-          <div class="tr-cat-note">${note}</div>
-        </div>
-      </div>`;
-    const credit = `<footer class="tr-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
-    layout.innerHTML = header('') + `<div class="tr-list"><div class="tr-empty">集計中...</div></div>` + credit;
-
+    _trHead = { conv: tournamentName || '', catLabel: [classVal, genderVal].filter(Boolean).join(' '),
+                disc: selType === 'synchro' ? 'SYN' : 'TRA' };
+    layout.innerHTML = trHeaderHtml('') + `<div class="tr-list"><div class="tr-empty">集計中...</div></div>` + trCreditHtml();
     const { teams, scoreMode } = await computeTeamRanking(classVal, genderVal, selType);
-    const note = scoreMode === 'best' ? 'ベストスコア上位3名の合計' : '各本 上位3名の合計';
-    const listHtml = teams.length === 0
-      ? `<div class="tr-empty">この区分の登録チームがありません</div>`
-      : teams.map((t, idx) => {
-          const rank = idx + 1;
-          const rcls = rank <= 3 ? ` r${rank}` : '';
-          const membersHtml = t.members.map(m => scoreMode === 'best'
-            ? `<div class="tr-mem ${m._count ? 'count' : 'drop'}"><span class="tr-mem-name">${m.name}</span><span class="tr-mem-score">${m.score.toFixed(2)}</span></div>`
-            : `<div class="tr-mem"><span class="tr-mem-name">${m.name}</span><span class="tr-mem-two"><span>${m.p1.total.toFixed(2)}</span><span>${m.p2.total.toFixed(2)}</span></span></div>`
-          ).join('');
-          return `
-            <div class="tr-row${rcls}">
-              <div class="tr-rank">${rank}</div>
-              <div class="tr-info"><div class="tr-name">${t.teamName}</div></div>
-              <div class="tr-members">${membersHtml}</div>
-              <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span></div>
-            </div>`;
-        }).join('');
-    layout.innerHTML = header(note) + `<div class="tr-list">${listHtml}</div>` + credit;
+    _trTeams = teams; _trScoreMode = scoreMode; _trPage = 0;
+    renderTeamRankPage();
+    if (teams.length > TR_PER_PAGE) startTeamRankCycle();   // 4チーム以上はページ送り
   }
 
   async function fetchRankingEntries() {
@@ -2169,7 +2210,7 @@
   let _teamRankKey = null;  // 表示中の団体順位表の対象キー（同一なら再描画せずちらつき防止）
   function applyVenueScreen(tourData) {
     const screen = tourData.venueScreen || 'score';
-    if (screen !== 'teamRanking') _teamRankKey = null;  // 他画面へ移ったら次回は再描画する
+    if (screen !== 'teamRanking') { _teamRankKey = null; stopTeamRankCycle(); }  // 他画面へ移ったら次回は再描画・ページ送り停止
     const warmup = tourData.warmupSettings  || {};
     const ts     = tourData.titleSettings   || {};
     const cs     = tourData.ceremonySettings|| {};
