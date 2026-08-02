@@ -520,12 +520,12 @@
   .tr-layout{ width:100%; height:100%; display:grid; grid-template-rows: 7% 11.5% 77.5% 4%; padding: 0 3cqw; }
   .tr-conv{ border-bottom:1.5px solid rgba(0,242,255,0.2); display:flex; align-items:center; justify-content:center;
     font-size:1.1cqw; font-weight:700; letter-spacing:0.8cqw; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .tr-cat{ display:flex; align-items:center; justify-content:space-between; padding:0.6cqh 0.2cqw 0.2cqh; }
+  /* 左に 団体競技・クラス性別・予選 を並べる（右側の記載は無し） */
+  .tr-cat{ display:flex; align-items:baseline; gap:1.6cqw; padding:0.9cqh 0.2cqw 0.3cqh; }
   .tr-cat-title{ font-size:2.6cqw; font-weight:900; letter-spacing:-0.5px; line-height:1; }
-  .tr-cat-title .disc{ color:#00f2ff; margin-left:0.6cqw; }
-  .tr-cat-right{ text-align:right; line-height:1.25; }
-  .tr-cat-sub{ font-size:1.35cqw; font-weight:800; color:#ffd700; }
-  .tr-cat-note{ font-size:0.85cqw; font-weight:700; color:#cbd5e0; letter-spacing:0.05cqw; }
+  .tr-cat-title .disc{ color:#00f2ff; margin-left:0.5cqw; }
+  .tr-cat-cat{ font-size:2cqw; font-weight:800; color:#ffd700; letter-spacing:-0.3px; line-height:1; }
+  .tr-cat-round{ font-size:1.7cqw; font-weight:800; color:#cbd5e0; line-height:1; }
   /* 3チーム固定（1画面3チーム・1,2チームでも同サイズ。4以上はJSでページ送り） */
   .tr-list{ display:grid; grid-template-rows:repeat(3,1fr); row-gap:1cqh; padding:0.6cqh 0; min-height:0; }
   .tr-row{ display:grid; grid-template-columns: 6cqw 20cqw 1fr 13cqw; align-items:stretch; column-gap:1.4cqw;
@@ -548,7 +548,7 @@
   .tr-mem-scores span{ font-size:1.4cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; min-width:4.4cqw; text-align:right; }
   .tr-mem.count .tr-mem-scores span{ color:#fff; }
   .tr-mem.drop .tr-mem-scores span{ color:#cbd5e0; text-decoration:line-through; text-decoration-thickness:1.5px; }
-  .tr-page{ margin-left:0.8cqw; color:#00f2ff; font-weight:900; }
+  .tr-page{ font-size:1.4cqw; color:#00f2ff; font-weight:900; align-self:center; }
   .tr-total{ display:flex; flex-direction:column; justify-content:center; align-items:flex-end; text-align:right; }
   .tr-total label{ display:block; font-size:0.85cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
   .tr-total-num{ font-size:3cqw; font-weight:900; letter-spacing:-1.5px; line-height:1; font-variant-numeric:tabular-nums; }
@@ -1876,16 +1876,15 @@
   let _trTeams = [], _trScoreMode = 'best', _trPage = 0, _trPageTimer = null, _trHead = null;
   const TR_PER_PAGE = 3;
 
-  function trHeaderHtml(noteHtml) {
+  function trHeaderHtml(pageInd) {
     const h = _trHead || {};
     return `
       <div class="tr-conv">${h.conv || ''}</div>
       <div class="tr-cat">
-        <div class="tr-cat-title">団体競技<span class="disc">${h.disc || ''}</span></div>
-        <div class="tr-cat-right">
-          <div class="tr-cat-sub">${h.catLabel || ''} ・ 予選</div>
-          <div class="tr-cat-note">${noteHtml}</div>
-        </div>
+        <span class="tr-cat-title">団体競技<span class="disc">${h.disc || ''}</span></span>
+        ${h.catLabel ? `<span class="tr-cat-cat">${h.catLabel}</span>` : ''}
+        <span class="tr-cat-round">予選</span>
+        ${pageInd || ''}
       </div>`;
   }
   const trCreditHtml = () => `<footer class="tr-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
@@ -1895,9 +1894,8 @@
     if (!layout) return;
     const totalPages = Math.max(1, Math.ceil(_trTeams.length / TR_PER_PAGE));
     const page = ((_trPage % totalPages) + totalPages) % totalPages;
-    const note = _trScoreMode === 'best' ? 'ベストスコア上位3名の合計' : '各本 上位3名の合計';
     if (_trTeams.length === 0) {
-      layout.innerHTML = trHeaderHtml(note) + `<div class="tr-list"><div class="tr-empty">この区分の登録チームがありません</div></div>` + trCreditHtml();
+      layout.innerHTML = trHeaderHtml('') + `<div class="tr-list"><div class="tr-empty">この区分の登録チームがありません</div></div>` + trCreditHtml();
       return;
     }
     const pageInd = totalPages > 1 ? `<span class="tr-page">${page + 1}/${totalPages}</span>` : '';
@@ -1925,7 +1923,7 @@
           <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span></div>
         </div>`;
     }).join('');
-    layout.innerHTML = trHeaderHtml(note + pageInd) + `<div class="tr-list">${listHtml}</div>` + trCreditHtml();
+    layout.innerHTML = trHeaderHtml(pageInd) + `<div class="tr-list">${listHtml}</div>` + trCreditHtml();
   }
 
   function startTeamRankCycle() {
