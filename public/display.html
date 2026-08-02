@@ -528,12 +528,12 @@
   .tr-cat-note{ font-size:0.85cqw; font-weight:700; color:#cbd5e0; letter-spacing:0.05cqw; }
   /* 3チーム固定（1画面3チーム・1,2チームでも同サイズ。4以上はJSでページ送り） */
   .tr-list{ display:grid; grid-template-rows:repeat(3,1fr); row-gap:1cqh; padding:0.6cqh 0; min-height:0; }
-  .tr-row{ display:grid; grid-template-columns: 6cqw 1fr 13cqw; align-items:stretch; column-gap:1.4cqw;
+  .tr-row{ display:grid; grid-template-columns: 6cqw 20cqw 1fr 13cqw; align-items:stretch; column-gap:1.4cqw;
     background:rgba(255,255,255,0.05); border:1.5px solid rgba(0,242,255,0.2); border-left:5px solid rgba(0,242,255,0.35);
     border-radius:8px; padding:0.5cqh 1.4cqw; min-height:0; overflow:hidden; box-shadow: inset 0 0 20px rgba(0,242,255,0.03); }
   .tr-rank{ display:flex; align-items:center; justify-content:center; font-size:3.2cqw; font-weight:900; letter-spacing:-1px; line-height:1; font-variant-numeric:tabular-nums; }
-  .tr-body{ min-width:0; display:grid; grid-template-rows:auto 1fr; gap:0.4cqh; padding:0.3cqh 0; min-height:0; }
-  .tr-name{ font-size:1.7cqw; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.05;
+  .tr-name{ min-width:0; align-self:center; font-size:1.6cqw; font-weight:900; line-height:1.15; overflow:hidden;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; word-break:break-word;
     text-shadow: 0 0 22px rgba(0,242,255,0.15); }
   /* 出場選手を縦並び（4枠。3人でも同配置＝空き枠でそろえる） */
   .tr-members{ display:grid; grid-auto-rows:1fr; gap:0.35cqh; min-height:0; }
@@ -541,9 +541,8 @@
     background:rgba(0,0,0,0.28); border:1px solid rgba(0,242,255,0.18); border-radius:5px; padding:0 0.9cqw; }
   .tr-mem-empty{ background:transparent; border:1px dashed rgba(255,255,255,0.05); }
   .tr-mem.count{ border-color:rgba(0,242,255,0.55); background:rgba(0,242,255,0.09); box-shadow: inset 0 0 12px rgba(0,242,255,0.06); }
-  .tr-mem.drop{ opacity:0.45; }
+  /* 選手名は採用/不採用に関わらず普通に表示（不採用は得点だけ取り消し線） */
   .tr-mem-name{ font-size:1.25cqw; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .tr-mem.drop .tr-mem-name{ color:#cbd5e0; }
   /* 予選2本は1本目・2本目の得点を横に並べる */
   .tr-mem-scores{ display:flex; gap:0.9cqw; flex-shrink:0; }
   .tr-mem-scores span{ font-size:1.4cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; min-width:4.4cqw; text-align:right; }
@@ -1921,7 +1920,8 @@
       }
       return `<div class="tr-row${rcls}">
           <div class="tr-rank">${rank}</div>
-          <div class="tr-body"><div class="tr-name">${t.teamName}</div><div class="tr-members">${mems}</div></div>
+          <div class="tr-name">${t.teamName}</div>
+          <div class="tr-members">${mems}</div>
           <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span></div>
         </div>`;
     }).join('');
