@@ -535,17 +535,17 @@
   .tr-name{ min-width:0; align-self:center; font-size:1.6cqw; font-weight:900; line-height:1.15; overflow:hidden;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; word-break:break-word;
     text-shadow: 0 0 22px rgba(0,242,255,0.15); }
-  /* 出場選手を縦並び（4枠。3人でも同配置＝空き枠でそろえる） */
-  .tr-members{ display:grid; grid-auto-rows:1fr; gap:0.35cqh; min-height:0; }
-  .tr-mem{ display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:1cqw; min-height:0; overflow:hidden;
-    background:rgba(0,0,0,0.28); border:1px solid rgba(0,242,255,0.18); border-radius:5px; padding:0 0.9cqw; }
-  .tr-mem-empty{ background:transparent; border:1px dashed rgba(255,255,255,0.05); }
-  .tr-mem.count{ border-color:rgba(0,242,255,0.55); background:rgba(0,242,255,0.09); box-shadow: inset 0 0 12px rgba(0,242,255,0.06); }
-  /* 選手名は採用/不採用に関わらず普通に表示（不採用は得点だけ取り消し線） */
-  .tr-mem-name{ font-size:1.25cqw; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  /* 予選2本は1本目・2本目の得点を横に並べる */
+  /* 出場選手を縦並び（4枠。3人でも同配置＝空き枠でそろえる）。名前を囲むブロックは無し */
+  .tr-members{ display:grid; grid-template-rows:1fr; min-height:0; }
+  .tr-members.has-head{ grid-template-rows:auto 1fr; }
+  .tr-mem-list{ display:grid; grid-auto-rows:1fr; gap:0.25cqh; min-height:0; }
+  .tr-mem, .tr-mem-head{ display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:1cqw; min-height:0; overflow:hidden; padding:0 0.3cqw; }
+  .tr-mem-head{ padding-bottom:0.25cqh; }
+  .tr-mem-name{ font-size:1.3cqw; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* 予選2本は1本目・2本目の得点を横に並べ、上に Rtn1/Rtn2 ラベルを付ける */
   .tr-mem-scores{ display:flex; gap:0.9cqw; flex-shrink:0; }
-  .tr-mem-scores span{ font-size:1.4cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; min-width:4.4cqw; text-align:right; }
+  .tr-mem-scores span{ font-size:1.5cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; min-width:5cqw; text-align:right; }
+  .tr-mem-head .tr-mem-scores span{ font-size:0.95cqw; font-weight:800; color:#8aa0b5; letter-spacing:0.03cqw; }
   .tr-mem.count .tr-mem-scores span{ color:#fff; }
   .tr-mem.drop .tr-mem-scores span{ color:#cbd5e0; text-decoration:line-through; text-decoration-thickness:1.5px; }
   .tr-page{ font-size:1.4cqw; color:#00f2ff; font-weight:900; align-self:center; }
@@ -1916,10 +1916,13 @@
                   `<span class="tr-mem-scores"><span>${m.p1.total.toFixed(2)}</span><span>${m.p2.total.toFixed(2)}</span></span></div>`;
         }
       }
+      const memHead = _trScoreMode === 'best' ? ''
+        : `<div class="tr-mem-head"><span class="tr-mem-name"></span><span class="tr-mem-scores"><span>Rtn1</span><span>Rtn2</span></span></div>`;
+      const membersCls = _trScoreMode === 'best' ? 'tr-members' : 'tr-members has-head';
       return `<div class="tr-row${rcls}">
           <div class="tr-rank">${rank}</div>
           <div class="tr-name">${t.teamName}</div>
-          <div class="tr-members">${mems}</div>
+          <div class="${membersCls}">${memHead}<div class="tr-mem-list">${mems}</div></div>
           <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span></div>
         </div>`;
     }).join('');
