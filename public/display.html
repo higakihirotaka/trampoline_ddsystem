@@ -548,6 +548,8 @@
   .tr-mem-head .tr-mem-scores span{ font-size:0.95cqw; font-weight:800; color:#8aa0b5; letter-spacing:0.03cqw; }
   .tr-mem.count .tr-mem-scores span{ color:#fff; }
   .tr-mem.drop .tr-mem-scores span{ color:#cbd5e0; text-decoration:line-through; text-decoration-thickness:1.5px; }
+  /* best制で採用しない方の本（採用選手の低い方）を取り消し線 */
+  .tr-mem-scores span.struck{ color:#9fb0c0 !important; text-decoration:line-through; text-decoration-thickness:1.5px; }
   .tr-page{ font-size:1.4cqw; color:#00f2ff; font-weight:900; align-self:center; }
   .tr-total{ display:flex; flex-direction:column; justify-content:center; align-items:flex-end; text-align:right; }
   .tr-total label{ display:block; font-size:0.85cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
@@ -1819,6 +1821,7 @@
   async function computeTeamRanking(classVal, genderVal, selType) {
     const rule = getClassRule({ class: classVal, type: selType });
     const scoreMode = rule.scoreMode || 'best';
+    const numPre    = rule.qualifyingRoutines ?? tournamentData?.qualifyingRoutines ?? 1;
     const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
     const teamDocs = teamSnap.docs.filter(d => {
       const t = d.data();
@@ -1846,8 +1849,9 @@
         const p1 = byAth[id]?.pre1 || ZERO;
         const p2 = byAth[id]?.pre2 || ZERO;
         if (scoreMode === 'best') {
-          const adopt = (p2.total > p1.total) ? p2 : p1; // 採用演技（合計が高い方）
-          return { name, score: adopt.total, T: adopt.T, H: adopt.H, D: adopt.D };
+          const useP2 = p2.total > p1.total;
+          const adopt = useP2 ? p2 : p1; // 採用演技（合計が高い方）
+          return { name, score: adopt.total, T: adopt.T, H: adopt.H, D: adopt.D, p1, p2, adoptRoutine: useP2 ? 2 : 1 };
         }
         return { name, p1, p2 };
       });
@@ -1869,11 +1873,11 @@
     });
     // 団体得点 → T → H → D の降順
     teams.sort((a, b) => b.score - a.score || b.tbT - a.tbT || b.tbH - a.tbH || b.tbD - a.tbD);
-    return { teams, scoreMode };
+    return { teams, scoreMode, numPre };
   }
 
   // ---- 団体順位表（1画面3チーム固定・4チーム以上はページ送り・出場選手を縦並び） ----
-  let _trTeams = [], _trScoreMode = 'best', _trPage = 0, _trPageTimer = null, _trHead = null;
+  let _trTeams = [], _trScoreMode = 'best', _trNumPre = 1, _trPage = 0, _trPageTimer = null, _trHead = null;
   const TR_PER_PAGE = 3;
 
   function trHeaderHtml(pageInd) {
@@ -1903,22 +1907,34 @@
     const listHtml = pageTeams.map((t, i) => {
       const rank = page * TR_PER_PAGE + i + 1;
       const rcls = rank <= 3 ? ` r${rank}` : '';
+      const twoRtn = _trNumPre === 2;   // 予選2本ならRtn1/Rtn2で両本表示（採点方式に関係なく）
+      const isBest = _trScoreMode === 'best';
       const slots = Math.max(4, t.members.length);   // 4枠固定（3人でも空き枠でそろえる）
       let mems = '';
       for (let k = 0; k < slots; k++) {
         const m = t.members[k];
         if (!m) { mems += `<div class="tr-mem tr-mem-empty"></div>`; continue; }
-        if (_trScoreMode === 'best') {
-          mems += `<div class="tr-mem ${m._count ? 'count' : 'drop'}"><span class="tr-mem-name">${m.name}</span>` +
-                  `<span class="tr-mem-scores"><span>${m.score.toFixed(2)}</span></span></div>`;
-        } else {   // 予選2本: 1本目・2本目を横に並べる
-          mems += `<div class="tr-mem"><span class="tr-mem-name">${m.name}</span>` +
-                  `<span class="tr-mem-scores"><span>${m.p1.total.toFixed(2)}</span><span>${m.p2.total.toFixed(2)}</span></span></div>`;
+        if (!twoRtn) {
+          // 予選1本: 単一得点（best=採用スコア・不採用選手は取り消し線）
+          const cls = isBest ? (m._count ? 'count' : 'drop') : '';
+          const val = isBest ? m.score : m.p1.total;
+          mems += `<div class="tr-mem ${cls}"><span class="tr-mem-name">${m.name}</span>` +
+                  `<span class="tr-mem-scores"><span>${val.toFixed(2)}</span></span></div>`;
+        } else {
+          // 予選2本: Rtn1/Rtn2 を横並び。best は採用しない方の本を取り消し線、不採用選手は両方
+          let memCls = '', s1 = '', s2 = '';
+          if (isBest) {
+            memCls = m._count ? 'count' : 'drop';
+            if (m._count) { if (m.adoptRoutine === 1) s2 = 'struck'; else s1 = 'struck'; }
+          }
+          mems += `<div class="tr-mem ${memCls}"><span class="tr-mem-name">${m.name}</span>` +
+                  `<span class="tr-mem-scores"><span class="${s1}">${m.p1.total.toFixed(2)}</span><span class="${s2}">${m.p2.total.toFixed(2)}</span></span></div>`;
         }
       }
-      const memHead = _trScoreMode === 'best' ? ''
-        : `<div class="tr-mem-head"><span class="tr-mem-name"></span><span class="tr-mem-scores"><span>Rtn1</span><span>Rtn2</span></span></div>`;
-      const membersCls = _trScoreMode === 'best' ? 'tr-members' : 'tr-members has-head';
+      const memHead = twoRtn
+        ? `<div class="tr-mem-head"><span class="tr-mem-name"></span><span class="tr-mem-scores"><span>Rtn1</span><span>Rtn2</span></span></div>`
+        : '';
+      const membersCls = twoRtn ? 'tr-members has-head' : 'tr-members';
       return `<div class="tr-row${rcls}">
           <div class="tr-rank">${rank}</div>
           <div class="tr-name">${t.teamName}</div>
@@ -1947,8 +1963,8 @@
     _trHead = { conv: tournamentName || '', catLabel: [classVal, genderVal].filter(Boolean).join(' '),
                 disc: selType === 'synchro' ? 'SYN' : 'TRA' };
     layout.innerHTML = trHeaderHtml('') + `<div class="tr-list"><div class="tr-empty">集計中...</div></div>` + trCreditHtml();
-    const { teams, scoreMode } = await computeTeamRanking(classVal, genderVal, selType);
-    _trTeams = teams; _trScoreMode = scoreMode; _trPage = 0;
+    const { teams, scoreMode, numPre } = await computeTeamRanking(classVal, genderVal, selType);
+    _trTeams = teams; _trScoreMode = scoreMode; _trNumPre = numPre; _trPage = 0;
     renderTeamRankPage();
     if (teams.length > TR_PER_PAGE) startTeamRankCycle();   // 4チーム以上はページ送り
   }
