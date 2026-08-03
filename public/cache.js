@@ -66,9 +66,12 @@ export async function getTournament(eventId) {
  */
 export async function getAthletes(eventId) {
     const key = `ath:${eventId}`;
-    if (_mem.has(key)) return _mem.get(key);
+    // 空配列のキャッシュは無視して再取得する（読込タイミングで0件が返ったものを
+    // ロックすると、選手名が引けずIDにフォールバックし続けるため）
+    const mem = _mem.get(key);
+    if (mem && mem.length > 0) return mem;
     const ss = ssGet(key);
-    if (ss !== undefined) { _mem.set(key, ss); return ss; }
+    if (ss !== undefined && ss.length > 0) { _mem.set(key, ss); return ss; }
 
     const snap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
     // finalOrder / isInFinal は試技順変更で頻繁に更新されるためキャッシュ除外
@@ -76,8 +79,8 @@ export async function getAthletes(eventId) {
         const { finalOrder, isInFinal, ...stable } = { id: d.id, ...d.data() };
         return stable;
     });
-    _mem.set(key, data);
-    ssSet(key, data);
+    // 空はキャッシュしない（次回また取得を試みる）
+    if (data.length > 0) { _mem.set(key, data); ssSet(key, data); }
     return data;
 }
 

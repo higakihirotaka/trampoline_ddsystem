@@ -2570,14 +2570,11 @@
       // display.html は朝から終日リロードしないため onSnapshot で常に最新を保持する
       onSnapshot(collection(db, 'tournaments', eventId, 'athletes'), snap => {
         snap.docChanges().forEach(change => {
-          if (change.type === 'modified' || change.type === 'added') {
-            const id = change.doc.id;
-            const d  = change.doc.data();
-            if (athleteMap[id]) {
-              athleteMap[id].finalOrder = d.finalOrder ?? null;
-              athleteMap[id].isInFinal  = d.isInFinal  ?? false;
-            }
-          }
+          const id = change.doc.id;
+          if (change.type === 'removed') { delete athleteMap[id]; return; }
+          // 追加・更新: 選手情報を丸ごと反映。初回 getAthletes が空を返しても
+          // ここで athleteMap が埋まる（団体順位等で選手名がIDにフォールバックしないように）
+          athleteMap[id] = { ...(athleteMap[id] || {}), id, ...change.doc.data() };
         });
       });
 
