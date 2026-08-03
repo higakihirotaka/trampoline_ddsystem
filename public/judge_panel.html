@@ -126,6 +126,7 @@
     let athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
+    let _pendingSidebarScroll = null; // 確定後の再読込で左リストのスクロール位置を保持するため
     let cjpConfirmed = false; // CJPが公式スコアを確定済（published:true）かどうか
     let unsubValidCount = null;
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
@@ -357,6 +358,13 @@
                     <div class="round-box">${dotsHtml}</div>
                 </div>`;
         });
+
+        // 確定後の再読込などでは、退避しておいた位置に左リストのスクロールを復元する
+        if (_pendingSidebarScroll != null) {
+            const sc = _pendingSidebarScroll; _pendingSidebarScroll = null;
+            listEl.scrollTop = sc;
+            requestAnimationFrame(() => { listEl.scrollTop = sc; });
+        }
     }
 
     window.setFilter = (key, val) => {
@@ -740,7 +748,8 @@
         try {
             const totalVal = parseFloat(document.getElementById('total-dd').innerText.split(' ')[0]);
             await setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
-            init(); 
+            _pendingSidebarScroll = document.getElementById('sidebar-list')?.scrollTop ?? null; // 再読込後も左リストの位置を維持
+            init();
         } catch (e) { console.error(e); btn.disabled = false; }
     };
     window.addEventListener('pageshow', e => {
