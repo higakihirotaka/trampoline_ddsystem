@@ -1847,14 +1847,15 @@
       const members = (t.memberIds || []).map(id => {
         const ath  = athleteMap[id];
         const name = ath ? (ath.name1 || id) : id;
-        const p1 = byAth[id]?.pre1 || ZERO;
-        const p2 = byAth[id]?.pre2 || ZERO;
+        const p1raw = byAth[id]?.pre1, p2raw = byAth[id]?.pre2;
+        const p1 = p1raw || ZERO, p2 = p2raw || ZERO;
+        const p1has = p1raw != null, p2has = p2raw != null; // その本の結果が存在するか（＝演技済みか）
         if (scoreMode === 'best') {
           const useP2 = p2.total > p1.total;
           const adopt = useP2 ? p2 : p1; // 採用演技（合計が高い方）
-          return { name, score: adopt.total, T: adopt.T, H: adopt.H, D: adopt.D, p1, p2, adoptRoutine: useP2 ? 2 : 1 };
+          return { name, score: adopt.total, T: adopt.T, H: adopt.H, D: adopt.D, p1, p2, p1has, p2has, adoptRoutine: useP2 ? 2 : 1 };
         }
-        return { name, p1, p2 };
+        return { name, p1, p2, p1has, p2has };
       });
       let score, tbT, tbH, tbD;
       if (scoreMode === 'best') {
@@ -1916,20 +1917,24 @@
         const m = t.members[k];
         if (!m) { mems += `<div class="tr-mem tr-mem-empty"></div>`; continue; }
         if (!twoRtn) {
-          // 予選1本: 単一得点（best=採用スコア・不採用選手は取り消し線）
+          // 予選1本: 単一得点（best=採用スコア・不採用選手は取り消し線）。未演技は空欄
           const cls = isBest ? (m._count ? 'count' : 'drop') : '';
           const val = isBest ? m.score : m.p1.total;
+          const disp = m.p1has ? val.toFixed(2) : '';
           mems += `<div class="tr-mem ${cls}"><span class="tr-mem-name">${m.name}</span>` +
-                  `<span class="tr-mem-scores"><span>${val.toFixed(2)}</span></span></div>`;
+                  `<span class="tr-mem-scores"><span>${disp}</span></span></div>`;
         } else {
-          // 予選2本: Rtn1/Rtn2 を横並び。best は採用しない方の本を取り消し線、不採用選手は両方
+          // 予選2本: Rtn1/Rtn2 を横並び。未演技の本は空欄。best は採用しない方の本を取り消し線、不採用選手は両方
+          const d1 = m.p1has ? m.p1.total.toFixed(2) : '';
+          const d2 = m.p2has ? m.p2.total.toFixed(2) : '';
           let memCls = '', s1 = '', s2 = '';
           if (isBest) {
             memCls = m._count ? 'count' : 'drop';
-            if (m._count) { if (m.adoptRoutine === 1) s2 = 'struck'; else s1 = 'struck'; }
+            // 取り消し線は値のある本にのみ付ける（空欄には付けない）
+            if (m._count) { if (m.adoptRoutine === 1) { if (m.p2has) s2 = 'struck'; } else { if (m.p1has) s1 = 'struck'; } }
           }
           mems += `<div class="tr-mem ${memCls}"><span class="tr-mem-name">${m.name}</span>` +
-                  `<span class="tr-mem-scores"><span class="${s1}">${m.p1.total.toFixed(2)}</span><span class="${s2}">${m.p2.total.toFixed(2)}</span></span></div>`;
+                  `<span class="tr-mem-scores"><span class="${s1}">${d1}</span><span class="${s2}">${d2}</span></span></div>`;
         }
       }
       const memHead = twoRtn
