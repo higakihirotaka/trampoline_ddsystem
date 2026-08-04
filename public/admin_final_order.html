@@ -278,7 +278,7 @@
   function renderFilters() {
     const byType = athletes.filter(a => (a.type || 'individual') === fType);
     const genders = [...new Set(byType.map(a => a.gender || '').filter(Boolean))];
-    const tourClassDefs = (tourData?.classes?.[fType] || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+    const tourClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.[fType] || [])).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
     const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
     const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
 
@@ -492,7 +492,7 @@
     // クラス別グループ化（種目 → 性別 → クラス順）
     const tourClassDefs = {};
     ['individual','synchro'].forEach(tp => {
-      (tourData?.classes?.[tp] || [])
+      (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.[tp] || []))
         .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99))
         .forEach((c, i) => { tourClassDefs[`${tp}|${c.name}`] = i; });
     });

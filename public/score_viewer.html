@@ -201,7 +201,7 @@
     // ---- サイドバー ----
     function renderSidebar() {
         const filtered  = Object.values(athletes).filter(a => (a.type || 'individual') === fType);
-        const tourClassDefs = (currentTour?.classes?.[fType] || []).slice().sort((a,b) => (a.display_order??99)-(b.display_order??99)).map(c => c.name);
+        const tourClassDefs = (Array.isArray(currentTour?.classes) ? currentTour.classes : (currentTour?.classes?.[fType] || [])).slice().sort((a,b) => (a.display_order??99)-(b.display_order??99)).map(c => c.name);
         const rawClasses = [...new Set(filtered.map(a => a.class || a.category || ''))];
         const classes = [...tourClassDefs.filter(c => rawClasses.includes(c)), ...rawClasses.filter(c => !tourClassDefs.includes(c))];
         const genders   = [...new Set(filtered.map(a => a.gender || ''))].filter(Boolean);

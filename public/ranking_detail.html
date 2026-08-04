@@ -306,7 +306,7 @@
     const combos = [];
     const seen = new Set();
     ['individual','synchro'].forEach(type => {
-      const tourClassDefs = (tourData?.classes?.[type] || [])
+      const tourClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.[type] || []))
         .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
       const byType = athletes.filter(a => (a.type || 'individual') === type);
       const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
@@ -798,7 +798,7 @@
     ['individual', 'synchro'].forEach(type => {
       const byType = athletes.filter(a => (a.type || 'individual') === type);
       if (!byType.length) return;
-      const tourClassDefs = (tourData?.classes?.[type] || [])
+      const tourClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.[type] || []))
         .slice().sort((a, b) => (a.display_order ?? 99) - (b.display_order ?? 99)).map(c => c.name);
       const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
       const classes = [...tourClassDefs.filter(c => rawClasses.includes(c)), ...rawClasses.filter(c => !tourClassDefs.includes(c))];
