@@ -534,7 +534,7 @@
             const outOfRange = isLanding ? vLimit < 10 : i >= vLimit;
             if (outOfRange) { s.style.visibility = 'hidden'; stepsEl.appendChild(s); continue; }
 
-            if (i === currentIndex) {
+            if (i === currentIndex && !confirmed) {
                 s.classList.add('active');
                 const dispVal = val !== null ? Math.round(val * 10) : '--';
                 s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val">${dispVal}</span>`;
