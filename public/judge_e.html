@@ -65,14 +65,12 @@
         .step-lbl { font-size: clamp(0.4rem, 0.7vw, 0.75rem); color: #444; font-weight: bold; }
         .step-val { font-size: clamp(1rem, 1.8vw, 2.5rem); font-weight: 900; color: #444; min-height: 1em; }
 
-        /* 入力済み・確定前: アンバー（未確定であることを示す） */
-        .step.filled { background: #2b2510; cursor: pointer; }
-        .step.filled .step-lbl { color: #8a763a; }
-        .step.filled .step-val { color: #ffc107; }
-        /* 確定後: 緑（確定済み） */
-        .steps.confirmed .step.filled { background: #162b16; border-color: #1f7a3a; }
-        .steps.confirmed .step.filled .step-lbl { color: #3a6a3a; }
-        .steps.confirmed .step.filled .step-val { color: var(--accent); }
+        /* 入力済み・確定前: 緑文字（確定後と同じ）。緑背景は付けない */
+        .step.filled { cursor: pointer; }
+        .step.filled .step-lbl { color: #3a6a3a; }
+        .step.filled .step-val { color: var(--accent); }
+        /* 確定後: 緑背景を付与（確定済みの目印。確定前との差は緑背景のみ） */
+        .steps.confirmed .step.filled { background: #162b16; }
 
         .step.active { background: #0f2a0f; border-color: var(--accent); }
         .step.active .step-lbl { color: var(--accent); }
@@ -154,8 +152,7 @@
                 gap: 1px;
             }
             .step-lbl { font-size: 0.5rem; color: #333; }
-            .step.filled .step-lbl { color: #8a763a; }
-            .steps.confirmed .step.filled .step-lbl { color: #3a6a3a; }
+            .step.filled .step-lbl { color: #3a6a3a; }
             .step.active .step-lbl { color: var(--accent); }
             .step-val { font-size: 0.85rem; }
 
