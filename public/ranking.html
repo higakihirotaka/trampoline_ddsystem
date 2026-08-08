@@ -109,6 +109,16 @@
     .col-score{ width:55px; }
     .col-total{ width:58px; }
 
+    /* ---- 団体順位表 ---- */
+    .team-table { table-layout:auto; }
+    .team-table td.left { text-align:left; }
+    .team-table .tm-name { font-weight:800; font-size:14px; color:#222; }
+    .team-table tbody tr.tm-first td { border-top:2px solid #aaa; }
+    .team-table .mem-drop { color:#bbb; }
+    .team-table .mem-struck { color:#bbb; text-decoration:line-through; }
+    .col-tm-name { width:150px; }
+    .col-tm-mem  { width:150px; }
+
     @media print {
       .controls { display:none !important; }
       body { background:#fff; font-size:11px; }
@@ -188,7 +198,7 @@
 
   const params  = new URLSearchParams(location.search);
   const eventId = params.get('event');
-  let athletes = [], tourData = null;
+  let athletes = [], tourData = null, teamDocs = [];
 
   async function init() {
     if (!eventId) { document.getElementById('output').innerHTML = '<div class="no-data">URLにeventパラメータがありません</div>'; return; }
@@ -205,6 +215,11 @@
       const fo = finalOrders[a.id];
       if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
     });
+    // 団体チーム（順位表メニューの「団体」カテゴリー用）
+    try {
+      const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
+      teamDocs = teamSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch { teamDocs = []; }
     buildSelectors();
   }
 
@@ -239,6 +254,24 @@
         });
       });
     });
+
+    // 団体カテゴリー（teams コレクションの class×gender ごとに1件）。クラス定義順に並べる
+    if (teamDocs.length) {
+      const teamClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.individual || []))
+        .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+      const teamRawClasses = [...new Set(teamDocs.map(t => t.class || ''))];
+      const teamClasses = [...teamClassDefs.filter(c=>teamRawClasses.includes(c)), ...teamRawClasses.filter(c=>!teamClassDefs.includes(c))].filter(Boolean);
+      const tSeen = new Set();
+      teamClasses.forEach(cls => {
+        const genders = [...new Set(teamDocs.filter(t => (t.class||'') === cls).map(t => t.gender || ''))];
+        (genders.length ? genders : ['']).forEach(gender => {
+          const key = `team::${cls}::${gender}`;
+          if (tSeen.has(key)) return;
+          tSeen.add(key);
+          combos.push({ key, label: `団体 ${cls}${gender ? ' ' + gender : ''}` });
+        });
+      });
+    }
 
     const selGroup = document.getElementById('sel-group');
     selGroup.innerHTML = '<option value="">-- 選択 --</option>'
@@ -543,6 +576,128 @@
       </div>`;
   }
 
+  // 団体順位表：teams + 予選(pre1/pre2)結果から都度集計（display.html と同じロジック）
+  function buildTeamSectionHtml(classVal, genderVal, byAth, classRules) {
+    const myTeams = teamDocs.filter(t => (t.class||'') === classVal && (t.gender||'') === genderVal);
+    if (!myTeams.length) return '';
+
+    const rule = (classRules['individual'] || {})[classVal] || {};
+    const scoreMode = rule.scoreMode || 'best';
+    const numPre    = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
+
+    const athMap = {}; athletes.forEach(a => athMap[a.id] = a);
+    const ZERO = { total:0, T:0, H:0, D:0 };
+    // 棄権(dns)・未実施は0扱い
+    const comp = r => (r?.dns === true)
+      ? { total:0, T:0, H:0, D:0 }
+      : { total: r?.officialTotal ?? 0, T: r?.tof ?? 0, H: r?.hd?.total ?? 0, D: r?.officialD ?? 0 };
+    const top3 = arr => [...arr].sort((a,b)=>b-a).slice(0,3).reduce((s,v)=>s+v,0);
+
+    const teams = myTeams.map(t => {
+      const members = (t.memberIds || []).map(id => {
+        const ath  = athMap[id];
+        const name = ath ? (ath.name1 || id) : id;
+        const club = ath ? (ath.club1 || '') : '';
+        const p1raw = byAth[id]?.pre1, p2raw = byAth[id]?.pre2;
+        const p1 = p1raw ? comp(p1raw) : ZERO, p2 = p2raw ? comp(p2raw) : ZERO;
+        const p1has = p1raw != null, p2has = p2raw != null;   // その本の結果が存在＝演技済み
+        if (scoreMode === 'best') {
+          const useP2 = p2.total > p1.total;
+          const adopt = useP2 ? p2 : p1;
+          return { id, name, club, p1, p2, p1has, p2has, score: adopt.total, T:adopt.T, H:adopt.H, D:adopt.D, adoptRoutine: useP2 ? 2 : 1 };
+        }
+        return { id, name, club, p1, p2, p1has, p2has };
+      });
+      let score, tbT, tbH, tbD;
+      if (scoreMode === 'best') {
+        score = top3(members.map(m=>m.score));
+        tbT   = top3(members.map(m=>m.T));
+        tbH   = top3(members.map(m=>m.H));
+        tbD   = top3(members.map(m=>m.D));
+        members.sort((a,b)=>b.score-a.score);
+        members.forEach((m,i)=> m._count = i < 3);   // 上位3名を採用
+      } else {
+        score = top3(members.map(m=>m.p1.total)) + top3(members.map(m=>m.p2.total));
+        tbT   = top3(members.map(m=>m.p1.T)) + top3(members.map(m=>m.p2.T));
+        tbH   = top3(members.map(m=>m.p1.H)) + top3(members.map(m=>m.p2.H));
+        tbD   = top3(members.map(m=>m.p1.D)) + top3(members.map(m=>m.p2.D));
+        // 各本ごとに上位3名を採用マーク
+        const p1ids = [...members].sort((a,b)=>b.p1.total-a.p1.total).slice(0,3).map(m=>m.id);
+        const p2ids = [...members].sort((a,b)=>b.p2.total-a.p2.total).slice(0,3).map(m=>m.id);
+        members.forEach(m => { m._p1count = p1ids.includes(m.id); m._p2count = p2ids.includes(m.id); });
+        members.sort((a,b)=>(b.p1.total+b.p2.total)-(a.p1.total+a.p2.total));
+      }
+      return { teamName: t.teamName || '—', members, score, tbT, tbH, tbD };
+    });
+    // 団体得点 → T → H → D の降順
+    teams.sort((a,b)=> b.score-a.score || b.tbT-a.tbT || b.tbH-a.tbH || b.tbD-a.tbD);
+    // 同点(得点・T・H・D 完全一致)は同順位
+    let rank = 0, prevKey = null;
+    teams.forEach((t,i) => {
+      const k = `${t.score}|${t.tbT}|${t.tbH}|${t.tbD}`;
+      if (k !== prevKey) { rank = i + 1; prevKey = k; }
+      t.rank = rank;
+    });
+
+    const twoRtn    = numPre >= 2;
+    const showAdopt = scoreMode === 'best' && twoRtn;
+    const f = v => fmt2(v);
+
+    const thead = `<thead><tr>
+      <th class="col-rank">Rank</th>
+      <th class="col-tm-name">Team</th>
+      <th class="col-tm-mem">選手</th>
+      ${twoRtn ? '<th class="col-score">Rtn1</th><th class="col-score">Rtn2</th>'
+               : '<th class="col-score">Score</th>'}
+      ${showAdopt ? '<th class="col-score">採用</th>' : ''}
+      <th class="col-total">Total</th>
+    </tr></thead>`;
+
+    let tbody = '';
+    teams.forEach(t => {
+      const mems = t.members.length ? t.members : [{ name:'—', club:'', p1:ZERO, p2:ZERO, p1has:false, p2has:false, score:0 }];
+      const span = mems.length;
+      mems.forEach((m, mi) => {
+        const first = mi === 0;
+        const memHas = m.p1has || m.p2has;
+
+        let rtnCells = '';
+        if (twoRtn) {
+          if (scoreMode === 'best') {
+            const s1 = (m.p1has && m.adoptRoutine !== 1) ? 'mem-struck' : '';
+            const s2 = (m.p2has && m.adoptRoutine !== 2) ? 'mem-struck' : '';
+            rtnCells = `<td class="score-val ${s1}">${m.p1has ? f(m.p1.total) : ''}</td>`
+                     + `<td class="score-val ${s2}">${m.p2has ? f(m.p2.total) : ''}</td>`
+                     + `<td class="score-val ${m._count ? '' : 'mem-drop'}">${memHas ? f(m.score) : ''}</td>`;
+          } else {
+            rtnCells = `<td class="score-val ${m._p1count ? '' : 'mem-drop'}">${m.p1has ? f(m.p1.total) : ''}</td>`
+                     + `<td class="score-val ${m._p2count ? '' : 'mem-drop'}">${m.p2has ? f(m.p2.total) : ''}</td>`;
+          }
+        } else {
+          const counted = scoreMode === 'best' ? m._count : m._p1count;
+          const val     = scoreMode === 'best' ? m.score : m.p1.total;
+          rtnCells = `<td class="score-val ${counted ? '' : 'mem-drop'}">${m.p1has ? f(val) : ''}</td>`;
+        }
+
+        const nameHtml = `<div class="ath-name">${m.name}</div>${m.club ? `<div class="ath-club">${m.club}</div>` : ''}`;
+        tbody += `<tr class="${first ? 'tm-first' : ''}">
+          ${first ? `<td class="col-rank" rowspan="${span}"><span class="rank-num">${t.rank}</span></td>` : ''}
+          ${first ? `<td class="left tm-name" rowspan="${span}">${t.teamName}</td>` : ''}
+          <td class="left">${nameHtml}</td>
+          ${rtnCells}
+          ${first ? `<td class="total-val" rowspan="${span}">${f(t.score)}</td>` : ''}
+        </tr>`;
+      });
+    });
+
+    const modeLabel = scoreMode === 'total' ? '合計方式' : 'ベスト方式';
+    const groupText = `団体 / ${classVal}${genderVal ? ' / ' + genderVal : ''} / 予選`;
+    return `<div class="group-label">${groupText}<span class="round-badge">上位3名合計・${modeLabel}</span></div>
+      <div style="overflow-x:auto">
+        <table class="score-table team-table">${thead}<tbody>${tbody}</tbody></table>
+      </div>`;
+  }
+
   // 大会ヘッダー（大会名／会場／日付）のHTML
   function buildSheetHeaderHtml() {
     function toJpDate(ds) {
@@ -586,6 +741,15 @@
     output.innerHTML = '<div class="loading">読み込み中...</div>';
     const classRules = normalizeClassRules(tourData.classRules);
     const byAth = await fetchResultsByAth();
+
+    // 団体カテゴリー（予選集計・ラウンド/決勝進出/リザーブ設定は不使用）
+    if (fType === 'team') {
+      const section = buildTeamSectionHtml(fClass, fGender, byAth, classRules);
+      if (!section) { output.innerHTML = '<div class="no-data">該当するチームがいません</div>'; return; }
+      output.innerHTML = buildSheetHeaderHtml() + section;
+      return;
+    }
+
     const nQual = parseInt(document.getElementById('sel-qual').value) || 0;
     const nResv = parseInt(document.getElementById('sel-resv').value) || 0;
     const section = buildGroupSectionHtml(fType, fClass, fGender, fRound, byAth, classRules, nQual, nResv);
