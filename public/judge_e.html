@@ -508,6 +508,14 @@
             } else if (vLimit !== prevVLimit) {
                 // CJP が有効本数を変えたときだけ位置を調整
                 if (currentIndex > vLimit) currentIndex = vLimit;
+                // 有効本数が変わったら確定を自動解除（確定済みのままだと本数変更に追随できず入力ロックされるため）
+                if (confirmed) {
+                    confirmed = false;
+                    // 保存済みの確定も解除（CJP側の表示・次スナップショットでの再ロックを防ぐ）
+                    setDoc(doc(db, 'results', resId), {
+                        execution: { judges: { [`${panel}_${role}`]: { confirmedAt: null } } }
+                    }, { merge: true }).catch(e => console.warn('確定自動解除の保存に失敗', e));
+                }
             }
             // 通常の書き込み反映時は currentIndex をいじらない
 
