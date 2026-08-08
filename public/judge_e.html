@@ -69,8 +69,8 @@
         .step.filled { cursor: pointer; }
         .step.filled .step-lbl { color: #fff; }
         .step.filled .step-val { color: #fff; }
-        /* 確定後: 緑文字＋緑背景（確定済みの目印） */
-        .steps.confirmed .step.filled { background: #162b16; }
+        /* 確定後: 緑文字＋緑背景（確定済みの目印）。確定後はセル選択不可 */
+        .steps.confirmed .step.filled { background: #162b16; cursor: default; }
         .steps.confirmed .step.filled .step-lbl { color: #3a6a3a; }
         .steps.confirmed .step.filled .step-val { color: var(--accent); }
 
@@ -90,6 +90,8 @@
             flex: 1; min-height: 0;
             display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
         }
+        /* 確定後は数字キーをロック（「確定済み（修正）」を押すまで入力不可） */
+        .key-row.locked { opacity: 0.4; pointer-events: none; }
         .key {
             background: #1e2530; border: none; color: white;
             border-radius: 10px; font-size: 1.5rem; font-weight: bold;
@@ -98,7 +100,6 @@
             touch-action: manipulation;
         }
         .key:active { transform: translateY(2px); border-bottom: none; }
-        .key-zero { color: #555; }
         .key-undo {
             grid-column: span 6; font-size: 1rem;
             background: #2a2020; color: #ff8a65; border-color: #111;
@@ -540,7 +541,7 @@
             } else if (val !== null) {
                 s.classList.add('filled');
                 s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val">${Math.round(val * 10)}</span>`;
-                s.onclick = () => jumpTo(i);
+                if (!confirmed) s.onclick = () => jumpTo(i);   // 確定後は選択不可（修正を押すまで）
             } else {
                 s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val"></span>`;
             }
@@ -600,12 +601,12 @@
                 `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v})">${Math.round(v * 10)}</button>`
             ).join('');
             // 確定ボタンは数字キーの上に配置
-            keypad.innerHTML = confirmBtn + `<div class="key-row">${keys}</div>`;
+            keypad.innerHTML = confirmBtn + `<div class="key-row${confirmed ? ' locked' : ''}">${keys}</div>`;
         } else {
             const keys = [0, 1, 2, 3, 5, 10].map(v =>
                 `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v / 10})">${v}</button>`
             ).join('');
-            keypad.innerHTML = confirmBtn + `<div class="key-row">${keys}</div>`;
+            keypad.innerHTML = confirmBtn + `<div class="key-row${confirmed ? ' locked' : ''}">${keys}</div>`;
         }
     }
 
@@ -619,6 +620,7 @@
     // ---- ステップ移動（打ち直し） ----
     window.jumpTo = (i) => {
         if (!athleteId || !round) return;
+        if (confirmed) return;   // 確定後は「確定済み（修正）」を押すまで選択不可
         if (i === 10) { if (vLimit < 10) return; }
         else { if (i >= vLimit) return; }
         currentIndex = i;
@@ -628,6 +630,7 @@
     // ---- 採点書き込み ----
     window.tap = async (v) => {
         if (!athleteId || !round) return;
+        if (confirmed) return;   // 確定後は「確定済み（修正）」を押すまで入力不可
         // CJPが有効本数を変更した直後の競合を防ぐ（範囲外への書き込みをブロック）
         if (currentIndex < 10 && currentIndex >= vLimit) return;
 
