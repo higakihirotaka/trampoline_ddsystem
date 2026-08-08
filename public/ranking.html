@@ -639,8 +639,7 @@
       t.rank = rank;
     });
 
-    const twoRtn    = numPre >= 2;
-    const showAdopt = scoreMode === 'best' && twoRtn;
+    const twoRtn = numPre >= 2;
     const f = v => fmt2(v);
 
     const thead = `<thead><tr>
@@ -649,7 +648,6 @@
       <th class="col-tm-mem">選手</th>
       ${twoRtn ? '<th class="col-score">Rtn1</th><th class="col-score">Rtn2</th>'
                : '<th class="col-score">Score</th>'}
-      ${showAdopt ? '<th class="col-score">採用</th>' : ''}
       <th class="col-total">Total</th>
     </tr></thead>`;
 
@@ -659,16 +657,21 @@
       const span = mems.length;
       mems.forEach((m, mi) => {
         const first = mi === 0;
-        const memHas = m.p1has || m.p2has;
+        const dropped = scoreMode === 'best' && !m._count;   // 採用外(上位3名に入らずチーム得点に不算入)
 
         let rtnCells = '';
         if (twoRtn) {
           if (scoreMode === 'best') {
-            const s1 = (m.p1has && m.adoptRoutine !== 1) ? 'mem-struck' : '';
-            const s2 = (m.p2has && m.adoptRoutine !== 2) ? 'mem-struck' : '';
-            rtnCells = `<td class="score-val ${s1}">${m.p1has ? f(m.p1.total) : ''}</td>`
-                     + `<td class="score-val ${s2}">${m.p2has ? f(m.p2.total) : ''}</td>`
-                     + `<td class="score-val ${m._count ? '' : 'mem-drop'}">${memHas ? f(m.score) : ''}</td>`;
+            if (dropped) {
+              // 採用外の選手は両本とも淡色
+              rtnCells = `<td class="score-val mem-drop">${m.p1has ? f(m.p1.total) : ''}</td>`
+                       + `<td class="score-val mem-drop">${m.p2has ? f(m.p2.total) : ''}</td>`;
+            } else {
+              const s1 = (m.p1has && m.adoptRoutine !== 1) ? 'mem-struck' : '';
+              const s2 = (m.p2has && m.adoptRoutine !== 2) ? 'mem-struck' : '';
+              rtnCells = `<td class="score-val ${s1}">${m.p1has ? f(m.p1.total) : ''}</td>`
+                       + `<td class="score-val ${s2}">${m.p2has ? f(m.p2.total) : ''}</td>`;
+            }
           } else {
             rtnCells = `<td class="score-val ${m._p1count ? '' : 'mem-drop'}">${m.p1has ? f(m.p1.total) : ''}</td>`
                      + `<td class="score-val ${m._p2count ? '' : 'mem-drop'}">${m.p2has ? f(m.p2.total) : ''}</td>`;
@@ -679,11 +682,12 @@
           rtnCells = `<td class="score-val ${counted ? '' : 'mem-drop'}">${m.p1has ? f(val) : ''}</td>`;
         }
 
-        const nameHtml = `<div class="ath-name">${m.name}</div>${m.club ? `<div class="ath-club">${m.club}</div>` : ''}`;
+        // 選手名はセンタリング（tdデフォルト中央寄せ）、所属(チーム名)は非表示
+        const nameHtml = `<div class="ath-name">${m.name}</div>`;
         tbody += `<tr class="${first ? 'tm-first' : ''}">
           ${first ? `<td class="col-rank" rowspan="${span}"><span class="rank-num">${t.rank}</span></td>` : ''}
           ${first ? `<td class="left tm-name" rowspan="${span}">${t.teamName}</td>` : ''}
-          <td class="left">${nameHtml}</td>
+          <td class="${dropped ? 'mem-drop' : ''}">${nameHtml}</td>
           ${rtnCells}
           ${first ? `<td class="total-val" rowspan="${span}">${f(t.score)}</td>` : ''}
         </tr>`;
