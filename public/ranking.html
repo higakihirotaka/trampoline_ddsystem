@@ -115,7 +115,6 @@
     .team-table .tm-name { font-weight:800; font-size:14px; color:#222; }
     .team-table tbody tr.tm-first td { border-top:2px solid #aaa; }
     .team-table .mem-drop { color:#bbb; }
-    .team-table .mem-struck { color:#bbb; text-decoration:line-through; }
     .col-tm-name { width:150px; }
     .col-tm-mem  { width:150px; }
 
@@ -657,21 +656,15 @@
       const span = mems.length;
       mems.forEach((m, mi) => {
         const first = mi === 0;
-        const dropped = scoreMode === 'best' && !m._count;   // 採用外(上位3名に入らずチーム得点に不算入)
 
+        // チーム得点に加算される本＝通常色、加算されない本＝淡色（取り消し線なし・色のみで表現）
         let rtnCells = '';
         if (twoRtn) {
           if (scoreMode === 'best') {
-            if (dropped) {
-              // 採用外の選手は両本とも淡色
-              rtnCells = `<td class="score-val mem-drop">${m.p1has ? f(m.p1.total) : ''}</td>`
-                       + `<td class="score-val mem-drop">${m.p2has ? f(m.p2.total) : ''}</td>`;
-            } else {
-              const s1 = (m.p1has && m.adoptRoutine !== 1) ? 'mem-struck' : '';
-              const s2 = (m.p2has && m.adoptRoutine !== 2) ? 'mem-struck' : '';
-              rtnCells = `<td class="score-val ${s1}">${m.p1has ? f(m.p1.total) : ''}</td>`
-                       + `<td class="score-val ${s2}">${m.p2has ? f(m.p2.total) : ''}</td>`;
-            }
+            const c1 = (m._count && m.adoptRoutine === 1) ? '' : 'mem-drop';
+            const c2 = (m._count && m.adoptRoutine === 2) ? '' : 'mem-drop';
+            rtnCells = `<td class="score-val ${c1}">${m.p1has ? f(m.p1.total) : ''}</td>`
+                     + `<td class="score-val ${c2}">${m.p2has ? f(m.p2.total) : ''}</td>`;
           } else {
             rtnCells = `<td class="score-val ${m._p1count ? '' : 'mem-drop'}">${m.p1has ? f(m.p1.total) : ''}</td>`
                      + `<td class="score-val ${m._p2count ? '' : 'mem-drop'}">${m.p2has ? f(m.p2.total) : ''}</td>`;
@@ -682,12 +675,12 @@
           rtnCells = `<td class="score-val ${counted ? '' : 'mem-drop'}">${m.p1has ? f(val) : ''}</td>`;
         }
 
-        // 選手名はセンタリング（tdデフォルト中央寄せ）、所属(チーム名)は非表示
+        // 選手名はセンタリング・常に通常色、所属(チーム名)は非表示
         const nameHtml = `<div class="ath-name">${m.name}</div>`;
         tbody += `<tr class="${first ? 'tm-first' : ''}">
           ${first ? `<td class="col-rank" rowspan="${span}"><span class="rank-num">${t.rank}</span></td>` : ''}
           ${first ? `<td class="left tm-name" rowspan="${span}">${t.teamName}</td>` : ''}
-          <td class="${dropped ? 'mem-drop' : ''}">${nameHtml}</td>
+          <td>${nameHtml}</td>
           ${rtnCells}
           ${first ? `<td class="total-val" rowspan="${span}">${f(t.score)}</td>` : ''}
         </tr>`;
