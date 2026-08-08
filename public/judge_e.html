@@ -65,12 +65,13 @@
         .step-lbl { font-size: clamp(0.4rem, 0.7vw, 0.75rem); color: #444; font-weight: bold; }
         .step-val { font-size: clamp(1rem, 1.8vw, 2.5rem); font-weight: 900; color: #444; min-height: 1em; }
 
-        /* 入力済み・確定前: 緑文字（確定後と同じ）。緑背景は付けない */
+        /* 入力済み・確定前: 白文字。緑背景は付けない */
         .step.filled { cursor: pointer; }
         .step.filled .step-lbl { color: #3a6a3a; }
-        .step.filled .step-val { color: var(--accent); }
-        /* 確定後: 緑背景を付与（確定済みの目印。確定前との差は緑背景のみ） */
+        .step.filled .step-val { color: #fff; }
+        /* 確定後: 緑文字＋緑背景（確定済みの目印） */
         .steps.confirmed .step.filled { background: #162b16; }
+        .steps.confirmed .step.filled .step-val { color: var(--accent); }
 
         .step.active { background: #0f2a0f; border-color: var(--accent); }
         .step.active .step-lbl { color: var(--accent); }
