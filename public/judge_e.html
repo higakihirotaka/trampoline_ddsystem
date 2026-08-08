@@ -65,9 +65,14 @@
         .step-lbl { font-size: clamp(0.4rem, 0.7vw, 0.75rem); color: #444; font-weight: bold; }
         .step-val { font-size: clamp(1rem, 1.8vw, 2.5rem); font-weight: 900; color: #444; min-height: 1em; }
 
-        .step.filled { background: #162b16; cursor: pointer; }
-        .step.filled .step-lbl { color: #3a6a3a; }
-        .step.filled .step-val { color: var(--accent); }
+        /* 入力済み・確定前: アンバー（未確定であることを示す） */
+        .step.filled { background: #2b2510; cursor: pointer; }
+        .step.filled .step-lbl { color: #8a763a; }
+        .step.filled .step-val { color: #ffc107; }
+        /* 確定後: 緑（確定済み） */
+        .steps.confirmed .step.filled { background: #162b16; border-color: #1f7a3a; }
+        .steps.confirmed .step.filled .step-lbl { color: #3a6a3a; }
+        .steps.confirmed .step.filled .step-val { color: var(--accent); }
 
         .step.active { background: #0f2a0f; border-color: var(--accent); }
         .step.active .step-lbl { color: var(--accent); }
@@ -76,9 +81,13 @@
         /* キーパッド（1行レイアウト） */
         .keypad {
             margin-top: auto; flex: 0 0 30dvh;
-            display: grid; grid-template-columns: repeat(6, 1fr);
-            grid-template-rows: 1fr 50px;
+            display: flex; flex-direction: column;
             gap: 6px; padding: 8px 8px 12px; background: #0f1217;
+        }
+        /* 数字キー行（確定ボタンの下） */
+        .key-row {
+            flex: 1; min-height: 0;
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
         }
         .key {
             background: #1e2530; border: none; color: white;
@@ -93,9 +102,9 @@
             grid-column: span 6; font-size: 1rem;
             background: #2a2020; color: #ff8a65; border-color: #111;
         }
-        /* 確定ボタン（有効演技数を全て入力すると下段に出現） */
+        /* 確定ボタン（有効演技数を全て入力すると数字キーの上に出現） */
         .key-confirm {
-            grid-column: span 6; font-size: 1.15rem; font-weight: bold;
+            flex: 0 0 52px; font-size: 1.15rem; font-weight: bold;
             background: #16351b; color: #6ee7a0; border-color: #06210d;
         }
         .key-confirm.confirmed {
@@ -145,7 +154,8 @@
                 gap: 1px;
             }
             .step-lbl { font-size: 0.5rem; color: #333; }
-            .step.filled .step-lbl { color: #3a6a3a; }
+            .step.filled .step-lbl { color: #8a763a; }
+            .steps.confirmed .step.filled .step-lbl { color: #3a6a3a; }
             .step.active .step-lbl { color: var(--accent); }
             .step-val { font-size: 0.85rem; }
 
@@ -154,7 +164,6 @@
             .keypad {
                 flex: 0 0 34dvh;
                 margin-top: 0;
-                grid-template-rows: 1fr 52px;
                 padding: 6px 8px 14px;
                 gap: 6px;
             }
@@ -509,6 +518,8 @@
     function refresh() {
         const stepsEl = document.getElementById('steps');
         stepsEl.innerHTML = '';
+        // 得点表示の色を確定状態で切り替え（緑=確定済み / アンバー=未確定）
+        stepsEl.classList.toggle('confirmed', confirmed);
 
         // 常に S1-S10 + L の 11 セルを描画（レイアウト固定）
         for (let i = 0; i <= 10; i++) {
@@ -585,15 +596,16 @@
             // 中断（有効本数<10で全入力済み）: 数字キーは無く確定のみ
             keypad.innerHTML = confirmBtn;
         } else if (currentIndex < 10) {
-            keypad.innerHTML =
-                [0, 0.1, 0.2, 0.3, 0.4, 0.5].map(v =>
-                    `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v})">${Math.round(v * 10)}</button>`
-                ).join('') + confirmBtn;
+            const keys = [0, 0.1, 0.2, 0.3, 0.4, 0.5].map(v =>
+                `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v})">${Math.round(v * 10)}</button>`
+            ).join('');
+            // 確定ボタンは数字キーの上に配置
+            keypad.innerHTML = confirmBtn + `<div class="key-row">${keys}</div>`;
         } else {
-            keypad.innerHTML =
-                [0, 1, 2, 3, 5, 10].map(v =>
-                    `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v / 10})">${v}</button>`
-                ).join('') + confirmBtn;
+            const keys = [0, 1, 2, 3, 5, 10].map(v =>
+                `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v / 10})">${v}</button>`
+            ).join('');
+            keypad.innerHTML = confirmBtn + `<div class="key-row">${keys}</div>`;
         }
     }
 
