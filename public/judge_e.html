@@ -74,9 +74,10 @@
         .steps.confirmed .step.filled .step-lbl { color: #3a6a3a; }
         .steps.confirmed .step.filled .step-val { color: var(--accent); }
 
-        .step.active { background: #0f2a0f; border-color: var(--accent); }
-        .step.active .step-lbl { color: var(--accent); }
-        .step.active .step-val { color: var(--accent); opacity: 0.7; }
+        /* 選択中: 緑にはせず、太い白枠だけで示す */
+        .step.active { background: #1a1a1a; border: 3px solid #fff; }
+        .step.active .step-lbl { color: #fff; }
+        .step.active .step-val { color: #fff; opacity: 0.7; }
 
         /* キーパッド（1行レイアウト） */
         .keypad {
@@ -155,7 +156,7 @@
             }
             .step-lbl { font-size: 0.5rem; color: #333; }
             .step.filled .step-lbl { color: #fff; }
-            .step.active .step-lbl { color: var(--accent); }
+            .step.active .step-lbl { color: #fff; }
             .step-val { font-size: 0.85rem; }
 
 
