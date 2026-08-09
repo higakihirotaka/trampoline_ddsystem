@@ -137,19 +137,21 @@
         }
         const indivAthletes = athletes.filter(a => a.type !== 'synchro');
         const syncAthletes  = athletes.filter(a => a.type === 'synchro');
+        // グループが1種類しかない大会では Gr 列を表示しない
+        const showGroup = new Set(athletes.map(a => a.flightGroup).filter(g => g != null && g !== '')).size > 1;
         const indivContainer = document.getElementById('indiv-list');
         if (indivAthletes.length > 0) {
             indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' +
-                buildTablesHtml(indivAthletes, classRules.individual, subMap, 'individual', rawClassRules, indivClassOrder);
+                buildTablesHtml(indivAthletes, classRules.individual, subMap, 'individual', rawClassRules, indivClassOrder, showGroup);
         }
         const syncContainer = document.getElementById('sync-list');
         if (syncAthletes.length > 0) {
             syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' +
-                buildTablesHtml(syncAthletes, classRules.synchro, subMap, 'synchro', rawClassRules, syncClassOrder);
+                buildTablesHtml(syncAthletes, classRules.synchro, subMap, 'synchro', rawClassRules, syncClassOrder, showGroup);
         }
     }
 
-    function buildTablesHtml(athletes, rulesByType, subMap, type, fallbackRules = {}, classOrder = []) {
+    function buildTablesHtml(athletes, rulesByType, subMap, type, fallbackRules = {}, classOrder = [], showGroup = true) {
         const byClass = athletes.reduce((acc, ath) => {
             const cn = ath.class || 'N/A';
             (acc[cn] = acc[cn] || []).push(ath);
@@ -172,15 +174,17 @@
                     curGender = ath.gender;
                     const rh = Array.from({length: rules.qualifyingRoutines}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
                     const fh = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
+                    const grH = showGroup ? '<th class="col-num">Gr</th>' : '';
                     html += `<div class="table-wrap"><table><thead>
-                        <tr class="category-row"><td colspan="${3+rules.qualifyingRoutines+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
-                        <tr><th class="col-num">Gr</th><th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
+                        <tr class="category-row"><td colspan="${(showGroup?3:2)+rules.qualifyingRoutines+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
+                        <tr>${grH}<th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
                         </thead><tbody>`;
                 }
                 const pHtml = type === 'synchro'
                     ? `<span style="font-weight:bold;">${ath.name1||''} / ${ath.name2||''}</span><br><small style="color:#888;">${ath.club1||''} / ${ath.club2||''}</small>`
                     : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${ath.club1}</small>`;
-                html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}"><td class="col-num">${ath.flightGroup||'-'}</td><td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
+                const grCell = showGroup ? `<td class="col-num">${ath.flightGroup||'-'}</td>` : '';
+                html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}">${grCell}<td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
                 for (let i = 1; i <= rules.qualifyingRoutines; i++) html += `<td>${statusButton(ath, `pre${i}`, subMap)}</td>`;
                 if (rules.hasFinal) html += `<td>${statusButton(ath, 'final', subMap)}</td>`;
                 html += '</tr>';
