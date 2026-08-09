@@ -22,6 +22,9 @@
         .btn-outline:hover { background: #f1f3f4; }
         .btn-create { background: #1e8e3e; color: white; box-shadow: 0 4px 15px rgba(30,142,62,0.25); }
         .btn-create:hover { transform: translateY(-2px); background: #166b2e; }
+        .btn-duplicate { background: #5c6bc0; color: white; box-shadow: 0 4px 15px rgba(92,107,192,0.25); }
+        .btn-duplicate:hover:not(:disabled) { transform: translateY(-2px); background: #3f51b5; }
+        .btn-duplicate:disabled { background: #b0bec5; cursor: not-allowed; }
         .divider { border: none; border-top: 1px solid #e1e7eb; margin: 5px 0 20px; }
     </style>
 </head>
@@ -36,11 +39,12 @@
     <button class="btn btn-primary" onclick="goMenu()">管理メニュー（ポータル）を開く</button>
     <hr class="divider">
     <button class="btn btn-create" onclick="createTournament()">＋ 新規大会を作成</button>
+    <button class="btn btn-duplicate" id="btn-duplicate" onclick="duplicateTournament()">⧉ 選択中の大会を複製</button>
     <a class="btn btn-outline" href="flight_timer.html">🎬 トランポリン動画検証システム</a>
 </div>
 
 <script type="module">
-    import { doc, collection, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, collection, setDoc, serverTimestamp, getDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, getTournaments } from './auth.js';
     import { db } from "./firebase-config.js";
 
@@ -112,6 +116,68 @@
             location.href = `settings.html?event=${newRef.id}`;
         } catch (e) {
             alert('大会の作成に失敗しました: ' + e.message);
+        }
+    };
+
+    // 選択中の大会を複製（大会データ・クラスルール・選手・団体戦設定・審判構成をコピー。得点はコピーしない）
+    window.duplicateTournament = async () => {
+        const sel = document.getElementById('tour-select');
+        const sourceId = sel.value;
+        if (!sourceId) return alert('複製元の大会を選択してください');
+        const srcLabel = sel.selectedOptions[0]?.text || '選択中の大会';
+        if (!confirm(`「${srcLabel}」を複製しますか？\n\n【コピーする】大会名・大会データ・クラスルール・選手・団体戦設定・審判構成\n【コピーしない】得点などの成績データ`)) return;
+
+        const btn = document.getElementById('btn-duplicate');
+        const orig = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '複製中…';
+        try {
+            // 1) 大会ドキュメント: 設定系のみコピー。ランタイム/表示状態は除外
+            const srcSnap = await getDoc(doc(db, 'tournaments', sourceId));
+            if (!srcSnap.exists()) throw new Error('複製元の大会が見つかりません');
+            const src = srcSnap.data();
+            const EXCLUDE = new Set([
+                'calculating', 'calculatingAthleteId', 'calculatingRound',
+                'liveState', 'rankingCarousel', 'teamRankingTarget',
+                'finalStartlistTarget', 'venueScreen', 'createdAt', 'updatedAt'
+            ]);
+            const newData = {};
+            Object.entries(src).forEach(([k, v]) => { if (!EXCLUDE.has(k)) newData[k] = v; });
+            newData.name = (src.name || '大会') + ' のコピー';
+            newData.createdAt = serverTimestamp();
+            newData.updatedAt = serverTimestamp();
+
+            const newRef = doc(collection(db, 'tournaments'));
+            await setDoc(newRef, newData);
+
+            // 2) 選手・団体をドキュメントIDを保持したままコピー
+            //    IDを保つことで団体の memberIds（選手ID参照）が壊れない。得点は別コレクションなので非コピー。
+            const [athSnap, teamSnap] = await Promise.all([
+                getDocs(collection(db, 'tournaments', sourceId, 'athletes')),
+                getDocs(collection(db, 'tournaments', sourceId, 'teams'))
+            ]);
+            const ops = [];
+            athSnap.docs.forEach(d => {
+                const a = { ...d.data() };
+                delete a.finalOrder; delete a.isInFinal;   // 結果（決勝試技順）由来はコピーしない
+                ops.push(b => b.set(doc(db, 'tournaments', newRef.id, 'athletes', d.id), a));
+            });
+            teamSnap.docs.forEach(d => {
+                ops.push(b => b.set(doc(db, 'tournaments', newRef.id, 'teams', d.id), d.data()));
+            });
+            // writeBatch は500件/コミット上限のため450件ずつ
+            for (let i = 0; i < ops.length; i += 450) {
+                const batch = writeBatch(db);
+                ops.slice(i, i + 450).forEach(fn => fn(batch));
+                await batch.commit();
+            }
+
+            alert(`複製しました。\n選手 ${athSnap.size} 名 / 団体 ${teamSnap.size} チームをコピーしました。\n設定画面で大会名・日程などを調整してください。`);
+            location.href = `settings.html?event=${newRef.id}`;
+        } catch (e) {
+            alert('複製に失敗しました: ' + e.message);
+            btn.disabled = false;
+            btn.textContent = orig;
         }
     };
 
