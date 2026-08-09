@@ -222,14 +222,7 @@
                     <option value="後方系">後方系</option>
                     <option value="基礎技">基礎技</option>
                 </select></td>
-                <td><select id="soma-${i}" data-idx="${i}" style="visibility:hidden;">
-                    <option value="">--</option>
-                    <option value="1回宙">1回宙系</option>
-                    <option value="2回宙（1.5以下）">2回宙系（1.5以下）</option>
-                    <option value="2回宙（1.6以上）">2回宙系（1.6以上）</option>
-                    <option value="3回宙">3回宙系</option>
-                    <option value="4回宙">4回宙系</option>
-                </select></td>
+                <td><select id="soma-${i}" data-idx="${i}" style="visibility:hidden;"></select></td>
                 <td><select id="skill-${i}" data-idx="${i}"><option value="">選択してください</option></select></td>
                 <td><span id="dd-${i}" style="font-weight:bold; color:var(--accent);">-</span></td>
             </tr>`;
@@ -237,15 +230,27 @@
         document.getElementById('skill-rows').innerHTML = rows;
     }
 
+    // 2段目セレクタの選択肢（系統で出し分け: 基礎技=開始姿勢 / 宙技=宙系）※選手入力(entry.html)と同一
+    const SOMA_OPTIONS = {
+        basic:  [['','--（全て）'], ['スタンドから','スタンドから'], ['腰から','腰から'], ['腹から','腹から'], ['背から','背から']],
+        aerial: [['','--'], ['1回宙','1回宙系'], ['2回宙（1.5以下）','2回宙系（1.5以下）'], ['2回宙（1.6以上）','2回宙系（1.6以上）'], ['3回宙','3回宙系'], ['4回宙','4回宙系']]
+    };
+
     function updateOptions(idx) {
         const dir = document.getElementById(`dir-${idx}`).value;
         const somaEl = document.getElementById(`soma-${idx}`);
         const sel = document.getElementById(`skill-${idx}`);
-        const showSoma = dir && dir !== '基礎技';
+        const isBasic = dir === '基礎技';
+        // 2段目セレクタを系統で動的構築（基礎技→開始姿勢 / 宙技→宙系）。現在の選択は可能なら維持
+        const showSoma = !!dir;
         somaEl.style.visibility = showSoma ? '' : 'hidden';
-        if (!showSoma) somaEl.value = '';
-        const soma = somaEl.value;
+        const want = somaEl.value;
+        const opts = isBasic ? SOMA_OPTIONS.basic : SOMA_OPTIONS.aerial;
+        somaEl.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+        somaEl.value = (showSoma && opts.some(([v]) => v === want)) ? want : '';
+
         // '2回宙（1.5以下）' / '2回宙（1.6以上）' を somersaultType + doubleSomaGroup にマップ
+        const soma = somaEl.value;
         let somaType  = soma;
         let somaGroup = '';
         if (soma === '2回宙（1.5以下）') { somaType = '2回宙'; somaGroup = 'low'; }
