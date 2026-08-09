@@ -281,7 +281,7 @@
         const classRules = d.classRules || {};   // クラス別設定（E審判人数・決勝有無の取得用）
         const mkStruct = (names, type) => names.map(name => {
             const cr = classRules[type]?.[name] || {};
-            return { name, numE: parseInt(cr.eJudgeCount) || 4, hasH5H6: cr.hasH5H6 === true, hasFinal: ruleHasFinal(cr) };
+            return { name, numE: parseInt(cr.eJudgeCount) || 4, hasH5H6: cr.hasH5H6 === true, hasFinal: ruleHasFinal(cr), finalOnly: cr.finalOnly === true };
         });
         _struct = { individual: mkStruct(individual, 'individual'), synchro: mkStruct(synchro, 'synchro') };
 
@@ -313,7 +313,7 @@
             container.appendChild(heading);
             const grid = document.createElement('div');
             grid.className = 'class-grid';
-            _struct[type].forEach(c => grid.appendChild(buildClassCard(c.name, type, c.numE, c.hasH5H6, c.hasFinal)));
+            _struct[type].forEach(c => grid.appendChild(buildClassCard(c.name, type, c.numE, c.hasH5H6, c.hasFinal, c.finalOnly)));
             container.appendChild(grid);
         });
         const saveAllBtn = document.createElement('button');
@@ -339,7 +339,7 @@
     }
 
     // ---- カード生成（性別×ラウンド グリッド。決勝なしクラスは予選のみ） ----
-    function buildClassCard(className, type, numE = 4, hasH5H6 = false, hasFinal = false) {
+    function buildClassCard(className, type, numE = 4, hasH5H6 = false, hasFinal = false, finalOnly = false) {
         // 新形式: classes[type][className]、旧形式: classes[className]（後方互換）
         const rawData = judgeConfig.classes?.[type]?.[className]
                      || judgeConfig.classes?.[className]
@@ -363,7 +363,7 @@
         `;
 
         const secGrid = card.querySelector('.sec-grid');
-        const rounds  = hasFinal ? ['予選','決勝'] : ['予選'];   // 決勝なしクラスは予選のみ
+        const rounds  = finalOnly ? ['決勝'] : (hasFinal ? ['予選','決勝'] : ['予選']);   // 決勝のみは決勝だけ
         for (const gender of ['男子','女子']) {
             for (const round of rounds) {
                 secGrid.appendChild(buildSecPanel(gender, round, getSectionData(gender, round), roles));
@@ -606,7 +606,7 @@
                 const card = cardByKey[`${type}|${c.name}`];
                 const allData = card ? readClassCard(card) : {};
                 const roles  = rolesFor(c.numE, c.hasH5H6);
-                const rounds = c.hasFinal ? ['予選','決勝'] : ['予選'];
+                const rounds = c.finalOnly ? ['決勝'] : (c.hasFinal ? ['予選','決勝'] : ['予選']);
                 for (const gender of ['男子','女子']) {
                     for (const round of rounds) {
                         const sec = (allData[gender] && allData[gender][round]) || {};

@@ -163,6 +163,7 @@
         for (const cn of [...ordered, ...leftover]) {
             const cls   = byClass[cn];
             const rules = (rulesByType || {})[cn] || fallbackRules[cn] || { qualifyingRoutines: 2, hasFinal: false };
+            const numPre = rules.finalOnly === true ? 0 : rules.qualifyingRoutines;   // 決勝のみは予選なし
             cls.sort((a, b) =>
                 `${a.gender||''}-${String(a.flightGroup||'').padStart(3,'0')}-${String(a.order||'').padStart(3,'0')}`.localeCompare(
                 `${b.gender||''}-${String(b.flightGroup||'').padStart(3,'0')}-${String(b.order||'').padStart(3,'0')}`));
@@ -172,11 +173,11 @@
                 if (curGender !== ath.gender) {
                     if (curGender !== '') html += '</tbody></table></div>';
                     curGender = ath.gender;
-                    const rh = Array.from({length: rules.qualifyingRoutines}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
+                    const rh = Array.from({length: numPre}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
                     const fh = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
                     const grH = showGroup ? '<th class="col-num">Gr</th>' : '';
                     html += `<div class="table-wrap"><table><thead>
-                        <tr class="category-row"><td colspan="${(showGroup?3:2)+rules.qualifyingRoutines+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
+                        <tr class="category-row"><td colspan="${(showGroup?3:2)+numPre+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
                         <tr>${grH}<th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
                         </thead><tbody>`;
                 }
@@ -185,7 +186,7 @@
                     : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${ath.club1}</small>`;
                 const grCell = showGroup ? `<td class="col-num">${ath.flightGroup||'-'}</td>` : '';
                 html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}">${grCell}<td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
-                for (let i = 1; i <= rules.qualifyingRoutines; i++) html += `<td>${statusButton(ath, `pre${i}`, subMap)}</td>`;
+                for (let i = 1; i <= numPre; i++) html += `<td>${statusButton(ath, `pre${i}`, subMap)}</td>`;
                 if (rules.hasFinal) html += `<td>${statusButton(ath, 'final', subMap)}</td>`;
                 html += '</tr>';
             });

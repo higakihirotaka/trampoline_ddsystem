@@ -349,10 +349,6 @@
 
   // ---- 確認・確定ボタン ----
   window.applyFinalCount = async function() {
-    const finalCount  = parseInt(document.getElementById('final-count').value);
-    if (!finalCount || finalCount < 1) { alert('決勝人数を入力してください'); return; }
-    const shuffleMode = document.querySelector('input[name="shuffle"]:checked')?.value || 'none';
-
     // このクラスの全選手を取得
     const classAthletes = athletes.filter(a =>
       (a.type || 'individual') === fType &&
@@ -360,6 +356,27 @@
       (!fClass  || (a.class || a.category || '') === fClass)
     );
     if (classAthletes.length === 0) { alert('該当する選手がいません'); return; }
+
+    // 決勝のみクラス: 予選を行わず、登録順(order)をそのまま決勝試技順に割り当てる
+    const _rules = normalizeClassRules(tourData.classRules);
+    if (((_rules[fType] || {})[fClass] || {}).finalOnly === true) {
+      const ordered = classAthletes.slice().sort((a,b) => (Number(a.order)||0) - (Number(b.order)||0));
+      pendingFinalOrder = ordered.map((a, i) => ({
+        a, pre1:null, pre2:null, qualScore:null, tbSum:null, tb:{},
+        qualRank: i+1, inFinal: true, finalOrder: Number(a.order) || (i+1)
+      }));
+      renderStandings(pendingFinalOrder, 0, ordered.length, 'finalOnly');
+      document.getElementById('standings-card').style.display = '';
+      document.getElementById('save-btn').style.display = '';
+      document.getElementById('save-btn').disabled = false;
+      document.getElementById('save-status').textContent = '';
+      document.getElementById('warn-overwrite').style.display = classAthletes.some(a=>a.finalOrder!=null) ? '' : 'none';
+      return;
+    }
+
+    const finalCount  = parseInt(document.getElementById('final-count').value);
+    if (!finalCount || finalCount < 1) { alert('決勝人数を入力してください'); return; }
+    const shuffleMode = document.querySelector('input[name="shuffle"]:checked')?.value || 'none';
 
     // publishedな予選結果を取得
     const resSnap = await getDocs(query(
@@ -449,9 +466,10 @@
   // ---- 順位表描画 ----
   function renderStandings(entries, numPre, actual, shuffleMode = 'none') {
     const title = [fClass, fGender, fType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
-    const shuffleLabel = { none:'逆順', full:'完全シャッフル', split4:'上位4名分割シャッフル', qualifying:'予選試技順維持' }[shuffleMode] || shuffleMode;
-    document.getElementById('standings-title').textContent = `${title} 予選順位`;
-    document.getElementById('standings-meta').textContent = `決勝進出: ${actual}人 ／ ${shuffleLabel}`;
+    const isFinalOnly = shuffleMode === 'finalOnly';
+    const shuffleLabel = { none:'逆順', full:'完全シャッフル', split4:'上位4名分割シャッフル', qualifying:'予選試技順維持', finalOnly:'登録順' }[shuffleMode] || shuffleMode;
+    document.getElementById('standings-title').textContent = isFinalOnly ? `${title} 決勝試技順（登録順）` : `${title} 予選順位`;
+    document.getElementById('standings-meta').textContent = isFinalOnly ? `決勝のみ・全${actual}人 ／ 登録順で試技順を割り当て` : `決勝進出: ${actual}人 ／ ${shuffleLabel}`;
 
     const r2col = numPre >= 2;
     const tbody = document.getElementById('standings-tbody');
@@ -468,7 +486,7 @@
         </td>
         <td class="num">${fmt(e.pre1)}</td>
         ${r2cell}
-        <td class="num">${e.qualScore != null ? fmt(e.qualScore) : '<span class="no-score">未提出</span>'}</td>
+        <td class="num">${isFinalOnly ? '<span style="color:#bbb">—</span>' : (e.qualScore != null ? fmt(e.qualScore) : '<span class="no-score">未提出</span>')}</td>
         <td>${badge}</td>
       </tr>`;
     }).join('');

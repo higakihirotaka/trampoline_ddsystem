@@ -276,6 +276,7 @@
             const athType = currentAthlete.type || 'individual';
             const athClass = currentAthlete.class || currentAthlete.category || '';
             const cr = (tourData.classRules?.[athType] || {})[athClass] || {};
+            const finalOnly = cr.finalOnly === true;   // 決勝のみクラス（予選なし）
             // -1=設定なし, 0=0本指定(DD全0), 1-9=N本指定
             const rawDDCount = (cr.designatedDDCount != null && cr.designatedDDCount >= 0) ? cr.designatedDDCount : -1;
             designatedDDCount = (rawDDCount >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round === 'pre1')
@@ -340,7 +341,7 @@
 
         // 予選引用ボタンのラベル・onclickは提出状況に関わらず設定する
         // （提出済みでも「内容を修正する」で表示されるため、ここで未設定だと空ボタンになる）
-        if (round === 'pre2' || round === 'final') {
+        if ((round === 'pre2' || round === 'final') && !finalOnly) {
             const cpBtn = document.getElementById('copy-prev-btn');
             cpBtn.textContent = round === 'final' ? '📋 予選演技をコピーする' : '📋 予選１の構成をコピーする';
             cpBtn.onclick = copyPrevRound;
@@ -352,7 +353,7 @@
             document.getElementById('modify-btn').style.display = "block";
         } else {
             document.getElementById('submit-btn').disabled = false;
-            if (round === 'pre2' || round === 'final') {
+            if ((round === 'pre2' || round === 'final') && !finalOnly) {
                 document.getElementById('copy-prev-area').style.display = '';
             }
         }

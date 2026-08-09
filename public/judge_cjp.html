@@ -484,8 +484,9 @@
             // クラスごとの予選本数を classRules から取得（なければトップレベル値にフォールバック）
             const athType = ath.type || 'individual';
             const classRule = currentTour.classRules?.[athType]?.[cls] || {};
-            const numPre = classRule.qualifyingRoutines ?? currentTour.qualifyingRoutines ?? 1;
-            const hasFinalClass = classRule.hasFinal ?? false;
+            const finalOnlyClass = classRule.finalOnly === true;   // 決勝のみ: 予選ドットなし・決勝のみ
+            const numPre = finalOnlyClass ? 0 : (classRule.qualifyingRoutines ?? currentTour.qualifyingRoutines ?? 1);
+            const hasFinalClass = finalOnlyClass ? true : (classRule.hasFinal ?? false);
 
             let dotsHtml = "";
             if (fFinalOnly) {
