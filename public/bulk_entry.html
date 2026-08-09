@@ -39,7 +39,9 @@
         .list-header { position: sticky; top: 0; background: #f8f9fb; z-index: 10; display: flex; align-items: center;
                        padding: 10px 15px; font-size: 0.72rem; font-weight: 700; color: #78909c; border-bottom: 1px solid var(--border); }
         .list-area { flex-grow: 1; overflow-y: auto; }
-        .cat-group { background: #eef1f4; padding: 8px 15px; font-size: 0.8em; font-weight: bold; color: var(--primary); border-bottom: 1px solid var(--border); }
+        .cat-group { background: #eef1f4; padding: 8px 15px; font-size: 0.8em; font-weight: bold; color: var(--primary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .cat-all { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 0.95em; color: var(--accent); cursor: pointer; white-space: nowrap; }
+        .cat-all input { cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent); }
         .gender-group { background: #f6f8fa; padding: 5px 20px; font-size: 0.75em; font-weight: bold; color: var(--text-sub); border-bottom: 1px solid #eee; }
         .ath-row { display: flex; align-items: center; padding: 8px 15px; border-bottom: 1px solid #f3f3f3; gap: 5px; font-size: 0.85em; }
         .ath-row:hover { background: #fafcff; }
@@ -181,15 +183,19 @@
             return (a.order ?? 999) - (b.order ?? 999);
         });
 
-        let html = "", lastCat = "", lastGender = "";
+        let html = "", lastCat = "", lastGender = "", classIdx = -1;
         athletes.forEach(ath => {
             const cls     = ath.class || ath.category || '未分類';
             const athType = ath.type === 'synchro' ? 'synchro' : 'individual';
             const athRules = classRules[athType]?.[cls] || { qualifyingRoutines: currentTour.qualifyingRoutines ?? 1, hasFinal: currentTour.hasFinal ?? false };
-            const numPre   = athRules.qualifyingRoutines || 1;
+            const numPre   = athRules.finalOnly === true ? 0 : (athRules.qualifyingRoutines || 1);   // 決勝のみは予選なし
 
             if (cls !== lastCat) {
-                html += `<div class="cat-group">${cls}</div>`;
+                classIdx++;
+                html += `<div class="cat-group" data-cls-idx="${classIdx}">
+                    <span class="cat-name">${cls}</span>
+                    <label class="cat-all"><input type="checkbox" class="chk-class" data-cls-idx="${classIdx}"> 全員</label>
+                </div>`;
                 lastCat = cls; lastGender = "";
             }
             if ((ath.gender || '') !== lastGender) {
@@ -203,9 +209,9 @@
 
             html += `<div class="ath-row">
                 <div class="col-name"><span class="ath-order">${ath.order || '-'}.</span><span>${nameHtml}</span></div>
-                <div class="col-round"><input type="checkbox" class="chk-item chk-pre1" data-aid="${ath.id}" data-rid="pre1"></div>
-                <div class="col-round">${numPre >= 2 ? `<input type="checkbox" class="chk-item chk-pre2" data-aid="${ath.id}" data-rid="pre2">` : '-'}</div>
-                <div class="col-round">${athRules.hasFinal ? `<input type="checkbox" class="chk-item chk-final" data-aid="${ath.id}" data-rid="final">` : '-'}</div>
+                <div class="col-round">${numPre >= 1 ? `<input type="checkbox" class="chk-item chk-pre1" data-cls-idx="${classIdx}" data-aid="${ath.id}" data-rid="pre1">` : '-'}</div>
+                <div class="col-round">${numPre >= 2 ? `<input type="checkbox" class="chk-item chk-pre2" data-cls-idx="${classIdx}" data-aid="${ath.id}" data-rid="pre2">` : '-'}</div>
+                <div class="col-round">${athRules.hasFinal ? `<input type="checkbox" class="chk-item chk-final" data-cls-idx="${classIdx}" data-aid="${ath.id}" data-rid="final">` : '-'}</div>
             </div>`;
         });
         container.innerHTML = html || '<div style="padding:20px; color:#999;">選手データがありません</div>';
@@ -308,8 +314,30 @@
             btn.addEventListener('click', () => toggleColumn(btn.dataset.roundName));
         });
 
+        // クラスごとの「全員」チェック（そのクラスの全ラウンドをまとめて選択）＋個別チェックで親状態を更新
+        const list = document.getElementById('athlete-list');
+        list.addEventListener('change', e => {
+            if (e.target.classList.contains('chk-class')) {
+                const idx = e.target.dataset.clsIdx;
+                list.querySelectorAll(`.chk-item[data-cls-idx="${idx}"]`).forEach(chk => chk.checked = e.target.checked);
+                e.target.indeterminate = false;
+            } else if (e.target.classList.contains('chk-item')) {
+                updateClassCheckState(e.target.dataset.clsIdx);
+            }
+        });
+
         document.getElementById('save-btn').addEventListener('click', bulkSave);
         document.getElementById('clear-btn').addEventListener('click', bulkClear);
+    }
+
+    // クラスの「全員」チェックの状態（全選択=checked / 一部=indeterminate / 未選択）を更新
+    function updateClassCheckState(idx) {
+        const items = [...document.querySelectorAll(`.chk-item[data-cls-idx="${idx}"]`)];
+        const cc = document.querySelector(`.chk-class[data-cls-idx="${idx}"]`);
+        if (!cc || !items.length) return;
+        const checked = items.filter(i => i.checked).length;
+        cc.checked = checked === items.length;
+        cc.indeterminate = checked > 0 && checked < items.length;
     }
 
     function toggleColumn(rid) {
@@ -317,6 +345,8 @@
         if (checks.length === 0) return;
         const allChecked = Array.from(checks).every(c => c.checked);
         checks.forEach(c => c.checked = !allChecked);
+        // クラス「全員」チェックの状態を更新
+        document.querySelectorAll('.chk-class').forEach(cc => updateClassCheckState(cc.dataset.clsIdx));
     };
 
     async function bulkSave() {
