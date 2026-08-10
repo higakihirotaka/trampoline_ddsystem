@@ -217,7 +217,8 @@
         const deadlines = [
             { id: 'sub', label: '提出締切', time: tour.submissionDeadline },
             { id: 'rev', label: '修正締切', time: tour.revisionDeadline },
-            { id: 'fin', label: '決勝締切', time: tour.finalSubmissionDeadline }
+            // 決勝締切が「提出締切と同じ」のときは重複するので表示しない
+            ...(tour.finalSubmissionDeadlineMode === 'same' ? [] : [{ id: 'fin', label: '決勝締切', time: tour.finalSubmissionDeadline }])
         ].filter(d => d.time).map(d => {
             const dt = new Date(d.time);
             return { ...d,
