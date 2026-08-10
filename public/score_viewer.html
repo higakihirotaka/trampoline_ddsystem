@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="cjp_panel.css">
     <style>
         /* score_viewer-only styles (everything else is shared via cjp_panel.css) */
+        .d-dd.dd-capped { color: #e65100 !important; font-weight: 900; }
         /* score_viewer は console-scroll ラッパーが無いため main-content 自身をスクロール領域にする */
         .main-content { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .readonly-badge { background: #43a047; color: #fff; font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.1em; }
@@ -425,21 +426,31 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         }
 
         // DD行
+        // 難度点上限（1技あたり。合計は officialTotalDD で既に上限反映済み）
+        const _vAth  = athletes[athleteId] || {};
+        const _vRule = currentTour?.classRules?.[_vAth.type||'individual']?.[_vAth.class||_vAth.category||''] || {};
+        const _vpsc  = parseFloat(_vRule.perSkillDDCap);
+        const perSkillDDCap = (_vRule.perSkillDDCap != null && !isNaN(_vpsc)) ? _vpsc : null;
         const totalDD = data.officialTotalDD || 0;
         const bonus   = data.officialDDBonus || 0;
         const ddCells = document.querySelectorAll('.d-dd');
         if (data.officialDDValues?.length > 0) {
-            ddCells.forEach((el, i) => { el.textContent = data.officialDDValues[i] != null ? Number(data.officialDDValues[i]).toFixed(1) : '-'; });
+            // 手動確定値はそのまま表示（上限で書き換えない）
+            ddCells.forEach((el, i) => { el.classList.remove('dd-capped'); el.textContent = data.officialDDValues[i] != null ? Number(data.officialDDValues[i]).toFixed(1) : '-'; });
         } else {
             const seen = new Set();
             ddCells.forEach((el, i) => {
+                el.classList.remove('dd-capped');
                 const id = execSkills[i];
                 if (i >= vLimit || !id) { el.textContent = '-'; return; }
                 // ID直接参照、なければSymbolでフォールバック（manual保存の旧データ互換）
                 const skill = skillMasterMap[id] || Object.values(skillMasterMap).find(v => v.symbol === id);
                 if (!skill) { el.textContent = '-'; return; }
                 const key = skill.id; // 重複判定はIDで統一
-                el.textContent = seen.has(key) ? '0.0' : skill.dd.toFixed(1);
+                const _dup    = seen.has(key);
+                const _capped = (!_dup && perSkillDDCap != null && skill.dd > perSkillDDCap); // 1技あたり上限
+                el.textContent = _dup ? '0.0' : (_capped ? perSkillDDCap : skill.dd).toFixed(1);
+                if (_capped) el.classList.add('dd-capped');
                 seen.add(key);
             });
         }

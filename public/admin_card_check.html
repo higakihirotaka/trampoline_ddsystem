@@ -59,6 +59,7 @@
         .dd-total-wrap { text-align: right; }
         .dd-total-label { font-size: 0.65rem; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
         .dd-total-val { font-size: 2.4rem; font-weight: 900; color: var(--accent); line-height: 1; }
+        .dd-capped { color: #e65100 !important; font-weight: 900; }
         .actions-section { margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
         .btn-group { display: flex; gap: 10px; }
         .btn-status { flex: 1; padding: 12px 8px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; border: 2px solid transparent; background: #f5f5f5; color: #999; }
@@ -338,6 +339,11 @@
         const athClub  = athlete.type === 'synchro' ? athlete.club1 + ' / ' + athlete.club2 : athlete.club1;
         const athType  = athlete.type || 'individual';
         const cr       = (classRules[athType] && classRules[athType][athlete.class]) || {};
+        // 難度点上限（null=なし）
+        const _psc = parseFloat(cr.perSkillDDCap);
+        const perSkillDDCap = (cr.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+        const _rtc = parseFloat(cr.routineDDCap);
+        const routineDDCap  = (cr.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
         const rawDDCnt = (cr.designatedDDCount != null && cr.designatedDDCount >= 0) ? cr.designatedDDCount : -1;
         const isDesMod = rawDDCnt >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round === 'pre1';
         const effDDCnt = isDesMod ? rawDDCnt : -1;
@@ -348,17 +354,23 @@
         for (let i = 0; i < 10; i++) {
             const s = resolveSkill((submission.skills || [])[i]);
             const counts = effDDCnt < 0 ? true : (effDDCnt > 0 && desSet.has(i));
-            if (s.dd != null && counts) baseDD += s.dd;
+            // 1技あたり難度上限: 上限超の技は上限値で計算（表示も上限値にして色付け）
+            const isCapped = (perSkillDDCap != null && s.dd != null && s.dd > perSkillDDCap);
+            const usedDD   = isCapped ? perSkillDDCap : s.dd;
+            if (s.dd != null && counts) baseDD += usedDD;
             if (s.isTriple && counts) tripleCount++;
             const desMark = showDes ? '<td class="skill-des">' + (counts && effDDCnt > 0 ? '<span class="skill-des-mark">★</span>' : '') + '</td>' : '';
             tableRows += '<tr><td class="skill-num">' + (i + 1) + '</td>' +
                 '<td class="skill-dir">' + (DIR_LABEL[s.direction] || '-') + '</td>' +
                 '<td class="skill-sym">' + s.symbol + '</td>' +
-                '<td class="skill-dd">' + (s.dd != null ? s.dd.toFixed(1) : '-') + '</td>' + desMark + '</tr>';
+                '<td class="skill-dd' + (isCapped && counts ? ' dd-capped' : '') + '">' + (s.dd != null ? usedDD.toFixed(1) : '-') + '</td>' + desMark + '</tr>';
         }
 
         const bonus  = calcBonus(athlete.gender || '', tripleCount);
-        const total  = baseDD + bonus;
+        // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
+        let total    = baseDD + bonus;
+        const routineCapped = (routineDDCap != null && total > routineDDCap);
+        if (routineCapped) total = routineDDCap;
         const status = submission.checkStatus ?? 0;
 
         let desInfoHtml = '';
@@ -382,7 +394,7 @@
                 desInfoHtml +
                 '<div class="dd-summary" style="margin-top:12px;">' +
                     '<div class="dd-sub">基礎点：<strong>' + baseDD.toFixed(1) + '</strong><br>ボーナス点：<strong>' + bonus.toFixed(1) + '</strong></div>' +
-                    '<div class="dd-total-wrap"><div class="dd-total-label">Total DD</div><div class="dd-total-val">' + total.toFixed(1) + '</div></div>' +
+                    '<div class="dd-total-wrap"><div class="dd-total-label">Total DD</div><div class="dd-total-val"' + (routineCapped ? ' style="color:#e65100;"' : '') + '>' + total.toFixed(1) + '</div></div>' +
                 '</div>' +
                 '<div class="actions-section"><div class="btn-group">' +
                     '<button class="btn-status ' + (status === 0 ? 'active-0' : '') + '" onclick="window.updateStatus(0)">確認前</button>' +

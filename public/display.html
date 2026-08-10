@@ -396,6 +396,7 @@
     .alert{ color: var(--alert-red) !important; }
     .repeat{ color: var(--alert-red) !important; font-weight:900; }
     .dim{ opacity: 0.35; }
+    .d-val.capped{ color: #ff9800 !important; }
     /* ===== 待機状態 ===== */
     .waiting-msg{
       grid-column: 1 / -1; grid-row: 1 / -1;
@@ -1335,6 +1336,11 @@
 
     // ---- 指定難度 ----
     const _classRule  = getClassRule(ath);
+    // 難度点上限（null=なし）
+    const _psc = parseFloat(_classRule.perSkillDDCap);
+    const perSkillDDCap = (_classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+    const _rtc = parseFloat(_classRule.routineDDCap);
+    const routineDDCap  = (_classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
     const _rawDesig   = _classRule.designatedDDCount ?? -1;
     const _validDesig = _rawDesig >= 0
         && _classRule.qualifyingRoutines === 2
@@ -1403,7 +1409,7 @@
       const isDesigSkill = desigCount < 0
           || (desigCount > 0 && desigIndices.includes(i));
 
-      let displayDD = 0, dCodeTxt, dValTxt;
+      let displayDD = 0, dCodeTxt, dValTxt, isCappedSkill = false;
       if (hasManualDDValues) {
         // 手動入力: officialDDValues から各技の DD 値を復元
         displayDD = Number(resData.officialDDValues[i]) || 0;
@@ -1418,8 +1424,10 @@
         if (skill && !isRepeat) {
           seenIds.add(repeatKey);
           if (isDesigSkill) {
-            displayDD = skill.dd;
-            baseDD   += skill.dd;
+            // 1技あたり難度上限: 上限超の技は上限値で計算（色付け）
+            isCappedSkill = (perSkillDDCap != null && skill.dd > perSkillDDCap);
+            displayDD = isCappedSkill ? perSkillDDCap : skill.dd;
+            baseDD   += displayDD;
             if (skill.isTriple) tripleCount++;
           }
         }
@@ -1450,7 +1458,7 @@
           <div class="card e-card"><div class="e-val num${synchro ? ' syn' : ''}">${eDisplay}</div></div>
           <div class="card d-card">
             <div class="d-code${codeAlert ? ' alert' : dimCode ? ' dim' : ''}">${dCodeTxt}</div>
-            <div class="d-val num${valAlert ? ' alert' : dimVal ? ' dim' : ''}">${dValTxt}</div>
+            <div class="d-val num${valAlert ? ' alert' : dimVal ? ' dim' : isCappedSkill ? ' capped' : ''}">${dValTxt}</div>
           </div>
           ${hasHdts ? `<div class="card tof-card"><div class="tof-val num">${tofTxt}</div></div><div class="card hd-card"><div class="hd-val num">${hdTxt}</div></div>` : ''}
         </div>`);
@@ -1458,7 +1466,9 @@
 
     // ---- ボーナス計算 ----
     const bonus   = hasManualDDValues ? (resData.officialDDBonus || 0) : calcBonus(ath.gender, tripleCount);
-    const finalDD = hasManualDDValues ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
+    let finalDD = hasManualDDValues ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
+    // 構成あたり難度上限（自動計算時のみ。手動確定値 officialTotalDD はそのまま尊重）
+    if (!hasManualDDValues && routineDDCap != null && finalDD > routineDDCap) finalDD = routineDDCap;
 
     // LAN列（officialELanding があれば CJP 値を優先）
     const landDed = (resData.officialELanding != null)
