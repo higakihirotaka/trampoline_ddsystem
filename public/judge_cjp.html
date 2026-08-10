@@ -107,14 +107,14 @@
                 </tr>
                 <!-- HDTS 技別 ToF 行 -->
                 <tr class="d-info-row hdts-row" id="hdts-tof-row">
-                    <th class="hdts-label" id="hdts-tof-label">HDTS<br>ToF(s)</th>
+                    <th class="hdts-label" id="hdts-tof-label">ToF</th>
                     <th id="hdts-tof-1">-</th><th id="hdts-tof-2">-</th><th id="hdts-tof-3">-</th><th id="hdts-tof-4">-</th><th id="hdts-tof-5">-</th>
                     <th id="hdts-tof-6">-</th><th id="hdts-tof-7">-</th><th id="hdts-tof-8">-</th><th id="hdts-tof-9">-</th><th id="hdts-tof-10">-</th>
                     <th>-</th><th class="hdts-sum" id="hdts-tof-sum">-</th><th class="toggle-col"></th>
                 </tr>
                 <!-- HDTS 技別 HD 行 -->
                 <tr class="d-info-row hdts-row" id="hdts-hd-row">
-                    <th class="hdts-label">HDTS<br>HD(減)</th>
+                    <th class="hdts-label">HD</th>
                     <th id="hdts-hd-1">-</th><th id="hdts-hd-2">-</th><th id="hdts-hd-3">-</th><th id="hdts-hd-4">-</th><th id="hdts-hd-5">-</th>
                     <th id="hdts-hd-6">-</th><th id="hdts-hd-7">-</th><th id="hdts-hd-8">-</th><th id="hdts-hd-9">-</th><th id="hdts-hd-10">-</th>
                     <th>-</th><th class="hdts-sum" id="hdts-hd-sum">-</th><th class="toggle-col"></th>
@@ -1477,7 +1477,7 @@
         if (resLbl) resLbl.textContent = isSyn ? 'Syn' : 'T';
         // HDTS技別行のToF見出しはシンクロでは Syn（同期スコア）になる
         const hdtsLbl = document.getElementById('hdts-tof-label');
-        if (hdtsLbl) hdtsLbl.innerHTML = isSyn ? 'HDTS<br>Syn' : 'HDTS<br>ToF(s)';
+        if (hdtsLbl) hdtsLbl.innerHTML = isSyn ? 'Syn' : 'ToF';
     }
 
     // 内訳の色（暗い背景でも見やすい明るめのシェード）
