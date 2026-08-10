@@ -198,6 +198,11 @@
         const hasH5H6 = (rule.hasH5H6 === true || rule.hasH5H6 === 'true' || Number(rule.hasH5H6) === 1);
         const useHDTS       = (rule.useHDTS !== false); // default true
         const finalScoreMode = (rule.finalScoreMode === 'combined') ? 'combined' : 'zero';
+        // 難度点上限（null=なし）
+        const _psc = parseFloat(rule.perSkillDDCap);
+        const perSkillDDCap = (rule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+        const _rtc = parseFloat(rule.routineDDCap);
+        const routineDDCap  = (rule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
 
         const card = document.createElement('div');
         card.className = 'class-card';
@@ -327,6 +332,48 @@
                 </div>
             </div>
 
+            <!-- 1技あたり難度上限 -->
+            <div class="rule-row">
+                <div class="rule-label">1技あたり難度上限</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="skillcap-${key}" value="off" ${perSkillDDCap == null ? 'checked' : ''}>
+                            <span>なし</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="skillcap-${key}" value="on" ${perSkillDDCap != null ? 'checked' : ''}>
+                            <span>あり</span>
+                        </label>
+                    </div>
+                    <div class="num-input-wrap conditional ${perSkillDDCap == null ? 'hidden' : ''}" id="skillcap-wrap-${key}" style="margin-top:8px;">
+                        <input type="number" id="skillcap-val-${key}" value="${perSkillDDCap != null ? perSkillDDCap : ''}" min="0" max="10" step="0.1" placeholder="1.2">
+                        <span class="num-unit">点（この値以上の技はこの値で計算）</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 構成あたり難度上限 -->
+            <div class="rule-row">
+                <div class="rule-label">構成あたり難度上限</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="routinecap-${key}" value="off" ${routineDDCap == null ? 'checked' : ''}>
+                            <span>なし</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="routinecap-${key}" value="on" ${routineDDCap != null ? 'checked' : ''}>
+                            <span>あり</span>
+                        </label>
+                    </div>
+                    <div class="num-input-wrap conditional ${routineDDCap == null ? 'hidden' : ''}" id="routinecap-wrap-${key}" style="margin-top:8px;">
+                        <input type="number" id="routinecap-val-${key}" value="${routineDDCap != null ? routineDDCap : ''}" min="0" max="30" step="0.1" placeholder="8.0">
+                        <span class="num-unit">点（合計＝Base＋ボーナスがこの値を超えたら上限に）</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- H審判（H5・H6） -->
             <div class="rule-row">
                 <div class="rule-label">H審判（H5・H6）</div>
@@ -398,6 +445,15 @@
         card.querySelectorAll(`input[name="qual-${key}"], input[name="score-${key}"], input[name="final-${key}"]`)
             .forEach(radio => radio.addEventListener('change', refreshConditionals));
 
+        // 難度上限 あり/なし → 数値入力欄の表示切替
+        [['skillcap', 'skillcap-wrap'], ['routinecap', 'routinecap-wrap']].forEach(([nm, wrap]) => {
+            card.querySelectorAll(`input[name="${nm}-${key}"]`).forEach(radio =>
+                radio.addEventListener('change', () => {
+                    const on = card.querySelector(`input[name="${nm}-${key}"]:checked`)?.value === 'on';
+                    document.getElementById(`${wrap}-${key}`)?.classList.toggle('hidden', !on);
+                }));
+        });
+
         return card;
     }
 
@@ -429,6 +485,13 @@
                 const useHDTS        = card.querySelector(`input[name="hdts-${key}"]:checked`)?.value !== 'false';
                 // 決勝のみは予選が無いので合計不可 → zero固定
                 const finalScoreMode = finalOnly ? 'zero' : (card.querySelector(`input[name="final-score-mode-${key}"]:checked`)?.value || 'zero');
+                // 難度点上限（あり かつ 有効な数値のときのみ値、それ以外は null）
+                const skillCapOn = card.querySelector(`input[name="skillcap-${key}"]:checked`)?.value === 'on';
+                const _scRaw = parseFloat(card.querySelector(`#skillcap-val-${key}`)?.value);
+                const perSkillDDCap = (skillCapOn && !isNaN(_scRaw)) ? _scRaw : null;
+                const routineCapOn = card.querySelector(`input[name="routinecap-${key}"]:checked`)?.value === 'on';
+                const _rcRaw = parseFloat(card.querySelector(`#routinecap-val-${key}`)?.value);
+                const routineDDCap = (routineCapOn && !isNaN(_rcRaw)) ? _rcRaw : null;
 
                 const ruleObj = {
                     qualifyingRoutines: qualRoutes,
@@ -441,7 +504,9 @@
                     finalScoreMode,
                     designatedDDCount,
                     hasH5H6,
-                    useHDTS
+                    useHDTS,
+                    perSkillDDCap,
+                    routineDDCap
                 };
                 if (type === 'synchro') synchro[name] = ruleObj;
                 else individual[name] = ruleObj;

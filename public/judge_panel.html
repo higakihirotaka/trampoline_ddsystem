@@ -75,6 +75,7 @@
         .invalid-row td { background-color: #f5f5f5 !important; color: #bbb !important; }
         .diff-skill { color: var(--danger) !important; font-weight: 900; }
         .dd-zero { color: var(--danger) !important; font-weight: 900; }
+        .dd-capped { color: #e65100 !important; font-weight: 900; }
 
         .valid-count-area { margin: 0; padding: 10px; background: #f8f9fa; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 1px solid #eee; }
         .footer-stats { margin: 0; padding: 10px 8px; border-top: none; display: flex; flex-direction: column; align-items: center; gap: 3px; background: #f1f8e9; border-radius: 12px; border: 1px solid #c8e6c9; }
@@ -131,6 +132,8 @@
     let unsubValidCount = null;
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let designatedDDCount = -1;   // -1=無効, 0=全DD0, 1以上=N本指定
+    let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
+    let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
     let designatedDDIndices = []; // 指定技インデックス（0-based）
 
     // Firestore doc ID (文字列 or 数値) でスキルを引く。位置アクセスは使わない
@@ -478,6 +481,11 @@
         const athType2 = ath.type || 'individual';
         const athClass2 = ath.class || ath.category || '';
         const classRule = currentTour?.classRules?.[athType2]?.[athClass2] || {};
+        // 難度点上限（null=なし）
+        const _psc = parseFloat(classRule.perSkillDDCap);
+        perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+        const _rtc = parseFloat(classRule.routineDDCap);
+        routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
         const rawDDCount = classRule.designatedDDCount ?? -1;
         const validDesig = rawDDCount >= 0
             && classRule.qualifyingRoutines === 2
@@ -642,6 +650,7 @@
             const isDesigIdx = designatedDDCount > 0 && designatedDDIndices.includes(i - 1);
             const numCell = row?.querySelector('td.col-num');
             if (numCell) numCell.classList.toggle('designated', isDesigIdx);
+            if (ddSpan) ddSpan.classList.remove('dd-capped'); // 前回描画の上限色をリセット
 
             if (i > validLimit) {
                 row.classList.add('invalid-row');
@@ -676,7 +685,11 @@
                 const isDesig = designatedDDCount < 0
                     || (designatedDDCount > 0 && designatedDDIndices.includes(i - 1));
                 if (isDesig) {
-                    baseDD += skill.dd; ddSpan.innerText = skill.dd.toFixed(1); if (skill.isTriple) tripleCount++;
+                    // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
+                    const isCapped = (perSkillDDCap != null && skill.dd > perSkillDDCap);
+                    const usedDD   = isCapped ? perSkillDDCap : skill.dd;
+                    baseDD += usedDD; ddSpan.innerText = usedDD.toFixed(1); if (skill.isTriple) tripleCount++;
+                    ddSpan.classList.toggle('dd-capped', isCapped);
                 } else {
                     ddSpan.innerText = '-';
                     if (!ddSpan.classList.contains('diff-skill')) ddSpan.style.color = '#90a4ae';
@@ -689,8 +702,14 @@
         if (ath?.gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
         else if ((ath?.gender === '女子' || ath?.gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
+        // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
+        let totalDD = baseDD + bonus;
+        const routineCapped = (routineDDCap != null && totalDD > routineDDCap);
+        if (routineCapped) totalDD = routineDDCap;
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
-        totalDDContainer.innerHTML = `${(baseDD + bonus).toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>`;
+        totalDDContainer.classList.toggle('dd-capped', routineCapped);
+        const capNote = routineCapped ? ` <span style="font-size:0.4em; color:#e65100; font-weight:bold;">上限${routineDDCap.toFixed(1)}</span>` : '';
+        totalDDContainer.innerHTML = `${totalDD.toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>${capNote}`;
     };
 
     // 申請種目（選手申告）をD入力欄に取り込む（CJPがDなしで確定した等で空欄化した場合の救済用）

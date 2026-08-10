@@ -40,6 +40,7 @@
         .dd-zero { color: var(--danger) !important; font-weight: bold; }
         .check-cell input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; }
         .dd-not-designated { color: #90a4ae !important; }
+        .dd-capped { color: #e65100 !important; font-weight: 900; }
         .input-note { font-size: 0.72em; color: #80868b; margin: 2px 0 0; }
         .synchro-kana-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .synchro-kana-col { display: flex; flex-direction: column; gap: 5px; }
@@ -201,6 +202,8 @@
     let tourData = {};
     let subDocRef = null;   // submissionDoc の存在確認用
     let designatedDDCount = -1; // 指定難度本数（-1=無効、0=0本指定、1-9=N本指定）
+    let perSkillDDCap = null;   // 1技あたり難度上限（null=なし）
+    let routineDDCap  = null;   // 構成あたり難度上限（null=なし）
 
     async function init() {
         if (!eventId || !athleteId || !round) return;
@@ -277,6 +280,11 @@
             const athClass = currentAthlete.class || currentAthlete.category || '';
             const cr = (tourData.classRules?.[athType] || {})[athClass] || {};
             const finalOnly = cr.finalOnly === true;   // 決勝のみクラス（予選なし）
+            // 難度点上限（null=なし）
+            const _psc = parseFloat(cr.perSkillDDCap);
+            perSkillDDCap = (cr.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+            const _rtc = parseFloat(cr.routineDDCap);
+            routineDDCap  = (cr.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
             // -1=設定なし, 0=0本指定(DD全0), 1-9=N本指定
             const rawDDCount = (cr.designatedDDCount != null && cr.designatedDDCount >= 0) ? cr.designatedDDCount : -1;
             designatedDDCount = (rawDDCount >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round === 'pre1')
@@ -441,7 +449,7 @@
             const ddSpan = document.getElementById(`dd-${i}`);
             if (!id) {
                 ddSpan.textContent = "0.0";
-                ddSpan.classList.remove('dd-zero', 'dd-not-designated');
+                ddSpan.classList.remove('dd-zero', 'dd-not-designated', 'dd-capped');
                 row.classList.remove('duplicate-row');
                 continue;
             }
@@ -457,17 +465,22 @@
             if (seenIds.has(id)) {
                 ddSpan.textContent = "0.0";
                 ddSpan.classList.add('dd-zero');
-                ddSpan.classList.remove('dd-not-designated');
+                ddSpan.classList.remove('dd-not-designated', 'dd-capped');
             } else {
                 seenIds.add(id);
-                ddSpan.textContent = skill.dd.toFixed(1);
                 ddSpan.classList.remove('dd-zero');
+                // 1技あたり難度上限: 上限超の技は上限値で計算（表示も上限値にして色付け）
+                const isCapped = (perSkillDDCap != null && skill.dd > perSkillDDCap);
+                const usedDD   = isCapped ? perSkillDDCap : skill.dd;
+                ddSpan.textContent = usedDD.toFixed(1);
                 if (isDesignated) {
-                    baseDD += skill.dd;
+                    baseDD += usedDD;
                     if (skill.isTriple) tripleCount++;
                     ddSpan.classList.remove('dd-not-designated');
+                    ddSpan.classList.toggle('dd-capped', isCapped);
                 } else {
                     ddSpan.classList.add('dd-not-designated'); // 非指定はグレー表示
+                    ddSpan.classList.remove('dd-capped');
                 }
             }
         }
@@ -477,9 +490,15 @@
         if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
         if ((gender === '女子' || gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3; // 混合は女子ルール適用
 
+        // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
+        let totalDD = baseDD + bonus;
+        const routineCapped = (routineDDCap != null && totalDD > routineDDCap);
+        if (routineCapped) totalDD = routineDDCap;
         document.getElementById('dd-base').textContent  = baseDD.toFixed(1);
         document.getElementById('dd-bonus').textContent = bonus.toFixed(1);
-        document.getElementById('total-dd').textContent = (baseDD + bonus).toFixed(1);
+        const totalEl = document.getElementById('total-dd');
+        totalEl.textContent = totalDD.toFixed(1);
+        totalEl.classList.toggle('dd-capped', routineCapped);
 
         // 指定難度インジケーター更新
         if (designatedDDCount === 0) {

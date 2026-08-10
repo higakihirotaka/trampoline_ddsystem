@@ -247,6 +247,8 @@
     // 指定難度（-1=無効、0=0本指定(全DD=0)、1-9=N本指定）
     let designatedDDCount = -1;
     let designatedDDIndices = []; // 指定中の技インデックス（0-based）
+    let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
+    let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
     let designatedDDManualChanged = false; // 審判が手動で変更したフラグ
 
     function withTimeout(promise, ms) {
@@ -681,6 +683,11 @@
         const athType  = ath.type || 'individual';
         const athClass = ath.class || ath.category || '';
         const classRule = currentTour?.classRules?.[athType]?.[athClass] || {};
+        // 難度点上限（null=なし）
+        const _psc = parseFloat(classRule.perSkillDDCap);
+        perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+        const _rtc = parseFloat(classRule.routineDDCap);
+        routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
         // 指定難度は2本合計・予選1本目のみ有効（-1=無効, 0=全DD0, 1-9=N本指定）
         const rawDDCount = (classRule.designatedDDCount != null && classRule.designatedDDCount >= 0) ? classRule.designatedDDCount : -1;
         designatedDDCount = (rawDDCount >= 0 && classRule.qualifyingRoutines === 2 && classRule.scoreMode === 'total' && rid === 'pre1')
@@ -1289,9 +1296,13 @@
                     } else {
                         seenIds.add(id);
                         if (isDesignated) {
-                            el.textContent = skill.dd.toFixed(1);
-                            baseDD += skill.dd;
+                            // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
+                            const isCapped = (perSkillDDCap != null && skill.dd > perSkillDDCap);
+                            const usedDD   = isCapped ? perSkillDDCap : skill.dd;
+                            el.textContent = usedDD.toFixed(1);
+                            baseDD += usedDD;
                             if (skill.isTriple) tripleCount++;
+                            if (isCapped) { el.style.color = '#e65100'; el.style.fontWeight = 'bold'; }
                         } else {
                             el.textContent = '-';          // 非指定はハイフン
                             el.style.color = '#90a4ae';    // グレー
@@ -1304,8 +1315,14 @@
                 if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
                 else if ((gender === '女子' || gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
-                const totalDD = baseDD + bonus;
-                document.getElementById('dd-total-cell').textContent = (baseDD + bonus) > 0 ? (baseDD + bonus).toFixed(1) : '-';
+                // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
+                let totalDD = baseDD + bonus;
+                const routineCapped = (routineDDCap != null && totalDD > routineDDCap);
+                if (routineCapped) totalDD = routineDDCap;
+                const dTotalCell = document.getElementById('dd-total-cell');
+                dTotalCell.textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
+                dTotalCell.style.color = routineCapped ? '#e65100' : '';
+                dTotalCell.style.fontWeight = routineCapped ? 'bold' : '';
                 const bonusCell = document.getElementById('dd-bonus-cell');
                 if (bonusCell) bonusCell.textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
 
