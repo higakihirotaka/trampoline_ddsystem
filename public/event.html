@@ -102,9 +102,11 @@
     // ── 大会情報をDOMに反映 ─────────────────────────────────
     function applyTourInfo(tour) {
         document.getElementById('event-title').innerText = tour.name;
-        document.getElementById('event-date').innerText =
-            `${tour.startDate || tour.start_date || ''} ～ ${tour.endDate || tour.end_date || ''}`;
-        if (tour.venue) document.getElementById('event-venue').innerText = `📍 ${tour.venue}`;
+        const _sd = tour.startDate || tour.start_date || '';
+        const _ed = tour.endDate   || tour.end_date   || '';
+        const _dateStr = (_sd && _ed && _sd !== _ed) ? `${_sd} ～ ${_ed}` : (_sd || _ed);
+        document.getElementById('event-date').innerText  = _dateStr    ? `開催日：${_dateStr}` : '';
+        document.getElementById('event-venue').innerText = tour.venue ? `会場：${tour.venue}` : '';
     }
 
     // ── バッジのピンポイント更新 ────────────────────────────
