@@ -1645,10 +1645,12 @@
         });
     }
 
-    // シンクロHDのTotal表示: 2人分の減点合計(0.1単位)から合成HDスコア = 10 − (hd1+hd2)/20
-    // 例) 3 / 10 → 10 − 13/20 = 9.35
-    function synHdScore(hd1Total, hd2Total) {
-        return (10 - ((Number(hd1Total) || 0) + (Number(hd2Total) || 0)) / 20).toFixed(2);
+    // シンクロHDのTotal表示: 有効本数Nと2人分の減点合計(0.1単位)から合成HDスコア = N − (hd1+hd2)/20
+    // HDスコアの満点は「有効本数 × 1.0」。中断時(例:5本有効)も N を反映する。
+    // 例) 10本有効で 3 / 10 → 10 − 13/20 = 9.35 ／ 5本有効なら 5 − 13/20 = 4.35
+    function synHdScore(hd1Total, hd2Total, validCount) {
+        const n = Number(validCount) || 10;
+        return (n - ((Number(hd1Total) || 0) + (Number(hd2Total) || 0)) / 20).toFixed(2);
     }
 
     // ---- HDTS 技別 ToF/HD を Firestore の保存値（パネル別）から復元表示 ----
@@ -1667,7 +1669,7 @@
             const tofSumEl = document.getElementById('hdts-tof-sum');
             const hdSumEl  = document.getElementById('hdts-hd-sum');
             if (tofSumEl) tofSumEl.textContent = (ps.synTotal != null) ? Number(ps.synTotal).toFixed(2) : '-';
-            if (hdSumEl)  hdSumEl.textContent  = (ps.hd1Total != null || ps.hd2Total != null) ? synHdScore(ps.hd1Total, ps.hd2Total) : '-';
+            if (hdSumEl)  hdSumEl.textContent  = (ps.hd1Total != null || ps.hd2Total != null) ? synHdScore(ps.hd1Total, ps.hd2Total, data?.validCount) : '-';
             return;
         }
         // 個人
@@ -1820,7 +1822,7 @@
                     const tofSumEl = document.getElementById('hdts-tof-sum');
                     const hdSumEl  = document.getElementById('hdts-hd-sum');
                     if (tofSumEl) tofSumEl.textContent = synSum.toFixed(2);
-                    if (hdSumEl)  hdSumEl.textContent  = synHdScore(hd1Total, hd2Total);
+                    if (hdSumEl)  hdSumEl.textContent  = synHdScore(hd1Total, hd2Total, vcVal);
                     if (athleteId) {
                         setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
                             { hdtsPerSkillByPanel: { [panel]: { isSynchro: true, syn: perSkillSyn, hd1: perSkillHd1, hd2: perSkillHd2, synTotal: synSum, hd1Total, hd2Total } } },
