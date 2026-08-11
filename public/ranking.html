@@ -297,31 +297,37 @@
   }
 
   // S1-S10: 全審判の各技減点を合計（stored値×10 = タップ単位に戻す）
-  function calcSkillTotals(result, isSynchro) {
+  // フォールバック（officialEPerSkill が無い旧データ用）: 生審判データの中間2名合計（点単位）。
+  // ※シンクロの per-skill E は平均/中央値ロジックで CJP と一致させる必要があるため、通常は
+  //   CJP保存値 officialEPerSkill を使う（perSkillE 参照）。ここは旧データ用の近似。
+  function calcSkillTotals(result) {
     const judges = Object.values(result.execution?.judges || {});
     if (judges.length === 0) return { skills: Array(10).fill(null), land: null };
 
-    // シンクロは 0.01 単位まで残す（表示側で小数第2位）。個人は従来どおり 0.1 単位に丸める。
-    const round10 = x => isSynchro ? x : Math.round(x);
-    // CJP の middle2 と同じ：中間2名の合計を ×10 して表示
     function mid2sum(vals) {
       const filled = vals.filter(v => v !== null && v !== undefined);
-      if (filled.length < 2) return filled.length === 1 ? round10(filled[0] * 10) : null;
+      if (filled.length < 2) return filled.length === 1 ? filled[0] : null;
       filled.sort((a, b) => a - b);
       const mid = Math.floor((filled.length - 2) / 2);
-      // 中間2名の合計（×10）
-      return round10((filled[mid] + filled[mid + 1]) * 10);
+      return filled[mid] + filled[mid + 1];   // 点単位（表示側で ×10）
     }
 
-    // 各技の有効減点合計を ×10 して整数表示（CJP の middle2sum と同じ値）
-    const skills = Array.from({ length: 10 }, (_, i) => {
-      const vals = judges.map(j => (j.deductions || [])[i] ?? null);
-      return mid2sum(vals);
-    });
-
+    const skills = Array.from({ length: 10 }, (_, i) =>
+      mid2sum(judges.map(j => (j.deductions || [])[i] ?? null)));
     const land = mid2sum(judges.map(j => j.landing ?? null));
-
     return { skills, land };
+  }
+
+  // per-skill E の取得元: CJPが確定時に保存した officialEPerSkill / officialELanding を最優先。
+  // これで CJP画面の「Med」行と順位表の S1〜 が完全一致する（シンクロの平均/中央値計算も含めて）。
+  function perSkillE(res) {
+    if (Array.isArray(res.officialEPerSkill) && res.officialEPerSkill.length) {
+      return {
+        skills: Array.from({ length: 10 }, (_, i) => (res.officialEPerSkill[i] ?? null)),
+        land:   (res.officialELanding != null ? res.officialELanding : null)
+      };
+    }
+    return calcSkillTotals(res);   // 旧データ用フォールバック
   }
 
   const fmt3 = v => v != null ? Number(v).toFixed(3) : null;
@@ -518,23 +524,20 @@
         // S1-S10, L
         let skillCells = '';
         if (res) {
-          const { skills, land } = calcSkillTotals(res, fType === 'synchro');
+          const { skills, land } = perSkillE(res);   // CJP保存値(officialEPerSkill)優先
           const vLimit = res.validCount ?? 10;  // 中断時の有効本数
+          const isSyn = fType === 'synchro';
+          // CJP画面「Med」行と同じ書式: シンクロ=(×10).toFixed(2) / 個人=round(×10)
+          const medFmt = v => v == null ? '−' : (isSyn ? (v * 10).toFixed(2) : String(Math.round(v * 10)));
           for (let i = 0; i < 10; i++) {
-            if (i >= vLimit) {
-              // 中断後の技：空欄
-              skillCells += `<td class="score-na"></td>`;
-            } else {
-              const v = skills[i];
-              skillCells += `<td class="s-val">${v != null ? (fType === 'synchro' ? v.toFixed(2) : (Number.isInteger(v) ? v : v.toFixed(1))) : '−'}</td>`;
-            }
+            skillCells += i >= vLimit
+              ? `<td class="score-na"></td>`      // 中断後の技：空欄
+              : `<td class="s-val">${medFmt(skills[i])}</td>`;
           }
           // 着地：validCount=10のときのみ表示
-          if (vLimit < 10) {
-            skillCells += `<td class="score-na"></td>`;
-          } else {
-            skillCells += `<td class="s-val">${land != null ? (fType === 'synchro' ? land.toFixed(2) : (Number.isInteger(land) ? land : land.toFixed(1))) : '−'}</td>`;
-          }
+          skillCells += vLimit < 10
+            ? `<td class="score-na"></td>`
+            : `<td class="s-val">${medFmt(land)}</td>`;
         } else {
           skillCells = Array(11).fill('<td class="score-na">−</td>').join('');
         }
