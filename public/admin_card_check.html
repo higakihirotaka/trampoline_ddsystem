@@ -375,7 +375,7 @@
 
         let desInfoHtml = '';
         if (effDDCnt === 0) {
-            desInfoHtml = '<div class="des-info zero">指定難度：0本設定（このクラスのDD得点は0点）</div>';
+            desInfoHtml = '<div class="des-info zero">難度有効本数　' + effDDCnt + '本</div>';
         } else if (effDDCnt > 0) {
             const chosen = desSet.size, ok = chosen === effDDCnt;
             desInfoHtml = '<div class="des-info ' + (ok ? 'ok' : 'warn') + '">指定難度：' + chosen + ' / ' + effDDCnt + ' 本選択' + (ok ? '　✓' : '　⚠ 本数不一致') + '</div>';
