@@ -558,6 +558,12 @@
   .tr-row.r1 .tr-rank, .tr-row.r1 .tr-total-num{ color:#ffd700; text-shadow: 0 0 16px rgba(255,215,0,0.25); }
   .tr-row.r2{ border-left-color:#d6e0ea; } .tr-row.r2 .tr-rank{ color:#d6e0ea; }
   .tr-row.r3{ border-left-color:#e8a06a; } .tr-row.r3 .tr-rank{ color:#e8a06a; }
+  /* 団体順位表の登場アニメ：初回表示・ページ送りのたびに各行がフェード＋スライドアップ（個人順位表の登場に合わせた演出） */
+  @keyframes trRowEnter{ from{ opacity:0; transform:translateY(1.6cqw); } to{ opacity:1; transform:translateY(0); } }
+  .tr-row{ animation: trRowEnter 700ms cubic-bezier(0.22,1,0.36,1) both; }
+  .tr-row:nth-child(1){ animation-delay:0ms; }
+  .tr-row:nth-child(2){ animation-delay:150ms; }
+  .tr-row:nth-child(3){ animation-delay:300ms; }
   .tr-credit{ display:flex; justify-content:flex-end; align-items:center; font-size:0.8cqw; color:rgba(255,255,255,0.2);
     letter-spacing:0.2cqw; font-weight:700; text-transform:uppercase; }
   .tr-empty{ grid-row:1 / -1; display:flex; align-items:center; justify-content:center; font-size:1.6cqw; color:#cbd5e0; }
@@ -1913,7 +1919,7 @@
       layout.innerHTML = trHeaderHtml('') + `<div class="tr-list"><div class="tr-empty">この区分の登録チームがありません</div></div>` + trCreditHtml();
       return;
     }
-    const pageInd = totalPages > 1 ? `<span class="tr-page">${page + 1}/${totalPages}</span>` : '';
+    const pageInd = '';   // ページ番号(1/2 等)は表示しない
     const pageTeams = _trTeams.slice(page * TR_PER_PAGE, page * TR_PER_PAGE + TR_PER_PAGE);
     const listHtml = pageTeams.map((t, i) => {
       const rank = page * TR_PER_PAGE + i + 1;
