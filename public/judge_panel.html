@@ -90,10 +90,8 @@
         .btn-fetch-declared { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--accent); background: #e8f0fe; color: var(--accent); font-size: 0.82em; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.15s; }
         .btn-fetch-declared:hover { background: var(--accent); color: #fff; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
-        /* 難度制限あり: 確定ボタンを小さく上に、難度制限を参考表示 */
-        .action-area.compact { flex: 0 0 auto; }
-        .btn.btn-compact { height: auto; min-height: 0; padding: 12px 12px; font-size: 1.05em; }
-        .cap-ref { margin: 0; padding: 10px 12px; background: #fff8e1; border: 1px solid #ffe0b2; border-radius: 12px; display: flex; flex-direction: column; gap: 5px; }
+        /* 難度制限あり: 合計Dの下に参考表示（確定ボタンはその分だけ縦が縮むだけ） */
+        .cap-ref { margin: 0; padding: 10px 12px; background: #fff8e1; border: 1px solid #ffe0b2; border-radius: 12px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
         .cap-ref-title { font-size: 0.78em; font-weight: 900; color: #e65100; letter-spacing: 0.03em; text-align: center; }
         .cap-ref-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.9em; color: #6d4c41; }
         .cap-ref-row b { font-size: 1.15em; color: #e65100; }
@@ -141,7 +139,6 @@
     let designatedDDCount = -1;   // -1=無効, 0=全DD0, 1以上=N本指定
     let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
     let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
-    let _hasDDCap     = false;    // 現在の選手クラスに難度制限があるか（確定ボタン縮小レイアウト判定）
     let designatedDDIndices = []; // 指定技インデックス（0-based）
 
     // Firestore doc ID (文字列 or 数値) でスキルを引く。位置アクセスは使わない
@@ -443,10 +440,9 @@
                     } else {
                         // CJP解除 → 修正するボタンを表示（セレクトはまだ無効のまま）
                         const dSaved = !!data;
-                        const _cc = _hasDDCap ? 'btn-compact ' : '';
                         actionArea.innerHTML = dSaved
-                            ? `<button id="btn-save" class="btn ${_cc}btn-modify" onclick="enableEditing()">修正する</button>`
-                            : `<button id="btn-save" class="btn ${_cc}btn-submit" onclick="saveOfficialScore()">確定・保存</button>`;
+                            ? `<button id="btn-save" class="btn btn-modify" onclick="enableEditing()">修正する</button>`
+                            : `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">確定・保存</button>`;
                     }
                 }
             }
@@ -547,13 +543,11 @@
             headerClub = c1 ? c1 + (ck1 ? `（${ck1}）` : '') : '';
         }
 
-        // 難度制限（1技/構成）があるときは確定ボタンを小さく上に置き、制限を参考表示する
-        const hasCap = (perSkillDDCap != null || routineDDCap != null);
-        _hasDDCap = hasCap;
+        // 難度制限（1技/構成）があるときは合計Dの下に参考表示する（確定ボタンはその分だけ縦が縮む）
         const actionBtnHtml = cjpConfirmed
             ? `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`
-            : `<button id="btn-save" class="btn ${hasCap ? 'btn-compact ' : ''}${dSaved ? 'btn-modify' : 'btn-submit'}" onclick="${dSaved ? 'enableEditing()' : 'saveOfficialScore()'}">${dSaved ? '修正する' : '確定・保存'}</button>`;
-        const capRefHtml = hasCap ? `
+            : `<button id="btn-save" class="btn ${dSaved ? 'btn-modify' : 'btn-submit'}" onclick="${dSaved ? 'enableEditing()' : 'saveOfficialScore()'}">${dSaved ? '修正する' : '確定・保存'}</button>`;
+        const capRefHtml = (perSkillDDCap != null || routineDDCap != null) ? `
                         <div class="cap-ref">
                             <span class="cap-ref-title">難度制限（参考）</span>
                             ${perSkillDDCap != null ? `<div class="cap-ref-row"><span>1技あたり上限</span><b>${perSkillDDCap.toFixed(1)}</b></div>` : ''}
@@ -587,20 +581,12 @@
                             <span id="valid-count-display" style="font-size:1.3em; font-weight:900; color:var(--ok-green); padding:5px 16px; background:#f1f8e9; border-radius:8px; border:1px solid #c8e6c9;">${validCount}本</span>
                             <input type="hidden" id="valid-count" value="${validCount}">
                         </div>
-                        ${hasCap ? `
-                        <div class="action-area compact" id="action-area">${actionBtnHtml}</div>
                         <div class="footer-stats">
                             <span style="font-size:0.78em; color:#90a4ae; font-weight:bold; letter-spacing:0.05em;">合計DD</span>
                             <span id="total-dd" class="total-official">0.0</span>
                         </div>
                         ${capRefHtml}
-                        ` : `
-                        <div class="footer-stats">
-                            <span style="font-size:0.78em; color:#90a4ae; font-weight:bold; letter-spacing:0.05em;">合計DD</span>
-                            <span id="total-dd" class="total-official">0.0</span>
-                        </div>
                         <div class="action-area" id="action-area">${actionBtnHtml}</div>
-                        `}
                     </div>
                 </div>
             </div>`;
@@ -771,7 +757,7 @@
     window.enableEditing = () => {
         if (cjpConfirmed) return; // CJP確定済のため修正不可
         document.querySelectorAll('select').forEach(s => s.disabled = false);
-        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn ${_hasDDCap ? 'btn-compact ' : ''}btn-submit" onclick="saveOfficialScore()">修正を保存</button>`;
+        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">修正を保存</button>`;
         // 修正開始 → D確定を解除（CJP画面を「未確定」表示に戻す）。再度「修正を保存」で確定される。
         if (athleteId && round) {
             setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { dConfirmedAt: deleteField() }, { merge: true })
