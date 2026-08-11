@@ -1119,7 +1119,10 @@
                 : { sum: 0, indices: new Set(), hasData: false, groupData: null };
             const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
                             + landingResult.sum;
-            const execution = (vLimit * 1.0) - totalDed;  // シンクロ: 有効技数 × 1.0
+            // シンクロ: 有効技数 × 1.0 − 合計減点。各要素を満精度で合計した最終Eを小数第2位に四捨五入する。
+            // ※E4人は技ごと平均が0.025刻み(例7.525)になり、素の *100 では浮動小数で752.4999…となり
+            //   切り下がるため、微小値を足して確実に「五入」（round half up）させる。
+            const execution = Math.round(((vLimit * 1.0) - totalDed) * 100 + 1e-6) / 100;
             return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges, isSynchro };
         }
     }
