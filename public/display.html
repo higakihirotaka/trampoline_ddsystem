@@ -1481,17 +1481,20 @@
         ? resData.officialELanding
         : getLandingDed(panelJudges, synchro, numE);
     const isLanValid = vLimit === 10;
+    // LAN(着地)は中断時のみ薄く。ボーナスは 0 なら非表示・>0 なら常に濃く表示（中断でも薄くしない）
+    const lanDim = isLanValid ? '' : 'opacity:0.25;';
     const bonusCol = `
-      <div class="skill-stack bonus-style" style="${isLanValid ? '' : 'opacity:0.25;'}">
-        <div class="col-idx">LAN</div>
-        <div class="card e-card"><div class="e-val num${synchro ? ' syn' : ''}">${isLanValid && landDed !== null ? (synchro ? (landDed * 10).toFixed(2) : Math.round(landDed * 10)) : '--'}</div></div>
-        <div class="bonus-note-block" style="${bonus > 0 ? '' : 'opacity:0.25;'}">
+      <div class="skill-stack bonus-style">
+        <div class="col-idx" style="${lanDim}">LAN</div>
+        <div class="card e-card" style="${lanDim}"><div class="e-val num${synchro ? ' syn' : ''}">${isLanValid && landDed !== null ? (synchro ? (landDed * 10).toFixed(2) : Math.round(landDed * 10)) : '--'}</div></div>
+        ${bonus > 0 ? `
+        <div class="bonus-note-block">
           <span>D-SCORE</span>
           <span>BONUS</span>
         </div>
-        <div class="bonus-dval" style="${bonus > 0 ? '' : 'opacity:0.25;'}">
+        <div class="bonus-dval">
           <span class="bonus-val num">+${bonus.toFixed(1)}</span>
-        </div>
+        </div>` : ''}
         ${hasHdts ? '<div class="empty-card" style="grid-row:5;"></div><div class="empty-card" style="grid-row:6;"></div>' : ''}
       </div>`;
 
