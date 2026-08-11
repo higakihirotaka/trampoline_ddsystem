@@ -152,7 +152,7 @@
         <div class="score-summary">
             <div class="score-box"><label>Difficulty</label><div id="res-d">0.0</div></div>
             <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
-            <div class="score-box"><label id="res-t-label">T</label><div id="res-t">0.000</div></div>
+            <div class="score-box"><label id="res-t-label">T</label><div id="res-t">0.00</div></div>
             <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
             <div class="score-box"><label>Penalty</label><div id="res-pen">0.0</div></div>
             <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.00</div></div>
@@ -1602,7 +1602,7 @@
         // --- 値の表示（未入力/未完了/D未確定は空欄） ---
         dEl.innerText = dShow ? d.toFixed(1) : '';
         eEl.innerText = eComplete ? (fType === 'synchro' ? eVal.toFixed(3) : eVal.toFixed(1)) : '';
-        tEl.innerText = tEntered ? t.toFixed(3) : '';
+        tEl.innerText = tEntered ? t.toFixed(2) : '';
         hEl.innerText = hEntered ? h.toFixed(3) : '';
         const penEl = document.getElementById('res-pen');
         if (penEl) { penEl.innerText = p > 0 ? `-${p.toFixed(1)}` : '0.0'; penEl.style.color = p > 0 ? _BD_RED : ''; }
