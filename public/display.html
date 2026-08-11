@@ -1107,7 +1107,7 @@
 
 <script type="module">
   import { db } from "./firebase-config.js";
-  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries } from "./shared.js";
   import { getTournament, getAthletes } from "./cache.js";
 
@@ -2225,6 +2225,10 @@
   // 以降その差で補正する。これによりPC間でシステムクロックがずれても表示が一致する。
   // ※毎回測ると refMs-Date.now() が相殺してタイマーが固まるので、必ず refMs 変化時のみ更新する。
   let _wuServerOffset = 0, _wuRefMs = null;
+  // バックアップ配信（制御PCが配信を止めたら会場ディスプレイが肩代わり）用の状態
+  let _wuLastFreshRefLocal = 0;  // 新しい timerRef を受信したローカル時刻
+  let _wuOffsetTrusted = false;  // ライブで ref 変化を観測し、オフセットを信頼できるか
+  let _wuBackupLast = 0;         // 直近にバックアップ配信したローカル時刻
   function warmupRem(w) {
     if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
     if (w.timerRef?.toMillis) {
@@ -2236,7 +2240,9 @@
         // ・カウント途中でリロード → 最初は stale な ref で誤オフセットを持つが、
         //   制御PCが定期配信する新鮮な ref との差が大きいためここで再較正され復帰する。
         if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+        if (_wuRefMs !== null) _wuOffsetTrusted = true;  // 初回でなく“変化”を観測＝新鮮な ref で較正済み
         _wuRefMs = refMs;
+        _wuLastFreshRefLocal = Date.now();
       }
       const endServer = refMs + (w.timerRemainingMs ?? 0);
       const nowServer = Date.now() + _wuServerOffset;
@@ -2529,10 +2535,29 @@
   // warmupSettings を常時監視し、タイマーがカウント中のみ表示する。
   // （要素は vs-intro 内にあるため、紹介画面表示中しか見えない＝他画面には影響しない）
   setInterval(() => {
-    const el = document.getElementById('intro-warmup-timer');
-    if (!el) return;
     const w = tournamentData?.warmupSettings || {};
     const { rem, running } = warmupRem(w);   // サーバー時刻補正で会場ディスプレイ用PCと一致
+
+    // ---- バックアップ配信 ----
+    // 制御PC(大会画面コントロール)が新しい timerRef を配信しなくなったとき、常時ONの会場
+    // ディスプレイが肩代わりして fresh な timerRef を書き直し、リロードした審判端末等を再較正させる。
+    // ・オフセットを信頼できる（ライブで ref 変化を観測済み）ときだけ
+    // ・制御PCの配信間隔(10s)を超えて ref が途絶えたときのみ（＝二重書き込み回避）
+    // ・endServer(サーバー基準の終了時刻)を維持したまま timerRef だけ更新する
+    if (running && rem > 2000 && _wuOffsetTrusted && eventId && w.timerRef?.toMillis
+        && (Date.now() - _wuLastFreshRefLocal) > 14000
+        && (Date.now() - _wuBackupLast)       > 10000) {
+      _wuBackupLast = Date.now();
+      const endServer = w.timerRef.toMillis() + (w.timerRemainingMs ?? 0);
+      const newRem    = Math.max(0, endServer - (Date.now() + _wuServerOffset));
+      updateDoc(doc(db, 'tournaments', eventId), {
+        'warmupSettings.timerRef':         serverTimestamp(),
+        'warmupSettings.timerRemainingMs': newRem
+      }).catch(() => {});
+    }
+
+    const el = document.getElementById('intro-warmup-timer');
+    if (!el) return;
     if (!running || rem <= 0) { el.style.display = 'none'; return; }
     const totalSec = Math.ceil(rem / 1000);
     const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
