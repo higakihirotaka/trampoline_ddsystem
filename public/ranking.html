@@ -297,18 +297,20 @@
   }
 
   // S1-S10: 全審判の各技減点を合計（stored値×10 = タップ単位に戻す）
-  function calcSkillTotals(result) {
+  function calcSkillTotals(result, isSynchro) {
     const judges = Object.values(result.execution?.judges || {});
     if (judges.length === 0) return { skills: Array(10).fill(null), land: null };
 
+    // シンクロは 0.01 単位まで残す（表示側で小数第2位）。個人は従来どおり 0.1 単位に丸める。
+    const round10 = x => isSynchro ? x : Math.round(x);
     // CJP の middle2 と同じ：中間2名の合計を ×10 して表示
     function mid2sum(vals) {
       const filled = vals.filter(v => v !== null && v !== undefined);
-      if (filled.length < 2) return filled.length === 1 ? Math.round(filled[0] * 10) : null;
+      if (filled.length < 2) return filled.length === 1 ? round10(filled[0] * 10) : null;
       filled.sort((a, b) => a - b);
       const mid = Math.floor((filled.length - 2) / 2);
-      // 中間2名の合計（×10整数）
-      return Math.round((filled[mid] + filled[mid + 1]) * 10);
+      // 中間2名の合計（×10）
+      return round10((filled[mid] + filled[mid + 1]) * 10);
     }
 
     // 各技の有効減点合計を ×10 して整数表示（CJP の middle2sum と同じ値）
@@ -516,7 +518,7 @@
         // S1-S10, L
         let skillCells = '';
         if (res) {
-          const { skills, land } = calcSkillTotals(res);
+          const { skills, land } = calcSkillTotals(res, fType === 'synchro');
           const vLimit = res.validCount ?? 10;  // 中断時の有効本数
           for (let i = 0; i < 10; i++) {
             if (i >= vLimit) {
@@ -524,22 +526,22 @@
               skillCells += `<td class="score-na"></td>`;
             } else {
               const v = skills[i];
-              skillCells += `<td class="s-val">${v != null ? (Number.isInteger(v) ? v : v.toFixed(1)) : '−'}</td>`;
+              skillCells += `<td class="s-val">${v != null ? (fType === 'synchro' ? v.toFixed(2) : (Number.isInteger(v) ? v : v.toFixed(1))) : '−'}</td>`;
             }
           }
           // 着地：validCount=10のときのみ表示
           if (vLimit < 10) {
             skillCells += `<td class="score-na"></td>`;
           } else {
-            skillCells += `<td class="s-val">${land != null ? (Number.isInteger(land) ? land : land.toFixed(1)) : '−'}</td>`;
+            skillCells += `<td class="s-val">${land != null ? (fType === 'synchro' ? land.toFixed(2) : (Number.isInteger(land) ? land : land.toFixed(1))) : '−'}</td>`;
           }
         } else {
           skillCells = Array(11).fill('<td class="score-na">−</td>').join('');
         }
 
-        const exe  = res?.officialE    != null ? fmt1(res.officialE)    : null;
+        const exe  = res?.officialE    != null ? (fType === 'synchro' ? fmt3(res.officialE) : fmt1(res.officialE)) : null;
         const diff = res?.officialD    != null ? fmt1(res.officialD)    : null;
-        const tof  = res?.tof          != null ? fmt3(res.tof)          : null;
+        const tof  = res?.tof          != null ? fmt2(res.tof)          : null;
         const hd   = res?.hd?.total    != null ? fmt2(res.hd.total)     : null;
         const pen  = (res?.penalty != null && res.penalty !== 0) ? fmt1(res.penalty) : null;
         const sc   = res?.officialTotal!= null ? fmt2(res.officialTotal): null;
