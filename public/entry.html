@@ -224,6 +224,9 @@
         tourData = tourDoc.exists() ? tourDoc.data() : {};
         subDocRef = subDocResult;
 
+        // 決勝のみクラス（athDoc.exists 内で確定するが、ブロック外の予選引用/ボタン制御でも参照するため関数スコープで宣言）
+        let finalOnly = false;
+
         if (athDoc.exists()) {
             currentAthlete = athDoc.data();
             const athName = currentAthlete.type === 'synchro' ? `${currentAthlete.name1} / ${currentAthlete.name2}` : currentAthlete.name1;
@@ -279,7 +282,7 @@
             const athType = currentAthlete.type || 'individual';
             const athClass = currentAthlete.class || currentAthlete.category || '';
             const cr = (tourData.classRules?.[athType] || {})[athClass] || {};
-            const finalOnly = cr.finalOnly === true;   // 決勝のみクラス（予選なし）
+            finalOnly = cr.finalOnly === true;   // 決勝のみクラス（予選なし）
             // 難度点上限（null=なし）
             const _psc = parseFloat(cr.perSkillDDCap);
             perSkillDDCap = (cr.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
