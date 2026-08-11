@@ -504,7 +504,7 @@
         if (designatedDDCount === 0) {
             const infoEl = document.getElementById('designation-info');
             if (infoEl) {
-                infoEl.textContent = '指定難度：0本設定（このクラスのDD得点は0点）';
+                infoEl.textContent = `難度有効本数　${designatedDDCount}本`;
                 infoEl.style.background = '#fce4ec';
                 infoEl.style.color      = '#c62828';
             }
