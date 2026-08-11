@@ -1434,7 +1434,7 @@
         }
         const hasLanding = hasJudgeData && (landingResult.hasData ?? landingResult.indices.size > 0);
         m2Row += `<td>${vLimit === 10 && hasLanding ? _medFmt(landingResult.sum) : '-'}</td>`;
-        m2Row += `<td class="ded-total">${hasJudgeData ? (isSynchro ? ec.execution.toFixed(3) : ec.execution.toFixed(1)) : '-'}</td><td></td></tr>`;
+        m2Row += `<td class="ded-total">${hasJudgeData ? (isSynchro ? ec.execution.toFixed(2) : ec.execution.toFixed(1)) : '-'}</td><td></td></tr>`;
         tbody.innerHTML += m2Row;
 
         // フォーカスを復元（手動入力行の再描画後）
@@ -1604,7 +1604,7 @@
 
         // --- 値の表示（未入力/未完了/D未確定は空欄） ---
         dEl.innerText = dShow ? d.toFixed(1) : '';
-        eEl.innerText = eComplete ? (fType === 'synchro' ? eVal.toFixed(3) : eVal.toFixed(1)) : '';
+        eEl.innerText = eComplete ? (fType === 'synchro' ? eVal.toFixed(2) : eVal.toFixed(1)) : '';
         tEl.innerText = tEntered ? t.toFixed(2) : '';
         hEl.innerText = hEntered ? h.toFixed(3) : '';
         const penEl = document.getElementById('res-pen');

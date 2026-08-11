@@ -333,6 +333,8 @@
   const fmt3 = v => v != null ? Number(v).toFixed(3) : null;
   const fmt2 = v => v != null ? Number(v).toFixed(2) : null;
   const fmt1 = v => v != null ? Number(v).toFixed(1) : null;
+  // 四捨五入して小数第2位表示（FP堅牢: 既存の満精度保存値 6.675→6.68 等にも対応）
+  const fmt2r = v => v != null ? (Math.round(Number(v) * 100 + 1e-6) / 100).toFixed(2) : null;
 
   // 印刷/PDF保存時の既定ファイル名にクラス・男女・ラウンド・大会名を反映
   // （ブラウザの「PDFで保存」は document.title を既定ファイル名に使う）
@@ -542,7 +544,7 @@
           skillCells = Array(11).fill('<td class="score-na">−</td>').join('');
         }
 
-        const exe  = res?.officialE    != null ? (fType === 'synchro' ? fmt3(res.officialE) : fmt1(res.officialE)) : null;
+        const exe  = res?.officialE    != null ? (fType === 'synchro' ? fmt2r(res.officialE) : fmt1(res.officialE)) : null;
         const diff = res?.officialD    != null ? fmt1(res.officialD)    : null;
         const tof  = res?.tof          != null ? fmt2(res.tof)          : null;
         const hd   = res?.hd?.total    != null ? fmt2(res.hd.total)     : null;
