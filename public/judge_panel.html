@@ -203,15 +203,23 @@
             // skillMaster: ドキュメントID（数値文字列）でソートして配列化（ID=インデックスでアクセスされる）
             skillMaster = smSnap.docs
                 .sort((a, b) => parseInt(a.id) - parseInt(b.id))
-                .map(d => ({
-                    id: d.id,
-                    symbol: d.data().symbol,
-                    dd: parseFloat(d.data().dd) || 0,
-                    isTriple: d.data().isTriple === true,
-                    direction: d.data().direction || '',
-                    somersaultType: d.data().somersaultType || '',
-                    displayOrder: d.data().displayOrder ?? parseInt(d.id)
-                }));
+                .map(d => {
+                    const data = d.data();
+                    const dd = parseFloat(data.dd) || 0;
+                    const s = {
+                        id: d.id,
+                        symbol: data.symbol,
+                        dd,
+                        isTriple: data.isTriple === true,
+                        direction: data.direction || '',
+                        somersaultType: data.somersaultType || '',
+                        note: data.note || '',
+                        displayOrder: data.displayOrder ?? parseInt(d.id)
+                    };
+                    // 2回宙は DD で低(≤1.5)/高(≥1.6) に自動分類（選手入力の getSkills と同一）
+                    if (s.somersaultType === '2回宙') s.doubleSomaGroup = (dd >= 1.6) ? 'high' : 'low';
+                    return s;
+                });
 
             currentTour = tourSnap.data();
             document.getElementById('event-name').innerText = currentTour.name;
@@ -598,18 +606,13 @@
             const subSkill = resolveSubSkill((sub?.skills || [])[i-1]);
 
             const tr = document.createElement('tr'); tr.id = `row-${i}`;
-            const hasSoma = skill.direction && skill.direction !== '基礎技';
+            // 2段目セレクタ（宙系 or 基礎技の開始姿勢）は updateOptions() が系統に応じて動的構築する（選手入力と同一）
             tr.innerHTML = `<td class="col-num">${i}</td><td class="col-sub">${subSkill?.symbol || "-"}</td><td class="col-sub-dd">${subSkill?.dd?.toFixed(1) || '0.0'}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}>
                     <option value="">--</option><option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
                     <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option><option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option>
                 </select></td>
-                <td><select id="soma-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''} style="${hasSoma ? '' : 'visibility:hidden'}">
-                    <option value="">--</option><option value="1回宙" ${skill.somersaultType==='1回宙'?'selected':''}>1回宙</option>
-                    <option value="2回宙" ${skill.somersaultType==='2回宙'?'selected':''}>2回宙</option>
-                    <option value="3回宙" ${skill.somersaultType==='3回宙'?'selected':''}>3回宙</option>
-                    <option value="4回宙" ${skill.somersaultType==='4回宙'?'selected':''}>4回宙</option>
-                </select></td>
+                <td><select id="soma-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}></select></td>
                 <td><select id="skill-${i}" onchange="calcTotal()" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}></select></td>
                 <td><span id="dd-${i}">0.0</span></td>`;
             tbody.appendChild(tr);
@@ -620,25 +623,58 @@
         scheduleFit();
     }
 
+    // 2段目セレクタの選択肢（系統で出し分け: 基礎技=開始姿勢 / 宙技=宙系）※選手入力(entry.html)と同一
+    const SOMA_OPTIONS = {
+        basic:  [['','--（全て）'], ['スタンドから','スタンドから'], ['腰から','腰から'], ['腹から','腹から'], ['背から','背から']],
+        aerial: [['','--'], ['1回宙','1回宙系'], ['2回宙（1.5以下）','2回宙系（1.5以下）'], ['2回宙（1.6以上）','2回宙系（1.6以上）'], ['3回宙','3回宙系'], ['4回宙','4回宙系']]
+    };
+
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
-        const dir = document.getElementById(`dir-${idx}`).value;
+        const dir    = document.getElementById(`dir-${idx}`).value;
         const somaEl = document.getElementById(`soma-${idx}`);
-        const sel = document.getElementById(`skill-${idx}`);
+        const sel    = document.getElementById(`skill-${idx}`);
         if (!sel) return;
-        // 基礎技は宙系不要
+        const currentVal = sel.value;
+        const isBasic = dir === '基礎技';
+        // 2段目セレクタ: 系統に応じて選択肢を再構築（基礎技でも表示し、開始姿勢を選べるようにする）
         if (somaEl) {
-            const showSoma = dir && dir !== '基礎技';
+            const showSoma = !!dir;
             somaEl.style.visibility = showSoma ? '' : 'hidden';
-            if (!showSoma) somaEl.value = '';
+            let want = somaEl.value;
+            if (selectedId) {
+                const sk = skillMaster.find(s => s.id === selectedId);
+                if (sk) {
+                    want = (sk.direction === '基礎技') ? (sk.somersaultType || '')
+                         : (sk.somersaultType === '2回宙')
+                             ? (sk.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）')
+                             : (sk.somersaultType || '');
+                }
+            }
+            const opts = isBasic ? SOMA_OPTIONS.basic : SOMA_OPTIONS.aerial;
+            somaEl.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+            somaEl.value = (showSoma && opts.some(([v]) => v === want)) ? want : '';
         }
         const soma = somaEl?.value || '';
+        // '2回宙（1.5以下）' / '2回宙（1.6以上）' を somersaultType + doubleSomaGroup にマップ
+        let somaType = soma, somaGroup = '';
+        if (soma === '2回宙（1.5以下）') { somaType = '2回宙'; somaGroup = 'low'; }
+        else if (soma === '2回宙（1.6以上）') { somaType = '2回宙'; somaGroup = 'high'; }
         sel.innerHTML = '<option value="">選択</option>';
-        if (dir) skillMaster.filter(s => s.direction === dir && (!soma || s.somersaultType === soma))
-            .sort((a, b) => a.displayOrder - b.displayOrder).forEach(s => {
-                const opt = document.createElement('option'); opt.value = s.id; opt.innerText = s.symbol;
+        if (dir) {
+            skillMaster.filter(s => {
+                if (s.direction !== dir) return false;
+                if (somaType && s.somersaultType !== somaType) return false;
+                if (somaGroup && s.doubleSomaGroup !== somaGroup) return false;
+                return true;
+            }).sort((a, b) => a.displayOrder - b.displayOrder).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.note ? `${s.symbol}（${s.note}）` : s.symbol;
                 if (s.id === selectedId) opt.selected = true;
                 sel.appendChild(opt);
             });
+        }
+        if (!selectedId && currentVal) sel.value = currentVal;
         if (doCalc) calcTotal();
     };
 
