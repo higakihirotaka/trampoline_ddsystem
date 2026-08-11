@@ -315,17 +315,17 @@
         }
 
         const listEl = document.getElementById('sidebar-list');
-        listEl.innerHTML = "";
+        let html = "";
         let lastCat = "", lastGender = "";
 
         filtered.forEach(ath => {
             const cls = ath.class || ath.category || '';
             if (cls !== lastCat) {
-                listEl.innerHTML += `<div class="cat-group">${cls}</div>`;
+                html +=`<div class="cat-group">${cls}</div>`;
                 lastCat = cls; lastGender = "";
             }
             if (!fFinalOnly && (ath.gender || '') !== lastGender) {
-                listEl.innerHTML += `<div class="gender-group">${ath.gender || ''}</div>`;
+                html +=`<div class="gender-group">${ath.gender || ''}</div>`;
                 lastGender = ath.gender || '';
             }
 
@@ -352,7 +352,7 @@
                 : (ath.kana1 || '');
             const titleAttr = `${ath.name1 || ''}${ath.kana1 ? ' (' + ath.kana1 + ')' : ''}`;
 
-            listEl.innerHTML += `
+            html += `
                 <div class="athlete-row ${ath.id === athleteId ? 'active-athlete' : ''}" title="${titleAttr}">
                     <div class="ath-name-text">
                         <div class="ath-name-main">${nameLine1}</div>
@@ -361,6 +361,8 @@
                     <div class="round-box">${dotsHtml}</div>
                 </div>`;
         });
+
+        listEl.innerHTML = html; // 一括代入（innerHTML += の逐次再パースを避ける）
 
         // 確定後の再読込などでは、退避しておいた位置に左リストのスクロールを復元する
         if (_pendingSidebarScroll != null) {
@@ -766,9 +768,15 @@
         btn.disabled = true;
         try {
             const totalVal = parseFloat(document.getElementById('total-dd').innerText.split(' ')[0]);
-            await setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
-            _pendingSidebarScroll = document.getElementById('sidebar-list')?.scrollTop ?? null; // 再読込後も左リストの位置を維持
-            init();
+            const resId = `${eventId}_${athleteId}_${round}`;
+            await setDoc(doc(db, "results", resId), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
+            // 全データ再取得(init)は重い（大会全体の submissions/results と技マスタ全件を毎回フェッチ）。
+            // 確定で変わるのは自分が書いた1件だけなので、ローカルの results を更新して
+            // 左リストと採点エリアのみ再描画する（再フェッチなし）。
+            results[resId] = { ...(results[resId] || {}), eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: new Date() };
+            _pendingSidebarScroll = document.getElementById('sidebar-list')?.scrollTop ?? null; // 再描画後も左リストの位置を維持
+            renderSidebar();
+            renderScoringArea();
         } catch (e) { console.error(e); btn.disabled = false; }
     };
     window.addEventListener('pageshow', e => {
