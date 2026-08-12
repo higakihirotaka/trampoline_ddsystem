@@ -554,6 +554,7 @@
   .tr-total{ display:flex; flex-direction:column; justify-content:center; align-items:flex-end; text-align:right; }
   .tr-total label{ display:block; font-size:0.85cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
   .tr-total-num{ font-size:3cqw; font-weight:900; letter-spacing:-1.5px; line-height:1; font-variant-numeric:tabular-nums; }
+  .tr-gap{ font-size:0.95cqw; font-weight:800; color:#ff8a80; letter-spacing:0.02cqw; margin-top:0.35cqh; line-height:1; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .tr-row.r1{ border-color:rgba(255,215,0,0.55); border-left-color:#ffd700; background:rgba(255,215,0,0.06); }
   .tr-row.r1 .tr-rank, .tr-row.r1 .tr-total-num{ color:#ffd700; text-shadow: 0 0 16px rgba(255,215,0,0.25); }
   .tr-row.r2{ border-left-color:#d6e0ea; } .tr-row.r2 .tr-rank{ color:#d6e0ea; }
@@ -1926,6 +1927,7 @@
     }
     const pageInd = '';   // ページ番号(1/2 等)は表示しない
     const pageTeams = _trTeams.slice(page * TR_PER_PAGE, page * TR_PER_PAGE + TR_PER_PAGE);
+    const topScore = _trTeams[0]?.score ?? 0;   // 1位（全体の先頭）のスコア = GAP の基準
     const listHtml = pageTeams.map((t, i) => {
       const rank = page * TR_PER_PAGE + i + 1;
       const rcls = rank <= 3 ? ` r${rank}` : '';
@@ -1961,11 +1963,13 @@
         ? `<div class="tr-mem-head"><span class="tr-mem-name"></span><span class="tr-mem-scores"><span>Rtn1</span><span>Rtn2</span></span></div>`
         : '';
       const membersCls = twoRtn ? 'tr-members has-head' : 'tr-members';
+      const gap = topScore - t.score;   // 1位との差（1位/同点は非表示）
+      const gapHtml = gap >= 0.005 ? `<span class="tr-gap">GAP -${gap.toFixed(2)}</span>` : '';
       return `<div class="tr-row${rcls}">
           <div class="tr-rank">${rank}</div>
           <div class="tr-name">${t.teamName}</div>
           <div class="${membersCls}">${memHead}<div class="tr-mem-list">${mems}</div></div>
-          <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span></div>
+          <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span>${gapHtml}</div>
         </div>`;
     }).join('');
     layout.innerHTML = trHeaderHtml(pageInd) + `<div class="tr-list">${listHtml}</div>` + trCreditHtml();
