@@ -1985,14 +1985,26 @@
   }
   function stopTeamRankCycle() { if (_trPageTimer) { clearInterval(_trPageTimer); _trPageTimer = null; } }
 
+  let _trTargetSig = null, _trContentSig = null;
   async function renderTeamRanking(target) {
-    stopTeamRankCycle();
     const layout = document.getElementById('tr-layout');
     if (!layout) return;
     const classVal = target.class || '', genderVal = target.gender || '', selType = target.type || 'individual';
+    const targetSig = `${classVal}|${genderVal}|${selType}`;
+    const targetChanged = targetSig !== _trTargetSig;
+    _trTargetSig = targetSig;
     _trHead = { conv: tournamentName || '', classVal, genderVal };
-    layout.innerHTML = trHeaderHtml('') + `<div class="tr-list"><div class="tr-empty">集計中...</div></div>` + trCreditHtml();
+    // 対象クラスが変わったときだけ「集計中...」を出す（同一対象の再取得ではちらつかせない）
+    if (targetChanged) {
+      stopTeamRankCycle();
+      layout.innerHTML = trHeaderHtml('') + `<div class="tr-list"><div class="tr-empty">集計中...</div></div>` + trCreditHtml();
+    }
     const { teams, scoreMode, numPre } = await computeTeamRanking(classVal, genderVal, selType);
+    // 内容（順位・点数・メンバー等）が同一なら再描画しない＝行の登場アニメを再生させない＝画面が動かない。
+    // （CJPの選手選択など無関係な大会ドキュメント更新で本関数が呼ばれても、見た目は変化しない）
+    const contentSig = JSON.stringify([teams, scoreMode, numPre, _trHead]);
+    if (!targetChanged && contentSig === _trContentSig) return;
+    _trContentSig = contentSig;
     _trTeams = teams; _trScoreMode = scoreMode; _trNumPre = numPre; _trPage = 0;
     renderTeamRankPage();
     if (teams.length > TR_PER_PAGE) startTeamRankCycle();   // 4チーム以上はページ送り
@@ -2366,7 +2378,9 @@
       stopRankingLoop();
       document.getElementById('vs-team-ranking').classList.add('active');
       // 同じ対象を表示中なら再描画しない（選手選択等の無関係な大会ドキュメント更新でのちらつきを防ぐ）
-      const _trKey = JSON.stringify(tourData.teamRankingTarget || {});
+      // キーは順序非依存の文字列で作る（JSON.stringify はキー順の揺れで別値になり得るため）
+      const _tt = tourData.teamRankingTarget || {};
+      const _trKey = `${_tt.class || ''}|${_tt.gender || ''}|${_tt.type || ''}`;
       if (_trKey !== _teamRankKey) {
         _teamRankKey = _trKey;
         renderTeamRanking(tourData.teamRankingTarget || {});
