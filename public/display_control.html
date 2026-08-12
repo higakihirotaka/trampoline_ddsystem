@@ -611,7 +611,7 @@
             document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
             (carousel.items || []).forEach(item => {
                 const idx = carouselCombos.findIndex(
-                    c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type);
+                    c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type && (c.mode || '') === (item.mode || ''));
                 if (idx >= 0) {
                     const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
                     if (cb) cb.checked = true;
@@ -666,7 +666,7 @@
                 const showLogo = document.getElementById('carousel-show-logo').checked;
                 await updateDoc(doc(db,'tournaments',eventId), {
                     'rankingCarousel.active':   true,
-                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type })),
+                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type, ...(c.mode ? { mode: c.mode } : {}) })),
                     'rankingCarousel.showLogo': showLogo
                 });
             } else if (pendingScreen === 'intro') {
@@ -1144,6 +1144,7 @@
         const athSnap = await getDocs(collection(db,'tournaments',eventId,'athletes'));
         const comboSet = new Set();
         const carouselSet = new Set();
+        const catType = {};   // `${cls}|${gender}` → 個人/シンクロ（団体の基礎タイプ推定用）
         athSnap.forEach(d => {
             const a = d.data();
             const typeRaw = a.type || 'individual';
@@ -1151,6 +1152,7 @@
             const gender = a.gender || '';
             const cls    = a.class  || '';
             if (cls) {
+                if (!catType[`${cls}|${gender}`]) catType[`${cls}|${gender}`] = typeRaw;
                 comboSet.add(`${cls} ${gender}（${typeLabel}）`);
                 const key = `${cls}|${gender}|${typeRaw}`;
                 if (!carouselSet.has(key)) {
@@ -1160,6 +1162,21 @@
                 }
             }
         });
+        // 団体（team）: チーム登録のある class|gender を巡回候補に追加（基礎タイプは選手から推定）
+        try {
+            const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
+            const teamSet = new Set();
+            teamSnap.forEach(d => {
+                const t = d.data();
+                const cls = t.class || '', gender = t.gender || '';
+                if (!cls) return;
+                const catKey = `${cls}|${gender}`;
+                if (teamSet.has(catKey)) return;
+                teamSet.add(catKey);
+                carouselCombos.push({ classVal: cls, gender, type: catType[catKey] || 'individual',
+                    mode: 'team', label: `${cls} ${gender}（団体）` });
+            });
+        } catch (e) { console.warn('団体（teams）取得失敗', e); }
         classCombos = [...comboSet].sort();
         carouselCombos.sort((a, b) => a.label.localeCompare(b.label, 'ja'));
         buildClassOptions(classCombos);

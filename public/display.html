@@ -1648,6 +1648,9 @@
     stopRankingLoop();
     let overlay = document.getElementById('ranking-overlay');
     if (overlay) overlay.classList.remove('visible');
+    // 巡回で団体画面を出している最中にスコアが割り込んだら団体画面も隠す
+    // （CJPが明示表示する団体順位表=巡回停止時 は隠さない）
+    if (carouselActive) document.getElementById('vs-team-ranking')?.classList.remove('active');
 
     if (isNew) {
       monitor.classList.remove('no-anim');
@@ -2148,6 +2151,9 @@
     if (overlay) overlay.classList.remove('carousel-mode');
     stopRankingLoop();
     document.getElementById('vs-logo')?.classList.remove('active');
+    // 巡回で出していた団体画面を消す（次に applyVenueScreen が正しく画面を出せるように）
+    document.getElementById('vs-team-ranking')?.classList.remove('active');
+    _trTargetSig = null; _trContentSig = null;   // 巡回後のCJP団体表示を確実に再描画させる
     currentMode = 'idle';
   }
 
@@ -2157,7 +2163,15 @@
     let tries = 0;
     while (tries < carouselItems.length) {
       const item = carouselItems[carouselIndex % carouselItems.length];
-      carouselEntries = await fetchRankingEntriesFor(item.classVal, item.gender, item.type);
+      if (item.mode === 'team') {
+        // 団体順位表: teams から算出し、team ranking の状態変数に入れて renderTeamRankPage で描画
+        const { teams, scoreMode, numPre } = await computeTeamRanking(item.classVal, item.gender, item.type);
+        _trTeams = teams; _trScoreMode = scoreMode; _trNumPre = numPre;
+        _trHead = { conv: tournamentName || '', classVal: item.classVal, genderVal: item.gender };
+        carouselEntries = teams;   // 長さ判定用（0ならスキップ）
+      } else {
+        carouselEntries = await fetchRankingEntriesFor(item.classVal, item.gender, item.type);
+      }
       if (carouselEntries.length > 0) break;
       carouselIndex++;
       tries++;
@@ -2176,6 +2190,26 @@
   function carouselShowPage() {
     if (!carouselActive || currentMode === 'score' || currentMode === 'ranking') return;
     const item = carouselItems[carouselIndex % carouselItems.length];
+    const advance = (totalPages) => {
+      carouselTimer = setTimeout(async () => {
+        carouselPageIdx++;
+        if (carouselPageIdx >= totalPages) await carouselNext();
+        else carouselShowPage();
+      }, displaySettings.rankingPageSec * 1000);
+    };
+    if (item.mode === 'team') {
+      // 団体順位表を巡回表示: 個人用オーバーレイを隠して団体画面(#vs-team-ranking)を出す
+      document.getElementById('ranking-overlay')?.classList.remove('visible');
+      document.querySelectorAll('.venue-screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('vs-team-ranking')?.classList.add('active');
+      const totalPages = Math.max(1, Math.ceil(_trTeams.length / TR_PER_PAGE));
+      _trPage = carouselPageIdx;
+      renderTeamRankPage();
+      advance(totalPages);
+      return;
+    }
+    // 個人/シンクロ: 団体画面が出ていたら消してオーバーレイを表示
+    document.getElementById('vs-team-ranking')?.classList.remove('active');
     const rowsPerPage = displaySettings.rankingRows;
     const totalPages  = Math.ceil(carouselEntries.length / rowsPerPage);
     const start = carouselPageIdx * rowsPerPage;
@@ -2183,14 +2217,7 @@
     while (pageEntries.length < rowsPerPage) pageEntries.push(null);
     renderRankingOverlay(pageEntries, start, totalPages, carouselPageIdx,
       item.classVal, item.gender, item.type);
-    carouselTimer = setTimeout(async () => {
-      carouselPageIdx++;
-      if (carouselPageIdx >= totalPages) {
-        await carouselNext();
-      } else {
-        carouselShowPage();
-      }
-    }, displaySettings.rankingPageSec * 1000);
+    advance(totalPages);
   }
 
   async function carouselNext() {
@@ -2323,8 +2350,9 @@
     document.getElementById('vs-class-names').textContent = classes.join('\n');
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
-    // 全画面を一旦非表示
+    // 全画面を一旦非表示（巡回中の団体画面は巡回側が管理するので保持する）
     ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-final-startlist','vs-team-ranking'].forEach(id => {
+      if (carouselActive && id === 'vs-team-ranking') return;
       document.getElementById(id)?.classList.remove('active');
     });
     // スコア表示中にwarmupを退避している場合はタイマーを止めない
