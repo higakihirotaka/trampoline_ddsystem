@@ -35,6 +35,10 @@
     <div class="form-group">
         <label>Select Tournament</label>
         <select id="tour-select"><option value="">Loading events...</option></select>
+        <label style="display:flex; align-items:center; gap:7px; margin:12px 0 0 3px; font-size:0.82rem; font-weight:600; color:#546e7a; text-transform:none; letter-spacing:0; cursor:pointer;">
+            <input type="checkbox" id="show-test" style="width:16px; height:16px; accent-color:var(--accent); cursor:pointer;">
+            テスト大会も表示する
+        </label>
     </div>
     <button class="btn btn-primary" onclick="goMenu()">管理メニュー（ポータル）を開く</button>
     <hr class="divider">
@@ -62,13 +66,28 @@
         return opt;
     }
 
+    let _allTours = [];   // 取得した全大会（フィルタ切替で再フェッチしないよう保持）
+
+    // 大会名に「テスト」を含むか（テスト大会判定）
+    function isTestTournament(tour) {
+        return (tour.name || '').includes('テスト');
+    }
+
     async function populateTournaments() {
-        const tournaments = await getTournaments();
+        _allTours = await getTournaments();
+        renderTournaments();
+    }
+
+    function renderTournaments() {
         const select = document.getElementById('tour-select');
+        const prev = select.value;
+        const showTest = document.getElementById('show-test')?.checked;
+        // 「テスト大会も表示する」が未チェックのときは、名前に「テスト」を含む大会を除外
+        const tournaments = showTest ? _allTours : _allTours.filter(t => !isTestTournament(t));
         select.innerHTML = '';
 
         if (tournaments.length === 0) {
-            select.innerHTML = '<option value="">登録された大会がありません</option>';
+            select.innerHTML = `<option value="">${_allTours.length ? '表示できる大会がありません' : '登録された大会がありません'}</option>`;
             return;
         }
 
@@ -94,6 +113,8 @@
             past.forEach(tour => grp.appendChild(makeOption(tour)));
             select.appendChild(grp);
         }
+        // フィルタ切替後も、まだ表示対象なら選択を維持
+        if (prev && select.querySelector(`option[value="${prev}"]`)) select.value = prev;
     }
 
     window.goMenu = () => {
@@ -180,6 +201,9 @@
             btn.textContent = orig;
         }
     };
+
+    // テスト大会の表示/非表示チェックを切り替えたら再描画（再フェッチはしない）
+    document.getElementById('show-test').addEventListener('change', renderTournaments);
 
     ensureAdmin(user => {
         document.getElementById('welcome-message').textContent = `ようこそ、${user.displayName || user.email}さん`;
