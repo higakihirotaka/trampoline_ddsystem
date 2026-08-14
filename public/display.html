@@ -1363,6 +1363,8 @@
     const hasManualDDValues = !!(resData.officialDDValues && resData.officialDDValues.length > 0);
 
     // ---- HDTS 技別 ToF/HD（アクティブパネルの保存値。存在する時だけ表示） ----
+    // シンクロは judge_cjp.html 側で個人と別の形（syn / hd1 / hd2、HD欄は2人分をスラッシュ表示）で
+    // 保存されるため、検出・表示ともに個人形式（tof / hd）とシンクロ形式の両方に対応する。
     const _hdtsMap = resData.hdtsPerSkillByPanel;
     let hdtsPerSkill = null;
     if (_hdtsMap && Object.keys(_hdtsMap).length) {
@@ -1371,7 +1373,10 @@
       const _active = Object.entries(_counts).sort((a, b) => b[1] - a[1])[0]?.[0];
       hdtsPerSkill = _hdtsMap[_active] || _hdtsMap[Object.keys(_hdtsMap)[0]] || null;
     }
-    const hasHdts = !!(hdtsPerSkill && ((hdtsPerSkill.tof || []).some(v => v != null) || (hdtsPerSkill.hd || []).some(v => v != null)));
+    const isSynHdts = !!(hdtsPerSkill && (hdtsPerSkill.isSynchro || hdtsPerSkill.syn || hdtsPerSkill.hd1 || hdtsPerSkill.hd2));
+    const hasHdts = !!(hdtsPerSkill && (isSynHdts
+      ? ((hdtsPerSkill.syn || []).some(v => v != null) || (hdtsPerSkill.hd1 || []).some(v => v != null) || (hdtsPerSkill.hd2 || []).some(v => v != null))
+      : ((hdtsPerSkill.tof || []).some(v => v != null) || (hdtsPerSkill.hd || []).some(v => v != null))));
 
     const skillCols = [];
     for (let i = 0; i < 10; i++) {
@@ -1457,8 +1462,13 @@
       const dimCode = !isDesigSkill && !codeAlert; // 非指定かつ差異なし→薄く
       const dimVal  = !isDesigSkill && !valAlert;
 
-      const tofTxt = (hdtsPerSkill?.tof?.[i] != null) ? Number(hdtsPerSkill.tof[i]).toFixed(3) : '-';
-      const hdTxt  = (hdtsPerSkill?.hd?.[i]  != null) ? hdtsPerSkill.hd[i] : '-';
+      const tofTxt = isSynHdts
+          ? ((hdtsPerSkill?.syn?.[i] != null) ? Number(hdtsPerSkill.syn[i]).toFixed(2) : '-')
+          : ((hdtsPerSkill?.tof?.[i] != null) ? Number(hdtsPerSkill.tof[i]).toFixed(3) : '-');
+      const hdTxt  = isSynHdts
+          ? ((hdtsPerSkill?.hd1?.[i] != null || hdtsPerSkill?.hd2?.[i] != null)
+              ? `${hdtsPerSkill.hd1?.[i] ?? '-'} / ${hdtsPerSkill.hd2?.[i] ?? '-'}` : '-')
+          : ((hdtsPerSkill?.hd?.[i] != null) ? hdtsPerSkill.hd[i] : '-');
       skillCols.push(`
         <div class="skill-stack">
           <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
@@ -1604,7 +1614,7 @@
           <div class="row-title e-label">E-Deduction</div>
           <div class="row-title d-sub-label">Skill Code</div>
           <div class="row-title d-sub-label">D-Score</div>
-          ${hasHdts ? '<div class="row-title d-sub-label" style="text-transform:none">ToF</div><div class="row-title d-sub-label">HD</div>' : ''}
+          ${hasHdts ? `<div class="row-title d-sub-label" style="text-transform:none">${isSynHdts ? 'Syn' : 'ToF'}</div><div class="row-title d-sub-label">HD</div>` : ''}
         </div>
         ${skillCols.join('')}
         ${bonusCol}
