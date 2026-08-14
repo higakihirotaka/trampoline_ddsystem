@@ -2049,7 +2049,8 @@
         renderRankingOverlay(p1entries, 0, totalPages, 0,
           ath.class || ath.category || '', ath.gender || '', ath.type || 'individual');
         if (savedVenueScreen) restoreSavedVenueScreen();
-        if (carouselActive) carouselNext();
+        // 巡回中に得点が割り込んでここに来た場合は、巡回へ戻さず終了する（得点確定のクラスで静止表示のまま）
+        if (carouselActive) endCarouselAfterScore();
       } else {
         showRankingPage();
       }
@@ -2155,6 +2156,22 @@
     document.getElementById('vs-team-ranking')?.classList.remove('active');
     _trTargetSig = null; _trContentSig = null;   // 巡回後のCJP団体表示を確実に再描画させる
     currentMode = 'idle';
+  }
+
+  // 巡回中に得点が確定して割り込んだ場合、得点→順位表の表示が終わっても巡回へは戻さず終了する。
+  // （オペレーターが display_control.html で再度オンにするまで巡回は停止のまま。
+  //   Firestore側のフラグも倒しておき、制御パネルの表示・他クライアントとも状態を合わせる）
+  // ※ carouselStop() と違い、直前に静止表示した順位表（overlayのvisible状態）はそのまま残す。
+  function endCarouselAfterScore() {
+    if (carouselTimer) { clearTimeout(carouselTimer); carouselTimer = null; }
+    carouselActive = false;
+    document.getElementById('ranking-overlay')?.classList.remove('carousel-mode');
+    document.getElementById('vs-logo')?.classList.remove('active');
+    document.getElementById('vs-team-ranking')?.classList.remove('active');
+    _trTargetSig = null; _trContentSig = null;
+    if (eventId) {
+      updateDoc(doc(db, 'tournaments', eventId), { 'rankingCarousel.active': false }).catch(() => {});
+    }
   }
 
   async function carouselLoadItem() {
