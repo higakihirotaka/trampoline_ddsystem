@@ -236,9 +236,8 @@
                                : subDocResult.exists() ? 'revisionDeadline' : 'submissionDeadline';
             const _deadlineStr = tourData?.[_deadlineKey];
             if (_deadlineStr && new Date() > new Date(_deadlineStr)) {
-                const _labels = { submissionDeadline: '提出締切', revisionDeadline: '修正締切', finalSubmissionDeadline: '決勝締切' };
                 const banner = document.getElementById('deadline-banner');
-                banner.textContent = `🔒 ${_labels[_deadlineKey]}を過ぎています。閲覧のみです。`;
+                banner.textContent = '締め切り後のため閲覧のみです。問い合わせは審判席までお越しください。';
                 banner.style.display = 'flex';
             }
         }
