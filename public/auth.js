@@ -1,6 +1,6 @@
 import { db, auth, isLocalDev } from "./firebase-config.js";
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getTournament } from "./cache.js";
 
 // --- Auth Functions ---
@@ -93,12 +93,25 @@ export async function bulkSaveSubmissions(eventId, submissions, skillIds) {
     if (!eventId || !submissions?.length || !skillIds?.length) {
         return { success: false, message: "データが不足しています。" };
     }
-    const ops = submissions.map(sub => batch => {
+    // 1件のsubmissionにつき書込は2つ（submissionsドキュメント＋選手ドキュメントの済フラグ）
+    // なので、1closure=1書込になるようflatMapする（commitInChunksの450件チャンクが
+    // Firestoreの1バッチ500書込上限を超えないようにするため）。
+    const ops = submissions.flatMap(sub => {
         const subId = `${eventId}_${sub.athleteId}_${sub.round}`;
-        batch.set(doc(db, "submissions", subId), {
-            eventId, athleteId: sub.athleteId, round: sub.round, skills: skillIds,
-            checkStatus: 0, updatedAt: serverTimestamp()
-        }, { merge: true });
+        return [
+            batch => batch.set(doc(db, "submissions", subId), {
+                eventId, athleteId: sub.athleteId, round: sub.round, skills: skillIds,
+                checkStatus: 0, updatedAt: serverTimestamp()
+            }, { merge: true }),
+            // entry.html の submitRoutine() と同じく選手ドキュメント側にも済フラグを反映する。
+            // event.html等の一覧が submissions コレクション全件取得ではなくこのフラグだけを見て
+            // 済/未判定できるようにするため。revisionCount は書かないので、card_history.html の
+            // 「一括/旧」判定（revisionCountの有無で一括登録か選手本人の提出かを見分ける仕組み）
+            // には影響しない。
+            batch => batch.update(doc(db, "tournaments", eventId, "athletes", sub.athleteId), {
+                [`submissions.${sub.round}`]: 0
+            })
+        ];
     });
     try {
         await commitInChunks(ops);
@@ -112,9 +125,14 @@ export async function bulkClearSubmissions(eventId, submissions) {
     if (!eventId || !submissions?.length) {
         return { success: false, message: "削除対象がありません。" };
     }
-    const ops = submissions.map(sub => batch => {
+    const ops = submissions.flatMap(sub => {
         const subId = `${eventId}_${sub.athleteId}_${sub.round}`;
-        batch.delete(doc(db, "submissions", subId));
+        return [
+            batch => batch.delete(doc(db, "submissions", subId)),
+            batch => batch.update(doc(db, "tournaments", eventId, "athletes", sub.athleteId), {
+                [`submissions.${sub.round}`]: deleteField()
+            })
+        ];
     });
     try {
         await commitInChunks(ops);
