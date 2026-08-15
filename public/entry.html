@@ -434,13 +434,29 @@
     }
 
     // 引用メニューの遅延読み込み（初回フォーカス時のみ実際に取得。以降は結果を使い回す）
+    // フォーカスされた瞬間に「読込中...」へ切り替え、取得完了まで操作不可にする
+    // （setupTeamReference/setupPastSelfReference が完了時に中身で上書きする）。
     let teamRefLoadPromise = null, pastSelfLoadPromise = null;
     function ensureTeamRefLoaded() {
-        if (!teamRefLoadPromise) teamRefLoadPromise = setupTeamReference();
+        if (!teamRefLoadPromise) {
+            const sel = document.getElementById('team-ref-select');
+            const btn = document.getElementById('team-ref-btn');
+            sel.innerHTML = '<option value="">読込中...</option>';
+            sel.disabled = true;
+            btn.disabled = true;
+            teamRefLoadPromise = setupTeamReference();
+        }
         return teamRefLoadPromise;
     }
     function ensurePastSelfLoaded() {
-        if (!pastSelfLoadPromise) pastSelfLoadPromise = setupPastSelfReference();
+        if (!pastSelfLoadPromise) {
+            const sel = document.getElementById('past-self-select');
+            const btn = document.getElementById('past-self-btn');
+            sel.innerHTML = '<option value="">読込中...</option>';
+            sel.disabled = true;
+            btn.disabled = true;
+            pastSelfLoadPromise = setupPastSelfReference();
+        }
         return pastSelfLoadPromise;
     }
 
