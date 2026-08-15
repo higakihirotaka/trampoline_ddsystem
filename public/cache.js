@@ -106,6 +106,11 @@ export async function getFinalOrders(eventId) {
 /**
  * skillMaster コレクションを取得（キャッシュあり）
  * displayOrder → id の数値順でソートして返す。
+ *
+ * 大会中はほぼ不変なデータなので、まず静的な skills.json（1回のHTTPリクエスト・
+ * ブラウザの標準HTTPキャッシュも効く）を試し、失敗時のみ Firestore にフォールバックする。
+ * ※ skill_master.html で技マスタを編集した場合は skills.json が古いままになるため、
+ *   編集後は skills.json を再生成してデプロイし直す必要がある。
  * @returns {Array<{id: string, [key: string]: any}>}
  */
 export async function getSkills() {
@@ -113,6 +118,20 @@ export async function getSkills() {
     if (_mem.has(key)) return _mem.get(key);
     const ss = ssGet(key);
     if (ss !== undefined) { _mem.set(key, ss); return ss; }
+
+    try {
+        const res = await fetch('./skills.json');
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+                _mem.set(key, data);
+                ssSet(key, data);
+                return data;
+            }
+        }
+    } catch (e) {
+        console.warn('skills.json 取得失敗、Firestoreにフォールバックします:', e);
+    }
 
     try {
         const snap = await getDocs(collection(db, 'skillMaster'));

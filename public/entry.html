@@ -52,6 +52,8 @@
         #club-same-area { display: flex; flex-direction: column; gap: 4px; }
         .notice-box { background: #fff8e1; border-left: 4px solid var(--warn); border-radius: 8px; padding: 12px 16px; margin-top: 20px; font-size: 0.85em; color: #5d4037; line-height: 1.7; }
         .deadline-banner { align-items: center; gap: 8px; background: #fdecea; border: 1px solid #f3c2c2; border-left: 4px solid var(--danger); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9em; font-weight: bold; color: #b71c1c; }
+        .skeleton-cell { height: 1.4em; border-radius: 6px; margin: 0 4px; background: linear-gradient(90deg, #eee 25%, #f3f3f3 50%, #eee 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.4s ease-in-out infinite; }
+        @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
@@ -149,7 +151,7 @@
         <div style="font-size:0.85rem; font-weight:bold; margin-bottom:8px; color:#5f6368;">📅 過去の自分の構成を取得</div>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <select id="past-self-select" style="flex:1; min-width:180px; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff; font-size:0.9rem;">
-                <option value="">読込中...</option>
+                <option value="">大会・ラウンドを選択...</option>
             </select>
             <button id="past-self-btn" class="btn btn-secondary" style="flex:0 0 auto; white-space:nowrap; padding:8px 20px; font-size:0.9rem; border-width:1px;" onclick="loadPastSelfComposition()">読込</button>
         </div>
@@ -207,6 +209,22 @@
     let perSkillDDCap = null;   // 1技あたり難度上限（null=なし）
     let routineDDCap  = null;   // 構成あたり難度上限（null=なし）
 
+    // データ取得中、技一覧テーブルに骨組み（シマーアニメーション）を出しておく。
+    // 実際の待ち時間は変わらないが「固まっている」印象を減らすための表示専用の処理。
+    function renderSkeletonRows() {
+        let html = '';
+        for (let i = 1; i <= 10; i++) {
+            html += `<tr>
+                <td>${i}</td>
+                <td><div class="skeleton-cell"></div></td>
+                <td><div class="skeleton-cell"></div></td>
+                <td><div class="skeleton-cell"></div></td>
+                <td><div class="skeleton-cell" style="width:2em;margin-left:auto;margin-right:auto;"></div></td>
+            </tr>`;
+        }
+        document.getElementById('skill-rows').innerHTML = html;
+    }
+
     async function init() {
         if (!eventId || !athleteId || !round) return;
         document.getElementById('back-link').href = `event.html?event=${eventId}`;
@@ -215,15 +233,28 @@
 
         const roundMap = {'pre1': '予選1', 'pre2': '予選2', 'final': '決勝'};
         document.getElementById('round-display').textContent = roundMap[round] || round;
+        renderSkeletonRows();
 
-        // 技マスタ取得と大会/選手/提出データ取得は互いに依存しないため、直列awaitにせず
-        // まとめて1回のPromise.allにして往復を1回分減らす（skillMasterはevent.html側で
-        // 先読み済みならsessionStorageから即返る）。
+        // 技マスタ取得と大会/選手/提出データ取得は互いに依存しないため、直列awaitにせず並列に投げる
+        // （skillMasterはevent.html側で先読み済みならsessionStorageから即返る）。
+        const skillsPromise = getSkills();
+        const tourPromise   = getDoc(doc(db, "tournaments", eventId));
+        const athPromise    = getDoc(doc(db, "tournaments", eventId, "athletes", athleteId));
+        const subPromise    = getDoc(doc(db, "submissions", `${eventId}_${athleteId}_${round}`));
+
+        // 選手情報は一番軽い1件読みなので、他を待たず届き次第すぐに表示する（段階的描画）。
+        // ここでは氏名・クラス・組だけ先出し。ふりがな欄やシンクロ切替など他データに依存する
+        // 部分は、従来通り全データが揃った後のメイン処理でまとめて行う（二重処理を避けるため）。
+        athPromise.then(d => {
+            if (!d.exists()) return;
+            const a = d.data();
+            document.getElementById('ath-name').innerText = a.type === 'synchro' ? `${a.name1 || ''} / ${a.name2 || ''}` : (a.name1 || '');
+            document.getElementById('ath-class').textContent = a.class || '-';
+            document.getElementById('ath-flight-group').textContent = a.flightGroup ? `G${a.flightGroup}` : '-';
+        }).catch(() => {});
+
         const [skillsResult, tourDoc, athDoc, subDocResult] = await Promise.all([
-            getSkills(),
-            getDoc(doc(db, "tournaments", eventId)),
-            getDoc(doc(db, "tournaments", eventId, "athletes", athleteId)),
-            getDoc(doc(db, "submissions", `${eventId}_${athleteId}_${round}`))
+            skillsPromise, tourPromise, athPromise, subPromise
         ]);
         skillMaster = skillsResult;
         tourData = tourDoc.exists() ? tourDoc.data() : {};
@@ -389,14 +420,28 @@
 
         // 引用メニューは「取得の成否に依存させず先に枠を表示」する。
         // （iOS Safari等で取得が失敗/ハングしても枠は出る＝リロード不要。中身は各 setup が後から投入し、
-        //   失敗時は「該当者なし」に倒れる。allSettled で片方の失敗がもう片方を巻き込まない）
+        //   失敗時は「該当者なし」に倒れる）
+        // 中身の取得自体は、選手が実際にプルダウンを開いた時だけ行う（大半の選手は使わない機能なので、
+        // athletes/submissions全件・全大会一覧などの通信をページを開くたびに発生させないため）。
         if (!subDocResult.exists()) {
             document.getElementById('team-ref-area').style.display = '';
             if (currentAthlete && currentAthlete.type !== 'synchro') {
                 document.getElementById('past-self-area').style.display = '';
             }
         }
-        Promise.allSettled([setupTeamReference(), setupPastSelfReference()]);
+        document.getElementById('team-ref-select').addEventListener('focus', ensureTeamRefLoaded, { once: true });
+        document.getElementById('past-self-select').addEventListener('focus', ensurePastSelfLoaded, { once: true });
+    }
+
+    // 引用メニューの遅延読み込み（初回フォーカス時のみ実際に取得。以降は結果を使い回す）
+    let teamRefLoadPromise = null, pastSelfLoadPromise = null;
+    function ensureTeamRefLoaded() {
+        if (!teamRefLoadPromise) teamRefLoadPromise = setupTeamReference();
+        return teamRefLoadPromise;
+    }
+    function ensurePastSelfLoaded() {
+        if (!pastSelfLoadPromise) pastSelfLoadPromise = setupPastSelfReference();
+        return pastSelfLoadPromise;
     }
 
     // 2段目セレクタの選択肢（系統で出し分け: 基礎技=開始姿勢 / 宙技=宙系）
