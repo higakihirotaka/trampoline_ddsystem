@@ -51,6 +51,7 @@
         .diff-club-label input { accent-color: var(--primary); cursor: pointer; width: 15px; height: 15px; }
         #club-same-area { display: flex; flex-direction: column; gap: 4px; }
         .notice-box { background: #fff8e1; border-left: 4px solid var(--warn); border-radius: 8px; padding: 12px 16px; margin-top: 20px; font-size: 0.85em; color: #5d4037; line-height: 1.7; }
+        .deadline-banner { align-items: center; gap: 8px; background: #fdecea; border: 1px solid #f3c2c2; border-left: 4px solid var(--danger); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9em; font-weight: bold; color: #b71c1c; }
 
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
@@ -75,6 +76,7 @@
 </head>
 <body>
 <div class="container">
+    <div id="deadline-banner" class="deadline-banner" style="display:none;"></div>
     <div class="info-card">
         <div class="info-name-row">
             <span id="ath-name" class="info-name">読み込み中...</span>
@@ -226,6 +228,20 @@
         skillMaster = skillsResult;
         tourData = tourDoc.exists() ? tourDoc.data() : {};
         subDocRef = subDocResult;
+
+        // 締切を過ぎている場合は一番上に閲覧のみバナーを表示する（提出可否のロジック自体は
+        // submitRoutine() の締切チェックのまま変更しない。参照する締切の選び方もそれに合わせる）。
+        {
+            const _deadlineKey = round === 'final' ? 'finalSubmissionDeadline'
+                               : subDocResult.exists() ? 'revisionDeadline' : 'submissionDeadline';
+            const _deadlineStr = tourData?.[_deadlineKey];
+            if (_deadlineStr && new Date() > new Date(_deadlineStr)) {
+                const _labels = { submissionDeadline: '提出締切', revisionDeadline: '修正締切', finalSubmissionDeadline: '決勝締切' };
+                const banner = document.getElementById('deadline-banner');
+                banner.textContent = `🔒 ${_labels[_deadlineKey]}を過ぎています。閲覧のみです。`;
+                banner.style.display = 'flex';
+            }
+        }
 
         // 決勝のみクラス（athDoc.exists 内で確定するが、ブロック外の予選引用/ボタン制御でも参照するため関数スコープで宣言）
         let finalOnly = false;
