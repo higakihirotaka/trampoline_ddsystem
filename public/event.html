@@ -84,11 +84,9 @@
         try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
         catch { return null; }
     }
-    function saveCache(tour, athletes, subMap) {
+    function saveCache(tour, athletes) {
         try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify({
-                tour, athletes, submissions: Object.fromEntries(subMap)
-            }));
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ tour, athletes }));
         } catch {}
     }
 
@@ -111,7 +109,7 @@
     }
 
     // ── バッジのピンポイント更新 ────────────────────────────
-    function updateStatusBadge(athId, round, sub) {
+    function updateStatusBadge(athId, round, isDone) {
         const el = document.getElementById(`status-${athId}-${round}`);
         if (!el) return;
         if (dnsSet.has(`${eventId}_${athId}_${round}`)) {
@@ -119,12 +117,12 @@
             el.textContent = 'DNS';
             return;
         }
-        el.className = `status-link ${sub ? 'status-done' : 'status-none'}`;
-        el.textContent = sub ? '提出済' : '入力';
+        el.className = `status-link ${isDone ? 'status-done' : 'status-none'}`;
+        el.textContent = isDone ? '提出済' : '入力';
     }
 
     // ── 選手リスト全体描画（初回のみ呼ぶ）────────────────────
-    function renderList(tour, athletes, subMap) {
+    function renderList(tour, athletes) {
         const rawClassRules = tour.classRules || {};
         const hasNewFormat  = 'individual' in rawClassRules || 'synchro' in rawClassRules;
         const classRules    = hasNewFormat ? rawClassRules :
@@ -145,16 +143,16 @@
         const indivContainer = document.getElementById('indiv-list');
         if (indivAthletes.length > 0) {
             indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' +
-                buildTablesHtml(indivAthletes, classRules.individual, subMap, 'individual', rawClassRules, indivClassOrder, showGroup);
+                buildTablesHtml(indivAthletes, classRules.individual, 'individual', rawClassRules, indivClassOrder, showGroup);
         }
         const syncContainer = document.getElementById('sync-list');
         if (syncAthletes.length > 0) {
             syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' +
-                buildTablesHtml(syncAthletes, classRules.synchro, subMap, 'synchro', rawClassRules, syncClassOrder, showGroup);
+                buildTablesHtml(syncAthletes, classRules.synchro, 'synchro', rawClassRules, syncClassOrder, showGroup);
         }
     }
 
-    function buildTablesHtml(athletes, rulesByType, subMap, type, fallbackRules = {}, classOrder = [], showGroup = true) {
+    function buildTablesHtml(athletes, rulesByType, type, fallbackRules = {}, classOrder = [], showGroup = true) {
         const byClass = athletes.reduce((acc, ath) => {
             const cn = ath.class || 'N/A';
             (acc[cn] = acc[cn] || []).push(ath);
@@ -189,8 +187,8 @@
                     : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${ath.club1}</small>`;
                 const grCell = showGroup ? `<td class="col-num">${ath.flightGroup||'-'}</td>` : '';
                 html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}">${grCell}<td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
-                for (let i = 1; i <= numPre; i++) html += `<td>${statusButton(ath, `pre${i}`, subMap)}</td>`;
-                if (rules.hasFinal) html += `<td>${statusButton(ath, 'final', subMap)}</td>`;
+                for (let i = 1; i <= numPre; i++) html += `<td>${statusButton(ath, `pre${i}`)}</td>`;
+                if (rules.hasFinal) html += `<td>${statusButton(ath, 'final')}</td>`;
                 html += '</tr>';
             });
             if (cls.length > 0) html += '</tbody></table></div>';
@@ -198,12 +196,16 @@
         return html;
     }
 
-    function statusButton(ath, round, subMap) {
+    // 済/未は選手ドキュメントの submissions.{round} フラグで判定する（entry.htmlの提出/クリア、
+    // auth.jsの一括登録/一括削除がどちらも書込・削除して同期している）。
+    // これにより submissions コレクション全件取得が不要になる。
+    function statusButton(ath, round) {
         if (ath.isWithdrawn) return `<span style="font-size:0.8em;color:#d32f2f;">棄権</span>`;
         const subId = `${eventId}_${ath.id}_${round}`;
-        const isDns = dnsSet.has(subId);
-        const cls   = isDns ? 'status-dns' : (subMap.get(subId) ? 'status-done' : 'status-none');
-        const label = isDns ? 'DNS' : (subMap.get(subId) ? '提出済' : '入力');
+        const isDns  = dnsSet.has(subId);
+        const isDone = ath.submissions?.[round] !== undefined;
+        const cls   = isDns ? 'status-dns' : (isDone ? 'status-done' : 'status-none');
+        const label = isDns ? 'DNS' : (isDone ? '提出済' : '入力');
         return `<a id="status-${ath.id}-${round}" href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${cls}">${label}</a>`;
     }
 
@@ -262,17 +264,20 @@
     async function backgroundSync() {
         if (!eventId || !liveAthletes.length) return;
         try {
-            const snap = await getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId)));
-            const freshMap = new Map(snap.docs.map(d => [d.id, d.data()]));
-            liveAthletes.forEach(ath => {
+            // 済/未は選手ドキュメントの submissions.{round} フラグを見るので、athletes サブコレクション
+            // （選手数分。最大でも submissions コレクションより小さい）だけ再取得すれば済む。
+            const snap = await getDocs(collection(db, "tournaments", eventId, "athletes"));
+            const freshAthletes = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+            freshAthletes.forEach(ath => {
                 ['pre1','pre2','pre3','final'].forEach(round => {
                     const el = document.getElementById(`status-${ath.id}-${round}`);
                     if (!el) return;
-                    const sub = freshMap.get(`${eventId}_${ath.id}_${round}`) || null;
-                    if (el.classList.contains('status-done') !== !!sub) updateStatusBadge(ath.id, round, sub);
+                    const isDone = ath.submissions?.[round] !== undefined;
+                    if (el.classList.contains('status-done') !== isDone) updateStatusBadge(ath.id, round, isDone);
                 });
             });
-            if (liveTour) saveCache(liveTour, liveAthletes, freshMap);
+            liveAthletes = freshAthletes;
+            if (liveTour) saveCache(liveTour, freshAthletes);
         } catch(e) { console.warn('BG sync failed:', e.message); }
     }
 
@@ -293,16 +298,17 @@
             liveAthletes = cache.athletes;
             applyTourInfo(cache.tour);
             startGlobalTimers(cache.tour);
-            renderList(cache.tour, cache.athletes, new Map(Object.entries(cache.submissions || {})));
+            renderList(cache.tour, cache.athletes);
         }
 
         // ② 最新データを常時フェッチ（iOS等での失敗/ハングに備えタイムアウトを付与）
-        // 大会ドキュメントと他3つのクエリは互いに依存しない（athletes/submissions/resultsはURLのeventIdだけで取得できる）
+        // 大会ドキュメントと他2つのクエリは互いに依存しない（athletes/resultsはURLのeventIdだけで取得できる）
         // ので直列awaitにせず1回のPromise.allにまとめ、往復を1回分減らす。
+        // 済/未は選手ドキュメントの submissions.{round} フラグ（athletesクエリに含まれる）で判定するため、
+        // submissions コレクションの全件取得はここでは行わない。
         try {
-            const [tourSnap, subSnap, athSnap, resSnap] = await withTimeout(Promise.all([
+            const [tourSnap, athSnap, resSnap] = await withTimeout(Promise.all([
                 getDoc(doc(db, "tournaments", eventId)),
-                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
                 getDocs(collection(db, "tournaments", eventId, "athletes")),
                 getDocs(query(collection(db, "results"), where("eventId", "==", eventId)))
             ]));
@@ -312,7 +318,6 @@
             applyTourInfo(tour);
             startGlobalTimers(tour); // timerStarted フラグで二重起動ガード
 
-            const freshSubMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
             const allAthletes = athSnap.docs.map(d => ({ ...d.data(), id: d.id }));
             liveAthletes = allAthletes;
             // CJPがDNS（棄権）で確定したラウンド（results.dns===true）
@@ -323,15 +328,14 @@
                 allAthletes.forEach(ath => {
                     ['pre1','pre2','pre3','final'].forEach(round => {
                         if (!document.getElementById(`status-${ath.id}-${round}`)) return;
-                        const sub = freshSubMap.get(`${eventId}_${ath.id}_${round}`) || null;
-                        updateStatusBadge(ath.id, round, sub);
+                        updateStatusBadge(ath.id, round, ath.submissions?.[round] !== undefined);
                     });
                 });
             } else {
                 // 初回：全体描画
-                renderList(tour, allAthletes, freshSubMap);
+                renderList(tour, allAthletes);
             }
-            saveCache(tour, allAthletes, freshSubMap);
+            saveCache(tour, allAthletes);
         } catch(e) {
             console.error('Fetch failed:', e.message);
             // キャッシュからの一覧描画も無い場合は、空白のまま固まらないよう失敗を明示し再読み込み導線を出す
