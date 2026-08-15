@@ -214,13 +214,16 @@
         const roundMap = {'pre1': '予選1', 'pre2': '予選2', 'final': '決勝'};
         document.getElementById('round-display').textContent = roundMap[round] || round;
 
-        skillMaster = await getSkills();
-
-        const [tourDoc, athDoc, subDocResult] = await Promise.all([
+        // 技マスタ取得と大会/選手/提出データ取得は互いに依存しないため、直列awaitにせず
+        // まとめて1回のPromise.allにして往復を1回分減らす（skillMasterはevent.html側で
+        // 先読み済みならsessionStorageから即返る）。
+        const [skillsResult, tourDoc, athDoc, subDocResult] = await Promise.all([
+            getSkills(),
             getDoc(doc(db, "tournaments", eventId)),
             getDoc(doc(db, "tournaments", eventId, "athletes", athleteId)),
             getDoc(doc(db, "submissions", `${eventId}_${athleteId}_${round}`))
         ]);
+        skillMaster = skillsResult;
         tourData = tourDoc.exists() ? tourDoc.data() : {};
         subDocRef = subDocResult;
 
