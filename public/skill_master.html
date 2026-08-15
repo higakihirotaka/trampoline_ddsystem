@@ -232,7 +232,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { collection, getDocs, setDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { collection, getDocs, getDoc, setDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     let skills = [];
     let editingId = null;   // 現在編集中の行ID
@@ -256,6 +256,14 @@
         return s.displayOrder ?? Number(s.id);
     }
 
+    // 技マスタを編集するたびに更新日時マーカーを書く。entry.html/event.html 側の getSkills() が
+    // 静的な skills.json の鮮度チェックに使う（マーカーの方が新しければ自動でFirestoreから取り直す）。
+    // 技マスタ本体の保存には影響させたくないので、失敗しても警告のみで無視する。
+    function touchSkillMasterVersion() {
+        setDoc(doc(db, 'meta', 'skillMaster'), { updatedAt: serverTimestamp() }, { merge: true })
+            .catch(e => console.warn('技マスタ更新マーカーの書込に失敗しました:', e));
+    }
+
     async function init() {
         const snap = await getDocs(collection(db, 'skillMaster'));
         skills = snap.docs
@@ -273,6 +281,16 @@
         document.getElementById('loading').style.display = 'none';
         document.getElementById('skill-table').style.display = '';
         render();
+
+        // skills.json 鮮度チェックの基準（更新日時マーカー）がまだ無ければここで作成する。
+        // このページを開けるのは基本的に管理者（Firestoreルール上、未ログインなら
+        // touchSkillMasterVersion() 自体が失敗し警告のみで無視される）。
+        try {
+            const markerSnap = await getDoc(doc(db, 'meta', 'skillMaster'));
+            if (!markerSnap.exists()) touchSkillMasterVersion();
+        } catch (e) {
+            console.warn('技マスタ更新マーカーの確認に失敗しました:', e);
+        }
     }
 
     window.toggleAddPanel = function() {
@@ -322,6 +340,7 @@
 
         try {
             await setDoc(doc(db, 'skillMaster', nextId), data);
+            touchSkillMasterVersion();
             skills.push({ id: nextId, ...data });
             skills.sort((a, b) => skillSortKey(a) - skillSortKey(b));
             document.getElementById('add-panel').style.display = 'none';
@@ -534,6 +553,7 @@
                 batch.push(setDoc(doc(db, 'skillMaster', s.id), { displayOrder: s.displayOrder }, { merge: true }));
             }
             await Promise.all(batch);
+            touchSkillMasterVersion();
             savedOrder = skills.map(s => s.id);
             orderDirty = false;
             document.getElementById('order-save-bar').classList.remove('visible');
@@ -638,6 +658,7 @@
 
         try {
             await setDoc(doc(db, 'skillMaster', id), data, { merge: true });
+            touchSkillMasterVersion();
 
             const idx = skills.findIndex(s => s.id === id);
             if (idx >= 0) {
@@ -673,6 +694,7 @@
             return setDoc(doc(db, 'skillMaster', s.id), { displaySymbol: val }, { merge: true });
         });
         await Promise.all(updates);
+        touchSkillMasterVersion();
         alert(`${skills.length}件を更新しました`);
         render();
     };
@@ -697,6 +719,7 @@
         if (!confirm(`「${skill.symbol}」を削除しますか？\n選手の申告データには影響しません。`)) return;
         try {
             await deleteDoc(doc(db, 'skillMaster', id));
+            touchSkillMasterVersion();
             skills = skills.filter(s => s.id !== id);
             render();
         } catch (e) {
@@ -718,6 +741,7 @@
         }
         if (updates.length === 0) { alert('変更対象なし'); return; }
         await Promise.all(updates);
+        touchSkillMasterVersion();
         alert(`${updates.length}件を更新しました`);
         render();
     };
@@ -734,6 +758,7 @@
         });
         try {
             await Promise.all(updates);
+            touchSkillMasterVersion();
             alert(`${targets.length}件の基礎技に「スタンドから」を設定しました`);
             render();
         } catch (e) {
