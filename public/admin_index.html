@@ -181,6 +181,10 @@
             athSnap.docs.forEach(d => {
                 const a = { ...d.data() };
                 delete a.finalOrder; delete a.isInFinal;   // 結果（決勝試技順）由来はコピーしない
+                // submissions（提出済フラグ）も複製元大会の提出状況の残骸なのでコピーしない。
+                // 実データ（submissionsコレクション）は複製元イベントIDのまま残り新大会には
+                // コピーされないため、このフラグだけ残すと「未提出なのに提出済」と誤表示される。
+                delete a.submissions;
                 ops.push(b => b.set(doc(db, 'tournaments', newRef.id, 'athletes', d.id), a));
             });
             teamSnap.docs.forEach(d => {
