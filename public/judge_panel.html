@@ -123,7 +123,8 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
     
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim();
@@ -132,6 +133,9 @@
     let athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
+    // id/symbol → skill の索引。renderSidebar 経由で checkHasDiff が選手×ラウンドぶん
+    // 繰り返し呼ぶため、線形 .find() のままだと再描画のたびに技マスタ全件スキャンになる。
+    let skillMasterById = new Map(), skillMasterBySymbol = new Map();
     let _pendingSidebarScroll = null; // 確定後の再読込で左リストのスクロール位置を保持するため
     let cjpConfirmed = false; // CJPが公式スコアを確定済（published:true）かどうか
     let unsubValidCount = null;
@@ -144,19 +148,19 @@
     // Firestore doc ID (文字列 or 数値) でスキルを引く。位置アクセスは使わない
     function findSkillById(id) {
         if (id === null || id === undefined || id === '') return null;
-        return skillMaster.find(m => m.id === String(id)) || null;
+        return skillMasterById.get(String(id)) || null;
     }
 
     function resolveSubSkill(s) {
         if (!s) return null;
         if (typeof s === 'object') {
             if (s.id) return findSkillById(s.id);
-            if (s.skill) return skillMaster.find(m => m.symbol === s.skill) || null;
+            if (s.skill) return skillMasterBySymbol.get(s.skill) || null;
             return null;
         }
         // 数値文字列 → ID として検索（旧形式互換）
-        if (!isNaN(s) && s !== '') return findSkillById(s) || skillMaster.find(m => m.symbol === String(s)) || null;
-        return skillMaster.find(m => m.symbol === s) || null;
+        if (!isNaN(s) && s !== '') return findSkillById(s) || skillMasterBySymbol.get(String(s)) || null;
+        return skillMasterBySymbol.get(s) || null;
     }
 
     function withTimeout(promise, ms) {
@@ -189,13 +193,17 @@
         }
         showLoadState('データを読み込んでいます...', false);
         try {
-            const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await withTimeout(
+            // tournaments/athletes は cache.js 経由（同タブ内で他画面が読み込み済みならFirestore不要）。
+            // finalOrder/isInFinal は試技順変更で頻繁に更新されるためキャッシュ対象外＝毎回取得し、
+            // athletes にマージする（judge_cjp.html と同一パターン）。
+            const [tourData, athleteList, subSnap, resSnap, smSnap, finalOrders] = await withTimeout(
                 Promise.all([
-                    getDoc(doc(db, "tournaments", eventId)),
-                    getDocs(collection(db, "tournaments", eventId, "athletes")),
+                    getTournament(eventId),
+                    getAthletes(eventId),
                     getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
                     getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
-                    getDocs(collection(db, "skillMaster"))
+                    getDocs(collection(db, "skillMaster")),
+                    getFinalOrders(eventId)
                 ]),
                 20000
             );
@@ -220,10 +228,17 @@
                     if (s.somersaultType === '2回宙') s.doubleSomaGroup = (dd >= 1.6) ? 'high' : 'low';
                     return s;
                 });
+            skillMasterById     = new Map(skillMaster.map(s => [s.id, s]));
+            skillMasterBySymbol = new Map(skillMaster.map(s => [s.symbol, s]));
 
-            currentTour = tourSnap.data();
+            if (!tourData) throw new Error('大会データが見つかりません');
+            currentTour = tourData;
             document.getElementById('event-name').innerText = currentTour.name;
-            athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            // 決勝試技順はキャッシュ除外なので毎回取得したものをマージ
+            athletes = athleteList.map(a => {
+                const fo = finalOrders[a.id];
+                return fo ? { ...a, finalOrder: fo.finalOrder, isInFinal: fo.isInFinal } : a;
+            });
             submissions = {}; subSnap.forEach(d => { submissions[d.id] = d.data(); });
             results = {}; resSnap.forEach(d => { results[d.id] = d.data(); });
 

@@ -285,13 +285,17 @@
 
         showLoadState('データを読み込んでいます...', false);
         try {
-        const [tourData, athleteList, subSnap, resSnap, smSnap] = await withTimeout(
+        // getFinalOrders/teams はキャッシュ非対象・eventIdのみに依存するため、
+        // 他の読み込みと直列にする理由がない。まとめて1回のPromise.allで並列取得する。
+        const [tourData, athleteList, subSnap, resSnap, smSnap, finalOrders, teamSnap] = await withTimeout(
             Promise.all([
                 getTournament(eventId),
                 getAthletes(eventId),
                 getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
                 getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
-                getDocs(collection(db, "skillMaster"))
+                getDocs(collection(db, "skillMaster")),
+                getFinalOrders(eventId),
+                getDocs(collection(db, "tournaments", eventId, "teams")).catch(() => ({ docs: [] })) // 団体未使用でも無視
             ]),
             20000
         );
@@ -312,8 +316,7 @@
         currentTour = tourData;
         document.getElementById('event-name-sidebar').innerText = currentTour.name;
         athletes = athleteList;
-        // 決勝試技順はキャッシュ除外なので毎回Firestoreから取得してマージ
-        const finalOrders = await getFinalOrders(eventId);
+        // 決勝試技順はキャッシュ除外なので毎回Firestoreから取得してマージ（上のPromise.allで並列取得済み）
         athletes.forEach(a => {
             const fo = finalOrders[a.id];
             if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
@@ -322,10 +325,7 @@
         resSnap.forEach(d => results[d.id] = d.data());
 
         // 団体戦: チーム登録のあるカテゴリー(class|gender)を収集（ボタン表示判定用）
-        try {
-            const teamSnap = await getDocs(collection(db, "tournaments", eventId, "teams"));
-            teamCategoryKeys = new Set(teamSnap.docs.map(d => `${d.data().class || ''}|${d.data().gender || ''}`));
-        } catch (_) { /* 団体未使用でも無視 */ }
+        teamCategoryKeys = new Set(teamSnap.docs.map(d => `${d.data().class || ''}|${d.data().gender || ''}`));
 
         renderSidebar();
         renderScores({}); // 審判行を常に表示（numExecJudges 人分の空行）
@@ -527,13 +527,28 @@
         renderSidebar();
     };
 
-    function getDotHtml(aid, rid, label) {
+    // ドットの状態クラスを計算（getDotHtml / updateCurrentDot で共用）
+    function dotStateClass(aid, rid) {
         const id = `${eventId}_${aid}_${rid}`;
         const r = results[id];
-        const cls = (r?.published ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
-                    (r?.dns === true ? ' dns-dot' : '') +
-                    (aid === athleteId && rid === round ? ' current' : '');
-        return `<a href="#" class="r-dot ${cls}" onclick="switchAthlete('${aid}','${rid}');return false;">${label}</a>`;
+        return (r?.published ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
+               (r?.dns === true ? ' dns-dot' : '') +
+               (aid === athleteId && rid === round ? ' current' : '');
+    }
+
+    function getDotHtml(aid, rid, label) {
+        return `<a href="#" class="r-dot ${dotStateClass(aid, rid)}" data-aid="${aid}" data-rid="${rid}" onclick="switchAthlete('${aid}','${rid}');return false;">${label}</a>`;
+    }
+
+    // watchScores() 用の軽量更新: 現在選択中のドット1つだけを更新する。
+    // renderSidebar() をフル再描画すると、E審判が1減点入力するたびに
+    // 無関係な選手を含む一覧全体を作り直すことになり非常に高コストなため、
+    // 変化しうるのは「今見ている選手・ラウンドのドット」だけであることを利用して省略する。
+    function updateCurrentDot() {
+        if (!athleteId || !round) return;
+        const dot = document.querySelector(`.r-dot[data-aid="${CSS.escape(athleteId)}"][data-rid="${round}"]`);
+        if (!dot) return; // フィルタ対象外で非表示中。再表示/フィルタ変更時にrenderSidebar()で反映される
+        dot.className = `r-dot ${dotStateClass(athleteId, round)}`;
     }
 
     // ---- 選手切り替え（ページリロードなし） ----
@@ -726,7 +741,7 @@
             const newLocked = latestData.published === true;
             const lockChanged = newLocked !== isLocked;
             renderScores(latestData);
-            renderSidebar(); // ドット色をリアルタイムに更新
+            updateCurrentDot(); // ドット色をリアルタイムに更新（フル再描画は避け、該当ドットのみ差し替え）
             // E審判のロック状態をFirestoreに同期（変化があった場合のみ）
             if (lockChanged) {
                 setDoc(doc(db, 'tournaments', eventId), {
@@ -1364,7 +1379,7 @@
         const focusIsLanding = activeEl?.classList?.contains('manual-landing-cell');
 
         const tbody = document.getElementById('judge-rows');
-        tbody.innerHTML = "";
+        const rowsHtml = []; // += でtbodyを都度直列化/再パースさせないよう、文字列を貯めて最後に1回だけ書き込む
 
         // 各E審判の行
         jKeys.forEach((jKey, jIdx) => {
@@ -1419,7 +1434,7 @@
             // 行ごとのトグルスイッチ（Total右）
             row += `<td class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" ${isManual ? 'checked' : ''} onchange="toggleRowManual('${jKey}', this.checked)"><span class="track-sm"></span></label></td>`;
             row += `</tr>`;
-            tbody.innerHTML += row;
+            rowsHtml.push(row);
         });
 
         // 中間2名合計行（データがない技は "-"）
@@ -1435,7 +1450,8 @@
         const hasLanding = hasJudgeData && (landingResult.hasData ?? landingResult.indices.size > 0);
         m2Row += `<td>${vLimit === 10 && hasLanding ? _medFmt(landingResult.sum) : '-'}</td>`;
         m2Row += `<td class="ded-total">${hasJudgeData ? (isSynchro ? ec.execution.toFixed(2) : ec.execution.toFixed(1)) : '-'}</td><td></td></tr>`;
-        tbody.innerHTML += m2Row;
+        rowsHtml.push(m2Row);
+        tbody.innerHTML = rowsHtml.join('');
 
         // フォーカスを復元（手動入力行の再描画後）
         if (focusJKey && manualRows.has(focusJKey)) {

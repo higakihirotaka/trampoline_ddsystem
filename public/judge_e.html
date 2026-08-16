@@ -250,6 +250,7 @@
     let judgeName = '';
     let currentTourData = null;
     let warmupData = {}, warmupInterval = null;
+    let _lastWarmupRaw = null; // startWarmupTick() を無関係な更新で毎回張り直さないための直前値比較用
     let warmupHidden = false; // 会場練習タイマーをこの端末で手動非表示にしているか
     // 会場練習タイマーのサーバー時刻補正（会場ディスプレイ/制御PCと同一ロジック）。
     // timerRef(=serverTimestamp) 受信時に自端末の時計とサーバー時刻の差を測り補正するため、
@@ -368,9 +369,16 @@
             const d = snap.data();
             currentTourData = d;  // 常に最新を保持（審判名の引き直しに使う）
 
-            // 会場練習タイマー（カウント中のみ中央オーバーレイ表示）
-            warmupData = d.warmupSettings || {};
-            startWarmupTick();
+            // 会場練習タイマー（カウント中のみ中央オーバーレイ表示）。
+            // このドキュメントは両パネル共有のため他パネルの操作でも毎回発火するが、
+            // warmupSettings が実際に変わった時だけタイマーを張り直す
+            // （無条件だと無関係な更新のたびに setInterval 張り直し・DOM再取得・表示チラつきが起きる）。
+            const newWarmupRaw = JSON.stringify(d.warmupSettings || {});
+            if (newWarmupRaw !== _lastWarmupRaw) {
+                _lastWarmupRaw = newWarmupRaw;
+                warmupData = d.warmupSettings || {};
+                startWarmupTick();
+            }
 
             const state = d?.liveState?.[panel];
             if (!state?.athleteId) { showWaiting(); return; }
@@ -493,12 +501,27 @@
             const data = snap.data();
 
             const prevVLimit = vLimit;
-            vLimit = data.validCount ?? 10;
+            const newVLimit  = data.validCount ?? 10;
 
             const j = data.execution?.judges?.[`${panel}_${role}`] || {};  // パネル付きキー
-            deductions = sanitizeDeductions([...(j.deductions || Array(10).fill(null))]);
-            landing    = sanitizeLanding(j.landing ?? null);
-            confirmed  = !!j.confirmedAt;
+            const newDeductions = sanitizeDeductions([...(j.deductions || Array(10).fill(null))]);
+            const newLanding    = sanitizeLanding(j.landing ?? null);
+            const newConfirmed  = !!j.confirmedAt;
+
+            // 同じパネルの他のE審判が入力しても results ドキュメントは共有のためこの
+            // onSnapshot は毎回発火する。自分の担当スライスが実際に変わっていなければ
+            // 配列再構築・refresh()（ステップグリッド/キーパッド再描画）は不要なので省略する。
+            if (!firstLoad && newVLimit === prevVLimit &&
+                newConfirmed === confirmed && newLanding === landing &&
+                newDeductions.length === deductions.length &&
+                newDeductions.every((v, i) => v === deductions[i])) {
+                return;
+            }
+
+            vLimit     = newVLimit;
+            deductions = newDeductions;
+            landing    = newLanding;
+            confirmed  = newConfirmed;
 
             if (firstLoad) {
                 // 初回のみ：currentIndex を入力済み本数から決める
