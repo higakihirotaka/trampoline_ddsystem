@@ -123,7 +123,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, collection, getDocs, getDoc, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, collection, getDoc, updateDoc, query, where, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { normalizeClassRules, calcBonus } from "./shared.js";
     import { getTournament, getAthletes, getSkills, getFinalOrders } from "./cache.js";
     const params  = new URLSearchParams(location.search);
@@ -131,9 +131,12 @@
 
     // ─── State ───────────────────────────────────────────────────────────
     let athletes = [], submissions = new Map(), classRules = { individual: {}, synchro: {} }, skillMaster = [];
+    // id/symbol → skill の索引（resolveSkill の線形探索を避けるため）
+    let skillMasterById = new Map(), skillMasterBySymbol = new Map();
     let currentSelection = { athleteId: null, round: null };
     let finalOnlyMode = false;
     let indivClassOrder = [], syncClassOrder = [];
+    let unsubSubmissions = null;
 
     // ─── Utilities ───────────────────────────────────────────────────────
     function withTimeout(promise, ms = 10000) {
@@ -161,11 +164,11 @@
         if (!raw && raw !== 0) return { symbol: '-', dd: null, direction: '', isTriple: false };
         if (typeof raw === 'object' && raw !== null) {
             const found = raw.id
-                ? (skillMaster.find(m => m.id === String(raw.id)) || skillMaster.find(m => m.symbol === raw.skill))
-                : skillMaster.find(m => m.symbol === raw.skill);
+                ? (skillMasterById.get(String(raw.id)) || skillMasterBySymbol.get(raw.skill))
+                : skillMasterBySymbol.get(raw.skill);
             return { symbol: raw.skill || '-', dd: raw.dd ?? null, direction: found?.direction || '', isTriple: found?.isTriple || false };
         }
-        const found = skillMaster.find(m => m.id === String(raw));
+        const found = skillMasterById.get(String(raw));
         return found ? { symbol: found.symbol || '-', dd: found.dd ?? null, direction: found.direction || '', isTriple: found.isTriple || false }
                      : { symbol: '-', dd: null, direction: '', isTriple: false };
     }
@@ -288,33 +291,53 @@
     }
 
     // ─── Data ────────────────────────────────────────────────────────────
-    async function refreshAllSubmissions() {
+    // 全選手×全ラウンドのsubIdを一旦nullで埋める（「未取得」と「未提出」を区別するため）。
+    // athletes/classRules はinit()で一度読み込んだ後は変わらないので、これは起動時に1回だけ呼べば良い。
+    function seedNullSubmissions() {
         athletes.forEach(ath => {
             const athType = ath.type || 'individual';
             const rules = (classRules[athType] && classRules[athType][ath.class]) || { qualifyingRoutines: 1, hasFinal: false };
             for (let i = 1; i <= (rules.qualifyingRoutines || 1); i++) submissions.set(eventId + '_' + ath.id + '_pre' + i, null);
             if (rules.hasFinal) submissions.set(eventId + '_' + ath.id + '_final', null);
         });
-        const snap = await getDocs(query(collection(db, 'submissions'), where('eventId', '==', eventId)));
-        snap.forEach(d => submissions.set(d.id, d.data()));
     }
 
-    // 全件同期 → 全ドットをピンポイント更新
-    async function refreshAndUpdateAllDots() {
-        await withTimeout(refreshAllSubmissions(), 12000);
-        athletes.forEach(ath => {
-            const athType = ath.type || 'individual';
-            const rules = (classRules[athType] && classRules[athType][ath.class]) || { qualifyingRoutines: 1, hasFinal: false };
-            for (let i = 1; i <= (rules.qualifyingRoutines || 1); i++) updateDot(ath.id, 'pre' + i);
-            if (rules.hasFinal) updateDot(ath.id, 'final');
-        });
+    // submissions コレクションをリアルタイム購読する。
+    // 以前は「次の選手へ」のたびに毎回コレクション全件を getDocs() し直していたが、
+    // onSnapshot に切り替えることで初回のみ全件取得し、以降は実際に変化した
+    // ドキュメントだけ docChanges() で受け取ってピンポイント更新する
+    // （他端末で別の担当者が確認した場合もこの購読で自動的に反映される）。
+    // 戻り値は「最初のスナップショットを受信したら解決するPromise」（初期表示のタイミング調整用）。
+    function watchSubmissions() {
+        if (unsubSubmissions) { unsubSubmissions(); unsubSubmissions = null; }
+        let resolveFirst;
+        const firstSnapshot = new Promise(res => { resolveFirst = res; });
+        unsubSubmissions = onSnapshot(
+            query(collection(db, 'submissions'), where('eventId', '==', eventId)),
+            snap => {
+                snap.docChanges().forEach(change => {
+                    const data = change.doc.data();
+                    submissions.set(change.doc.id, change.type === 'removed' ? null : data);
+                    updateDot(data.athleteId, data.round);
+                    // 今表示中のカードが変化した場合は詳細も再描画する
+                    if (currentSelection.athleteId === data.athleteId && currentSelection.round === data.round) {
+                        const athlete = athletes.find(a => a.id === data.athleteId);
+                        renderDetail(document.getElementById('main-viewer'), athlete, data.athleteId, data.round, submissions.get(change.doc.id));
+                    }
+                });
+                resolveFirst();
+            },
+            err => { console.error('submissions監視エラー:', err); resolveFirst(); }
+        );
+        return firstSnapshot;
     }
 
-    // 🔄 ボタン（手動更新）
+    // 🔄 ボタン（手動更新）: 購読を張り直して強制的に再同期する
+    // （通常はonSnapshotが常時最新を保つため、接続不調時の保険的な位置づけ）
     window.manualRefresh = async function() {
         const btn = document.getElementById('refresh-btn');
         if (btn) { btn.disabled = true; btn.textContent = '⟳'; }
-        try { await refreshAndUpdateAllDots(); }
+        try { await withTimeout(watchSubmissions(), 12000); }
         catch(e) { console.warn('Manual refresh failed:', e.message); }
         finally { if (btn) { btn.disabled = false; btn.textContent = '🔄'; } }
     };
@@ -477,9 +500,8 @@
     window.goNext = function() {
         const next = findNextTarget();
         if (next) {
+            // submissions は onSnapshot で常時同期済みのため、ここでの明示的な全件再取得は不要
             showDetail(next.athleteId, next.round);
-            // バックグラウンドで全件同期（画面操作はブロックしない）
-            refreshAndUpdateAllDots().catch(e => console.warn('bg refresh failed:', e.message));
         } else {
             setActiveDot(null, null);
             currentSelection = { athleteId: null, round: null };
@@ -531,8 +553,14 @@
         backEl.textContent = fromJudge ? '← 審判用メニューへ' : '← 管理者メニューへ';
         document.getElementById('sidebar-list').innerHTML = '<div style="padding:20px; color:#90a4ae; font-size:0.9rem;">読み込み中...</div>';
 
-        const [tourData, athleteList, skillMasterData] = await Promise.all([getTournament(eventId), getAthletes(eventId), getSkills()]);
+        // getFinalOrders は eventId のみに依存する（tourData/athleteList を待つ理由がない）ので
+        // 直列awaitにせず最初のPromise.allに合流させる
+        const [tourData, athleteList, skillMasterData, finalOrders] = await Promise.all([
+            getTournament(eventId), getAthletes(eventId), getSkills(), getFinalOrders(eventId)
+        ]);
         skillMaster = skillMasterData;
+        skillMasterById     = new Map(skillMaster.map(s => [s.id, s]));
+        skillMasterBySymbol = new Map(skillMaster.map(s => [s.symbol, s]));
 
         if (tourData) {
             document.getElementById('event-name').innerText = tourData.name;
@@ -546,11 +574,11 @@
             }
         }
         athletes = athleteList;
-        const finalOrders = await getFinalOrders(eventId);
         athletes.forEach(a => { const fo = finalOrders[a.id]; if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; } });
 
-        try { await withTimeout(refreshAllSubmissions(), 12000); }
-        catch(e) { console.warn('Initial submission load failed:', e.message); }
+        seedNullSubmissions();
+        try { await withTimeout(watchSubmissions(), 12000); }
+        catch(e) { console.warn('Initial submission sync failed:', e.message); }
 
         renderSidebar();
         const first = findNextTarget();
