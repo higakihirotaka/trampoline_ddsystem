@@ -194,7 +194,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getSkills } from "./cache.js";
 
     const params = new URLSearchParams(location.search);
@@ -1082,8 +1082,20 @@
                 }
             }
 
+            // 0. 修正で上書きされる直前の内容を revisions サブコレクションへ退避する
+            // （card_history.html で「修正時に何を変えたか」を確認できるようにするため。
+            //   新規提出時（ドキュメント未作成）は退避対象がないのでスキップ）
+            const subRef = doc(db, "submissions", subId);
+            const prevSnap = await getDoc(subRef);
+            if (prevSnap.exists()) {
+                await addDoc(collection(subRef, "revisions"), {
+                    ...prevSnap.data(),
+                    archivedAt: serverTimestamp()
+                });
+            }
+
             // 1. Update the detailed submission document
-            await setDoc(doc(db, "submissions", subId), {
+            await setDoc(subRef, {
                 eventId, athleteId, round, skills, totalDD,
                 ...(designatedDDCount > 0
                     ? { designatedDDIndices }

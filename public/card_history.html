@@ -38,11 +38,34 @@
         .b-round { background:#eef2f7; color:#455a64; }
         .b-indiv { background:#ede7f6; color:#5e35b1; }
         .b-synchro { background:#e0f2f1; color:#00897b; }
+        .b-rev.clickable { cursor:pointer; border:1px solid transparent; transition:0.15s; }
+        .b-rev.clickable:hover { background:#ffe4b3; border-color:var(--amber); }
         .st0 { color:var(--sub); }
         .st1 { color:var(--amber); font-weight:bold; }
         .st2 { color:var(--green); font-weight:bold; }
         .msg { text-align:center; padding:48px; color:var(--sub); }
         .msg button { margin-top:12px; padding:8px 22px; border:none; background:var(--accent); color:#fff; border-radius:8px; cursor:pointer; font-size:0.95em; }
+
+        /* ---- 修正差分モーダル ---- */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:100; align-items:flex-start; justify-content:center; overflow-y:auto; padding:30px 16px; }
+        .modal-overlay.show { display:flex; }
+        .modal-box { background:#fff; border-radius:16px; max-width:900px; width:100%; padding:24px 28px 28px; box-shadow:0 12px 40px rgba(0,0,0,0.2); }
+        .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:4px; }
+        .modal-title { font-size:1.15rem; font-weight:900; }
+        .modal-sub { font-size:0.85rem; color:var(--sub); margin-top:2px; }
+        .modal-close { background:none; border:none; font-size:1.3rem; color:var(--sub); cursor:pointer; line-height:1; padding:4px; }
+        .modal-close:hover { color:var(--primary); }
+        .diff-table-wrap { overflow-x:auto; margin-top:18px; }
+        .diff-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+        .diff-table th, .diff-table td { padding:8px 10px; border-bottom:1px solid #f0f0f0; text-align:center; white-space:nowrap; }
+        .diff-table th { background:#f8f9fb; color:var(--sub); font-size:0.72rem; font-weight:700; }
+        .diff-table td:first-child, .diff-table th:first-child { text-align:left; color:var(--sub); font-weight:700; width:60px; }
+        .diff-table .ver-head { display:flex; flex-direction:column; gap:2px; }
+        .diff-table .ver-label { font-weight:900; color:var(--primary); }
+        .diff-table .ver-time { font-weight:400; font-variant-numeric:tabular-nums; }
+        .diff-cell.changed { background:#fff3e0; color:#e65100; font-weight:900; border-radius:6px; }
+        .diff-total-row td { font-weight:900; border-top:2px solid var(--border); }
+        .diff-loading { text-align:center; padding:30px; color:var(--sub); }
     </style>
 </head>
 <body>
@@ -70,11 +93,24 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="diff-modal" onclick="if(event.target===this) window.closeDiffModal()">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div>
+                <div class="modal-title" id="diff-title">構成の変更履歴</div>
+                <div class="modal-sub" id="diff-subtitle"></div>
+            </div>
+            <button class="modal-close" onclick="window.closeDiffModal()">✕</button>
+        </div>
+        <div id="diff-body"><div class="diff-loading">読み込み中...</div></div>
+    </div>
+</div>
+
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin } from "./auth.js";
-    import { getTournament, getAthletes } from "./cache.js";
+    import { getTournament, getAthletes, getSkills } from "./cache.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -82,6 +118,7 @@
 
     const ROUND = { pre1:'予選1', pre2:'予選2', final:'決勝' };
     let allRows = [];
+    let skillMasterById = new Map(), skillMasterBySymbol = new Map(); // 修正差分モーダル用
 
     // iOS等で getDocs が応答しないハングを防ぐタイムアウト
     function withTimeout(promise, ms = 8000) {
@@ -96,10 +133,24 @@
         return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     }
 
-    function kindBadge(rc) {
+    function kindBadge(rc, subId) {
         if (rc == null)  return '<span class="badge b-bulk">一括/旧</span>';
         if (rc <= 1)     return '<span class="badge b-new">新規</span>';
-        return `<span class="badge b-rev">修正 ${rc-1}回</span>`;
+        // 修正ありの場合のみ、構成の変更履歴（revisionsサブコレクション）をクリックで見られる
+        return `<span class="badge b-rev clickable" onclick="window.showRevisionDiff('${subId}')" title="クリックで構成の変更履歴を表示">修正 ${rc-1}回</span>`;
+    }
+
+    // 技1件を { symbol, dd } に解決する（judge_panel.html / admin_card_check.html と同じ形式対応）
+    function resolveSkill(raw) {
+        if (!raw && raw !== 0) return { symbol: '-', dd: null };
+        if (typeof raw === 'object' && raw !== null) {
+            const found = raw.id
+                ? (skillMasterById.get(String(raw.id)) || skillMasterBySymbol.get(raw.skill))
+                : skillMasterBySymbol.get(raw.skill);
+            return { symbol: raw.skill || found?.symbol || '-', dd: raw.dd ?? found?.dd ?? null };
+        }
+        const found = skillMasterById.get(String(raw));
+        return found ? { symbol: found.symbol || '-', dd: found.dd ?? null } : { symbol: '-', dd: null };
     }
     function statusLabel(cs) {
         if (cs === 2) return '<span class="st2">✓ 確認済</span>';
@@ -125,7 +176,7 @@
                     <td><span class="nm">${esc(r.name)}</span><br><span class="club">${esc(r.club)}</span></td>
                     <td><span class="badge ${r.type === 'synchro' ? 'b-synchro' : 'b-indiv'}">${r.type === 'synchro' ? 'シンクロ' : '個人'}</span> ${esc(r.cls)}${r.gender ? ' ・' + esc(r.gender) : ''}</td>
                     <td><span class="badge b-round">${ROUND[r.round] || r.round}</span></td>
-                    <td>${kindBadge(r.revisionCount)}</td>
+                    <td>${kindBadge(r.revisionCount, r.subId)}</td>
                     <td>${statusLabel(r.checkStatus)}</td>
                 </tr>`).join('');
         }
@@ -133,11 +184,14 @@
     }
 
     async function load() {
-        const [tour, athletes, subSnap] = await withTimeout(Promise.all([
+        const [tour, athletes, subSnap, skillMaster] = await withTimeout(Promise.all([
             getTournament(eventId),
             getAthletes(eventId),
-            getDocs(query(collection(db, 'submissions'), where('eventId', '==', eventId)))
+            getDocs(query(collection(db, 'submissions'), where('eventId', '==', eventId))),
+            getSkills()
         ]));
+        skillMasterById     = new Map(skillMaster.map(s => [s.id, s]));
+        skillMasterBySymbol = new Map(skillMaster.map(s => [s.symbol, s]));
 
         document.getElementById('event-name').textContent = (tour?.name || '大会') + ' — 提出された競技カードの時系列';
         document.title = `${tour?.name || '大会'} — 競技カード提出履歴`;
@@ -159,7 +213,7 @@
                 ? (a.club1 && a.club2 && a.club1 !== a.club2 ? `${a.club1} / ${a.club2}` : (a.club1 || a.club2 || ''))
                 : (a.club1 || '');
             return {
-                ts, updatedAt: s.updatedAt, round: s.round,
+                subId: d.id, ts, updatedAt: s.updatedAt, round: s.round,
                 revisionCount: s.revisionCount ?? null, checkStatus: s.checkStatus ?? 0,
                 name, club, cls: a.class || a.category || '—', gender: a.gender || '', type: a.type || 'individual'
             };
@@ -179,6 +233,80 @@
 
         render();
     }
+
+    // ---- 修正差分モーダル ----
+    window.closeDiffModal = () => {
+        document.getElementById('diff-modal').classList.remove('show');
+    };
+
+    window.showRevisionDiff = async (subId) => {
+        const modal = document.getElementById('diff-modal');
+        const body  = document.getElementById('diff-body');
+        const row   = allRows.find(r => r.subId === subId);
+        document.getElementById('diff-title').textContent = row ? `${row.name} — 構成の変更履歴` : '構成の変更履歴';
+        document.getElementById('diff-subtitle').textContent = row
+            ? `${row.cls}${row.gender ? ' ・' + row.gender : ''} / ${ROUND[row.round] || row.round}` : '';
+        body.innerHTML = '<div class="diff-loading">読み込み中...</div>';
+        modal.classList.add('show');
+
+        try {
+            const [curSnap, revSnap] = await withTimeout(Promise.all([
+                getDoc(doc(db, 'submissions', subId)),
+                getDocs(query(collection(db, 'submissions', subId, 'revisions'), orderBy('archivedAt', 'asc')))
+            ]));
+
+            // 古い順に並んだバージョン一覧（過去の修正 → 現在の内容）を作る
+            const versions = revSnap.docs.map((d, i) => ({
+                label: i === 0 ? '初回提出' : `修正${i}`,
+                time: d.data().archivedAt,
+                skills: d.data().skills || [],
+                totalDD: d.data().totalDD
+            }));
+            if (curSnap.exists()) {
+                const cur = curSnap.data();
+                versions.push({ label: '現在の内容', time: cur.updatedAt, skills: cur.skills || [], totalDD: cur.totalDD });
+            }
+
+            if (versions.length === 0) {
+                body.innerHTML = '<div class="diff-loading">変更履歴が見つかりませんでした。</div>';
+                return;
+            }
+
+            const theadHtml = '<tr><th>#</th>' + versions.map(v => `
+                <th><div class="ver-head"><span class="ver-label">${esc(v.label)}</span><span class="ver-time">${fmt(v.time)}</span></div></th>
+            `).join('') + '</tr>';
+
+            // 技10本ぶんの行。直前バージョン（1つ左の列）と記号が異なるセルだけハイライトする
+            let bodyRows = '';
+            for (let i = 0; i < 10; i++) {
+                let prevSymbol = null;
+                let rowHtml = `<tr><td>${i + 1}</td>`;
+                versions.forEach(v => {
+                    const sk = resolveSkill(v.skills[i]);
+                    const changed = prevSymbol !== null && sk.symbol !== prevSymbol;
+                    rowHtml += `<td class="${changed ? 'diff-cell changed' : ''}">${esc(sk.symbol)}</td>`;
+                    prevSymbol = sk.symbol;
+                });
+                bodyRows += rowHtml + '</tr>';
+            }
+
+            // DD合計行
+            let prevDD = null;
+            let ddRow = '<tr class="diff-total-row"><td>DD合計</td>';
+            versions.forEach(v => {
+                const dd = typeof v.totalDD === 'number' ? v.totalDD.toFixed(1) : '-';
+                const changed = prevDD !== null && dd !== prevDD;
+                ddRow += `<td class="${changed ? 'diff-cell changed' : ''}">${dd}</td>`;
+                prevDD = dd;
+            });
+            ddRow += '</tr>';
+
+            body.innerHTML = `<div class="diff-table-wrap"><table class="diff-table"><thead>${theadHtml}</thead><tbody>${bodyRows}${ddRow}</tbody></table></div>`;
+        } catch (e) {
+            console.error('修正履歴の読み込みに失敗:', e);
+            body.innerHTML = '<div class="diff-loading">読み込みに失敗しました。</div>';
+        }
+    };
 
     document.getElementById('filter-round').addEventListener('change', render);
     document.getElementById('sort-order').addEventListener('change', render);
