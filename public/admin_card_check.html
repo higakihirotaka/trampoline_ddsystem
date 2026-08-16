@@ -339,13 +339,17 @@
 
                 const athType = ath.type || 'individual';
                 const rules   = (classRules[athType] && classRules[athType][ath.class]) || { qualifyingRoutines: 1, hasFinal: false };
+                // 決勝のみクラス（予選なし）: judge_cjp.html と同じ判定。予選ドットは出さずFのみにする
+                const finalOnlyClass = rules.finalOnly === true;
+                const numPre         = finalOnlyClass ? 0 : (rules.qualifyingRoutines ?? 1);
+                const hasFinalRound  = finalOnlyClass ? true : (rules.hasFinal ?? false);
 
                 let dotsHtml = '';
                 if (finalOnlyMode) {
                     dotsHtml = createDot(ath.id, 'final', 'F');
                 } else {
-                    for (let i = 1; i <= rules.qualifyingRoutines; i++) dotsHtml += createDot(ath.id, 'pre' + i, 'R' + i);
-                    if (rules.hasFinal) dotsHtml += createDot(ath.id, 'final', 'F');
+                    for (let i = 1; i <= numPre; i++) dotsHtml += createDot(ath.id, 'pre' + i, 'R' + i);
+                    if (hasFinalRound) dotsHtml += createDot(ath.id, 'final', 'F');
                 }
 
                 const orderNum = finalOnlyMode ? ath.finalOrder : ath.order;
@@ -376,6 +380,11 @@
         athletes.forEach(ath => {
             const athType = ath.type || 'individual';
             const rules = (classRules[athType] && classRules[athType][ath.class]) || { qualifyingRoutines: 1, hasFinal: false };
+            // 決勝のみクラス（予選なし）: 予選subIdは作らず決勝のみシードする
+            if (rules.finalOnly === true) {
+                submissions.set(eventId + '_' + ath.id + '_final', null);
+                return;
+            }
             for (let i = 1; i <= (rules.qualifyingRoutines || 1); i++) submissions.set(eventId + '_' + ath.id + '_pre' + i, null);
             if (rules.hasFinal) submissions.set(eventId + '_' + ath.id + '_final', null);
         });
@@ -610,9 +619,11 @@
         for (const ath of [...sorted.slice(idx), ...sorted.slice(0, idx)]) {
             const athType = ath.type || 'individual';
             const rules   = (classRules[athType] && classRules[athType][ath.class]) || { qualifyingRoutines: 1, hasFinal: false };
+            // 決勝のみクラス（予選なし）
+            const finalOnlyClass = rules.finalOnly === true;
             const rounds  = [];
-            for (let i = 1; i <= rules.qualifyingRoutines; i++) rounds.push('pre' + i);
-            if (rules.hasFinal) rounds.push('final');
+            if (!finalOnlyClass) for (let i = 1; i <= rules.qualifyingRoutines; i++) rounds.push('pre' + i);
+            if (finalOnlyClass || rules.hasFinal) rounds.push('final');
             for (const r of rounds) {
                 if (ath.id === currentSelection.athleteId && r === currentSelection.round) continue;
                 const subId = eventId + '_' + ath.id + '_' + r;
