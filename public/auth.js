@@ -1,4 +1,5 @@
-import { db, auth, isLocalDev } from "./firebase-config.js";
+import { db, isLocalDev } from "./firebase-config.js";
+import { auth } from "./firebase-auth-config.js";
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getTournament } from "./cache.js";
