@@ -4,6 +4,29 @@
  */
 
 /**
+ * 「値が前回と実質的に変わっていなければ何もしない」ガード。
+ *
+ * tournaments/{id} のような、無関係な用途のフィールドが多数同居する巨大ドキュメントを
+ * 丸ごと onSnapshot している画面（会場ディスプレイ・大会画面コントロール等）は、
+ * 自分に無関係なフィールドの書き込みでもハンドラが毎回発火してしまう。
+ * その中で「このサブフィールドは今回のスナップショットで本当に変わったか」を判定し、
+ * 変わった時だけ apply を呼ぶことで、無関係な発火のたびに入力中のフォームを
+ * 保存済みの値で上書きしたり、無駄な再描画をしたりするのを防ぐ。
+ *
+ * @param {object} cache  シグネチャを保持する入れ物（呼び出し側がモジュールスコープ等で用意する、
+ *                        key ごとに複数の値を管理できる単なるオブジェクト）
+ * @param {string} key    cache 内でこの値を識別するキー
+ * @param {*} value       今回のスナップショットで得た値（比較対象。JSON化できる範囲のみ）
+ * @param {(value:*) => void} apply  値が変化した時だけ呼ばれる反映関数
+ */
+export function applyIfChanged(cache, key, value, apply) {
+  const sig = JSON.stringify(value ?? null);
+  if (cache[key] === sig) return;
+  cache[key] = sig;
+  apply(value);
+}
+
+/**
  * classRules を新旧フォーマットに統一して返す
  *   旧形式: { クラス名: { ... } }
  *   新形式: { individual: { クラス名: {...} }, synchro: { クラス名: {...} } }

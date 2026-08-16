@@ -452,6 +452,7 @@
     import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
     import { getTournament } from "./cache.js";
+    import { applyIfChanged } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -569,6 +570,10 @@
         });
     }
 
+    // applyScreenState() のフォーム反映部分だけに使うシグネチャキャッシュ（applyIfChanged用）。
+    // 画面選択状態（badge/screen-btn/パネル切替）は毎回反映する必要があるので対象外にする。
+    const _screenStateSig = {};
+
     function applyScreenState(screen, warmup, ts, cs, carousel) {
         currentScreen = screen;
         warmupData    = warmup || {};
@@ -581,8 +586,16 @@
         // 選択中（pending）でないときのみパネルをスナップショット側で切り替える
         if (!pendingScreen) showScreenPanel(effectiveScreen);
 
-        // 各画面の設定値を反映
-        if (ts) {
+        // 選手紹介から離れたら、どの経路（このパネルのボタン操作／CJPの強制切替／別オペレーター）で
+        // 離れたのかによらず、確定状態（screen）を唯一の正として内部タイマーを必ず止める。
+        // 各切替ボタンのハンドラ側で個別に止める呼び忘れがあると、無関係な画面に切り替わった後も
+        // 選手紹介の進行がバックグラウンドで動き続け、Firestoreへの無駄な書き込みが延々と続いてしまう。
+        if (screen !== 'intro' && introTimerItv) stopIntroSequence();
+
+        // 各画面の設定値を反映。無関係なドキュメント更新（CJPのスコア確定等）でもこの関数は
+        // 毎回呼ばれるため、該当サブフィールドが実際に変化した時だけ反映してオペレーターが
+        // 入力中の値を保存済みの値で上書きしないようにする（applyIfChanged）。
+        if (ts) applyIfChanged(_screenStateSig, 'title', ts, ts => {
             const r = document.getElementById('title-fs');
             const v = document.getElementById('title-fs-val');
             if (r) r.value = ts.fontSize || 6.5;
@@ -593,33 +606,47 @@
             if (l1) l1.value = ts.line1 || '';
             if (l2) l2.value = ts.line2 || '';
             if (l3) l3.value = ts.line3 || '';
-        }
-        if (cs) {
+        });
+        if (cs) applyIfChanged(_screenStateSig, 'ceremony', cs, cs => {
             setSlider('cer-name-fs', cs.nameFontSize  || 3.5);
             setSlider('cer-label-fs', cs.labelFontSize || 10);
-        }
+        });
         if (warmup) {
-            document.getElementById('wu-class1').value = warmup.class1 || '';
-            document.getElementById('wu-class2').value = warmup.class2 || '';
-            setSlider('wu-class-fs', warmup.classFontSize || 4.5);
-            setSlider('wu-timer-fs', warmup.timerFontSize || 24);
-            document.getElementById('timer-repeat').checked = !!warmup.timerRepeat;
+            // warmup には timerRef 等の常時変化するタイマー実行中フィールドも同居しているため、
+            // シグネチャ比較はフォームに反映する項目だけの部分集合で行う
+            // （そうしないとカウントダウンのたびに「変化した」と判定されガードが効かなくなる）。
+            const warmupFormPart = {
+                class1: warmup.class1, class2: warmup.class2,
+                classFontSize: warmup.classFontSize, timerFontSize: warmup.timerFontSize,
+                timerRepeat: warmup.timerRepeat
+            };
+            applyIfChanged(_screenStateSig, 'warmup', warmupFormPart, w => {
+                document.getElementById('wu-class1').value = w.class1 || '';
+                document.getElementById('wu-class2').value = w.class2 || '';
+                setSlider('wu-class-fs', w.classFontSize || 4.5);
+                setSlider('wu-timer-fs', w.timerFontSize || 24);
+                document.getElementById('timer-repeat').checked = !!w.timerRepeat;
+            });
         }
 
         // 巡回チェックボックス復元（巡回停止中のみ上書き）
         if (carousel && !carousel.active && carousel.items) {
-            document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
-            (carousel.items || []).forEach(item => {
-                const idx = carouselCombos.findIndex(
-                    c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type && (c.mode || '') === (item.mode || ''));
-                if (idx >= 0) {
-                    const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
-                    if (cb) cb.checked = true;
-                }
+            applyIfChanged(_screenStateSig, 'carouselItems', carousel.items, items => {
+                document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
+                (items || []).forEach(item => {
+                    const idx = carouselCombos.findIndex(
+                        c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type && (c.mode || '') === (item.mode || ''));
+                    if (idx >= 0) {
+                        const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
+                        if (cb) cb.checked = true;
+                    }
+                });
             });
         }
         if (carousel) {
-            document.getElementById('carousel-show-logo').checked = !!carousel.showLogo;
+            applyIfChanged(_screenStateSig, 'carouselShowLogo', !!carousel.showLogo, showLogo => {
+                document.getElementById('carousel-show-logo').checked = showLogo;
+            });
         }
 
         syncCtrlTimer();
@@ -722,8 +749,9 @@
 
     // ---- タイトル保存 ----
     document.getElementById('save-title-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-title-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-title-btn');
+        const st  = document.getElementById('save-title-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
                 'titleSettings.fontSize': Number(document.getElementById('title-fs-val').value),
@@ -733,12 +761,14 @@
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 表彰式保存 ----
     document.getElementById('save-ceremony-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-ceremony-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-ceremony-btn');
+        const st  = document.getElementById('save-ceremony-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
                 'ceremonySettings.nameFontSize':  Number(document.getElementById('cer-name-fs-val').value),
@@ -746,12 +776,14 @@
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 会場練習保存（クラス名＋文字サイズ） ----
     document.getElementById('save-warmup-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-warmup-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-warmup-btn');
+        const st  = document.getElementById('save-warmup-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
                 'warmupSettings.class1':       document.getElementById('wu-class1').value,
@@ -762,6 +794,7 @@
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 順位表 巡回モード ----

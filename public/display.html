@@ -1289,6 +1289,23 @@
     } catch { return null; }
   }
 
+  // renderFocusResult() の各分岐（通常スコア表示・DNS表示）が新しいコンテンツを出す直前に
+  // 必ず呼ぶ共通リセット。片方の分岐だけがこれを忘れると、古い順位表ループ/タイマーが
+  // 残ったまま新しいコンテンツと競合する。
+  function resetForNewFocusContent() {
+    if (rankingTimer) { clearTimeout(rankingTimer); rankingTimer = null; }
+    stopRankingLoop();
+  }
+
+  // renderFocusResult() の各分岐が表示を終えた後、必ず呼ぶ共通の「次へ進める」処理。
+  // これを呼ばない分岐が1つでもあると、そこでキュー処理が永久に止まってしまう
+  // （以前DNS分岐がこれを呼んでおらず、DNS確定後は会場ディスプレイが固まったまま
+  //   以後のスコアも一切表示されなくなっていた）。
+  function scheduleNextFocusStep() {
+    const displayDelay = (displaySettings.animTotalSec + displaySettings.holdSec) * 1000;
+    rankingTimer = setTimeout(() => onScoreDisplayDone(), displayDelay);
+  }
+
   // ---- メインレンダリング ----
   async function renderFocusResult(resultDoc) {
     const isNew   = resultDoc.id !== lastResultId;
@@ -1304,6 +1321,7 @@
 
     // ---- DNS（棄権）表示 ----
     if (resData.dns === true) {
+      resetForNewFocusContent();
       const classGenderDns = [ath.class || ath.category, ath.gender].filter(Boolean).join(' ');
       const orderLabelDns  = `No.${ath.order || '?'}`;
       const nameDns = ath.type === 'synchro' && ath.name2
@@ -1326,6 +1344,7 @@
         <footer class="footer-credits">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
       monitor.style.opacity = '1';
       lastShownResData = resData; lastShownAth = ath;
+      scheduleNextFocusStep();
       return;
     }
 
@@ -1654,8 +1673,7 @@
     lastShownAth     = ath;
 
     // 既存タイマー・オーバーレイをリセット
-    if (rankingTimer) { clearTimeout(rankingTimer); rankingTimer = null; }
-    stopRankingLoop();
+    resetForNewFocusContent();
     let overlay = document.getElementById('ranking-overlay');
     if (overlay) overlay.classList.remove('visible');
     // 巡回で団体画面を出している最中にスコアが割り込んだら団体画面も隠す
@@ -1678,8 +1696,7 @@
     monitor.appendChild(overlay);
 
     // スコア表示後 → キュー処理 or 順位表ループへ
-    const displayDelay = (displaySettings.animTotalSec + displaySettings.holdSec) * 1000;
-    rankingTimer = setTimeout(() => onScoreDisplayDone(), displayDelay);
+    scheduleNextFocusStep();
   }
 
   // ==== 表示設定（Firestoreから読み込み、デフォルト値付き） ====
@@ -1699,7 +1716,6 @@
   let lastShownAth     = null;   // 最後に表示した選手情報
   let currentRankingPage = 0;
   let allRankingEntries  = [];
-  let savedVenueScreen = null;  // スコア表示中に退避した会場画面（warmup等）
 
   // ---- 順位表 巡回モード ----
   let carouselActive   = false;
@@ -1745,20 +1761,6 @@
     // スコア表示完了 → キューに次があれば続行、なければ順位表へ
     // 順位表も終わったら退避していた会場画面（warmup等）を復元
     processQueue();
-  }
-
-  function restoreSavedVenueScreen() {
-    if (savedVenueScreen === 'warmup') {
-      document.getElementById('vs-warmup')?.classList.add('active');
-      // タイマーはintervalが残っていれば継続中、止まっていれば再起動
-      if (!warmupTimerInterval && tournamentData?.warmupSettings) {
-        startWarmupDisplay(tournamentData.warmupSettings);
-      }
-    } else if (savedVenueScreen === 'intro') {
-      document.getElementById('vs-intro')?.classList.add('active');
-      if (tournamentData?.introSettings) applyIntroSlide(tournamentData.introSettings);
-    }
-    savedVenueScreen = null;
   }
 
   // ---- 順位表ループ ----
@@ -2058,7 +2060,6 @@
         while (p1entries.length < rowsPerPage) p1entries.push(null);
         renderRankingOverlay(p1entries, 0, totalPages, 0,
           ath.class || ath.category || '', ath.gender || '', ath.type || 'individual');
-        if (savedVenueScreen) restoreSavedVenueScreen();
         // 巡回中に得点が割り込んでここに来た場合は、巡回へ戻さず終了する（得点確定のクラスで静止表示のまま）
         if (carouselActive) endCarouselAfterScore();
       } else {
@@ -2325,7 +2326,10 @@
     return { rem: w.timerRemainingMs ?? 0, running: false };
   }
 
-  let _teamRankKey = null;  // 表示中の団体順位表の対象キー（同一なら再描画せずちらつき防止）
+  let _teamRankKey = null;     // 表示中の団体順位表の対象キー（同一なら再描画せずちらつき防止）
+  let _teamRankLastTarget = null;  // 表示中の団体順位表の対象（class/gender/type）。
+                                    // results の onSnapshot からスコア確定時に再計算を呼ぶために保持する
+                                    // （tournaments ドキュメントの venueSig は変化しないため applyVenueScreen 経由では拾えない）
   let _venueSig = null;     // 直近に適用した「会場画面に関係する設定」の署名
   // 会場画面の見た目に影響する大会ドキュメント項目だけを署名化（liveState 等は含めない）
   function venueSig(t) {
@@ -2344,7 +2348,10 @@
     if (sig === _venueSig) return;
     _venueSig = sig;
     const screen = tourData.venueScreen || 'score';
-    if (screen !== 'teamRanking') { _teamRankKey = null; stopTeamRankCycle(); }  // 他画面へ移ったら次回は再描画・ページ送り停止
+    if (screen !== 'teamRanking') {
+      _teamRankKey = null; _teamRankLastTarget = null;
+      stopTeamRankCycle();  // 他画面へ移ったら次回は再描画・ページ送り停止
+    }
     const warmup = tourData.warmupSettings  || {};
     const ts     = tourData.titleSettings   || {};
     const cs     = tourData.ceremonySettings|| {};
@@ -2382,11 +2389,8 @@
       if (carouselActive && id === 'vs-team-ranking') return;
       document.getElementById(id)?.classList.remove('active');
     });
-    // スコア表示中にwarmupを退避している場合はタイマーを止めない
-    if (!savedVenueScreen) {
-      clearInterval(warmupTimerInterval);
-      warmupTimerInterval = null;
-    }
+    clearInterval(warmupTimerInterval);
+    warmupTimerInterval = null;
 
     // 集計中は最優先（他の画面より前面）
     if (tourData.calculating) {
@@ -2432,14 +2436,14 @@
     if (screen === 'teamRanking') {
       stopRankingLoop();
       document.getElementById('vs-team-ranking').classList.add('active');
-      // 同じ対象を表示中なら再描画しない（選手選択等の無関係な大会ドキュメント更新でのちらつきを防ぐ）
-      // キーは順序非依存の文字列で作る（JSON.stringify はキー順の揺れで別値になり得るため）
+      // 対象（class/gender/type）は毎回最新を保持しておく。results の onSnapshot 側からも
+      // これを使って再計算を呼ぶため（新しいスコア確定はここではなく results 監視で届く）。
+      // 再描画するかどうかの判定自体は renderTeamRanking() 内部の内容差分に任せる
+      // （対象キー一致だけで再描画をブロックすると、新しいスコアが反映されなくなるため）。
       const _tt = tourData.teamRankingTarget || {};
-      const _trKey = `${_tt.class || ''}|${_tt.gender || ''}|${_tt.type || ''}`;
-      if (_trKey !== _teamRankKey) {
-        _teamRankKey = _trKey;
-        renderTeamRanking(tourData.teamRankingTarget || {});
-      }
+      _teamRankKey = `${_tt.class || ''}|${_tt.gender || ''}|${_tt.type || ''}`;
+      _teamRankLastTarget = _tt;
+      renderTeamRanking(_tt);
       return;
     }
 
@@ -2811,13 +2815,17 @@
             });
             // warmupタイマーも停止
             if (warmupTimerInterval) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
-            // 退避をクリア（順位表・スコア表示後に会場画面を復元しない）
-            savedVenueScreen = null;
             // ※ venueScreen:'score' への切替は judge_cjp.html の publish() 側で書き込む
             // （venue_displayは非ログインのためFirestore書き込み不可）
             enqueueResult(change.doc);
           }
         });
+        // 団体順位表を表示中なら、確定した結果を反映して再計算する。
+        // tournaments ドキュメントの onSnapshot（applyVenueScreen）はこの results の変化までは
+        // 検知できないため、ここから明示的に呼ぶ。displaySkip（確定のみ）の更新も団体合計には
+        // 影響するので、上のループ内のスキップ判定とは無関係にここで毎回チェックする。
+        // renderTeamRanking() 自身が内容差分を見るので、無関係なクラスの結果なら実質何もしない。
+        if (_teamRankLastTarget) renderTeamRanking(_teamRankLastTarget);
       });
 
     } catch (e) { console.error(e); }
