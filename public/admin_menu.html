@@ -58,14 +58,32 @@
     const eventId = params.get('event');
 
     async function initPage() {
-        if (!eventId) { 
-            location.href = 'admin_index.html'; 
-            return; 
+        if (!eventId) {
+            location.href = 'admin_index.html';
+            return;
         }
 
-        // Fetch tournament details using the centralized function
-        const tour = await getTournamentDetails(eventId);
         const eventNameEl = document.getElementById('event-name');
+        const menuContainer = document.getElementById('menu-container');
+
+        // Fetch tournament details using the centralized function
+        let tour;
+        try {
+            tour = await getTournamentDetails(eventId);
+        } catch (e) {
+            // 権限エラー・通信断などで取得に失敗した場合、"Loading..." のまま固まらないよう
+            // エラー表示＋再読み込みボタンを出す（admin_card_check.html等と同じパターン）
+            console.error('大会データの取得に失敗:', e);
+            eventNameEl.innerText = '読み込みに失敗しました';
+            menuContainer.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;color:#90a4ae;">
+                    <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
+                    <div style="margin-bottom:20px;">大会データの読み込みに失敗しました。通信状況をご確認のうえ、再読み込みしてください。</div>
+                    <button onclick="location.reload()" style="padding:10px 28px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:bold;cursor:pointer;">🔄 再読み込み</button>
+                </div>`;
+            return;
+        }
+
         if (tour) {
             eventNameEl.innerText = tour.name;
         } else {
@@ -74,7 +92,6 @@
         }
 
         // Dynamically create menu content
-        const menuContainer = document.getElementById('menu-container');
         menuContainer.innerHTML = `
             <div class="section-title">📋 大会前設定 (Pre-Tournament Setup)</div>
             <div class="menu-grid sec-setup">
