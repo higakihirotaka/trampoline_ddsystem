@@ -36,6 +36,8 @@
         .b-rev { background:#fff3e0; color:var(--amber); }
         .b-bulk { background:#eceff1; color:var(--sub); }
         .b-round { background:#eef2f7; color:#455a64; }
+        .b-indiv { background:#ede7f6; color:#5e35b1; }
+        .b-synchro { background:#e0f2f1; color:#00897b; }
         .st0 { color:var(--sub); }
         .st1 { color:var(--amber); font-weight:bold; }
         .st2 { color:var(--green); font-weight:bold; }
@@ -121,7 +123,7 @@
                     <td>${i + 1}</td>
                     <td class="dt">${fmt(r.updatedAt)}</td>
                     <td><span class="nm">${esc(r.name)}</span><br><span class="club">${esc(r.club)}</span></td>
-                    <td>${esc(r.cls)}${r.gender ? ' ・' + esc(r.gender) : ''}</td>
+                    <td><span class="badge ${r.type === 'synchro' ? 'b-synchro' : 'b-indiv'}">${r.type === 'synchro' ? 'シンクロ' : '個人'}</span> ${esc(r.cls)}${r.gender ? ' ・' + esc(r.gender) : ''}</td>
                     <td><span class="badge b-round">${ROUND[r.round] || r.round}</span></td>
                     <td>${kindBadge(r.revisionCount)}</td>
                     <td>${statusLabel(r.checkStatus)}</td>
@@ -147,10 +149,19 @@
             const s = d.data();
             const a = aMap[s.athleteId] || {};
             const ts = s.updatedAt?.toDate ? s.updatedAt.toDate().getTime() : 0;
+            const isSynchro = a.type === 'synchro';
+            // シンクロは2名分の氏名・所属を両方表示する（従来はname1/club1しか出ておらず、
+            // ペアの片方が消えているうえ個人との見分けもつかなかった）
+            const name = isSynchro
+                ? `${a.name1 || '（不明）'} / ${a.name2 || '（不明）'}`
+                : (a.name1 || '（不明）');
+            const club = isSynchro
+                ? (a.club1 && a.club2 && a.club1 !== a.club2 ? `${a.club1} / ${a.club2}` : (a.club1 || a.club2 || ''))
+                : (a.club1 || '');
             return {
                 ts, updatedAt: s.updatedAt, round: s.round,
                 revisionCount: s.revisionCount ?? null, checkStatus: s.checkStatus ?? 0,
-                name: a.name1 || '（不明）', club: a.club1 || '', cls: a.class || a.category || '—', gender: a.gender || ''
+                name, club, cls: a.class || a.category || '—', gender: a.gender || '', type: a.type || 'individual'
             };
         });
 
