@@ -5,36 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>競技カードチェック - Trampoline Scoring System</title>
     <style>
-        :root { --primary: #37474f; --accent: #1a73e8; --bg: #eceff1; --status-none: #cfd8dc; --status-submitted: #0288d1; --status-warning: #f57c00; --status-ok: #388e3c; --indiv-purple: #5e35b1; --sync-teal: #00897b; }
+        :root {
+            --primary: #37474f; --accent: #1a73e8; --bg: #eceff1;
+            /* バッジ配色: 未提出=灰 / 未確認=青 / 要確認=橙 / 確認済=緑 */
+            --st-notsub-bg: #eceff1;   --st-notsub-fg: #78909c;   --st-notsub-bd: #cfd8dc;
+            --st-unchecked-bg: #e3f2fd; --st-unchecked-fg: #1a73e8; --st-unchecked-bd: #bbdefb;
+            --st-review-bg: #fff3e0;   --st-review-fg: #e65100;   --st-review-bd: #ffcc80;
+            --st-approved-bg: #e8f5e9; --st-approved-fg: #2e7d32; --st-approved-bd: #c8e6c9;
+        }
         /* height は iOS のツールバー裏まで含む 100vh を避け、表示領域に一致する 100dvh を使う（縦スクロール不能対策）。100vh は未対応ブラウザ用フォールバック */
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
-        .sidebar { width: 280px; background: #fff; border-right: 1px solid #cfd8dc; display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { padding: 14px 16px; background: var(--primary); color: white; position: sticky; top: 0; z-index: 10; }
-        .final-toggle { display: flex; gap: 6px; padding: 6px 10px; background: #37474f; border-bottom: 2px solid #cfd8dc; flex-shrink: 0; }
-        .final-toggle-btn { flex: 1; padding: 5px 6px; border-radius: 20px; border: 1px solid #b0bec5; background: #546e7a; color: #cfd8dc; font-size: 0.72rem; font-weight: bold; cursor: pointer; transition: 0.15s; }
-        .final-toggle-btn.active { background: #ffc107; color: #263238; border-color: #ffc107; }
-        .sidebar-list { flex-grow: 1; overflow-y: auto; padding-bottom: 50px; }
-        .section-header { padding: 10px 12px 6px; font-size: 0.95rem; font-weight: 900; background: #f4f4f4; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; position: sticky; top: 0; }
-        .indiv-header { color: var(--indiv-purple); }
-        .sync-header { color: var(--sync-teal); }
-        .class-header { padding: 7px 12px; font-weight: bold; font-size: 0.85rem; background: #fafafa; border-bottom: 1px solid #eee; }
-        .athlete-item { padding: 8px 10px 8px 14px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; gap: 6px; }
-        .athlete-item.selected { background: #f0f7ff; border-left: 4px solid var(--accent); padding-left: 10px; }
-        .athlete-name { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-        .round-box { display: flex; gap: 4px; flex-shrink: 0; }
-        .r-dot { width: 26px; height: 26px; border-radius: 6px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; background: var(--status-none); color: #b0bec5; border: 2px solid transparent; cursor: pointer; font-weight: bold; }
-        .r-dot.not-submitted { background: #ffcdd2; color: #c62828; border: 2px solid #ef9a9a; }
-        .r-dot.pre-check { background: #cfd8dc; color: #37474f; border: 2px solid #90a4ae; }
-        .r-dot.in-check  { background: var(--status-submitted); color: white; border-color: var(--status-submitted); }
-        .r-dot.approved  { background: var(--status-ok); color: white; border-color: var(--status-ok); }
-        .r-dot.active { border-color: #000 !important; transform: scale(1.1); box-shadow: 0 0 10px rgba(0,0,0,0.3); }
-        .no-sub-view { margin: 40px auto; max-width: 500px; text-align: center; padding: 40px 30px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
-        .no-sub-badge { display: inline-block; background: #ffcdd2; color: #c62828; font-size: 1.1rem; font-weight: 900; padding: 6px 20px; border-radius: 20px; margin-bottom: 16px; }
-        .no-sub-name { font-size: 1.4rem; font-weight: 900; color: #202124; margin-bottom: 6px; }
-        .no-sub-meta { font-size: 0.9rem; color: #5f6368; margin-bottom: 24px; }
-        .dot-legend { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px 10px; background: #f5f5f5; font-size: 0.68rem; color: #546e7a; align-items: center; }
+
+        /* ── サイドバー（judge_panel.html の D審判画面と同じ構造・見た目に統一） ── */
+        .sidebar { width: 350px; background: #fff; border-right: 1px solid #cfd8dc; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 18px 20px 14px; background: var(--primary); color: white; position: sticky; top: 0; z-index: 10; }
+        .dot-legend { display: flex; gap: 10px; flex-wrap: wrap; padding: 8px 16px; background: #f5f5f5; font-size: 0.68rem; color: #546e7a; align-items: center; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
         .dot-legend-item { display: flex; align-items: center; gap: 4px; }
         .dot-legend-dot { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid transparent; flex-shrink: 0; }
+        .sidebar-filters { background: #eceff1; border-bottom: 2px solid #cfd8dc; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+        .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+        .filter-label { font-size: 0.58rem; color: #90a4ae; font-weight: bold; text-transform: uppercase; min-width: 24px; }
+        .tab-btn { padding: 4px 10px; border-radius: 20px; border: 1px solid #b0bec5; background: white; color: #546e7a; font-size: 0.72rem; font-weight: bold; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .sidebar-list { flex-grow: 1; overflow-y: auto; padding-bottom: 50px; }
+
+        .cat-group { background: #cfd8dc; padding: 10px 15px; font-size: 0.85em; font-weight: bold; color: #37474f; border-bottom: 1px solid #b0bec5; }
+        .gender-group { background: #f1f3f4; padding: 6px 20px; font-size: 0.75em; font-weight: bold; color: #78909c; border-bottom: 1px solid #eee; }
+
+        .athlete-row { padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .athlete-row.active-athlete { background: #f0f7ff; }
+        .ath-name-text { flex-grow: 1; min-width: 0; }
+        .ath-name-main { font-size: 0.85em; font-weight: bold; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ath-name-sub { font-size: 0.72em; color: #90a4ae; font-weight: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+        .ath-order { color: var(--accent); margin-right: 4px; font-family: monospace; }
+
+        .round-box { display: flex; gap: 6px; flex-shrink: 0; }
+        .r-dot {
+            width: 42px; height: 28px; border-radius: 4px; font-size: 0.75em;
+            display: flex; align-items: center; justify-content: center;
+            background: #eee; color: #999; text-decoration: none; border: 2px solid transparent; font-weight: bold; transition: 0.2s; cursor: pointer;
+        }
+        .r-dot.not-submitted { background: var(--st-notsub-bg);    color: var(--st-notsub-fg);    border-color: var(--st-notsub-bd); }
+        .r-dot.pre-check     { background: var(--st-unchecked-bg); color: var(--st-unchecked-fg); border-color: var(--st-unchecked-bd); }
+        .r-dot.in-check      { background: var(--st-review-bg);    color: var(--st-review-fg);    border-color: var(--st-review-bd); }
+        .r-dot.approved      { background: var(--st-approved-bg);  color: var(--st-approved-fg);  border-color: var(--st-approved-bd); }
+        .r-dot.current { border: 2px solid #000; transform: scale(1.15); z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .r-dot.not-submitted.current { background: var(--st-notsub-fg);    color: #fff; border-color: #000; }
+        .r-dot.pre-check.current     { background: var(--st-unchecked-fg); color: #fff; border-color: #000; }
+        .r-dot.in-check.current      { background: var(--st-review-fg);    color: #fff; border-color: #000; }
+        .r-dot.approved.current      { background: var(--st-approved-fg);  color: #fff; border-color: #000; }
+
+        .no-sub-view { margin: 40px auto; max-width: 500px; text-align: center; padding: 40px 30px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        .no-sub-badge { display: inline-block; background: var(--st-notsub-bg); color: var(--st-notsub-fg); font-size: 1.1rem; font-weight: 900; padding: 6px 20px; border-radius: 20px; margin-bottom: 16px; }
+        .no-sub-name { font-size: 1.4rem; font-weight: 900; color: #202124; margin-bottom: 6px; }
+        .no-sub-meta { font-size: 0.9rem; color: #5f6368; margin-bottom: 24px; }
         .main-viewer { flex-grow: 1; overflow-y: auto; padding: 30px; }
         .card-preview { background: white; width: 100%; max-width: 700px; margin: 0 auto; padding: 35px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
         #viewer-placeholder { margin-top: 120px; text-align: center; color: #90a4ae; font-size: 1.2rem; }
@@ -64,9 +88,9 @@
         .btn-group { display: flex; gap: 10px; }
         .btn-status { flex: 1; padding: 12px 8px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; border: 2px solid transparent; background: #f5f5f5; color: #999; }
         .btn-status:hover { filter: brightness(0.95); }
-        .btn-status.active-0 { background: #cfd8dc; color: #37474f; border-color: #90a4ae; }
-        .btn-status.active-1 { background: var(--status-submitted); color: white; border-color: var(--status-submitted); }
-        .btn-status.active-2 { background: var(--status-ok); color: white; border-color: var(--status-ok); }
+        .btn-status.active-0 { background: var(--st-unchecked-fg); color: white; border-color: var(--st-unchecked-fg); }
+        .btn-status.active-1 { background: var(--st-review-fg);    color: white; border-color: var(--st-review-fg); }
+        .btn-status.active-2 { background: var(--st-approved-fg);  color: white; border-color: var(--st-approved-fg); }
         .btn-next { width: 100%; margin-top: 10px; padding: 14px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-next:hover { background: #1558b0; }
         .btn-refresh { background: none; border: none; color: rgba(255,255,255,0.8); font-size: 1rem; cursor: pointer; padding: 2px 4px; border-radius: 4px; float: right; transition: 0.15s; }
@@ -79,10 +103,12 @@
             .sidebar-header { padding: 10px 10px; }
             .sidebar-header h1 { font-size: 0.82rem; }
             .dot-legend { display: none; }
-            .section-header { padding: 8px 8px 4px; font-size: 0.8rem; }
-            .class-header { padding: 5px 8px; font-size: 0.75rem; }
-            .athlete-item { padding: 7px 6px 7px 10px; font-size: 0.78rem; }
-            .r-dot { width: 22px; height: 22px; font-size: 0.62rem; }
+            .sidebar-filters { padding: 6px 8px; }
+            .filter-label { display: none; }
+            .cat-group { padding: 8px 8px; font-size: 0.8rem; }
+            .gender-group { padding: 5px 10px; font-size: 0.7rem; }
+            .athlete-row { padding: 7px 8px; font-size: 0.78rem; }
+            .r-dot { width: 34px; height: 24px; font-size: 0.65rem; }
             .main-viewer { padding: 8px; }
             .card-preview { padding: 12px 8px; font-size: 0.85rem; }
             .card-preview h2 { font-size: 1rem; margin: 4px 0 8px; }
@@ -105,16 +131,12 @@
         <a href="admin_menu.html" id="menu-back" style="color:white; font-size:0.8em; display:block; margin-top:10px;">← 管理者メニューへ</a>
     </div>
     <div class="dot-legend">
-        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:#e0e0e0;border-color:#bdbdbd;"></div>未取得</div>
-        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:#ffcdd2;border-color:#ef9a9a;"></div>未提出</div>
-        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:#cfd8dc;border-color:#90a4ae;"></div>提出済</div>
-        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:#0288d1;border-color:#0288d1;"></div>確認中</div>
-        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:#388e3c;border-color:#388e3c;"></div>確認済</div>
+        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:var(--st-notsub-bg);border-color:var(--st-notsub-bd);"></div>未提出</div>
+        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:var(--st-unchecked-bg);border-color:var(--st-unchecked-bd);"></div>未確認</div>
+        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:var(--st-review-bg);border-color:var(--st-review-bd);"></div>要確認</div>
+        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:var(--st-approved-bg);border-color:var(--st-approved-bd);"></div>確認済</div>
     </div>
-    <div class="final-toggle">
-        <button class="final-toggle-btn active" id="btn-all-mode" onclick="window.setFinalMode(false)">全ラウンド</button>
-        <button class="final-toggle-btn" id="btn-final-mode" onclick="window.setFinalMode(true)">🏆 決勝のみ</button>
-    </div>
+    <div id="sidebar-filters" class="sidebar-filters"></div>
     <div id="sidebar-list" class="sidebar-list"></div>
 </div>
 <div class="main-viewer" id="main-viewer">
@@ -131,11 +153,12 @@
 
     // ─── State ───────────────────────────────────────────────────────────
     let athletes = [], submissions = new Map(), classRules = { individual: {}, synchro: {} }, skillMaster = [];
+    let currentTour = null; // classes一覧の参照用（judge_panel.htmlと同じ絞り込みロジックのため生データを保持）
     // id/symbol → skill の索引（resolveSkill の線形探索を避けるため）
     let skillMasterById = new Map(), skillMasterBySymbol = new Map();
     let currentSelection = { athleteId: null, round: null };
     let finalOnlyMode = false;
-    let indivClassOrder = [], syncClassOrder = [];
+    let fType = 'individual', fClass = '', fGender = ''; // 左メニューの絞り込みタブ（judge_panel.htmlと同じ）
     let unsubSubmissions = null;
 
     // ─── Utilities ───────────────────────────────────────────────────────
@@ -147,16 +170,16 @@
         ]).finally(() => clearTimeout(timer));
     }
 
-    // ドットの状態クラスとツールチップを返す
+    // ドットの状態クラスとツールチップを返す（未提出=灰 / 未確認=青 / 要確認=橙 / 確認済=緑）
     function dotStatusInfo(subId) {
         if (!submissions.has(subId)) return { cls: '',              title: '未取得（クリックで読み込み）' };
         const sub = submissions.get(subId);
         if (!sub)                    return { cls: 'not-submitted', title: '未提出' };
         switch (sub.checkStatus) {
-            case 0:  return { cls: 'pre-check', title: '提出済・未確認' };
-            case 1:  return { cls: 'in-check',  title: '確認中' };
+            case 0:  return { cls: 'pre-check', title: '未確認' };
+            case 1:  return { cls: 'in-check',  title: '要確認' };
             case 2:  return { cls: 'approved',  title: '確認済' };
-            default: return { cls: 'pre-check', title: '提出済' };
+            default: return { cls: 'pre-check', title: '未確認' };
         }
     }
 
@@ -179,8 +202,8 @@
     // HTML生成（初回サイドバー構築時のみ使用）
     function createDot(athleteId, round, label) {
         const { cls, title } = dotStatusInfo(eventId + '_' + athleteId + '_' + round);
-        const isActive = currentSelection.athleteId === athleteId && currentSelection.round === round;
-        return '<div id="dot-' + athleteId + '-' + round + '" class="r-dot' + (cls ? ' ' + cls : '') + (isActive ? ' active' : '') +
+        const isCurrent = currentSelection.athleteId === athleteId && currentSelection.round === round;
+        return '<div id="dot-' + athleteId + '-' + round + '" class="r-dot' + (cls ? ' ' + cls : '') + (isCurrent ? ' current' : '') +
                '" title="' + title + '" onclick="window.showDetail(\'' + athleteId + '\',\'' + round + '\')">' + label + '</div>';
     }
 
@@ -189,105 +212,161 @@
         const el = document.getElementById('dot-' + athleteId + '-' + round);
         if (!el) return;
         const { cls, title } = dotStatusInfo(eventId + '_' + athleteId + '_' + round);
-        const wasActive = el.classList.contains('active');
-        el.className = 'r-dot' + (cls ? ' ' + cls : '') + (wasActive ? ' active' : '');
+        const wasCurrent = el.classList.contains('current');
+        el.className = 'r-dot' + (cls ? ' ' + cls : '') + (wasCurrent ? ' current' : '');
         el.title = title;
     }
 
-    // active クラスと行ハイライトを旧→新へ付け替える（currentSelection変更前に呼ぶ）
+    // current クラスと行ハイライトを旧→新へ付け替える（currentSelection変更前に呼ぶ）
     function setActiveDot(newAthId, newRound) {
         if (currentSelection.athleteId) {
             const prevDot = document.getElementById('dot-' + currentSelection.athleteId + '-' + currentSelection.round);
-            if (prevDot) prevDot.classList.remove('active');
+            if (prevDot) prevDot.classList.remove('current');
             const prevRow = document.getElementById('row-' + currentSelection.athleteId);
-            if (prevRow) prevRow.classList.remove('selected');
+            if (prevRow) prevRow.classList.remove('active-athlete');
         }
         if (newAthId) {
             const nextDot = document.getElementById('dot-' + newAthId + '-' + newRound);
-            if (nextDot) nextDot.classList.add('active');
+            if (nextDot) nextDot.classList.add('current');
             const nextRow = document.getElementById('row-' + newAthId);
-            if (nextRow) nextRow.classList.add('selected');
+            if (nextRow) nextRow.classList.add('active-athlete');
         }
     }
 
-    // ─── Sidebar（構造変化時のみ全体再構築） ────────────────────────────
-    window.setFinalMode = function(isFinal) {
-        finalOnlyMode = isFinal;
-        document.getElementById('btn-all-mode').classList.toggle('active', !isFinal);
-        document.getElementById('btn-final-mode').classList.toggle('active', isFinal);
-        currentSelection = { athleteId: null, round: null };
-        document.getElementById('main-viewer').innerHTML = '<div id="viewer-placeholder">サイドバーから<br>チェックする演技を選択してください</div>';
+    // ─── Sidebar（judge_panel.htmlのD審判画面と同じ絞り込みタブ＋一覧構造） ──
+    window.setFilter = (key, val) => {
+        if (key === 'type')      { fType = val; fClass = ''; fGender = ''; finalOnlyMode = false; }
+        if (key === 'class')     fClass  = val;
+        if (key === 'gender')    fGender = val;
+        if (key === 'finalOnly') finalOnlyMode = (val === true);
         renderSidebar();
     };
 
     function renderSidebar() {
-        const listEl = document.getElementById('sidebar-list');
+        const isSynchro = fType === 'synchro';
 
-        if (finalOnlyMode) {
-            const finalists = athletes.filter(a => a.finalOrder != null)
-                                      .sort((a, b) => (a.finalOrder || 999) - (b.finalOrder || 999));
-            let html = '';
-            if (finalists.length === 0) {
-                html = '<div style="padding:20px; color:#90a4ae; font-size:0.9rem;">決勝進出選手が設定されていません。<br>「決勝試技順処理」で設定してください。</div>';
-            } else {
-                let curType = null;
-                finalists.forEach(ath => {
-                    const athType = ath.type || 'individual';
-                    if (athType !== curType) {
-                        curType = athType;
-                        html += '<div class="section-header ' + (athType === 'synchro' ? 'sync-header' : 'indiv-header') + '">🏆 決勝 — ' + (athType === 'synchro' ? 'シンクロ' : '個人') + '</div>';
-                    }
-                    const athName  = ath.type === 'synchro' ? ath.name1 + ' / ' + ath.name2 : ath.name1;
-                    const clubName = ath.type === 'synchro' ? (ath.club1 === ath.club2 ? ath.club1 : ath.club1 + ' / ' + ath.club2) : '(' + ath.club1 + ')';
-                    const selCls   = ath.id === currentSelection.athleteId ? ' selected' : '';
-                    html += '<div id="row-' + ath.id + '" class="athlete-item' + selCls + '">' +
-                        '<div class="athlete-name"><strong>' + ath.finalOrder + '.</strong> ' + athName + ' <small>' + clubName + '</small></div>' +
-                        '<div class="round-box">' + createDot(ath.id, 'final', 'F') + '</div></div>';
-                });
-            }
-            listEl.innerHTML = html;
-            return;
+        // 種目でまず分ける
+        const byType = athletes.filter(a => (a.type || 'individual') === fType);
+
+        // クラス一覧（表示順=display_orderを維持）
+        const tourClassDefs = (Array.isArray(currentTour?.classes) ? currentTour.classes : (currentTour?.classes?.[fType] || []))
+            .slice().sort((a, b) => (a.display_order ?? 99) - (b.display_order ?? 99)).map(c => c.name);
+        const rawClasses = [...new Set(byType.map(a => a.class || a.category || ''))];
+        const classes = [...tourClassDefs.filter(c => rawClasses.includes(c)), ...rawClasses.filter(c => !tourClassDefs.includes(c))];
+
+        // 性別一覧
+        const genders = [...new Set(byType.map(a => a.gender || ''))].filter(Boolean);
+
+        // フィルタータブ描画
+        const hasType = athletes.some(a => (a.type || 'individual') === 'synchro');
+        const filterEl = document.getElementById('sidebar-filters');
+        let filHtml = '';
+
+        if (hasType) {
+            filHtml += `<div class="filter-row">
+                <span class="filter-label">種目</span>
+                <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
+                <button class="tab-btn ${fType==='synchro'?'active':''}" onclick="setFilter('type','synchro')">シンクロ</button>
+            </div>`;
         }
 
-        const grouped = athletes.reduce((acc, ath) => {
-            const key = (ath.type || 'individual') + '-' + (ath.class || 'N/A') + '-' + (ath.gender || 'N/A');
-            (acc[key] = acc[key] || []).push(ath);
-            return acc;
-        }, {});
+        if (classes.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">クラス</span>
+                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">全て</button>
+                ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c}')">${c}</button>`).join('')}
+            </div>`;
+        }
 
-        const sortedKeys = Object.keys(grouped).sort((a, b) => {
-            const [tA, cA, gA] = a.split('-'), [tB, cB, gB] = b.split('-');
-            if (tA !== tB) return tA.localeCompare(tB);
-            const ord = tA === 'synchro' ? syncClassOrder : indivClassOrder;
-            const iA = ord.indexOf(cA), iB = ord.indexOf(cB);
-            const oA = iA >= 0 ? iA : 9999, oB = iB >= 0 ? iB : 9999;
-            if (oA !== oB) return oA - oB;
-            return gA.localeCompare(gB);
-        });
+        if (genders.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">性別</span>
+                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">全て</button>
+                ${genders.map(g => `<button class="tab-btn ${fGender===g?'active':''}" onclick="setFilter('gender','${g}')">${g}</button>`).join('')}
+            </div>`;
+        }
 
-        let html = '', curType = null;
-        for (const key of sortedKeys) {
-            const [type, className, gender] = key.split('-');
-            if (type !== curType) {
-                curType = type;
-                html += '<div class="section-header ' + (type === 'synchro' ? 'sync-header' : 'indiv-header') + '">' + (type === 'synchro' ? 'シンクロ競技' : '個人競技') + '</div>';
-            }
-            html += '<div class="class-header">' + className + ' ' + gender + '</div>';
-            grouped[key].sort((a, b) => (a.order || 999) - (b.order || 999)).forEach(ath => {
-                const athType  = ath.type || 'individual';
-                const rules    = (classRules[athType] && classRules[athType][ath.class]) || { qualifyingRoutines: 1, hasFinal: false };
-                const athName  = ath.type === 'synchro' ? ath.name1 + ' / ' + ath.name2 : ath.name1;
-                const clubName = ath.type === 'synchro' ? (ath.club1 === ath.club2 ? ath.club1 : ath.club1 + ' / ' + ath.club2) : '(' + ath.club1 + ')';
-                const selCls   = ath.id === currentSelection.athleteId ? ' selected' : '';
-                let dots = '';
-                for (let i = 1; i <= rules.qualifyingRoutines; i++) dots += createDot(ath.id, 'pre' + i, 'R' + i);
-                if (rules.hasFinal) dots += createDot(ath.id, 'final', 'F');
-                html += '<div id="row-' + ath.id + '" class="athlete-item' + selCls + '">' +
-                    '<div class="athlete-name">' + ath.order + '. ' + athName + ' <small>' + clubName + '</small></div>' +
-                    '<div class="round-box">' + dots + '</div></div>';
+        const hasAnyFinals = athletes.some(a => a.finalOrder != null);
+        if (hasAnyFinals) {
+            filHtml += `<div class="filter-row">
+                <span class="filter-label">決勝</span>
+                <button class="tab-btn ${!finalOnlyMode?'active':''}" onclick="setFilter('finalOnly',false)">全て</button>
+                <button class="tab-btn ${finalOnlyMode?'active':''}" onclick="setFilter('finalOnly',true)">🏆 決勝のみ</button>
+            </div>`;
+        }
+
+        filterEl.style.display = filHtml ? '' : 'none';
+        filterEl.innerHTML = filHtml;
+
+        // 絞り込み＆ソート
+        let filtered;
+        if (finalOnlyMode) {
+            filtered = byType
+                .filter(a => a.finalOrder != null)
+                .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+                .filter(a => !fGender || (a.gender || '') === fGender)
+                .sort((a, b) => (a.finalOrder ?? 999) - (b.finalOrder ?? 999));
+        } else {
+            filtered = byType
+                .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+                .filter(a => !fGender || (a.gender || '') === fGender)
+                .sort((a, b) => {
+                    const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                    if (ca !== cb) return ca.localeCompare(cb);
+                    const ga = a.gender || '', gb = b.gender || '';
+                    if (ga !== gb) return ga.localeCompare(gb);
+                    return (a.order ?? 999) - (b.order ?? 999);
+                });
+        }
+
+        const listEl = document.getElementById('sidebar-list');
+        let html = '';
+
+        if (filtered.length === 0) {
+            html = finalOnlyMode
+                ? '<div style="padding:20px; color:#90a4ae; font-size:0.9rem;">決勝進出選手が設定されていません。<br>「決勝試技順処理」で設定してください。</div>'
+                : '<div style="padding:20px; color:#90a4ae; font-size:0.9rem;">該当する選手がいません。</div>';
+        } else {
+            let lastCat = '', lastGender = '';
+            filtered.forEach(ath => {
+                const cls = ath.class || ath.category || '';
+                if (cls !== lastCat) {
+                    html += `<div class="cat-group">${cls}</div>`;
+                    lastCat = cls; lastGender = '';
+                }
+                if (!finalOnlyMode && (ath.gender || '') !== lastGender) {
+                    html += `<div class="gender-group">${ath.gender || ''}</div>`;
+                    lastGender = ath.gender || '';
+                }
+
+                const athType = ath.type || 'individual';
+                const rules   = (classRules[athType] && classRules[athType][ath.class]) || { qualifyingRoutines: 1, hasFinal: false };
+
+                let dotsHtml = '';
+                if (finalOnlyMode) {
+                    dotsHtml = createDot(ath.id, 'final', 'F');
+                } else {
+                    for (let i = 1; i <= rules.qualifyingRoutines; i++) dotsHtml += createDot(ath.id, 'pre' + i, 'R' + i);
+                    if (rules.hasFinal) dotsHtml += createDot(ath.id, 'final', 'F');
+                }
+
+                const orderNum = finalOnlyMode ? ath.finalOrder : ath.order;
+                const nameLine1 = isSynchro
+                    ? `<span class="ath-order">${orderNum}.</span>${ath.name1} / ${ath.name2 || ''}`
+                    : `<span class="ath-order">${orderNum}.</span>${ath.name1}`;
+                const clubName = ath.type === 'synchro'
+                    ? (ath.club1 === ath.club2 ? ath.club1 : `${ath.club1 || ''} / ${ath.club2 || ''}`)
+                    : (ath.club1 || '');
+
+                html += `
+                    <div id="row-${ath.id}" class="athlete-row ${ath.id === currentSelection.athleteId ? 'active-athlete' : ''}">
+                        <div class="ath-name-text">
+                            <div class="ath-name-main">${nameLine1}</div>
+                            ${clubName ? `<div class="ath-name-sub">${clubName}</div>` : ''}
+                        </div>
+                        <div class="round-box">${dotsHtml}</div>
+                    </div>`;
             });
         }
-        listEl.innerHTML = html;
+        listEl.innerHTML = html; // 一括代入（innerHTML += の逐次再パースを避ける）
     }
 
     // ─── Data ────────────────────────────────────────────────────────────
@@ -420,8 +499,8 @@
                     '<div class="dd-total-wrap"><div class="dd-total-label">Total DD</div><div class="dd-total-val"' + (routineCapped ? ' style="color:#e65100;"' : '') + '>' + total.toFixed(1) + '</div></div>' +
                 '</div>' +
                 '<div class="actions-section"><div class="btn-group">' +
-                    '<button class="btn-status ' + (status === 0 ? 'active-0' : '') + '" onclick="window.updateStatus(0)">確認前</button>' +
-                    '<button class="btn-status ' + (status === 1 ? 'active-1' : '') + '" onclick="window.updateStatus(1)">確認中</button>' +
+                    '<button class="btn-status ' + (status === 0 ? 'active-0' : '') + '" onclick="window.updateStatus(0)">未確認</button>' +
+                    '<button class="btn-status ' + (status === 1 ? 'active-1' : '') + '" onclick="window.updateStatus(1)">要確認</button>' +
                     '<button class="btn-status ' + (status === 2 ? 'active-2' : '') + '" onclick="window.updateStatus(2)">確認済</button>' +
                 '</div><button class="btn-next" onclick="window.goNext()">次の選手へ →</button></div>' +
             '</div>';
@@ -562,16 +641,10 @@
         skillMasterById     = new Map(skillMaster.map(s => [s.id, s]));
         skillMasterBySymbol = new Map(skillMaster.map(s => [s.symbol, s]));
 
+        currentTour = tourData; // クラス一覧参照用（renderSidebarのフィルタタブで使用）
         if (tourData) {
             document.getElementById('event-name').innerText = tourData.name;
             classRules = normalizeClassRules(tourData.classRules);
-            const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-            if (tourData.classes?.individual || tourData.classes?.synchro) {
-                indivClassOrder = sortByOrder(tourData.classes.individual).map(c => c.name);
-                syncClassOrder  = sortByOrder(tourData.classes.synchro).map(c => c.name);
-            } else if (tourData.classes) {
-                indivClassOrder = sortByOrder(tourData.classes).map(c => c.name);
-            }
         }
         athletes = athleteList;
         athletes.forEach(a => { const fo = finalOrders[a.id]; if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; } });
