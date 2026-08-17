@@ -47,8 +47,6 @@
         .synchro-kana-col-label { font-size: 0.7em; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 0.04em; }
         .synchro-kana-col-name { font-size: 0.88em; font-weight: bold; color: #333; }
         .synchro-kana-club { font-size: 1em; font-weight: bold; color: #333; }
-        .diff-club-label { font-size: 0.82em; color: #5f6368; display: flex; align-items: center; gap: 6px; cursor: pointer; justify-content: center; margin: 6px 0 4px; }
-        .diff-club-label input { accent-color: var(--primary); cursor: pointer; width: 15px; height: 15px; }
         #club-same-area { display: flex; flex-direction: column; gap: 4px; }
         .notice-box { background: #fff8e1; border-left: 4px solid var(--warn); border-radius: 8px; padding: 12px 16px; margin-top: 20px; font-size: 0.85em; color: #5d4037; line-height: 1.7; }
         .deadline-banner { align-items: center; gap: 8px; background: #fdecea; border: 1px solid #f3c2c2; border-left: 4px solid var(--danger); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9em; font-weight: bold; color: #b71c1c; }
@@ -120,10 +118,7 @@
                     <input type="text" id="ath-kana2" class="kana-input" placeholder="せい めい">
                 </div>
             </div>
-            <!-- チーム名が別かチェック -->
-            <label class="diff-club-label">
-                <input type="checkbox" id="club-diff-chk"> チーム名が別
-            </label>
+            <!-- 所属が同じか違うかは選手データ（club1/club2）から自動判定し、以下のどちらかを表示する -->
             <!-- 同一チーム：全幅1入力 -->
             <div id="club-same-area">
                 <span id="synchro-club-shared" class="synchro-kana-club"></span>
@@ -204,6 +199,12 @@
     let skillMaster = [];
     let currentAthlete = null;
     let tourData = {};
+    // シンクロペアの所属(club1/club2)が異なるかを選手データから自動判定する
+    // （以前はチェックボックスで選手自身に確認させていたが、既存データの比較だけで
+    //   判定できるため不要とし廃止した）
+    function clubsDiffer() {
+        return !!currentAthlete && (currentAthlete.club1 || '') !== (currentAthlete.club2 || '');
+    }
     let subDocRef = null;   // submissionDoc の存在確認用
     let designatedDDCount = -1; // 指定難度本数（-1=無効、0=0本指定、1-9=N本指定）
     let perSkillDDCap = null;   // 1技あたり難度上限（null=なし）
@@ -293,11 +294,10 @@
                 document.getElementById('synchro-name2').textContent = currentAthlete.name2 || '';
                 document.getElementById('ath-kana1').value = currentAthlete.kana1 || '';
                 document.getElementById('ath-kana2').value = currentAthlete.kana2 || '';
-                // チーム名が同一か自動判定
-                const isDiffClub = (currentAthlete.club1 || '') !== (currentAthlete.club2 || '');
-                const diffChk = document.getElementById('club-diff-chk');
-                diffChk.checked = isDiffClub;
-                if (isDiffClub) {
+                // 所属が同じか違うかは選手データ（club1/club2）から自動判定するのみ。
+                // 以前は「チーム名が別」チェックボックスで選手自身に手動確認させていたが、
+                // 既に登録済みのclub1/club2の比較だけで自動的に判定できるため不要とし削除した。
+                if (clubsDiffer()) {
                     document.getElementById('club-same-area').style.display = 'none';
                     document.getElementById('club-diff-area').style.display = '';
                     document.getElementById('synchro-club1').textContent = currentAthlete.club1 || '';
@@ -308,19 +308,6 @@
                     document.getElementById('synchro-club-shared').textContent = currentAthlete.club1 || '';
                     document.getElementById('ath-club-kana-shared').value = currentAthlete.clubKana1 || '';
                 }
-                // チェック変更時：エリア切替＋値を引き継ぎ
-                diffChk.addEventListener('change', () => {
-                    const diff = diffChk.checked;
-                    document.getElementById('club-same-area').style.display = diff ? 'none' : '';
-                    document.getElementById('club-diff-area').style.display = diff ? '' : 'none';
-                    if (diff) {
-                        const v = document.getElementById('ath-club-kana-shared').value;
-                        document.getElementById('ath-club-kana1').value = v;
-                        document.getElementById('ath-club-kana2').value = v;
-                    } else {
-                        document.getElementById('ath-club-kana-shared').value = document.getElementById('ath-club-kana1').value;
-                    }
-                });
             } else {
                 document.getElementById('ath-club').innerText = athClub;
                 document.getElementById('ath-kana').value = currentAthlete.kana1 || "";
@@ -631,7 +618,7 @@
         }
         document.getElementById('ath-kana').disabled = v;
         document.getElementById('ath-club-kana').disabled = v;
-        ['ath-kana1','ath-kana2','ath-club-kana1','ath-club-kana2','ath-club-kana-shared','club-diff-chk'].forEach(id => {
+        ['ath-kana1','ath-kana2','ath-club-kana1','ath-club-kana2','ath-club-kana-shared'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.disabled = v;
         });
@@ -1056,7 +1043,7 @@
         if (isSynchro) {
             const k1     = document.getElementById('ath-kana1').value.trim();
             const k2     = document.getElementById('ath-kana2').value.trim();
-            const isDiff = document.getElementById('club-diff-chk')?.checked;
+            const isDiff = clubsDiffer();
             const ck1    = isDiff ? document.getElementById('ath-club-kana1').value.trim() : document.getElementById('ath-club-kana-shared').value.trim();
             const ck2    = isDiff ? document.getElementById('ath-club-kana2').value.trim() : ck1;
             if (!k1 || !k2 || !ck1 || (isDiff && !ck2)) {
@@ -1116,7 +1103,7 @@
                 athleteUpdateData.clubKana1 = clubKana;
                 if (currentAthlete.club1) clubKanaMap[currentAthlete.club1] = clubKana;
             } else {
-                const isDiff = document.getElementById('club-diff-chk')?.checked;
+                const isDiff = clubsDiffer();
                 const ck1    = isDiff ? document.getElementById('ath-club-kana1').value.trim() : document.getElementById('ath-club-kana-shared').value.trim();
                 const ck2    = isDiff ? document.getElementById('ath-club-kana2').value.trim() : ck1;
                 athleteUpdateData.kana1     = document.getElementById('ath-kana1').value.trim();
