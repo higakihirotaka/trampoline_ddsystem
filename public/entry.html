@@ -1070,14 +1070,29 @@
                 }
             }
 
-            // 0. 修正で上書きされる直前の内容を revisions サブコレクションへ退避する
-            // （card_history.html で「修正時に何を変えたか」を確認できるようにするため。
-            //   新規提出時（ドキュメント未作成）は退避対象がないのでスキップ）
+            // 0. 前回提出内容と技構成・指定難度を比較し、実質的な変更があったかを判定する。
+            // 内容を何も変えずに提出ボタンを押した場合（見直しただけ、二重クリック等）は
+            // 「修正」として扱わない：修正回数を増やさず、履歴も残さず、確認ステータスも
+            // リセットしない（既にCJPが確認済のカードが、無変更の再提出で未確認に戻るのを防ぐ）。
             const subRef = doc(db, "submissions", subId);
             const prevSnap = await getDoc(subRef);
-            if (prevSnap.exists()) {
+            const prevData = prevSnap.exists() ? prevSnap.data() : null;
+            const newDesignatedIndices = designatedDDCount > 0 ? designatedDDIndices : [];
+            // 技配列はオブジェクトなので、id（1技を一意に決めるキー）だけを位置ごとに比較する。
+            // Firestoreはマップフィールドのキー順を保持しない（書き込み時と読み込み後でキー順が
+            // 変わりうる）ため、skillオブジェクトをそのままJSON.stringifyして比較すると、
+            // 中身が同じでも常に「不一致」と誤判定してしまう。
+            const skillIdsEqual = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length
+                && a.every((s, i) => String(s?.id) === String(b[i]?.id));
+            const hasChanged = !prevData
+                || !skillIdsEqual(skills, prevData.skills || [])
+                || JSON.stringify(newDesignatedIndices) !== JSON.stringify(prevData.designatedDDIndices || []);
+
+            // 変更があった場合のみ、上書きされる直前の内容を revisions サブコレクションへ退避する
+            // （card_history.html で「修正時に何を変えたか」を確認できるようにするため）
+            if (hasChanged && prevData) {
                 await addDoc(collection(subRef, "revisions"), {
-                    ...prevSnap.data(),
+                    ...prevData,
                     archivedAt: serverTimestamp()
                 });
             }
@@ -1088,9 +1103,10 @@
                 ...(designatedDDCount > 0
                     ? { designatedDDIndices }
                     : { designatedDDIndices: deleteField() }),
-                checkStatus: 0, // 0: Submitted, not yet checked
                 updatedAt: serverTimestamp(),
-                revisionCount: increment(1)
+                ...(hasChanged
+                    ? { checkStatus: 0, revisionCount: increment(1) } // 変更ありの時だけ未確認に戻し、修正回数を増やす
+                    : {})
             }, { merge: true });
 
             // 2. Update the athlete document with a summary
