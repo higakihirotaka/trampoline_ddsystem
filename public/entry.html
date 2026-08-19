@@ -1104,6 +1104,7 @@
                     ? { designatedDDIndices }
                     : { designatedDDIndices: deleteField() }),
                 updatedAt: serverTimestamp(),
+                lastSubmitChanged: hasChanged, // card_history.htmlで「変更なし再提出」と分かるようにする
                 ...(hasChanged
                     ? { checkStatus: 0, revisionCount: increment(1) } // 変更ありの時だけ未確認に戻し、修正回数を増やす
                     : {})

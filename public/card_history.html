@@ -40,6 +40,7 @@
         .b-synchro { background:#e0f2f1; color:#00897b; }
         .b-rev.clickable { cursor:pointer; border:1px solid transparent; transition:0.15s; }
         .b-rev.clickable:hover { background:#ffe4b3; border-color:var(--amber); }
+        .noop-tag { display:inline-block; margin-top:2px; font-size:0.68rem; font-weight:600; color:var(--sub); }
         .st0 { color:var(--sub); }
         .st1 { color:var(--amber); font-weight:bold; }
         .st2 { color:var(--green); font-weight:bold; }
@@ -172,7 +173,7 @@
             tbody.innerHTML = rows.map((r, i) => `
                 <tr>
                     <td>${i + 1}</td>
-                    <td class="dt">${fmt(r.updatedAt)}</td>
+                    <td class="dt">${fmt(r.updatedAt)}${r.lastSubmitChanged === false ? '<br><span class="noop-tag" title="内容を変更せずに再提出のみ行われました">変更なし再提出</span>' : ''}</td>
                     <td><span class="nm">${esc(r.name)}</span><br><span class="club">${esc(r.club)}</span></td>
                     <td><span class="badge ${r.type === 'synchro' ? 'b-synchro' : 'b-indiv'}">${r.type === 'synchro' ? 'シンクロ' : '個人'}</span> ${esc(r.cls)}${r.gender ? ' ・' + esc(r.gender) : ''}</td>
                     <td><span class="badge b-round">${ROUND[r.round] || r.round}</span></td>
@@ -215,6 +216,7 @@
             return {
                 subId: d.id, ts, updatedAt: s.updatedAt, round: s.round,
                 revisionCount: s.revisionCount ?? null, checkStatus: s.checkStatus ?? 0,
+                lastSubmitChanged: s.lastSubmitChanged ?? null, // false: 直近の提出は内容変更なしの再提出だった
                 name, club, cls: a.class || a.category || '—', gender: a.gender || '', type: a.type || 'individual'
             };
         });
