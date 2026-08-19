@@ -125,6 +125,7 @@
     import { db } from "./firebase-config.js";
     import { doc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
+    import { round1 } from "./shared.js";
     
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim();
@@ -751,7 +752,7 @@
                     || (designatedDDCount > 0 && designatedDDIndices.includes(i - 1));
                 if (isDesig) {
                     // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
-                    const isCapped = (perSkillDDCap != null && skill.dd > perSkillDDCap);
+                    const isCapped = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
                     const usedDD   = isCapped ? perSkillDDCap : skill.dd;
                     baseDD += usedDD; ddSpan.innerText = usedDD.toFixed(1); if (skill.isTriple) tripleCount++;
                     ddSpan.classList.toggle('dd-capped', isCapped);
@@ -769,7 +770,7 @@
 
         // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
         let totalDD = baseDD + bonus;
-        const routineCapped = (routineDDCap != null && totalDD > routineDDCap);
+        const routineCapped = (routineDDCap != null && round1(totalDD) > routineDDCap);
         if (routineCapped) totalDD = routineDDCap;
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
         totalDDContainer.classList.toggle('dd-capped', routineCapped);
