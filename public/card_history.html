@@ -256,12 +256,21 @@
             ]));
 
             // 古い順に並んだバージョン一覧（過去の修正 → 現在の内容）を作る
-            const versions = revSnap.docs.map((d, i) => ({
-                label: i === 0 ? '初回提出' : `修正${i}`,
-                time: d.data().archivedAt,
-                skills: d.data().skills || [],
-                totalDD: d.data().totalDD
-            }));
+            const versions = revSnap.docs.map((d, i) => {
+                const rev = d.data();
+                return {
+                    label: i === 0 ? '初回提出' : `修正${i}`,
+                    // archivedAt は「このバージョンが次の修正で上書きされた時刻」＝次バージョンの
+                    // 提出時刻であり、このバージョン自体がいつ提出されたかとは別物（archivedAtだけを
+                    // 使うと、直前バージョンの時刻が次バージョンの提出時刻と同じに見えてしまっていた）。
+                    // このバージョン自身の提出時刻は updatedAt（上書き前のデータをそのまま退避して
+                    // いるので引き継がれている）を使う。古いデータ等でupdatedAtが無い場合のみ
+                    // archivedAtにフォールバックする。
+                    time: rev.updatedAt || rev.archivedAt,
+                    skills: rev.skills || [],
+                    totalDD: rev.totalDD
+                };
+            });
             if (curSnap.exists()) {
                 const cur = curSnap.data();
                 versions.push({ label: '現在の内容', time: cur.updatedAt, skills: cur.skills || [], totalDD: cur.totalDD });
