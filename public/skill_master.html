@@ -14,6 +14,9 @@
         .back-link:hover { background: #eee; }
         .btn-add { padding: 8px 18px; border-radius: 8px; border: 2px solid var(--primary); background: var(--primary); color: white; font-size: 0.9rem; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.15s; }
         .btn-add:hover { background: #1558b0; border-color: #1558b0; }
+        .auth-info { font-size: 0.8rem; color: var(--gray); display: none; align-items: center; white-space: nowrap; }
+        .auth-info span { font-weight: bold; color: #333; }
+        .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--primary); cursor: pointer; font-size: 0.85em; margin-left: 10px; padding: 3px 8px; }
 
         /* 新規追加フォーム */
         .add-panel { background: white; border: 2px solid var(--primary); border-radius: 14px; padding: 20px 24px; margin-bottom: 20px; }
@@ -120,6 +123,10 @@
     <div class="header">
         <a href="javascript:history.back()" class="back-link">← 戻る</a>
         <h1>📖 技マスター</h1>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
         <button class="btn-add" onclick="toggleAddPanel()">＋ 技を追加</button>
     </div>
 
@@ -233,6 +240,7 @@
 <script type="module">
     import { db } from "./firebase-config.js";
     import { collection, getDocs, getDoc, setDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from './auth.js';
 
     let skills = [];
     let editingId = null;   // 現在編集中の行ID
@@ -767,7 +775,16 @@
         }
     };
 
-    init();
+    // このページはFirestoreの skillMaster へ直接書き込む（追加・編集・削除・並替）ため、
+    // 他の管理者画面と同じく ensureAdmin() でログイン状態を確定させてから初期化する。
+    // 以前はこのガードが無く、未ログイン状態（Firestoreルール上 write は request.auth != null 必須）
+    // でも画面自体は開けてしまい、追加操作だけがpermission-deniedで失敗する不具合があった。
+    ensureAdmin(user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+        init();
+    });
 </script>
 </body>
 </html>
