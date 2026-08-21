@@ -170,6 +170,7 @@
     import { doc, getDoc, getDocs, collection, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
+    import { invalidateCache } from "./cache.js";
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
@@ -674,6 +675,10 @@
                 await batch.commit();
             }
             idsToDelete.clear();
+            // cache.js の選手リストキャッシュ（sessionStorage, 10分TTL）はフルリロードでも消えないため、
+            // ここで無効化しないと judge_cjp.html 等の他画面で最大10分間、選手名などの変更が反映されない
+            // （このタブ内でその画面に遷移・再読み込みした場合に限る。別タブ/別端末は別途キャッシュを持つ）
+            invalidateCache(eventId);
             showToast('保存しました');
         } catch (e) {
             console.error(e);
