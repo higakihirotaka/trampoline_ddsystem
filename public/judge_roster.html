@@ -82,6 +82,7 @@
 <script type="module">
     import { db } from "./firebase-config.js";
     import { doc, getDocFromServer, getDocsFromServer, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { buildJudgeRosterGroups, applyJudgeRosterOrder } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -142,19 +143,8 @@
         .map(c => ({ name: c.name, type: 'synchro' }));
     const judgeConfig  = d.judgeConfig?.classes || {};
     const classRules   = d.classRules || {};
+    const rosterOrder  = d.judgeConfig?.rosterOrder || {}; // admin_roster_order.html で設定したブロック表示順
     const container    = document.getElementById('classes-container');
-
-    // クラス別のロール配列を返す（E審判人数・H5H6の有無を反映）
-    function getRoles(name, type) {
-        const rule   = classRules[type]?.[name] || {};
-        const numE   = parseInt(rule.eJudgeCount) || 4;
-        const hasH56 = rule.hasH5H6 === true;
-        const roles  = [['cjp','CJP']];
-        for (let i = 1; i <= numE; i++) roles.push([`e${i}`, `E${i}`]);
-        if (hasH56) roles.push(['h5','H5'], ['h6','H6']);
-        roles.push(['d7','D7'], ['d8','D8']);
-        return roles;
-    }
 
     function escHtml(s) {
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -184,43 +174,13 @@
 
     // クラスをまたいで同じ審判構成 (fingerprint) ごとにまとめてカードを生成
     // fingerprint にはロール種別も含めるため、E審判数が異なるクラスは別グループになる
+    // グルーピング自体は shared.js に集約（admin_roster_order.html と同じ結果になるようにするため）
     function buildSection(list, type) {
         if (list.length === 0) return;
-        const GENDERS = ['男子', '女子'];
-        const ROUNDS  = ['予選', '決勝'];
 
-        // fingerprint → { sections:[{className, gender, round}], data, ROLES }
-        const groupMap = new Map();
-
-        list.forEach(({ name }) => {
-            const classData   = judgeConfig[type]?.[name] || judgeConfig[name] || {};
-            const ROLES       = getRoles(name, type);
-            // 旧形式検出（トップレベルキーに cjp/e1 等が含まれる）
-            const isOldFormat = Object.keys(classData).some(k => ['cjp','e1','e2','e3','e4','d7','d8'].includes(k));
-
-            if (isOldFormat) {
-                const hasAny = ROLES.some(([k]) => classData[k]);
-                if (!hasAny) return;
-                // ロールキー込みのフィンガープリントで識別
-                const fp = JSON.stringify(ROLES.map(([k]) => [k, classData[k]||'', classData[k+'_kind']||'']));
-                if (!groupMap.has(fp)) groupMap.set(fp, { sections: [], data: classData, ROLES });
-                groupMap.get(fp).sections.push({ className: name, gender: '', round: '' });
-            } else {
-                for (const g of GENDERS) {
-                    for (const r of ROUNDS) {
-                        const sec = classData[g]?.[r];
-                        if (!sec) continue;
-                        const hasAny = ROLES.some(([k]) => sec[k]);
-                        if (!hasAny) continue;
-                        const fp = JSON.stringify(ROLES.map(([k]) => [k, sec[k]||'', sec[k+'_kind']||'']));
-                        if (!groupMap.has(fp)) groupMap.set(fp, { sections: [], data: sec, ROLES });
-                        groupMap.get(fp).sections.push({ className: name, gender: g, round: r });
-                    }
-                }
-            }
-        });
-
-        if (groupMap.size === 0) return;
+        let groups = buildJudgeRosterGroups(list, type, judgeConfig, classRules);
+        groups = applyJudgeRosterOrder(groups, rosterOrder[type]);
+        if (groups.length === 0) return;
 
         const typeLabel = type === 'synchro' ? 'シンクロ' : '個人';
         const heading = document.createElement('div');
@@ -228,7 +188,7 @@
         heading.textContent = typeLabel;
         container.appendChild(heading);
 
-        groupMap.forEach(({ sections, data, ROLES }) => {
+        groups.forEach(({ sections, data, ROLES }) => {
             const classes = [...new Set(sections.map(s => s.className))];
             const genders = [...new Set(sections.map(s => s.gender).filter(Boolean))];
             const rounds  = [...new Set(sections.map(s => s.round).filter(Boolean))];

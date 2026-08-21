@@ -191,3 +191,95 @@ export function calcBonus(gender, tripleCount) {
   if ((gender === '女子' || gender === '混合') && tripleCount >= 3) return (tripleCount - 2) * 0.3;
   return 0;
 }
+
+// ============================================================
+//  審判構成ブロック（judge_roster.html / admin_roster_order.html 共用）
+// ============================================================
+
+/**
+ * クラス別のロール配列を返す（E審判人数・H5H6の有無を反映）
+ */
+export function getJudgeRoles(name, type, classRules) {
+  const rule   = classRules[type]?.[name] || {};
+  const numE   = parseInt(rule.eJudgeCount) || 4;
+  const hasH56 = rule.hasH5H6 === true;
+  const roles  = [['cjp', 'CJP']];
+  for (let i = 1; i <= numE; i++) roles.push([`e${i}`, `E${i}`]);
+  if (hasH56) roles.push(['h5', 'H5'], ['h6', 'H6']);
+  roles.push(['d7', 'D7'], ['d8', 'D8']);
+  return roles;
+}
+
+/**
+ * 審判構成の「表示順設定」機能で使う、クラス×性別×ラウンド（または旧形式ではクラスのみ）を
+ * 一意に識別するキー。judgeConfig.rosterOrder にはこのキーの並び順を保存する。
+ */
+export function judgeRosterLeafKey(className, gender, round) {
+  return gender ? `${className}::${gender}::${round}` : className;
+}
+
+/**
+ * クラス一覧を、同一の審判構成（fingerprint）ごとにまとめてグループ化する。
+ * judge_roster.html（表示）と admin_roster_order.html（並び替え設定）の両方で
+ * 同じグルーピング結果になるよう、ロジックをここに集約している。
+ *
+ * @param {Array<{name:string}>} list  対象クラス一覧（選手登録済みのもののみ）
+ * @param {'individual'|'synchro'} type
+ * @param {object} judgeConfig  d.judgeConfig.classes
+ * @param {object} classRules   d.classRules
+ * @returns {Array<{sections:Array, data:object, ROLES:Array, leafKeys:string[]}>}  クラス定義順（自然順）
+ */
+export function buildJudgeRosterGroups(list, type, judgeConfig, classRules) {
+  const GENDERS = ['男子', '女子'];
+  const ROUNDS  = ['予選', '決勝'];
+  const groupMap = new Map();
+
+  list.forEach(({ name }) => {
+    const classData = judgeConfig[type]?.[name] || judgeConfig[name] || {};
+    const ROLES     = getJudgeRoles(name, type, classRules);
+    // 旧形式検出（トップレベルキーに cjp/e1 等が含まれる）
+    const isOldFormat = Object.keys(classData).some(k => ['cjp', 'e1', 'e2', 'e3', 'e4', 'd7', 'd8'].includes(k));
+
+    if (isOldFormat) {
+      const hasAny = ROLES.some(([k]) => classData[k]);
+      if (!hasAny) return;
+      const fp = JSON.stringify(ROLES.map(([k]) => [k, classData[k] || '', classData[k + '_kind'] || '']));
+      if (!groupMap.has(fp)) groupMap.set(fp, { sections: [], data: classData, ROLES });
+      groupMap.get(fp).sections.push({ className: name, gender: '', round: '' });
+    } else {
+      for (const g of GENDERS) {
+        for (const r of ROUNDS) {
+          const sec = classData[g]?.[r];
+          if (!sec) continue;
+          const hasAny = ROLES.some(([k]) => sec[k]);
+          if (!hasAny) continue;
+          const fp = JSON.stringify(ROLES.map(([k]) => [k, sec[k] || '', sec[k + '_kind'] || '']));
+          if (!groupMap.has(fp)) groupMap.set(fp, { sections: [], data: sec, ROLES });
+          groupMap.get(fp).sections.push({ className: name, gender: g, round: r });
+        }
+      }
+    }
+  });
+
+  return [...groupMap.values()].map(g => ({
+    ...g,
+    leafKeys: g.sections.map(s => judgeRosterLeafKey(s.className, s.gender, s.round))
+  }));
+}
+
+/**
+ * 保存済みの表示順（leafKeyの配列）に従って groups を並べ替える。
+ * 該当する保存順が無い（未設定・新しいクラス等）場合は、クラス定義順（自然順）のまま
+ * 末尾へ寄せる（Array#sort の安定性により、対象外グループ同士の相対順は維持される）。
+ */
+export function applyJudgeRosterOrder(groups, savedOrder) {
+  if (!savedOrder || !savedOrder.length) return groups;
+  const idx = new Map(savedOrder.map((k, i) => [k, i]));
+  return groups
+    .map((g, i) => ({
+      g, i,
+      sortKey: Math.min(...g.leafKeys.map(k => idx.has(k) ? idx.get(k) : Infinity))
+    }))
+    .sort((a, b) => a.sortKey - b.sortKey || a.i - b.i)
+    .map(x => x.g);
+}
