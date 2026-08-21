@@ -12,6 +12,8 @@
             --st-unchecked-bg: #e3f2fd; --st-unchecked-fg: #1a73e8; --st-unchecked-bd: #bbdefb;
             --st-review-bg: #fff3e0;   --st-review-fg: #e65100;   --st-review-bd: #ffcc80;
             --st-approved-bg: #e8f5e9; --st-approved-fg: #2e7d32; --st-approved-bd: #c8e6c9;
+            /* DNS（棄権）: 確認状況とは独立に、他のバッジより優先して赤で表示 */
+            --st-dns-bg: #fdecee;      --st-dns-fg: #d32f2f;      --st-dns-bd: #f3c2c2;
         }
         /* height は iOS のツールバー裏まで含む 100vh を避け、表示領域に一致する 100dvh を使う（縦スクロール不能対策）。100vh は未対応ブラウザ用フォールバック */
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
@@ -49,11 +51,14 @@
         .r-dot.pre-check     { background: var(--st-unchecked-bg); color: var(--st-unchecked-fg); border-color: var(--st-unchecked-bd); }
         .r-dot.in-check      { background: var(--st-review-bg);    color: var(--st-review-fg);    border-color: var(--st-review-bd); }
         .r-dot.approved      { background: var(--st-approved-bg);  color: var(--st-approved-fg);  border-color: var(--st-approved-bd); }
+        .r-dot.dns           { background: var(--st-dns-bg);       color: var(--st-dns-fg);       border-color: var(--st-dns-bd); }
         .r-dot.current { border: 2px solid #000; transform: scale(1.15); z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .r-dot.not-submitted.current { background: var(--st-notsub-fg);    color: #fff; border-color: #000; }
         .r-dot.pre-check.current     { background: var(--st-unchecked-fg); color: #fff; border-color: #000; }
         .r-dot.in-check.current      { background: var(--st-review-fg);    color: #fff; border-color: #000; }
         .r-dot.approved.current      { background: var(--st-approved-fg);  color: #fff; border-color: #000; }
+        .r-dot.dns.current           { background: var(--st-dns-fg);       color: #fff; border-color: #000; }
+        .dns-banner { background: var(--st-dns-bg); color: var(--st-dns-fg); border: 1.5px solid var(--st-dns-bd); border-radius: 10px; padding: 8px 16px; font-weight: 900; margin-bottom: 16px; }
 
         .no-sub-view { margin: 40px auto; max-width: 500px; text-align: center; padding: 40px 30px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
         .no-sub-badge { display: inline-block; background: var(--st-notsub-bg); color: var(--st-notsub-fg); font-size: 1.1rem; font-weight: 900; padding: 6px 20px; border-radius: 20px; margin-bottom: 16px; }
@@ -135,6 +140,7 @@
         <div class="dot-legend-item"><div class="dot-legend-dot" style="background:var(--st-unchecked-bg);border-color:var(--st-unchecked-bd);"></div>未確認</div>
         <div class="dot-legend-item"><div class="dot-legend-dot" style="background:var(--st-review-bg);border-color:var(--st-review-bd);"></div>要確認</div>
         <div class="dot-legend-item"><div class="dot-legend-dot" style="background:var(--st-approved-bg);border-color:var(--st-approved-bd);"></div>確認済</div>
+        <div class="dot-legend-item"><div class="dot-legend-dot" style="background:var(--st-dns-bg);border-color:var(--st-dns-bd);"></div>DNS（棄権）</div>
     </div>
     <div id="sidebar-filters" class="sidebar-filters"></div>
     <div id="sidebar-list" class="sidebar-list"></div>
@@ -160,6 +166,8 @@
     let finalOnlyMode = false;
     let fType = 'individual', fClass = '', fGender = ''; // 左メニューの絞り込みタブ（judge_panel.htmlと同じ）
     let unsubSubmissions = null;
+    let unsubResults = null;
+    let dnsSet = new Set(); // CJPがDNS（棄権）で確定したラウンドの submission/result ID（event.htmlと同じ判定方法）
 
     // ─── Utilities ───────────────────────────────────────────────────────
     function withTimeout(promise, ms = 10000) {
@@ -170,8 +178,10 @@
         ]).finally(() => clearTimeout(timer));
     }
 
-    // ドットの状態クラスとツールチップを返す（未提出=灰 / 未確認=青 / 要確認=橙 / 確認済=緑）
+    // ドットの状態クラスとツールチップを返す（未提出=灰 / 未確認=青 / 要確認=橙 / 確認済=緑 / DNS=赤）
+    // DNS（CJPが棄権で確定）は確認状況とは独立した状態なので、他の判定より優先する。
     function dotStatusInfo(subId) {
+        if (dnsSet.has(subId))       return { cls: 'dns',           title: 'DNS（棄権）' };
         if (!submissions.has(subId)) return { cls: '',              title: '未取得（クリックで読み込み）' };
         const sub = submissions.get(subId);
         if (!sub)                    return { cls: 'not-submitted', title: '未提出' };
@@ -420,24 +430,52 @@
         return firstSnapshot;
     }
 
+    // results コレクションを購読し、DNS（棄権）状態をリアルタイムに反映する。
+    // CJP画面（judge_cjp.html）で棄権が宣言/取り消しされると、確認中の画面にも即座に反映される。
+    function watchDns() {
+        if (unsubResults) { unsubResults(); unsubResults = null; }
+        let resolveFirst;
+        const firstSnapshot = new Promise(res => { resolveFirst = res; });
+        unsubResults = onSnapshot(
+            query(collection(db, 'results'), where('eventId', '==', eventId)),
+            snap => {
+                snap.docChanges().forEach(change => {
+                    const data = change.doc.data();
+                    if (change.type === 'removed' || data.dns !== true) dnsSet.delete(change.doc.id);
+                    else dnsSet.add(change.doc.id);
+                    updateDot(data.athleteId, data.round);
+                    // 今表示中のカードが変化した場合は詳細も再描画する
+                    if (currentSelection.athleteId === data.athleteId && currentSelection.round === data.round) {
+                        const athlete = athletes.find(a => a.id === data.athleteId);
+                        renderDetail(document.getElementById('main-viewer'), athlete, data.athleteId, data.round, submissions.get(change.doc.id) ?? null);
+                    }
+                });
+                resolveFirst();
+            },
+            err => { console.error('results(DNS)監視エラー:', err); resolveFirst(); }
+        );
+        return firstSnapshot;
+    }
+
     // 🔄 ボタン（手動更新）: 購読を張り直して強制的に再同期する
     // （通常はonSnapshotが常時最新を保つため、接続不調時の保険的な位置づけ）
     window.manualRefresh = async function() {
         const btn = document.getElementById('refresh-btn');
         if (btn) { btn.disabled = true; btn.textContent = '⟳'; }
-        try { await withTimeout(watchSubmissions(), 12000); }
+        try { await withTimeout(Promise.all([watchSubmissions(), watchDns()]), 12000); }
         catch(e) { console.warn('Manual refresh failed:', e.message); }
         finally { if (btn) { btn.disabled = false; btn.textContent = '🔄'; } }
     };
 
     // ─── Detail Rendering ────────────────────────────────────────────────
     function renderDetail(viewerEl, athlete, athleteId, round, submission) {
+        const isDns = dnsSet.has(eventId + '_' + athleteId + '_' + round);
         if (!submission) {
             const athName    = athlete ? (athlete.type === 'synchro' ? athlete.name1 + ' / ' + athlete.name2 : athlete.name1) : '—';
             const roundLabel = round.replace('pre1','予選1').replace('pre2','予選2').replace('final','決勝');
             viewerEl.innerHTML =
                 '<div class="no-sub-view">' +
-                    '<div class="no-sub-badge">未提出</div>' +
+                    '<div class="no-sub-badge"' + (isDns ? ' style="background:var(--st-dns-bg);color:var(--st-dns-fg);"' : '') + '>' + (isDns ? 'DNS（棄権）' : '未提出') + '</div>' +
                     '<div class="no-sub-name">' + athName + '</div>' +
                     '<div class="no-sub-meta">' + (athlete ? athlete.class : '') + ' / ' + roundLabel + '</div>' +
                     '<div style="color:#90a4ae; font-size:0.9rem;">まだ競技カードが提出されていません。</div>' +
@@ -495,6 +533,7 @@
         const desHead = showDes ? '<th class="skill-des">指定</th>' : '';
         viewerEl.innerHTML =
             '<div class="card-preview">' +
+                (isDns ? '<div class="dns-banner">🚫 DNS（棄権）として確定済み — このラウンドの得点は無効です</div>' : '') +
                 '<div style="font-size:0.9em; color:#5f6368;">' + athlete.class + ' / ' + round.replace('pre','予選').replace('final','決勝') + '</div>' +
                 '<h2 style="margin:5px 0 10px 0;">' + athName + '</h2>' +
                 '<div style="font-weight:bold; margin-bottom:20px;">' + (athClub || '') + '</div>' +
@@ -661,7 +700,7 @@
         athletes.forEach(a => { const fo = finalOrders[a.id]; if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; } });
 
         seedNullSubmissions();
-        try { await withTimeout(watchSubmissions(), 12000); }
+        try { await withTimeout(Promise.all([watchSubmissions(), watchDns()]), 12000); }
         catch(e) { console.warn('Initial submission sync failed:', e.message); }
 
         renderSidebar();
