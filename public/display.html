@@ -2163,8 +2163,9 @@
     if (overlay) overlay.classList.remove('carousel-mode');
     stopRankingLoop();
     document.getElementById('vs-logo')?.classList.remove('active');
-    // 巡回で出していた団体画面を消す（次に applyVenueScreen が正しく画面を出せるように）
+    // 巡回で出していた団体画面・決勝スタートリスト画面を消す（次に applyVenueScreen が正しく画面を出せるように）
     document.getElementById('vs-team-ranking')?.classList.remove('active');
+    document.getElementById('vs-final-startlist')?.classList.remove('active');
     _trTargetSig = null; _trContentSig = null;   // 巡回後のCJP団体表示を確実に再描画させる
     currentMode = 'idle';
   }
@@ -2179,6 +2180,7 @@
     document.getElementById('ranking-overlay')?.classList.remove('carousel-mode');
     document.getElementById('vs-logo')?.classList.remove('active');
     document.getElementById('vs-team-ranking')?.classList.remove('active');
+    document.getElementById('vs-final-startlist')?.classList.remove('active');
     _trTargetSig = null; _trContentSig = null;
     if (eventId) {
       updateDoc(doc(db, 'tournaments', eventId), { 'rankingCarousel.active': false }).catch(() => {});
@@ -2197,6 +2199,14 @@
         _trTeams = teams; _trScoreMode = scoreMode; _trNumPre = numPre;
         _trHead = { conv: tournamentName || '', classVal: item.classVal, genderVal: item.gender };
         carouselEntries = teams;   // 長さ判定用（0ならスキップ）
+      } else if (item.mode === 'final_startlist') {
+        // 決勝スタートリスト: renderFinalStartlist()と同じ条件でathleteMapから抽出（長さ判定用）
+        carouselEntries = Object.values(athleteMap).filter(a =>
+          (a.class  || '') === item.classVal &&
+          (a.gender || '') === item.gender &&
+          (a.type   || 'individual') === item.type &&
+          a.finalOrder != null
+        );
       } else {
         carouselEntries = await fetchRankingEntriesFor(item.classVal, item.gender, item.type);
       }
@@ -2236,8 +2246,19 @@
       advance(totalPages);
       return;
     }
-    // 個人/シンクロ: 団体画面が出ていたら消してオーバーレイを表示
+    if (item.mode === 'final_startlist') {
+      // 決勝スタートリストを巡回表示: 個人/団体オーバーレイを隠してfinal-startlist画面を出す
+      // （renderFinalStartlist()は1ページに全員をまとめて描画するので、ページングは1ページ固定）
+      document.getElementById('ranking-overlay')?.classList.remove('visible');
+      document.querySelectorAll('.venue-screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('vs-final-startlist')?.classList.add('active');
+      renderFinalStartlist({ class: item.classVal, gender: item.gender, type: item.type });
+      advance(1);
+      return;
+    }
+    // 個人/シンクロ: 団体画面・決勝スタートリスト画面が出ていたら消してオーバーレイを表示
     document.getElementById('vs-team-ranking')?.classList.remove('active');
+    document.getElementById('vs-final-startlist')?.classList.remove('active');
     const rowsPerPage = displaySettings.rankingRows;
     const totalPages  = Math.ceil(carouselEntries.length / rowsPerPage);
     const start = carouselPageIdx * rowsPerPage;
@@ -2384,9 +2405,9 @@
     document.getElementById('vs-class-names').textContent = classes.join('\n');
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
-    // 全画面を一旦非表示（巡回中の団体画面は巡回側が管理するので保持する）
+    // 全画面を一旦非表示（巡回中の団体画面・決勝スタートリスト画面は巡回側が管理するので保持する）
     ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-final-startlist','vs-team-ranking'].forEach(id => {
-      if (carouselActive && id === 'vs-team-ranking') return;
+      if (carouselActive && (id === 'vs-team-ranking' || id === 'vs-final-startlist')) return;
       document.getElementById(id)?.classList.remove('active');
     });
     clearInterval(warmupTimerInterval);

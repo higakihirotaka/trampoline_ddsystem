@@ -1210,6 +1210,22 @@
                     mode: 'team', label: `${cls} ${gender}（団体）` });
             });
         } catch (e) { console.warn('団体（teams）取得失敗', e); }
+        // 決勝スタートリスト: isInFinal の選手がいるクラス組み合わせを巡回候補に追加
+        // （下の fsl-target 用ループと条件は同じだが、あちらは単一選択のプルダウン用、
+        //   こちらは巡回チェックリストへの追加なので別々に列挙する）
+        const fslCarouselSet = new Set();
+        athSnap.forEach(d => {
+            const a = d.data();
+            if (!a.isInFinal || !a.class) return;
+            const typeRaw   = a.type || 'individual';
+            const typeLabel = typeRaw === 'synchro' ? 'シンクロ' : '個人';
+            const gender    = a.gender || '';
+            const key = `${a.class}|${gender}|${typeRaw}`;
+            if (fslCarouselSet.has(key)) return;
+            fslCarouselSet.add(key);
+            carouselCombos.push({ classVal: a.class, gender, type: typeRaw,
+                mode: 'final_startlist', label: `${a.class} ${gender}（${typeLabel}）決勝スタートリスト` });
+        });
         classCombos = [...comboSet].sort();
         carouselCombos.sort((a, b) => a.label.localeCompare(b.label, 'ja'));
         buildClassOptions(classCombos);
