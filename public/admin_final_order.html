@@ -98,30 +98,26 @@
     /* 印刷（会場掲示を想定: 操作系UIは全て排し、文字は離れても読める大きさにする） */
     .sl-print-title { display:none; }
     @media print {
-      @page { margin:14mm; }
+      @page { size:landscape; margin:14mm; }
       .header-bar, .header, .info-box, .card, .standings-card,
       #warn-overwrite, #save-btn, .save-status,
-      .sl-section-head .btn-print, .sl-section-head .btn-refresh,
-      .sl-btn-print-cls, .sl-chevron { display:none !important; }
-      .sl-print-title { display:block; text-align:center; margin-bottom:20pt; }
+      .sl-section-head, .sl-btn-print-cls, .sl-chevron,
+      .sl-header { display:none !important; } /* セクション見出し・クラス名の黒帯見出しは1・2行目と重複するため印刷では非表示 */
+      .sl-print-title { display:block; text-align:center; margin-bottom:14pt; }
       .sl-print-title h1 { font-size:20pt; margin:0 0 6pt; }
-      .sl-print-title p  { font-size:12pt; margin:0; color:#555; }
-      .sl-accordion { box-shadow:none; margin-bottom:20pt; page-break-inside:avoid; border:1px solid #ccc; }
-      .sl-header { background:#263238 !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;
-        padding:12pt 18pt; cursor:default; }
-      .sl-title { font-size:15pt; }
-      .sl-count { font-size:11pt; }
+      /* 2行目「決勝スタートリスト」は主役なので大きく強調する */
+      .sl-print-title p  { font-size:22pt; font-weight:900; margin:0; color:var(--gold); letter-spacing:.08em; }
+      .sl-accordion { box-shadow:none; margin-bottom:20pt; page-break-inside:avoid; border:none; }
       .sl-body { display:block !important; }
-      .sl-table th { -webkit-print-color-adjust:exact; print-color-adjust:exact; font-size:11pt; padding:8pt 14pt; }
-      .sl-table td { padding:10pt 14pt; }
-      .sl-table td.sl-no { color:#000 !important; font-size:20pt; }
-      .sl-name { font-size:15pt; }
-      .sl-kana { font-size:10pt; }
-      .sl-club { font-size:13pt; }
+      .sl-table th { -webkit-print-color-adjust:exact; print-color-adjust:exact; font-size:11pt; padding:6pt 14pt; }
+      .sl-table td { padding:7pt 14pt; }
+      .sl-table td.sl-no { color:#000 !important; font-size:19pt; }
+      .sl-name { font-size:14pt; }
+      .sl-kana { font-size:9pt; }
+      .sl-club { font-size:12pt; }
       body { background:#fff; padding:0; }
       /* クラス単体印刷モード: 対象以外を非表示 */
       body.printing-class .sl-accordion:not(.print-target) { display:none !important; }
-      body.printing-class .sl-section-head h2,
       body.printing-class .sl-print-title p { display:block !important; }
     }
   </style>
