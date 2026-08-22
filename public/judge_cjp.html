@@ -25,7 +25,7 @@
         </div>
         <div></div>
         <button onclick="fillDummyData()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
-        <button id="btn-h-shortcut" onclick="toggleHShortcut()" style="padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;" title="入力欄にフォーカスしていない時にHキーでHDTS取得を実行します（このブラウザだけの設定）">⌨️ Hキー: OFF</button>
+        <button id="btn-kb-shortcut" onclick="toggleKbShortcuts()" style="padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;" title="入力欄にフォーカスしていない時、Hキー=HDTS取得／Nキー=次の選手へ を有効にします（このブラウザだけの設定）">⌨️ H/N ショートカット: OFF</button>
         <button id="btn-dns" onclick="declareDNS()" style="background:rgba(156,39,176,0.25);border:1px solid rgba(156,39,176,0.6);color:#ce93d8;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🚫 棄権</button>
         <button id="btn-delete-result" onclick="deleteResult()" style="background:rgba(211,47,47,0.25);border:1px solid rgba(211,47,47,0.6);color:#ef9a9a;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🗑 得点削除</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
@@ -190,6 +190,7 @@
     let athletes = [], submissions = {}, results = {}, currentTour = null;
     let teamCategoryKeys = new Set(); // 団体戦: チーム登録のあるカテゴリー "class|gender"
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
+    let sidebarFilteredAthletes = []; // renderSidebar()が今表示している順（Nキーの「次の選手へ」用）
     let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null, unsubscribeSub = null;
     let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
     // CJPペナルティ（読込なし＝常にCJP入力。日本語で選択し Display Text(英字) も保持・保存）
@@ -470,6 +471,8 @@
                     return (a.order ?? 999) - (b.order ?? 999);
                 });
         }
+
+        sidebarFilteredAthletes = filtered; // Nキー（次の選手へ）が参照する表示順
 
         const listEl = document.getElementById('sidebar-list');
         const parts = [];
@@ -2331,26 +2334,26 @@
         return null;
     }
 
-    // ==== Hキー ショートカット（HDTS取得ボタンと同じ動作） ====
+    // ==== キーボードショートカット（Hキー=HDTS取得／Nキー=次の選手へ） ====
     // ブラウザごとの設定（localStorage）。既定はOFF — 誤操作防止のため明示的にONにした端末だけで有効。
-    const H_SHORTCUT_KEY = 'cjp_hShortcutEnabled';
-    function isHShortcutEnabled() {
-        return localStorage.getItem(H_SHORTCUT_KEY) === 'true';
+    const KB_SHORTCUT_KEY = 'cjp_kbShortcutsEnabled';
+    function isKbShortcutsEnabled() {
+        return localStorage.getItem(KB_SHORTCUT_KEY) === 'true';
     }
-    function syncHShortcutBtn() {
-        const btn = document.getElementById('btn-h-shortcut');
+    function syncKbShortcutBtn() {
+        const btn = document.getElementById('btn-kb-shortcut');
         if (!btn) return;
-        const on = isHShortcutEnabled();
-        btn.textContent = on ? '⌨️ Hキー: ON' : '⌨️ Hキー: OFF';
+        const on = isKbShortcutsEnabled();
+        btn.textContent = on ? '⌨️ H/N ショートカット: ON' : '⌨️ H/N ショートカット: OFF';
         btn.style.background = on ? 'rgba(76,175,80,0.3)'  : 'rgba(255,255,255,0.12)';
         btn.style.border     = on ? '1px solid rgba(76,175,80,0.7)' : '1px solid rgba(255,255,255,0.3)';
         btn.style.color      = on ? '#a5d6a7' : 'rgba(255,255,255,0.7)';
     }
-    window.toggleHShortcut = function() {
-        localStorage.setItem(H_SHORTCUT_KEY, String(!isHShortcutEnabled()));
-        syncHShortcutBtn();
+    window.toggleKbShortcuts = function() {
+        localStorage.setItem(KB_SHORTCUT_KEY, String(!isKbShortcutsEnabled()));
+        syncKbShortcutBtn();
     };
-    syncHShortcutBtn();
+    syncKbShortcutBtn();
 
     // 手入力欄（input/select/textarea/contenteditable）にフォーカス中は反応させない。
     // IME変換中（isComposing）や修飾キー併用、キーリピートも除外する。
@@ -2361,15 +2364,70 @@
         const tag = el.tagName;
         return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
     }
+
+    // ---- Nキー: 次の選手へ ----
+    // 予選2: フィルタ表示順で次の選手の予選2へ（棄権(DNS)はスキップ）。
+    // 予選1: 同じクラス×性別グループ内で次の選手の予選1へ（棄権はスキップ）。
+    //        グループの最後（または残り全員が棄権）に達したら、そのグループの予選2・先頭の
+    //        選手へ切り替える（そのクラスに予選2が無ければ何もしない）。
+    // 決勝は対象外（試技順の並びが予選と異なり、要件にも含まれていないため）。
+    function isDnsFor(aid, rid) {
+        return results[`${eventId}_${aid}_${rid}`]?.dns === true;
+    }
+    function classNumPre(ath) {
+        const athType = ath.type || 'individual';
+        const cls     = ath.class || ath.category || '';
+        const rule    = currentTour?.classRules?.[athType]?.[cls] || {};
+        if (rule.finalOnly === true) return 0;
+        return rule.qualifyingRoutines ?? currentTour?.qualifyingRoutines ?? 1;
+    }
+    function groupBounds(list, idx) {
+        const cls = list[idx].class || list[idx].category || '';
+        const gen = list[idx].gender || '';
+        const inGroup = a => (a.class || a.category || '') === cls && (a.gender || '') === gen;
+        let start = idx, end = idx;
+        while (start > 0 && inGroup(list[start - 1])) start--;
+        while (end < list.length - 1 && inGroup(list[end + 1])) end++;
+        return { start, end };
+    }
+    window.goNextAthlete = function() {
+        if (!athleteId || !round || fFinalOnly || round === 'final') return;
+        const list = sidebarFilteredAthletes;
+        const idx  = list.findIndex(a => a.id === athleteId);
+        if (idx < 0) return;
+
+        if (round === 'pre2') {
+            for (let i = idx + 1; i < list.length; i++) {
+                if (!isDnsFor(list[i].id, 'pre2')) { switchAthlete(list[i].id, 'pre2'); return; }
+            }
+            return;
+        }
+
+        // round === 'pre1'
+        const { start, end } = groupBounds(list, idx);
+        for (let i = idx + 1; i <= end; i++) {
+            if (!isDnsFor(list[i].id, 'pre1')) { switchAthlete(list[i].id, 'pre1'); return; }
+        }
+        // グループ内に予選1の次がいない（末尾 or 残り全員棄権）→ 予選2があればそのグループの先頭へ
+        if (classNumPre(list[idx]) < 2) return;
+        for (let i = start; i <= end; i++) {
+            if (!isDnsFor(list[i].id, 'pre2')) { switchAthlete(list[i].id, 'pre2'); return; }
+        }
+    };
+
     document.addEventListener('keydown', e => {
-        if (!isHShortcutEnabled()) return;
-        if (e.key !== 'h' && e.key !== 'H') return;
+        if (!isKbShortcutsEnabled()) return;
         if (e.repeat || e.isComposing || e.ctrlKey || e.altKey || e.metaKey) return;
         if (isTypingIntoField()) return;
-        const btn = document.getElementById('btn-hdts');
-        if (!btn || btn.disabled) return;
-        e.preventDefault();
-        getFromQira();
+        if (e.key === 'h' || e.key === 'H') {
+            const btn = document.getElementById('btn-hdts');
+            if (!btn || btn.disabled) return;
+            e.preventDefault();
+            getFromQira();
+        } else if (e.key === 'n' || e.key === 'N') {
+            e.preventDefault();
+            goNextAthlete();
+        }
     });
 
     window.addEventListener('pageshow', e => {
