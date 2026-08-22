@@ -196,6 +196,9 @@
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round');
     const isAdmin = params.get('admin') === '1';
+    // 管理者（admin_card_edit.html経由）は「一覧に戻る」・提出後の遷移先を選手用一覧(event.html)
+    // ではなく管理者用一覧(admin_card_edit.html)にする（元いた画面に戻れるようにするため）
+    const backListUrl = isAdmin ? `admin_card_edit.html?event=${eventId}` : `event.html?event=${eventId}`;
 
     let skillMaster = [];
     let currentAthlete = null;
@@ -229,7 +232,7 @@
 
     async function init() {
         if (!eventId || !athleteId || !round) return;
-        document.getElementById('back-link').href = `event.html?event=${eventId}`;
+        document.getElementById('back-link').href = backListUrl;
         if (isAdmin) document.getElementById('admin-clear-btn').style.display = "block";
         document.getElementById('submit-btn').disabled = true;
 
@@ -1146,7 +1149,7 @@
             }
 
             alert("競技カードを提出しました。");
-            location.href = `event.html?event=${eventId}`;
+            location.href = backListUrl;
         } catch (e) {
             console.error(e);
             alert("エラーが発生しました: " + e.message);
