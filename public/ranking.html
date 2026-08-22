@@ -694,9 +694,8 @@
       });
     });
 
-    const modeLabel = scoreMode === 'total' ? '合計方式' : 'ベスト方式';
     const groupText = `団体 / ${classVal}${genderVal ? ' / ' + genderVal : ''} / 予選`;
-    return `<div class="group-label">${groupText}<span class="round-badge">上位3名合計・${modeLabel}</span></div>
+    return `<div class="group-label">${groupText}</div>
       <div style="overflow-x:auto">
         <table class="score-table team-table">${thead}<tbody>${tbody}</tbody></table>
       </div>`;
