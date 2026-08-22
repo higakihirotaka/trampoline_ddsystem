@@ -1855,7 +1855,12 @@
 
   // ==== 団体順位表：teams + results から都度集計（保存なし） ====
   async function computeTeamRanking(classVal, genderVal, selType) {
-    const rule = getClassRule({ class: classVal, type: selType });
+    // 団体（team）の得点はメンバーの個人種目（pre1/pre2）の結果から集計するため、
+    // クラスルールは常に individual 側を参照する（ranking.html の buildTeamSectionHtml と同じ）。
+    // selType（呼び出し元の巡回候補で推定した個人/シンクロ種別）をそのまま使うと、
+    // 個人とシンクロで同名のクラス（例: 「Bクラス」）がある大会では誤ってシンクロ側の
+    // ルール（予選本数・採点方式）を引いてしまい、二本採点のクラスが一本扱いになる不具合があった。
+    const rule = getClassRule({ class: classVal, type: 'individual' });
     const scoreMode = rule.scoreMode || 'best';
     const numPre    = rule.qualifyingRoutines ?? tournamentData?.qualifyingRoutines ?? 1;
     const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
