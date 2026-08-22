@@ -25,6 +25,7 @@
         </div>
         <div></div>
         <button onclick="fillDummyData()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
+        <button id="btn-h-shortcut" onclick="toggleHShortcut()" style="padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;" title="入力欄にフォーカスしていない時にHキーでHDTS取得を実行します（このブラウザだけの設定）">⌨️ Hキー: OFF</button>
         <button id="btn-dns" onclick="declareDNS()" style="background:rgba(156,39,176,0.25);border:1px solid rgba(156,39,176,0.6);color:#ce93d8;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🚫 棄権</button>
         <button id="btn-delete-result" onclick="deleteResult()" style="background:rgba(211,47,47,0.25);border:1px solid rgba(211,47,47,0.6);color:#ef9a9a;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🗑 得点削除</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
@@ -2323,6 +2324,47 @@
         if (idx > 0)   return document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="${idx - 1}"]`);
         return null;
     }
+
+    // ==== Hキー ショートカット（HDTS取得ボタンと同じ動作） ====
+    // ブラウザごとの設定（localStorage）。既定はOFF — 誤操作防止のため明示的にONにした端末だけで有効。
+    const H_SHORTCUT_KEY = 'cjp_hShortcutEnabled';
+    function isHShortcutEnabled() {
+        return localStorage.getItem(H_SHORTCUT_KEY) === 'true';
+    }
+    function syncHShortcutBtn() {
+        const btn = document.getElementById('btn-h-shortcut');
+        if (!btn) return;
+        const on = isHShortcutEnabled();
+        btn.textContent = on ? '⌨️ Hキー: ON' : '⌨️ Hキー: OFF';
+        btn.style.background = on ? 'rgba(76,175,80,0.3)'  : 'rgba(255,255,255,0.12)';
+        btn.style.border     = on ? '1px solid rgba(76,175,80,0.7)' : '1px solid rgba(255,255,255,0.3)';
+        btn.style.color      = on ? '#a5d6a7' : 'rgba(255,255,255,0.7)';
+    }
+    window.toggleHShortcut = function() {
+        localStorage.setItem(H_SHORTCUT_KEY, String(!isHShortcutEnabled()));
+        syncHShortcutBtn();
+    };
+    syncHShortcutBtn();
+
+    // 手入力欄（input/select/textarea/contenteditable）にフォーカス中は反応させない。
+    // IME変換中（isComposing）や修飾キー併用、キーリピートも除外する。
+    function isTypingIntoField() {
+        const el = document.activeElement;
+        if (!el) return false;
+        if (el.isContentEditable) return true;
+        const tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    }
+    document.addEventListener('keydown', e => {
+        if (!isHShortcutEnabled()) return;
+        if (e.key !== 'h' && e.key !== 'H') return;
+        if (e.repeat || e.isComposing || e.ctrlKey || e.altKey || e.metaKey) return;
+        if (isTypingIntoField()) return;
+        const btn = document.getElementById('btn-hdts');
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        getFromQira();
+    });
 
     window.addEventListener('pageshow', e => {
         if (e.persisted) { _initRunning = false; init(); }
