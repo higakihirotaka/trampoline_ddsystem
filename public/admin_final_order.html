@@ -602,6 +602,14 @@
     section.style.display = '';
   }
 
+  // 「PDFに保存」時の既定ファイル名は多くのブラウザでdocument.titleが使われるため、
+  // 印刷直前だけタイトルを「個人Bクラス女子_決勝スタートリスト」のような名前に差し替える。
+  const _origDocTitle = document.title;
+  function buildPrintFilename(type, cls, gender) {
+    const typeLabel = type === 'synchro' ? 'シンクロ' : '個人';
+    return `${typeLabel}${cls || ''}${gender || ''}_決勝スタートリスト`;
+  }
+
   window.printFiltered = function() {
     const accs = [...document.querySelectorAll('#startlist-container .sl-accordion')];
     const targets = accs.filter(acc =>
@@ -611,6 +619,7 @@
     );
     const label = [fClass, fGender, fType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
     document.getElementById('sl-print-event').textContent = (tourData?.name || '') + (label ? ` — ${label}` : '');
+    document.title = buildPrintFilename(fType, fClass, fGender);
     targets.forEach(acc => acc.classList.add('print-target', 'open'));
     document.body.classList.add('printing-class');
     window.print();
@@ -618,6 +627,7 @@
       targets.forEach(acc => acc.classList.remove('print-target'));
       document.body.classList.remove('printing-class');
       document.getElementById('sl-print-event').textContent = tourData?.name || '';
+      document.title = _origDocTitle;
       window.onafterprint = null;
     };
   };
@@ -626,6 +636,7 @@
     const acc = btn.closest('.sl-accordion');
     // 印刷タイトルをクラス名に更新
     document.getElementById('sl-print-event').textContent = `${tourData?.name || ''} — ${title}`;
+    document.title = buildPrintFilename(acc.dataset.type, acc.dataset.cls, acc.dataset.gender);
     acc.classList.add('print-target', 'open'); // 本文を確実に展開
     document.body.classList.add('printing-class');
     window.print();
@@ -633,6 +644,7 @@
       acc.classList.remove('print-target');
       document.body.classList.remove('printing-class');
       document.getElementById('sl-print-event').textContent = tourData?.name || '';
+      document.title = _origDocTitle;
       window.onafterprint = null;
     };
   };
