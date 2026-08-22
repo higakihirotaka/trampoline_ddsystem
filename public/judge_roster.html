@@ -82,7 +82,7 @@
 <script type="module">
     import { db } from "./firebase-config.js";
     import { doc, getDocFromServer, getDocsFromServer, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { buildJudgeRosterGroups, applyJudgeRosterOrder } from "./shared.js";
+    import { buildJudgeRosterGroups, applyJudgeRosterOrder, filterHiddenJudgeRosterGroups } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -143,7 +143,8 @@
         .map(c => ({ name: c.name, type: 'synchro' }));
     const judgeConfig  = d.judgeConfig?.classes || {};
     const classRules   = d.classRules || {};
-    const rosterOrder  = d.judgeConfig?.rosterOrder || {}; // admin_roster_order.html で設定したブロック表示順
+    const rosterOrder  = d.judgeConfig?.rosterOrder  || {}; // admin_roster_order.html で設定したブロック表示順
+    const rosterHidden = d.judgeConfig?.rosterHidden || {}; // admin_roster_order.html で「非表示」にしたブロック
     const container    = document.getElementById('classes-container');
 
     function escHtml(s) {
@@ -179,6 +180,7 @@
         if (list.length === 0) return;
 
         let groups = buildJudgeRosterGroups(list, type, judgeConfig, classRules);
+        groups = filterHiddenJudgeRosterGroups(groups, rosterHidden[type]);
         groups = applyJudgeRosterOrder(groups, rosterOrder[type]);
         if (groups.length === 0) return;
 

@@ -283,3 +283,17 @@ export function applyJudgeRosterOrder(groups, savedOrder) {
     .sort((a, b) => a.sortKey - b.sortKey || a.i - b.i)
     .map(x => x.g);
 }
+
+/**
+ * 「非表示」に設定されたブロックを除外する（judge_roster.htmlの表示専用。
+ * admin_roster_order.htmlの並べ替え画面自体には全ブロックを表示し続けるため、この関数は呼ばない）。
+ * 保存はleafKey単位（クラス×性別×ラウンド）で行うため、ブロックを構成する全leafKeyが
+ * 非表示指定に含まれている場合のみそのブロックを除外する（一部だけ非表示指定が残っている
+ * 場合は、後から審判構成が変わってブロックの組み合わせ自体が変化したケースなどを考慮し、
+ * 安全側＝表示する側に倒す）。
+ */
+export function filterHiddenJudgeRosterGroups(groups, hiddenLeafKeys) {
+  if (!hiddenLeafKeys || !hiddenLeafKeys.length) return groups;
+  const hidden = new Set(hiddenLeafKeys);
+  return groups.filter(g => !g.leafKeys.every(k => hidden.has(k)));
+}
