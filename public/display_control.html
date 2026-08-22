@@ -1257,7 +1257,8 @@
                 kana1: a.kana1||'', kana2: a.kana2||'',
                 club1: a.club1||'', club2: a.club2||'',
                 type: a.type||'individual', class: a.class||'',
-                gender: a.gender||'', order: a.order||''
+                gender: a.gender||'', order: a.order||'',
+                finalOrder: a.finalOrder ?? null // 「決勝試技順」モード（getIntroSorted）の絞り込みに必要
             });
         });
         introAthletes.forEach(a => introCheckedIds.add(a.id));
