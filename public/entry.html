@@ -262,15 +262,20 @@
         tourData = tourDoc.exists() ? tourDoc.data() : {};
         subDocRef = subDocResult;
 
-        // 締切を過ぎている場合は一番上に閲覧のみバナーを表示する（提出可否のロジック自体は
+        // 締切を過ぎている場合は一番上にバナーを表示する（提出可否のロジック自体は
         // submitRoutine() の締切チェックのまま変更しない。参照する締切の選び方もそれに合わせる）。
+        // admin_card_edit.html経由（admin=1）でアクセスした管理者は、締切後でも編集・提出できる
+        // （submitRoutine()側の締切チェックもisAdminでスキップする）ため、閲覧のみではなく
+        // その旨がわかる警告バナーにする。
         {
             const _deadlineKey = round === 'final' ? 'finalSubmissionDeadline'
                                : subDocResult.exists() ? 'revisionDeadline' : 'submissionDeadline';
             const _deadlineStr = tourData?.[_deadlineKey];
             if (_deadlineStr && new Date() > new Date(_deadlineStr)) {
                 const banner = document.getElementById('deadline-banner');
-                banner.textContent = '締め切り後のため閲覧のみです。問い合わせは審判席までお越しください。';
+                banner.textContent = isAdmin
+                    ? '⚠️ 締め切りを過ぎていますが、管理者のため編集・提出できます。'
+                    : '締め切り後のため閲覧のみです。問い合わせは審判席までお越しください。';
                 banner.style.display = 'flex';
             }
         }
@@ -1010,13 +1015,13 @@
             }
         }
 
-        // 期限チェック
+        // 期限チェック（admin_card_edit.html経由の管理者=isAdminは締切後でも編集できるようスキップする）
         const now = new Date();
         const isFinal = round === 'final';
         const deadlineKey = isFinal ? 'finalSubmissionDeadline'
                           : subDocRef?.exists?.() ? 'revisionDeadline' : 'submissionDeadline';
         const deadlineStr = tourData?.[deadlineKey];
-        if (deadlineStr) {
+        if (!isAdmin && deadlineStr) {
             const deadline = new Date(deadlineStr);
             if (now > deadline) {
                 const labels = { submissionDeadline:'提出締切', revisionDeadline:'修正締切', finalSubmissionDeadline:'決勝締切' };
