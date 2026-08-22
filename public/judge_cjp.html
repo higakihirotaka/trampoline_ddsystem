@@ -201,6 +201,7 @@
       { ja:'演技中の補助員からの声かけ・合図',        en:'Talking / giving signal by spotter',          display:'SPOTTER TALKING',   points:0.6 },
       { ja:'演技中のコーチからの声かけ・合図',        en:'Talking / giving signal by coach',            display:'COACH TALKING',     points:0.6 },
       { ja:'特別要求の欠如',                        en:'Missing special requirement',                 display:'MISSING SPECIAL REQ', points:2.0 },
+      { ja:'アウトバウンス違い',                    en:'Out-bounce mismatch',                         display:'OUT-BOUNCE MISMATCH', points:0.4, synchroOnly:true },
     ];
     let appliedPenalties = []; // 選択中の違反 [{ja,en,display,points}]
     let _penDirty = false;     // CJPがペナルティを操作したか（renderScoresでの上書き抑制）
@@ -1515,6 +1516,7 @@
         // HDTS技別行のToF見出しはシンクロでは Syn（同期スコア）になる
         const hdtsLbl = document.getElementById('hdts-tof-label');
         if (hdtsLbl) hdtsLbl.innerHTML = isSyn ? 'Syn' : 'ToF';
+        populatePenaltySelect(isSyn); // シンクロ専用ペナルティ（アウトバウンス違い等）の選択肢を切り替え
     }
 
     // 内訳の色（暗い背景でも見やすい明るめのシェード）
@@ -1955,11 +1957,15 @@
     };
 
     // ==== CJPペナルティ（プルダウン複数選択 ＋ 手動加点） ====
-    function populatePenaltySelect() {
+    // synchroOnly の項目（アウトバウンス違い等）は、選手がシンクロの時だけ選択肢に出す。
+    // valueには絞り込み後ではなく元のCJP_PENALTIES配列のindexを入れる（addPenaltyFromSelectの参照先を保つため）
+    function populatePenaltySelect(isSyn) {
         const sel = document.getElementById('pen-select');
         if (!sel) return;
         sel.innerHTML = '<option value="">＋ 違反を追加…</option>' +
-            CJP_PENALTIES.map((p, i) => `<option value="${i}">${p.ja}（-${p.points.toFixed(1)}）</option>`).join('');
+            CJP_PENALTIES.map((p, i) => ({ p, i }))
+                .filter(({ p }) => !p.synchroOnly || isSyn)
+                .map(({ p, i }) => `<option value="${i}">${p.ja}（-${p.points.toFixed(1)}）</option>`).join('');
     }
     function penTotal() {
         const manual = parseFloat(document.getElementById('pen').value) || 0;
@@ -2005,7 +2011,7 @@
         if (inp) inp.value = (Math.round(manual * 100) / 100) || 0;
         renderPenaltyChips();
     }
-    populatePenaltySelect();
+    populatePenaltySelect(fType === 'synchro');
 
     window.toggleDMode = function(on) {
         dMode = on ? 'manual' : 'auto';
