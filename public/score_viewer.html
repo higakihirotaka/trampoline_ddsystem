@@ -575,9 +575,47 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         const _summary = document.querySelector('.score-summary');
         if (_summary) _summary.style.borderColor = _border;
 
-        // HDTS 合計列（技別データは Firestore 未保存のため合計値のみ）
-        document.getElementById('sv-hdts-tof-sum').textContent = t ? Number(t).toFixed(3) : '-';
-        document.getElementById('sv-hdts-hd-sum').textContent  = h ? Number(h).toFixed(3)  : '-';
+        // HDTS 技別（1本ごと）+ 合計。judge_cjp.html の renderHdtsRows() と同じ読み取り方
+        // （hdtsPerSkillByPanel.{パネル}）で、以前は合計値しか表示していなかった。
+        renderHdtsRows(data, activePanel, isSynchro);
+    }
+
+    function renderHdtsRows(data, activePanel, isSynchro) {
+        const ps = data?.hdtsPerSkillByPanel?.[activePanel];
+        if (isSynchro && ps && (ps.isSynchro || ps.syn || ps.hd1 || ps.hd2)) {
+            // シンクロ: Syn（同期スコア）1本ごと + HDは2人分を "d1 / d2" 表示
+            for (let i = 1; i <= 10; i++) {
+                const synCell = document.getElementById(`sv-hdts-tof-${i}`);
+                const hdCell  = document.getElementById(`sv-hdts-hd-${i}`);
+                const sv = ps.syn?.[i - 1];
+                const d1 = ps.hd1?.[i - 1], d2 = ps.hd2?.[i - 1];
+                if (synCell) synCell.textContent = (sv != null) ? Number(sv).toFixed(2) : '-';
+                if (hdCell)  hdCell.textContent  = (d1 != null || d2 != null) ? `${d1 ?? '-'} / ${d2 ?? '-'}` : '-';
+            }
+            const tofSumEl = document.getElementById('sv-hdts-tof-sum');
+            const hdSumEl  = document.getElementById('sv-hdts-hd-sum');
+            if (tofSumEl) tofSumEl.textContent = (ps.synTotal != null) ? Number(ps.synTotal).toFixed(2) : '-';
+            if (hdSumEl)  hdSumEl.textContent  = (ps.hd1Total != null || ps.hd2Total != null)
+                ? (Number(data?.validCount) || 10) - (((Number(ps.hd1Total) || 0) + (Number(ps.hd2Total) || 0)) / 20)
+                : '-';
+            return;
+        }
+        // 個人: ToF/HD を1本ごとに表示
+        let hdSum = 0, hasHd = false;
+        for (let i = 1; i <= 10; i++) {
+            const tofCell = document.getElementById(`sv-hdts-tof-${i}`);
+            const hdCell  = document.getElementById(`sv-hdts-hd-${i}`);
+            const tv = ps?.tof?.[i - 1];
+            const hv = ps?.hd?.[i - 1];
+            if (tofCell) tofCell.textContent = (tv != null) ? Number(tv).toFixed(3) : '-';
+            if (hdCell)  hdCell.textContent  = (hv != null) ? hv : '-';
+            if (hv != null) { hdSum += hv; hasHd = true; }
+        }
+        const tofSumEl = document.getElementById('sv-hdts-tof-sum');
+        const hdSumEl  = document.getElementById('sv-hdts-hd-sum');
+        const tofTotal = ps?.tofTotal ?? data?.tofByPanel?.[activePanel] ?? data?.tof;
+        if (tofSumEl) tofSumEl.textContent = (tofTotal != null && tofTotal !== '') ? Number(tofTotal).toFixed(3) : '-';
+        if (hdSumEl)  hdSumEl.textContent  = hasHd ? hdSum : (ps?.hdTotal != null ? ps.hdTotal : '-');
     }
 
     // ---- HDTS 行 表示切替 ----
