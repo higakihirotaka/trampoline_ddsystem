@@ -1432,7 +1432,13 @@
             } else {
                 const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit);
                 row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
-                row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
+                // jData.totalDeduction はE審判が確定した時点のvLimitで計算済みの値のため、
+                // CJPが後から有効本数(vLimit)を変更（中断等）すると、範囲外だった技の減点が
+                // 残ったまま合計されてしまう不具合があった。表示側で現在のvLimitに合わせて
+                // deductions/landingから毎回計算し直す（manual行と同じ考え方）。
+                const dedSum = (jData.deductions || []).slice(0, vLimit).reduce((a, b) => a + (b ?? 0), 0)
+                             + (vLimit === 10 ? (jData.landing ?? 0) : 0);
+                row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - dedSum).toFixed(1)}</td>`;
             }
             // 行ごとのトグルスイッチ（Total右）
             row += `<td class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" ${isManual ? 'checked' : ''} onchange="toggleRowManual('${jKey}', this.checked)"><span class="track-sm"></span></label></td>`;

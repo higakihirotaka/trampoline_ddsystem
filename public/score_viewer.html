@@ -494,7 +494,13 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
             const lv = jData.landing ?? null;
             const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit, isSynchro);
             rows += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
-            rows += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
+            // jData.totalDeduction はE審判が確定した時点のvLimitで計算済みの値のため、
+            // CJPが後から有効本数(vLimit)を変更（中断等）すると、範囲外だった技の減点が
+            // 残ったまま合計されてしまう不具合があった（judge_cjp.htmlと同じ問題）。
+            // 表示側で現在のvLimitに合わせてdeductions/landingから毎回計算し直す。
+            const dedSum = (jData.deductions || []).slice(0, vLimit).reduce((a, b) => a + (b ?? 0), 0)
+                         + (vLimit === 10 ? (jData.landing ?? 0) : 0);
+            rows += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - dedSum).toFixed(1)}</td>`;
             rows += `</tr>`;
         });
 

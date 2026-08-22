@@ -677,7 +677,11 @@
         confirmed = false; // 入力を変更したら確定は解除（再度「確定」を押す必要がある）
         refresh();
 
-        const sum   = deductions.reduce((a, b) => a + (b ?? 0), 0) + (landing ?? 0);
+        // vLimit（有効本数）を超えた分はCJPが後から中断等で有効本数を減らした場合の残骸になりうるため、
+        // 合計には含めない（着地もvLimit===10の時だけ加算）。範囲外のセルへの書込みは上のtap()冒頭で
+        // 既にブロックしているが、それより前（有効本数が多かった時点）に入力済みの値が
+        // deductions配列に残っている可能性があるため、ここでも明示的に絞り込む。
+        const sum   = deductions.slice(0, vLimit).reduce((a, b) => a + (b ?? 0), 0) + (vLimit === 10 ? (landing ?? 0) : 0);
         const resId = `${eventId}_${athleteId}_${round}`;
         await setDoc(doc(db, 'results', resId), {
             eventId, athleteId, round,
