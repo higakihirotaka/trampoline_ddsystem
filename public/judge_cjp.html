@@ -201,7 +201,7 @@
       { ja:'演技中の補助員からの声かけ・合図',        en:'Talking / giving signal by spotter',          display:'SPOTTER TALKING',   points:0.6 },
       { ja:'演技中のコーチからの声かけ・合図',        en:'Talking / giving signal by coach',            display:'COACH TALKING',     points:0.6 },
       { ja:'特別要求の欠如',                        en:'Missing special requirement',                 display:'MISSING SPECIAL REQ', points:2.0 },
-      { ja:'アウトバウンス違い',                    en:'Out-bounce mismatch',                         display:'OUT-BOUNCE MISMATCH', points:0.4, synchroOnly:true },
+      { ja:'アウトバウンス違い',                    en:'Out-bounce mismatch',                         display:'OUT-BOUNCE DIFF',   points:0.4, synchroOnly:true },
     ];
     let appliedPenalties = []; // 選択中の違反 [{ja,en,display,points}]
     let _penDirty = false;     // CJPがペナルティを操作したか（renderScoresでの上書き抑制）
