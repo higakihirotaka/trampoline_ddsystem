@@ -971,10 +971,14 @@
   .fsl-class{
     font-size:3.2cqw; font-weight:900; color:var(--accent-gold); line-height:1.1;
   }
-  /* リスト：grid で名前列幅を最長名前に統一 → チーム名が全行同じ位置に揃う */
+  /* リスト：grid で名前列幅を最長名前に統一 → チーム名が全行同じ位置に揃う。
+     チーム名列も1fr（残り幅を使い切る）ではなくmax-content（内容分だけ）にし、
+     justify-content:centerで番号・名前・チーム名のブロック全体を中央寄せする
+     （1frのままだと短いチーム名の右側が全部空白になり、全体が左に寄って見えるため） */
   .fsl-table{
     flex:1; display:grid;
-    grid-template-columns: 5cqw max-content 1fr;  /* 番号 | 名前(最長に揃える) | チーム名 */
+    grid-template-columns: 5cqw max-content max-content;  /* 番号 | 名前(最長に揃える) | チーム名(最長に揃える) */
+    justify-content:center;
     align-content:space-evenly;
     align-items:baseline;
     column-gap:1.5cqw;
@@ -995,10 +999,11 @@
     white-space:nowrap;
     line-height:1.05;
   }
-  /* チーム名：残り幅を使い切る */
+  /* チーム名：内容分の幅（max-content列）。極端に長い所属名の場合だけ省略記号で収める */
   .fsl-club{
     font-size:var(--fsl-club-fs,1.6cqw); font-weight:600;
     color:rgba(255,255,255,0.4);
+    max-width:26cqw;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     line-height:1.3;
   }
