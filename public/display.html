@@ -2672,7 +2672,7 @@
     const cls     = target.class  || '';
     const gender  = target.gender || '';
     const selType = target.type   || 'individual';
-    const heading = [cls, gender, selType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
+    const heading = [cls, gender, selType === 'synchro' ? 'シンクロ' : '個人', '決勝スタートリスト'].filter(Boolean).join(' ');
 
     // finalOrder が設定済みの選手を抽出してソート
     const finalists = Object.values(athleteMap)
