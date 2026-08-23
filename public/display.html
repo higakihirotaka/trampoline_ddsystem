@@ -930,6 +930,9 @@
     font-size:12cqw; font-weight:900; line-height:0.9;
     letter-spacing:-2px; color:#ffffff; white-space:nowrap;
     text-shadow:0 0 80px rgba(255,255,255,0.12);
+    /* シンクロ（2名分）等、既定サイズのままだと画面幅をはみ出す場合の保険。
+       主な調整はJS側で文字数に応じてfont-sizeを縮小する（下のapplyIntroSlide参照） */
+    max-width:88cqw; overflow:hidden; text-overflow:ellipsis;
   }
   .intro-kana-lbl{
     font-size:3.2cqw; font-weight:600; letter-spacing:0.25em;
@@ -2602,7 +2605,13 @@
 
     document.getElementById('intro-class-lbl').textContent = classGender;
     document.getElementById('intro-order-lbl').textContent = orderStr;
-    document.getElementById('intro-name-lbl').textContent  = name;
+    const nameLblEl = document.getElementById('intro-name-lbl');
+    nameLblEl.textContent = name;
+    // シンクロは「名前A / 名前B」で単独選手の倍近い長さになり、既定の12cqwのままだと
+    // 画面幅からはみ出すため、文字数に応じて縮小する（個人の短い名前は従来通り12cqwのまま）
+    const nameLen = name.length;
+    const nameFsCqw = nameLen <= 6 ? 12 : nameLen <= 9 ? 9 : nameLen <= 12 ? 7 : nameLen <= 16 ? 5.6 : nameLen <= 20 ? 4.6 : 3.8;
+    nameLblEl.style.fontSize = nameFsCqw + 'cqw';
     document.getElementById('intro-kana-lbl').textContent  = kana;
     document.getElementById('intro-club-lbl').textContent  = club;
 
