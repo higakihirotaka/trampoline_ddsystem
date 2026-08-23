@@ -1072,6 +1072,17 @@
                             'warmupSettings.timerPaused':     false,
                         }).catch(() => {});
                     }, 1500); // 1.5秒後に再スタート
+                } else {
+                    // 繰り返しなしで自然終了した場合も終了状態をFirestoreに書き戻す。
+                    // これをしないと timerPaused:false のまま古い timerRef/timerRemainingMs が
+                    // 残り続け、後から開いた別端末（審判画面等）がその古い値から残り時間を
+                    // 誤って再計算し、実際には終わっているのに「残り数秒」等の誤表示をしてしまう。
+                    updateDoc(doc(db,'tournaments',eventId), {
+                        'warmupSettings.timerRemainingMs': 0,
+                        'warmupSettings.timerPaused':      true,
+                        'warmupSettings.timerEndMs':       null,
+                        'warmupSettings.timerRef':         null,
+                    }).catch(() => {});
                 }
             }
         }
