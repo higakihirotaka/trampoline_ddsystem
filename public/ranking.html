@@ -488,9 +488,13 @@
       // rowspanセルは最終選手かつ複数ラウンド時のみ底線を直接付与（CSSのlast-childでは届かない）
       const rsStyle = (isLast && showRounds.length > 1) ? ' style="border-bottom:2px solid #aaa"' : '';
 
+      // シンクロ: 両選手が同じ所属なら「A / A」ではなく1つにまとめて表示
+      const synClubText = (r.a.club1 || '').trim() && (r.a.club1 || '').trim() === (r.a.club2 || '').trim()
+        ? r.a.club1.trim()
+        : [r.a.club1, r.a.club2].filter(Boolean).join(' / ');
       const nameHtml = r.a.type === 'synchro'
         ? `<div class="ath-name">${r.a.name1 || '−'} / ${r.a.name2 || '−'}</div>
-           <div class="ath-club">${[r.a.club1, r.a.club2].filter(Boolean).join(' / ')}</div>`
+           <div class="ath-club">${synClubText}</div>`
         : `<div class="ath-name">${r.a.name1 || '−'}</div>
            <div class="ath-club">${r.a.club1 || ''}</div>`;
 
