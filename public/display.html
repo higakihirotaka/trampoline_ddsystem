@@ -935,9 +935,12 @@
     font-size:12cqw; font-weight:900; line-height:0.9;
     letter-spacing:-2px; color:#ffffff; white-space:nowrap;
     text-shadow:0 0 80px rgba(255,255,255,0.12);
-    /* シンクロ（2名分）等、既定サイズのままだと画面幅をはみ出す場合の保険。
-       主な調整はJS側で文字数に応じてfont-sizeを縮小する（下のapplyIntroSlide参照） */
-    max-width:88cqw; overflow:hidden; text-overflow:ellipsis;
+    /* シンクロ（2名分）等で既定サイズのままだと画面幅をはみ出すため、
+       JS側で文字数に応じてfont-sizeを縮小する（下のapplyIntroSlide参照）。
+       以前はここにmax-width+overflow:hiddenの保険を付けていたが、
+       line-height:0.9の詰めた行送りやtext-shadowの広い滲みが箱型に
+       切り取られ、名前部分が四角く色の違う塊に見えたり下端が欠けたりして
+       いたため撤去した（JS側の縮小だけで画面内に収まることは確認済み）。 */
   }
   .intro-club-lbl{
     font-size:4cqw; font-weight:800; letter-spacing:0.12em;
@@ -2613,7 +2616,9 @@
     const ath = step.athlete;
 
     const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
-    const orderStr    = ath.order ? `No. ${ath.order}` : '';
+    // 決勝試技順(finalOrder)が割り当て済みならそちらを優先して表示する（予選順(order)ではなく）
+    const introOrderNum = ath.finalOrder ?? ath.order;
+    const orderStr    = introOrderNum ? `No. ${introOrderNum}` : '';
     const name  = ath.type === 'synchro' && ath.name2
                   ? `${ath.name1} / ${ath.name2}` : (ath.name1 || '');
     const club  = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
@@ -2663,7 +2668,9 @@
       const name = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : (a.name1 || '');
       const club = a.type === 'synchro' && a.club2 && a.club1 !== a.club2
                    ? `${a.club1 || ''} / ${a.club2 || ''}` : (a.club1 || '');
-      html += `<div class="intro-roster-item"><span class="rno num">${a.order ? 'No.' + a.order : ''}</span><span>${name}</span><span class="rclub">${club}</span></div>`;
+      // 決勝試技順(finalOrder)が割り当て済みならそちらを優先（applyIntroSlideの選手カードと同じ）
+      const orderNum = a.finalOrder ?? a.order;
+      html += `<div class="intro-roster-item"><span class="rno num">${orderNum ? 'No.' + orderNum : ''}</span><span>${name}</span><span class="rclub">${club}</span></div>`;
     });
     grid.innerHTML = html;
   }
