@@ -2386,6 +2386,10 @@
     if (sig === _venueSig) return;
     _venueSig = sig;
     const screen = tourData.venueScreen || 'score';
+    // 選手紹介から離れたら、次に選手紹介へ戻った時は必ず（前回と同じ手順でも）
+    // 描画し直す。同じ手順の間だけ登場アニメの二重発火を防ぐガード（applyIntroSlide内）
+    // なので、画面を離れている間はガードの前提が崩れるためリセットしておく。
+    if (screen !== 'intro') _lastIntroSig = null;
     if (screen !== 'teamRanking') {
       _teamRankKey = null; _teamRankLastTarget = null;
       stopTeamRankCycle();  // 他画面へ移ったら次回は再描画・ページ送り停止
@@ -2554,10 +2558,16 @@
       (ms === 0 ? ' done' : ms < 60000 ? ' warning' : '');
   }
 
+  // 直近に描画したintroSettingsの内容（無関係な大会ドキュメント更新のたびにapplyVenueScreen経由で
+  // 呼ばれても、選手やページが実際に変わっていなければ登場アニメを再発火させないためのガード）
+  let _lastIntroSig = null;
   function applyIntroSlide(settings) {
     const athletes = settings.athletes || [];
     const idx      = settings.currentIndex ?? 0;
     if (athletes.length === 0) return;
+    const sig = `${idx}|${athletes.length}|${settings.showPerClassRoster ? 1 : 0}`;
+    if (sig === _lastIntroSig) return; // 同じ手順のまま＝無関係な更新なので何もしない
+    _lastIntroSig = sig;
     // display_control.html（進行役）と全く同じ組み立て方をし、currentIndexの意味を一致させる
     const steps = buildIntroSteps(athletes, !!settings.showPerClassRoster);
 
