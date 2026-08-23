@@ -317,10 +317,14 @@ export function buildIntroSteps(athletes, showPerClassRoster) {
     steps.push({ type: 'athlete', athlete: a });
     if (!showPerClassRoster) return;
     const next = athletes[i + 1];
-    const classChanging = !next || (next.class || '') !== (a.class || '');
-    if (classChanging) {
-      const classAthletes = athletes.filter(x => (x.class || '') === (a.class || ''));
-      steps.push({ type: 'classRoster', className: a.class || '', athletes: classAthletes });
+    // クラス・性別のどちらかが変わったら区切り（男女は別グループとして扱う）
+    const groupChanging = !next ||
+      (next.class || '') !== (a.class || '') || (next.gender || '') !== (a.gender || '');
+    if (groupChanging) {
+      const groupAthletes = athletes.filter(x =>
+        (x.class || '') === (a.class || '') && (x.gender || '') === (a.gender || ''));
+      const className = [a.class || '', a.gender || ''].filter(Boolean).join(' ');
+      steps.push({ type: 'classRoster', className: className || '出場選手', athletes: groupAthletes });
     }
   });
   return steps;
