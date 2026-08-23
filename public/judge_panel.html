@@ -589,7 +589,7 @@
                         </div>
                         <button class="btn-fetch-declared" onclick="loadDeclaredSkills()" title="選手の申請種目をD入力欄に取り込みます。CJPがDなしで確定する等で空欄になった場合の救済用です。">📥 申請種目を取得</button>
                     </div>
-                    <h2>No.${ath.order} ${headerName} <span style="font-size:0.5em; color:#666;">${headerKana ? `(${headerKana})` : ''}</span></h2>
+                    <h2>No.${round === 'final' ? (ath.finalOrder ?? ath.order) : ath.order} ${headerName} <span style="font-size:0.5em; color:#666;">${headerKana ? `(${headerKana})` : ''}</span></h2>
                     ${headerClub ? `<div style="font-size:0.9em; color:#78909c; margin-top:2px;">${headerClub}</div>` : ''}
                 </div>
                 <div class="score-body">
