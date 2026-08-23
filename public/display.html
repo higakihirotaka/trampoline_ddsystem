@@ -806,14 +806,14 @@
   }
   /* 右上: 選手紹介ループ中の会場練習 残り時間（タイマーがカウント中のみ表示） */
   .intro-warmup-timer{
-    font-size:60px; font-weight:900; letter-spacing:0.06em;  /* タイマー本体は60px固定 */
+    font-size:120px; font-weight:900; letter-spacing:0.06em;  /* タイマー本体は120px固定（以前の60pxの2倍） */
     color:var(--accent-gold); line-height:1;
     text-shadow:0 0 24px rgba(255,215,0,0.25);
     text-align:center;                   /* ラベルと時間を互いにセンタリング */
   }
   .intro-warmup-timer .lbl{
     display:block;                       /* ラベルと時間を縦積み */
-    font-size:0.6em; font-weight:800; letter-spacing:0.18em;  /* =36px（現状の大きさを維持） */
+    font-size:0.6em; font-weight:800; letter-spacing:0.18em;  /* =72px（本体に連動して2倍） */
     color:rgba(255,255,255,0.6);
     margin:0 0 0.8cqh;
   }
