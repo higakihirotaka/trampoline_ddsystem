@@ -258,6 +258,20 @@
         const athClasses = new Set(athletes.map(a =>
             `${a.type || 'individual'}:${a.class || a.category || ''}`
         ));
+        // クラスごとに実際に選手がいる性別を集計（男子/女子に限らず「混合」等も拾う）
+        const classGenders = new Map();   // `${type}:${class}` → Set<gender>
+        athletes.forEach(a => {
+            const key = `${a.type || 'individual'}:${a.class || a.category || ''}`;
+            const gender = a.gender || '';
+            if (!gender) return;
+            if (!classGenders.has(key)) classGenders.set(key, new Set());
+            classGenders.get(key).add(gender);
+        });
+        // 表示順: 女子→男子→それ以外（混合など、登場順）
+        function sortGenders(genders) {
+            const order = g => g === '女子' ? 0 : g === '男子' ? 1 : 2;
+            return [...genders].sort((a, b) => order(a) - order(b));
+        }
 
         // クラス一覧（選手が1人以上いるクラスのみ）
         const cls = d.classes || {};
@@ -281,7 +295,8 @@
         const classRules = d.classRules || {};   // クラス別設定（E審判人数・決勝有無の取得用）
         const mkStruct = (names, type) => names.map(name => {
             const cr = classRules[type]?.[name] || {};
-            return { name, numE: parseInt(cr.eJudgeCount) || 4, hasH5H6: cr.hasH5H6 === true, hasFinal: ruleHasFinal(cr), finalOnly: cr.finalOnly === true };
+            const genders = sortGenders(classGenders.get(`${type}:${name}`) || new Set(['男子','女子']));
+            return { name, numE: parseInt(cr.eJudgeCount) || 4, hasH5H6: cr.hasH5H6 === true, hasFinal: ruleHasFinal(cr), finalOnly: cr.finalOnly === true, genders };
         });
         _struct = { individual: mkStruct(individual, 'individual'), synchro: mkStruct(synchro, 'synchro') };
 
@@ -313,7 +328,7 @@
             container.appendChild(heading);
             const grid = document.createElement('div');
             grid.className = 'class-grid';
-            _struct[type].forEach(c => grid.appendChild(buildClassCard(c.name, type, c.numE, c.hasH5H6, c.hasFinal, c.finalOnly)));
+            _struct[type].forEach(c => grid.appendChild(buildClassCard(c.name, type, c.numE, c.hasH5H6, c.hasFinal, c.finalOnly, c.genders)));
             container.appendChild(grid);
         });
         const saveAllBtn = document.createElement('button');
@@ -339,7 +354,7 @@
     }
 
     // ---- カード生成（性別×ラウンド グリッド。決勝なしクラスは予選のみ） ----
-    function buildClassCard(className, type, numE = 4, hasH5H6 = false, hasFinal = false, finalOnly = false) {
+    function buildClassCard(className, type, numE = 4, hasH5H6 = false, hasFinal = false, finalOnly = false, genders = ['男子','女子']) {
         // 新形式: classes[type][className]、旧形式: classes[className]（後方互換）
         const rawData = judgeConfig.classes?.[type]?.[className]
                      || judgeConfig.classes?.[className]
@@ -364,7 +379,7 @@
 
         const secGrid = card.querySelector('.sec-grid');
         const rounds  = finalOnly ? ['決勝'] : (hasFinal ? ['予選','決勝'] : ['予選']);   // 決勝のみは決勝だけ
-        for (const gender of ['男子','女子']) {
+        for (const gender of genders) {
             for (const round of rounds) {
                 secGrid.appendChild(buildSecPanel(gender, round, getSectionData(gender, round), roles));
             }
@@ -607,7 +622,7 @@
                 const allData = card ? readClassCard(card) : {};
                 const roles  = rolesFor(c.numE, c.hasH5H6);
                 const rounds = c.finalOnly ? ['決勝'] : (c.hasFinal ? ['予選','決勝'] : ['予選']);
-                for (const gender of ['男子','女子']) {
+                for (const gender of c.genders || ['男子','女子']) {
                     for (const round of rounds) {
                         const sec = (allData[gender] && allData[gender][round]) || {};
                         roles.forEach(([key, roleLabel]) => {
