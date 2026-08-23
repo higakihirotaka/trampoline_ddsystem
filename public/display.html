@@ -821,7 +821,8 @@
   /* ループ開始時のタイトル画面「選手紹介」（currentIndex=-1 のとき表示） */
   .intro-title-screen{
     position:absolute; inset:0;
-    display:none; align-items:center; justify-content:center;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:1.8cqh;
     pointer-events:none;
   }
   .intro-title-screen.active{ display:flex; }
@@ -837,6 +838,14 @@
     0%  { opacity:0; transform:scale(1.15); filter:blur(14px); }
     60% { opacity:1; filter:blur(0); }
     100%{ opacity:1; transform:scale(1); filter:blur(0); }
+  }
+  /* 英語併記（デザイン上のバイリンガル表記） */
+  .intro-title-en{
+    font-size:1.8cqw; font-weight:700; letter-spacing:0.5em; text-indent:0.5em;
+    color:rgba(255,255,255,0.4); text-transform:uppercase; white-space:nowrap;
+  }
+  .intro-title-screen.active .intro-title-en{
+    animation: intro-fade-up 1000ms 600ms cubic-bezier(0.22,1,0.36,1) both;
   }
   /* ループ最後の選手一覧ページ（currentIndex = 選手数 のとき表示） */
   .intro-roster-screen{
@@ -906,13 +915,9 @@
     100%{ opacity:1; transform:scale(1) translateY(0); filter:blur(0);
           text-shadow: 0 0 120px rgba(255,255,255,0.35), 0 0 40px rgba(0,242,255,0.2); }
   }
-  /* かな */
-  .intro-anim .intro-kana-lbl{
-    animation: intro-fade-up 1000ms 800ms cubic-bezier(0.22,1,0.36,1) both;
-  }
   /* 所属 */
   .intro-anim .intro-club-lbl{
-    animation: intro-fade-up 1000ms 1000ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-fade-up 1000ms 800ms cubic-bezier(0.22,1,0.36,1) both;
   }
   @keyframes intro-fade-up{
     from{ opacity:0; transform:translateY(2cqh); }
@@ -933,10 +938,6 @@
     /* シンクロ（2名分）等、既定サイズのままだと画面幅をはみ出す場合の保険。
        主な調整はJS側で文字数に応じてfont-sizeを縮小する（下のapplyIntroSlide参照） */
     max-width:88cqw; overflow:hidden; text-overflow:ellipsis;
-  }
-  .intro-kana-lbl{
-    font-size:3.2cqw; font-weight:600; letter-spacing:0.25em;
-    color:rgba(255,255,255,0.45); line-height:1;
   }
   .intro-club-lbl{
     font-size:4cqw; font-weight:800; letter-spacing:0.12em;
@@ -1098,9 +1099,10 @@
       </div>
       <div class="intro-title-screen" id="intro-title-screen">
         <div class="intro-title-big">選手紹介</div>
+        <div class="intro-title-en">ATHLETE INTRODUCTION</div>
       </div>
       <div class="intro-roster-screen" id="intro-roster-screen">
-        <div class="intro-roster-title">出場選手</div>
+        <div class="intro-roster-title" id="intro-roster-title">出場選手</div>
         <div class="intro-roster-grid" id="intro-roster-grid"></div>
       </div>
       <div class="intro-card" id="intro-card">
@@ -1108,7 +1110,6 @@
         <div class="intro-order-lbl" id="intro-order-lbl"></div>
         <div class="intro-divider"></div>
         <div class="intro-name-lbl" id="intro-name-lbl"></div>
-        <div class="intro-kana-lbl" id="intro-kana-lbl"></div>
         <div class="intro-club-lbl" id="intro-club-lbl"></div>
       </div>
     </div>
@@ -1117,7 +1118,7 @@
 <script type="module">
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, round1 } from "./shared.js";
+  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, round1, buildIntroSteps } from "./shared.js";
   import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
@@ -2551,10 +2552,11 @@
   }
 
   function applyIntroSlide(settings) {
-    const athletes  = settings.athletes  || [];
-    const idx       = settings.currentIndex ?? 0;
-    const total     = athletes.length;
-    if (total === 0) return;
+    const athletes = settings.athletes || [];
+    const idx      = settings.currentIndex ?? 0;
+    if (athletes.length === 0) return;
+    // display_control.html（進行役）と全く同じ組み立て方をし、currentIndexの意味を一致させる
+    const steps = buildIntroSteps(athletes, !!settings.showPerClassRoster);
 
     document.getElementById('intro-event-lbl').textContent = tournamentName;
 
@@ -2577,11 +2579,11 @@
     }
     titleScr.classList.remove('active');
 
-    // ループ最後の選手一覧ページ（currentIndex = 選手数）
-    if (idx >= total) {
+    // ループ最後の選手一覧ページ（currentIndex = 手順数。全選手を対象にした従来通りの一覧）
+    if (idx >= steps.length) {
       _card.classList.remove('intro-anim');
       _card.style.visibility = 'hidden';
-      renderIntroRoster(athletes);
+      renderIntroRoster(athletes, '出場選手');
       _layout.classList.remove('intro-flash');
       rosterScr.classList.remove('active');
       void rosterScr.offsetWidth;
@@ -2589,17 +2591,31 @@
       _layout.classList.add('intro-flash');
       return;
     }
+
+    const step = steps[Math.min(idx, steps.length - 1)];
+
+    // クラスの紹介が終わるたびに挟む、そのクラスだけの一覧ページ
+    if (step.type === 'classRoster') {
+      _card.classList.remove('intro-anim');
+      _card.style.visibility = 'hidden';
+      renderIntroRoster(step.athletes, step.className || '出場選手');
+      _layout.classList.remove('intro-flash');
+      rosterScr.classList.remove('active');
+      void rosterScr.offsetWidth;
+      rosterScr.classList.add('active');
+      _layout.classList.add('intro-flash');
+      return;
+    }
+
     rosterScr.classList.remove('active');
     _card.style.visibility = '';
 
-    const ath = athletes[Math.min(idx, total - 1)];
+    const ath = step.athlete;
 
     const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
     const orderStr    = ath.order ? `No. ${ath.order}` : '';
     const name  = ath.type === 'synchro' && ath.name2
                   ? `${ath.name1} / ${ath.name2}` : (ath.name1 || '');
-    const kana  = ath.type === 'synchro' && ath.kana2
-                  ? `${ath.kana1 || ''} / ${ath.kana2 || ''}` : (ath.kana1 || '');
     const club  = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
                   ? `${ath.club1} / ${ath.club2}` : (ath.club1 || '');
 
@@ -2612,7 +2628,6 @@
     const nameLen = name.length;
     const nameFsCqw = nameLen <= 6 ? 12 : nameLen <= 9 ? 9 : nameLen <= 12 ? 7 : nameLen <= 16 ? 5.6 : nameLen <= 20 ? 4.6 : 3.8;
     nameLblEl.style.fontSize = nameFsCqw + 'cqw';
-    document.getElementById('intro-kana-lbl').textContent  = kana;
     document.getElementById('intro-club-lbl').textContent  = club;
 
     // カードアニメーション（フラッシュ＋子要素個別アニメ）
@@ -2626,7 +2641,10 @@
   }
 
   // 選手一覧ページ描画（クラス見出し＋No./氏名/所属。人数に応じて列数・文字サイズを自動調整）
-  function renderIntroRoster(athletes) {
+  // title: ページ上部の見出し（全体一覧なら「出場選手」、クラス別一覧ならクラス名）
+  function renderIntroRoster(athletes, title) {
+    const titleEl = document.getElementById('intro-roster-title');
+    if (titleEl && title) titleEl.textContent = title;
     const grid = document.getElementById('intro-roster-grid');
     if (!grid) return;
     const n = athletes.length;

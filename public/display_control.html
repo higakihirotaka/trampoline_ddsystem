@@ -396,6 +396,10 @@
                     <input type="checkbox" id="intro-show-roster" checked style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
                     ループの最後に選手一覧ページを表示
                 </label>
+                <label style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:0.85rem;font-weight:700;color:var(--text-main);cursor:pointer;">
+                    <input type="checkbox" id="intro-show-per-class-roster" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+                    クラスの紹介が終わるたびに、そのクラスの一覧ページを挟む
+                </label>
                 <div class="intro-mode-wrap">
                     <button class="intro-mode-btn active" data-mode="qualifying">予選試技順</button>
                     <button class="intro-mode-btn" data-mode="final">決勝試技順</button>
@@ -452,7 +456,7 @@
     import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
     import { getTournament } from "./cache.js";
-    import { applyIfChanged } from "./shared.js";
+    import { applyIfChanged, buildIntroSteps } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -701,6 +705,7 @@
                 if (sel.length === 0) { alert('表示する選手を選択してください'); return; }
                 const durMs = Number(document.getElementById('intro-duration-val').value) * 1000;
                 const showRoster = document.getElementById('intro-show-roster')?.checked ?? true;
+                const showPerClassRoster = document.getElementById('intro-show-per-class-roster')?.checked ?? false;
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: 'intro',
                     'rankingCarousel.active': false,
@@ -708,9 +713,10 @@
                     'introSettings.durationMs': durMs,
                     'introSettings.currentIndex': -1,  // -1 = ループ開始時の「選手紹介」タイトル画面
                     'introSettings.showRoster': showRoster,
+                    'introSettings.showPerClassRoster': showPerClassRoster,
                     'introSettings.isRunning': true
                 });
-                startIntroSequence(sel, durMs, showRoster);
+                startIntroSequence(sel, durMs, showRoster, showPerClassRoster);
             } else if (pendingScreen === 'final_startlist') {
                 const target = document.getElementById('fsl-target')?.value || '';
                 if (!target) {
@@ -944,14 +950,18 @@
         return getIntroSorted().filter(a => introCheckedIds.has(a.id));
     }
 
-    function updateIntroStatus(idx, total) {
+    // steps: 選手紹介ループの実際の手順（選手＋任意でクラス一覧ページ）。buildIntroSteps()参照
+    function updateIntroStatus(idx, steps) {
         const st = document.getElementById('intro-run-status');
         if (!st) return;
+        const step = idx >= 0 ? steps[idx] : null;
         st.textContent = idx < 0
             ? '「選手紹介」タイトル表示中…'
-            : idx >= total
+            : idx >= steps.length
               ? '選手一覧ページ表示中…'
-              : `紹介中: ${idx + 1} / ${total} 人目`;
+              : step.type === 'classRoster'
+                ? `${step.className || ''} 一覧ページ表示中…`
+                : `紹介中: ${idx + 1} / ${steps.length} 手順目`;
         st.className = 'intro-run-status running';
     }
 
@@ -963,24 +973,27 @@
         if (stopBtn) stopBtn.style.display = 'none';
     }
 
-    function startIntroSequence(athletes, durationMs, showRoster) {
+    function startIntroSequence(athletes, durationMs, showRoster, showPerClassRoster) {
         stopIntroSequence();
         introAthList    = athletes;
         introShowRoster = !!showRoster;
+        // クラス一覧ページを挟んだ手順（display.html側のapplyIntroSlide()と同じ組み立て方をする
+        // ことで、currentIndexの意味を両者で一致させる）
+        const steps = buildIntroSteps(athletes, !!showPerClassRoster);
         introCurIdx     = -1;  // タイトル画面から開始（最初の刻みで1人目へ）
-        updateIntroStatus(-1, athletes.length);
+        updateIntroStatus(-1, steps);
         document.getElementById('intro-stop-btn').style.display = '';
         introTimerItv = setInterval(async () => {
             introCurIdx++;
-            // 末尾: 一覧ONなら 選手数（=一覧ページ）まで進み、超えたらタイトル(-1)へ戻る（毎周）
-            const maxIdx = introAthList.length - 1 + (introShowRoster ? 1 : 0);
+            // 末尾: 一覧ONなら 手順数（=一覧ページ）まで進み、超えたらタイトル(-1)へ戻る（毎周）
+            const maxIdx = steps.length - 1 + (introShowRoster ? 1 : 0);
             if (introCurIdx > maxIdx) {
                 introCurIdx = -1; // 一周 → 毎回「選手紹介」タイトルから
             }
             await updateDoc(doc(db,'tournaments',eventId), {
                 'introSettings.currentIndex': introCurIdx
             }).catch(() => {});
-            updateIntroStatus(introCurIdx, introAthList.length);
+            updateIntroStatus(introCurIdx, steps);
         }, durationMs);
     }
 

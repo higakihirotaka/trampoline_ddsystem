@@ -297,3 +297,31 @@ export function filterHiddenJudgeRosterGroups(groups, hiddenLeafKeys) {
   const hidden = new Set(hiddenLeafKeys);
   return groups.filter(g => !g.leafKeys.every(k => hidden.has(k)));
 }
+
+// ============================================================
+//  選手紹介ループ（display_control.html の進行役 / display.html の描画役、共用）
+// ============================================================
+
+/**
+ * 選手紹介ループの手順を組み立てる。athletesは呼び出し側で既にクラス順に
+ * ソート済みであること（クラスの切れ目はこの並び上で隣同士のclassが変わる箇所として検出する）。
+ * showPerClassRoster が真の場合、各クラスの最後の選手の直後に、そのクラスの
+ * 一覧ページ（type:'classRoster'）を挿入する。
+ * display_control.html（進行のindex計算）とdisplay.html（実際の描画）の両方から呼び、
+ * 同じ手順・同じ長さになることを保証する（ずれるとcurrentIndexの意味が食い違うため）。
+ * @returns {Array<{type:'athlete', athlete:object} | {type:'classRoster', className:string, athletes:object[]}>}
+ */
+export function buildIntroSteps(athletes, showPerClassRoster) {
+  const steps = [];
+  athletes.forEach((a, i) => {
+    steps.push({ type: 'athlete', athlete: a });
+    if (!showPerClassRoster) return;
+    const next = athletes[i + 1];
+    const classChanging = !next || (next.class || '') !== (a.class || '');
+    if (classChanging) {
+      const classAthletes = athletes.filter(x => (x.class || '') === (a.class || ''));
+      steps.push({ type: 'classRoster', className: a.class || '', athletes: classAthletes });
+    }
+  });
+  return steps;
+}
