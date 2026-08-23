@@ -2714,7 +2714,9 @@
 
     const el = document.getElementById('intro-warmup-timer');
     if (!el) return;
-    if (!running || rem <= 0) { el.style.display = 'none'; return; }
+    // クラス別・全選手の一覧ページ表示中は、一覧と重ならないよう会場練習タイマーを隠す
+    const onRosterPage = document.getElementById('intro-roster-screen')?.classList.contains('active');
+    if (!running || rem <= 0 || onRosterPage) { el.style.display = 'none'; return; }
     const totalSec = Math.ceil(rem / 1000);
     const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
     const ss = String(totalSec % 60).padStart(2, '0');
