@@ -639,7 +639,8 @@
                 document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
                 (items || []).forEach(item => {
                     const idx = carouselCombos.findIndex(
-                        c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type && (c.mode || '') === (item.mode || ''));
+                        c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type &&
+                             (c.mode || '') === (item.mode || '') && (c.round || '') === (item.round || ''));
                     if (idx >= 0) {
                         const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
                         if (cb) cb.checked = true;
@@ -697,7 +698,7 @@
                 const showLogo = document.getElementById('carousel-show-logo').checked;
                 await updateDoc(doc(db,'tournaments',eventId), {
                     'rankingCarousel.active':   true,
-                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type, ...(c.mode ? { mode: c.mode } : {}) })),
+                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type, ...(c.mode ? { mode: c.mode } : {}), ...(c.round ? { round: c.round } : {}) })),
                     'rankingCarousel.showLogo': showLogo
                 });
             } else if (pendingScreen === 'intro') {
@@ -1203,8 +1204,11 @@
                 const key = `${cls}|${gender}|${typeRaw}`;
                 if (!carouselSet.has(key)) {
                     carouselSet.add(key);
-                    carouselCombos.push({ classVal: cls, gender, type: typeRaw,
-                        label: `${cls} ${gender}（${typeLabel}）` });
+                    // 予選・決勝を別々の巡回候補として選べるようにする
+                    carouselCombos.push({ classVal: cls, gender, type: typeRaw, round: 'qualifying',
+                        label: `${cls} ${gender}（${typeLabel}）予選` });
+                    carouselCombos.push({ classVal: cls, gender, type: typeRaw, round: 'final',
+                        label: `${cls} ${gender}（${typeLabel}）決勝` });
                 }
             }
         });

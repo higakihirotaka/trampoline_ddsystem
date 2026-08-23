@@ -2225,7 +2225,7 @@
           a.finalOrder != null
         );
       } else {
-        carouselEntries = await fetchRankingEntriesFor(item.classVal, item.gender, item.type);
+        carouselEntries = await fetchRankingEntriesFor(item.classVal, item.gender, item.type, item.round);
       }
       if (carouselEntries.length > 0) break;
       carouselIndex++;
