@@ -2611,7 +2611,7 @@
     if (step.type === 'classRoster') {
       _card.classList.remove('intro-anim');
       _card.style.visibility = 'hidden';
-      renderIntroRoster(step.athletes, step.className || '出場選手');
+      renderIntroRoster(step.athletes, step.className || '出場選手', false);
       _layout.classList.remove('intro-flash');
       rosterScr.classList.remove('active');
       void rosterScr.offsetWidth;
@@ -2657,7 +2657,7 @@
 
   // 選手一覧ページ描画（クラス見出し＋No./氏名/所属。人数に応じて列数・文字サイズを自動調整）
   // title: ページ上部の見出し（全体一覧なら「出場選手」、クラス別一覧ならクラス名）
-  function renderIntroRoster(athletes, title) {
+  function renderIntroRoster(athletes, title, showGroupHeads = true) {
     const titleEl = document.getElementById('intro-roster-title');
     if (titleEl && title) titleEl.textContent = title;
     const grid = document.getElementById('intro-roster-grid');
@@ -2670,8 +2670,10 @@
     grid.style.fontSize = fs + 'cqh';
     let html = '', lastGroup = null;
     athletes.forEach(a => {
+      // クラス別ロスターページ（呼び出し元でtitleに既にクラス名を出している）では、
+      // 一覧内に同じクラス名を重ねて出さない
       const group = [a.class, a.gender].filter(Boolean).join(' ');
-      if (group && group !== lastGroup) {
+      if (showGroupHeads && group && group !== lastGroup) {
         html += `<div class="intro-roster-head">${group}</div>`;
         lastGroup = group;
       }
