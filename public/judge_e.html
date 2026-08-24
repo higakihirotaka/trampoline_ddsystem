@@ -497,7 +497,18 @@
         let firstLoad = true;
 
         unsubResult = onSnapshot(doc(db, 'results', resId), (snap) => {
-            if (!snap.exists()) { vLimit = 10; refresh(); return; }
+            if (!snap.exists()) {
+                // CJPが得点削除した場合など: このE審判の入力状態も得点入力前に戻す。
+                // vLimitだけでなくdeductions/landing/confirmedも戻さないと、確定済みのまま
+                // ドキュメントだけ消え、confirmedが立ったままキー入力を受け付けなくなる。
+                vLimit = 10;
+                deductions = Array(10).fill(null);
+                landing = null;
+                confirmed = false;
+                currentIndex = 0;
+                refresh();
+                return;
+            }
             const data = snap.data();
 
             const prevVLimit = vLimit;
