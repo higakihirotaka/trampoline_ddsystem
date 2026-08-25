@@ -527,10 +527,14 @@
         const header  = isIndiv
             ? 'クラス,性別,グループ,試技順,氏名,氏名ふりがな,所属,所属よみ'
             : 'クラス,性別,グループ,試技順,選手1,選手1ふりがな,所属1,所属1よみ,選手2,選手2ふりがな,所属2,所属2よみ';
-        const example = isIndiv
-            ? 'Aクラス,男子,1,1,山田太郎,やまだたろう,慶応義塾大学,けいおうぎじゅくだいがく'
-            : 'シンクロAクラス,男子,1,1,山田太郎,やまだたろう,慶応義塾大学,けいおうぎじゅくだいがく,鈴木花子,すずきはなこ,△△スポーツ,さんかくさんかくすぽーつ';
-        const blob = new Blob(['\uFEFF' + header + '\n' + example], { type: 'text/csv;charset=utf-8;' });
+        // 大会設定されているクラスをすべて1行ずつのサンプルにする（未設定ならAクラスのみの例）。
+        // 所属（チーム名）のふりがな欄は任意項目のため空欄のままにする。
+        const classes = currentClasses().length ? currentClasses() : [isIndiv ? 'Aクラス' : 'シンクロAクラス'];
+        const rows = classes.map(cls => isIndiv
+            ? `${cls},男子,1,1,山田太郎,やまだたろう,慶応義塾大学,`
+            : `${cls},男子,1,1,山田太郎,やまだたろう,慶応義塾大学,,鈴木花子,すずきはなこ,△△スポーツ,`
+        );
+        const blob = new Blob(['\uFEFF' + header + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
