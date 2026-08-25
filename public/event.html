@@ -138,12 +138,32 @@
         return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
     }
 
+    // クラスの選択肢: 個人・シンクロで同じクラス名（例:「Aクラス」）が使われることが多く、
+    // 素の名前だけだと「片方だけ」を選べない（選ぶと個人・シンクロ両方が対象になってしまう）。
+    // 他画面（順位表巡回の候補一覧など）と同じ「クラス名（個人/シンクロ）」表記にして、
+    // 個人のAクラスだけ／シンクロのAクラスだけを選べるようにする。
+    function collectClassOptions(athletes) {
+        const seen = new Set();
+        const opts = [];
+        athletes.forEach(a => {
+            if (!a.class) return;
+            const type = a.type === 'synchro' ? 'synchro' : 'individual';
+            const key = `${type}::${a.class}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            const label = `${a.class}（${type === 'synchro' ? 'シンクロ' : '個人'}）`;
+            opts.push({ value: key, label });
+        });
+        opts.sort((x, y) => x.label.localeCompare(y.label, 'ja'));
+        return opts;
+    }
+
     function buildFilterOptions(athletes) {
         if (!athletes.length) return;
         const bar = document.getElementById('filter-bar');
         bar.style.display = 'flex';
 
-        const classNames  = [...new Set(athletes.map(a => a.class).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
+        const classOpts = collectClassOptions(athletes);
         // 性別は男子/女子/混合など実データにある値だけを出す（決め打ちしない）
         const genderOrder = g => g === '女子' ? 0 : g === '男子' ? 1 : 2;
         const genders = [...new Set(athletes.map(a => a.gender).filter(Boolean))].sort((a,b)=>genderOrder(a)-genderOrder(b));
@@ -152,21 +172,27 @@
         const fillSelect = (id, values, current) => {
             const sel = document.getElementById(id);
             const prev = sel.value;
+            const items = values.map(v => typeof v === 'string' ? { value: v, label: v } : v);
             sel.innerHTML = '<option value="">すべて</option>' +
-                values.map(v => `<option value="${v}">${v}</option>`).join('');
+                items.map(it => `<option value="${it.value}">${it.label}</option>`).join('');
             // 選択肢再構築後も、有効な値であれば選択状態を保つ（sessionStorage復元 or 選択済みの維持）
             const want = current !== undefined ? current : prev;
-            if (want && values.includes(want)) sel.value = want;
+            if (want && items.some(it => it.value === want)) sel.value = want;
         };
-        fillSelect('filter-class',  classNames, filterState.cls);
-        fillSelect('filter-gender', genders,    filterState.gender);
-        fillSelect('filter-team',   teams,       filterState.team);
+        fillSelect('filter-class',  classOpts, filterState.cls);
+        fillSelect('filter-gender', genders,   filterState.gender);
+        fillSelect('filter-team',   teams,     filterState.team);
     }
 
     function applyFilters(athletes) {
         if (!filterState.cls && !filterState.gender && !filterState.team) return athletes;
+        // filterState.cls は "individual::Aクラス" のような "型::クラス名" 形式
+        const [wantType, wantClass] = filterState.cls ? filterState.cls.split('::') : [null, null];
         return athletes.filter(a => {
-            if (filterState.cls && a.class !== filterState.cls) return false;
+            if (filterState.cls) {
+                const type = a.type === 'synchro' ? 'synchro' : 'individual';
+                if (type !== wantType || a.class !== wantClass) return false;
+            }
             if (filterState.gender && a.gender !== filterState.gender) return false;
             if (filterState.team) {
                 const inClub = (c) => (c || '').includes(filterState.team);
@@ -262,16 +288,19 @@
         const syncAthletes  = athletes.filter(a => a.type === 'synchro');
         // グループが1種類しかない大会では Gr 列を表示しない
         const showGroup = new Set(athletes.map(a => a.flightGroup).filter(g => g != null && g !== '')).size > 1;
+        // フィルタで該当0件になった側は、前回描画分が残らないよう明示的に空にする
+        // （フィルタ導入前は renderList が常に全選手で1回しか呼ばれず、0件になることが
+        //   無かったため、このクリア漏れは表面化していなかった）
         const indivContainer = document.getElementById('indiv-list');
-        if (indivAthletes.length > 0) {
-            indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' +
-                buildTablesHtml(indivAthletes, classRules.individual, 'individual', rawClassRules, indivClassOrder, showGroup);
-        }
+        indivContainer.innerHTML = indivAthletes.length > 0
+            ? '<h2 class="section-header indiv-header">個人競技</h2>' +
+                buildTablesHtml(indivAthletes, classRules.individual, 'individual', rawClassRules, indivClassOrder, showGroup)
+            : '';
         const syncContainer = document.getElementById('sync-list');
-        if (syncAthletes.length > 0) {
-            syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' +
-                buildTablesHtml(syncAthletes, classRules.synchro, 'synchro', rawClassRules, syncClassOrder, showGroup);
-        }
+        syncContainer.innerHTML = syncAthletes.length > 0
+            ? '<h2 class="section-header sync-header">シンクロ競技</h2>' +
+                buildTablesHtml(syncAthletes, classRules.synchro, 'synchro', rawClassRules, syncClassOrder, showGroup)
+            : '';
     }
 
     function buildTablesHtml(athletes, rulesByType, type, fallbackRules = {}, classOrder = [], showGroup = true) {
