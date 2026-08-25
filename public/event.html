@@ -32,6 +32,7 @@
         th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; }
         th { color: var(--text-gray); font-size: 0.75em; text-transform: uppercase; white-space: nowrap; }
         .col-num { width: 36px; }
+        .col-gr { width: 30px; }
         .col-name { text-align: left; min-width: 120px; }
         .col-btn { width: 88px; white-space: nowrap; }
         .status-link { text-decoration: none; padding: 8px 0; border-radius: 8px; font-size: 0.78em; font-weight: bold; display: block; width: 80px; margin: 0 auto; border: 1px solid transparent; transition: 0.2s; }
@@ -61,11 +62,22 @@
             #event-title { font-size: 1.3em !important; }
             .section-header { font-size: 1.3em; margin: 30px 0 12px; }
             .class-header { font-size: 1em; padding: 8px 14px; margin: 20px 0 10px; }
-            th, td { padding: 8px 5px; font-size: 0.85em; }
-            .col-num { width: 28px; }
-            .col-btn { width: 70px; }
-            .col-name { min-width: 90px; }
-            .status-link { width: 62px; font-size: 0.72em; padding: 7px 0; }
+            th, td { padding: 8px 3px; font-size: 0.85em; }
+            .col-num { width: 24px; }
+            .col-gr { width: 20px; }
+            .col-btn { width: 62px; }
+            .col-name { min-width: 76px; }
+            .status-link { width: 54px; font-size: 0.68em; padding: 7px 0; }
+        }
+
+        /* iPhone SE(第1世代)相当の幅の狭い端末向け追加調整（Gr列表示時でも横にきれいに収まるように） */
+        @media (max-width: 340px) {
+            th, td { padding: 6px 2px; }
+            .col-num { width: 20px; }
+            .col-gr { width: 16px; }
+            .col-btn { width: 48px; }
+            .col-name { min-width: 58px; }
+            .status-link { width: 42px; font-size: 0.6em; padding: 6px 0; }
         }
     </style>
 </head>
@@ -327,7 +339,7 @@
                     curGender = ath.gender;
                     const rh = Array.from({length: numPre}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
                     const fh = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
-                    const grH = showGroup ? '<th class="col-num">Gr</th>' : '';
+                    const grH = showGroup ? '<th class="col-gr">Gr</th>' : '';
                     html += `<div class="table-wrap"><table><thead>
                         <tr class="category-row"><td colspan="${(showGroup?3:2)+numPre+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
                         <tr>${grH}<th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
@@ -340,7 +352,7 @@
                 const pHtml = type === 'synchro'
                     ? `<span style="font-weight:bold;">${ath.name1||''} / ${ath.name2||''}</span><br><small style="color:#888;">${clubDisp}</small>`
                     : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${clubDisp}</small>`;
-                const grCell = showGroup ? `<td class="col-num">${ath.flightGroup||'-'}</td>` : '';
+                const grCell = showGroup ? `<td class="col-gr">${ath.flightGroup||'-'}</td>` : '';
                 html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}">${grCell}<td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
                 for (let i = 1; i <= numPre; i++) html += `<td>${statusButton(ath, `pre${i}`)}</td>`;
                 if (rules.hasFinal) html += `<td>${statusButton(ath, 'final')}</td>`;
