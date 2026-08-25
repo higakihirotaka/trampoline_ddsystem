@@ -1339,6 +1339,9 @@
       const nameDns = ath.type === 'synchro' && ath.name2
         ? `${ath.name1 || '---'} / ${ath.name2}`
         : (ath.name1 || '---');
+      // シンクロは選手1・選手2の所属が異なりうるので両方併記する（同じ場合は1つだけ）
+      const clubDns = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+        ? `${ath.club1 || ''} / ${ath.club2 || ''}` : (ath.club1 || '');
       monitor.innerHTML = `
         <div class="convention-header">${tournamentName}</div>
         <div class="athlete-section">
@@ -1346,7 +1349,7 @@
           <div class="session-info">${getRoundLabel(resData.round)}</div>
           <div class="athlete-identity-group">
             <h1 class="athlete-name">${nameDns}</h1>
-            <div class="athlete-team">${ath.club1 || ''}</div>
+            <div class="athlete-team">${clubDns}</div>
           </div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
@@ -1607,6 +1610,9 @@
     const orderLabel   = (resData.round === 'final' && ath.finalOrder != null)
       ? `No.${ath.finalOrder}`
       : `No.${ath.order || '?'}`;
+    // シンクロは選手1・選手2の所属が異なりうるので両方併記する（同じ場合は1つだけ）
+    const clubLabel = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+      ? `${ath.club1 || ''} / ${ath.club2 || ''}` : (ath.club1 || '---');
 
     // ---- ペナルティ内容（penaltyItems があれば数字の下にチップ表示、無ければ数値のみ） ----
     const penItems = Array.isArray(resData.penaltyItems) ? resData.penaltyItems : [];
@@ -1632,9 +1638,9 @@
         <div class="athlete-identity-group">
           ${ath.type === 'synchro' && ath.name2
             ? `<h1 class="athlete-name" style="font-size:5cqw">${ath.name1 || '---'} <span style="opacity:0.5;font-weight:400;letter-spacing:0">/</span> ${ath.name2}</h1>
-               <div class="athlete-team">${ath.club1 || '---'}</div>`
+               <div class="athlete-team">${clubLabel}</div>`
             : `<h1 class="athlete-name">${ath.name1 || '---'}</h1>
-               <div class="athlete-team">${ath.club1 || '---'}</div>`
+               <div class="athlete-team">${clubLabel}</div>`
           }
         </div>
       </div>
