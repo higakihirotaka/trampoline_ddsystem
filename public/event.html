@@ -43,7 +43,19 @@
 
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+        .filter-bar { display: none; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;
+            margin-bottom: 24px; padding: 12px 16px; background: var(--bg-gray); border-radius: 12px; }
+        .filter-bar label { display: flex; flex-direction: column; gap: 3px; font-size: 0.72em; color: var(--text-gray); font-weight: bold; }
+        .filter-bar select { padding: 7px 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; font-size: 0.9em; min-width: 140px; }
+        .filter-bar select:focus { outline: 2px solid var(--primary-blue); }
+        .filter-bar .filter-clear { align-self: flex-end; padding: 7px 14px; border-radius: 8px; border: 1px solid #ccc;
+            background: #fff; color: var(--text-gray); font-size: 0.82em; cursor: pointer; }
+        .filter-bar .filter-clear:hover { background: #f0f2f5; }
+        .filter-highlight { outline: 3px solid var(--primary-blue); outline-offset: 2px; }
+
         @media (max-width: 600px) {
+            .filter-bar { gap: 8px; padding: 10px; margin-bottom: 16px; }
+            .filter-bar select { min-width: 100px; font-size: 0.82em; }
             body { padding: 10px; }
             .list-container { padding: 14px; border-radius: 12px; }
             #event-title { font-size: 1.3em !important; }
@@ -66,6 +78,12 @@
         <div id="event-venue" style="font-size: 0.95em; color: #888;"></div>
     </div>
     <div id="countdown-area" class="countdown-container"></div>
+    <div id="filter-bar" class="filter-bar">
+        <label>クラス<select id="filter-class"><option value="">すべて</option></select></label>
+        <label>性別<select id="filter-gender"><option value="">すべて</option></select></label>
+        <label>チーム名<select id="filter-team"><option value="">すべて</option></select></label>
+        <button type="button" id="filter-clear" class="filter-clear">条件をクリア</button>
+    </div>
     <div id="indiv-list"></div>
     <div id="sync-list"></div>
 </div>
@@ -88,6 +106,110 @@
         try {
             localStorage.setItem(CACHE_KEY, JSON.stringify({ tour, athletes }));
         } catch {}
+    }
+
+    // ── フィルタ状態（クラス・性別・チーム名）── sessionStorageに保存し、
+    // entry.html で技を入力して一覧に戻ってきた時も同じ絞り込みを維持する。
+    const FILTER_KEY = `ev_filter_${eventId}`;
+    const LAST_ATH_KEY = `ev_lastath_${eventId}`;
+    function loadFilterState() {
+        try { return JSON.parse(sessionStorage.getItem(FILTER_KEY) || 'null') || { cls:'', gender:'', team:'' }; }
+        catch { return { cls:'', gender:'', team:'' }; }
+    }
+    function saveFilterState() {
+        try { sessionStorage.setItem(FILTER_KEY, JSON.stringify(filterState)); } catch {}
+    }
+    let filterState = loadFilterState();
+    // 一覧に戻ってきた時にスクロール位置を復元するため、直前に開いた選手IDを一度だけ消費する
+    let pendingScrollAthleteId = (() => {
+        try { return sessionStorage.getItem(LAST_ATH_KEY) || null; } catch { return null; }
+    })();
+
+    // チーム名フィルタの選択肢: club1/club2は "A/B" のようにダブル所属が「/」区切りで
+    // 1フィールドにまとまっていることがあるため、分割した個々のチーム名を選択肢にする。
+    // フィルタ適用時は選んだチーム名を「含む」選手を対象にする（=ダブル所属もヒットする）。
+    function collectTeamNames(athletes) {
+        const set = new Set();
+        athletes.forEach(a => {
+            [a.club1, a.club2].forEach(c => {
+                (c || '').split('/').map(s => s.trim()).filter(Boolean).forEach(name => set.add(name));
+            });
+        });
+        return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
+    }
+
+    function buildFilterOptions(athletes) {
+        if (!athletes.length) return;
+        const bar = document.getElementById('filter-bar');
+        bar.style.display = 'flex';
+
+        const classNames  = [...new Set(athletes.map(a => a.class).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
+        // 性別は男子/女子/混合など実データにある値だけを出す（決め打ちしない）
+        const genderOrder = g => g === '女子' ? 0 : g === '男子' ? 1 : 2;
+        const genders = [...new Set(athletes.map(a => a.gender).filter(Boolean))].sort((a,b)=>genderOrder(a)-genderOrder(b));
+        const teams = collectTeamNames(athletes);
+
+        const fillSelect = (id, values, current) => {
+            const sel = document.getElementById(id);
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">すべて</option>' +
+                values.map(v => `<option value="${v}">${v}</option>`).join('');
+            // 選択肢再構築後も、有効な値であれば選択状態を保つ（sessionStorage復元 or 選択済みの維持）
+            const want = current !== undefined ? current : prev;
+            if (want && values.includes(want)) sel.value = want;
+        };
+        fillSelect('filter-class',  classNames, filterState.cls);
+        fillSelect('filter-gender', genders,    filterState.gender);
+        fillSelect('filter-team',   teams,       filterState.team);
+    }
+
+    function applyFilters(athletes) {
+        if (!filterState.cls && !filterState.gender && !filterState.team) return athletes;
+        return athletes.filter(a => {
+            if (filterState.cls && a.class !== filterState.cls) return false;
+            if (filterState.gender && a.gender !== filterState.gender) return false;
+            if (filterState.team) {
+                const inClub = (c) => (c || '').includes(filterState.team);
+                if (!inClub(a.club1) && !inClub(a.club2)) return false;
+            }
+            return true;
+        });
+    }
+
+    function rerenderFiltered() {
+        if (!liveTour || !liveAthletes.length) return;
+        renderList(liveTour, applyFilters(liveAthletes));
+        restoreScrollPosition();
+    }
+
+    document.getElementById('filter-class').addEventListener('change', e => { filterState.cls = e.target.value; saveFilterState(); rerenderFiltered(); });
+    document.getElementById('filter-gender').addEventListener('change', e => { filterState.gender = e.target.value; saveFilterState(); rerenderFiltered(); });
+    document.getElementById('filter-team').addEventListener('change', e => { filterState.team = e.target.value; saveFilterState(); rerenderFiltered(); });
+    document.getElementById('filter-clear').addEventListener('click', () => {
+        filterState = { cls:'', gender:'', team:'' };
+        saveFilterState();
+        buildFilterOptions(liveAthletes);
+        rerenderFiltered();
+    });
+
+    // 選手が「入力」リンクを押した瞬間に選手IDを覚えておく（entry.htmlから戻った時のスクロール復元用）
+    document.addEventListener('click', e => {
+        const link = e.target.closest('.status-link');
+        if (!link || !link.id) return;
+        const m = link.id.match(/^status-(.+)-(pre\d+|final)$/);
+        if (!m) return;
+        try { sessionStorage.setItem(LAST_ATH_KEY, m[1]); } catch {}
+    });
+
+    function restoreScrollPosition() {
+        if (!pendingScrollAthleteId) return;
+        const row = document.querySelector(`[id^="status-${pendingScrollAthleteId}-"]`)?.closest('tr');
+        if (!row) return;
+        row.scrollIntoView({ block: 'center' });
+        row.classList.add('filter-highlight');
+        setTimeout(() => row.classList.remove('filter-highlight'), 2000);
+        pendingScrollAthleteId = null; // 一度だけ復元する
+        try { sessionStorage.removeItem(LAST_ATH_KEY); } catch {}
     }
 
     // ── Promise にタイムアウトを付与（iOS等で getDocs が応答しないハングを防ぐ）──
@@ -302,7 +424,9 @@
             liveAthletes = cache.athletes;
             applyTourInfo(cache.tour);
             startGlobalTimers(cache.tour);
-            renderList(cache.tour, cache.athletes);
+            buildFilterOptions(cache.athletes);
+            renderList(cache.tour, applyFilters(cache.athletes));
+            restoreScrollPosition();
         }
 
         // ② 最新データを常時フェッチ（iOS等での失敗/ハングに備えタイムアウトを付与）
@@ -327,6 +451,7 @@
             // CJPがDNS（棄権）で確定したラウンド（results.dns===true）
             dnsSet = new Set(resSnap.docs.filter(d => d.data().dns === true).map(d => d.id));
 
+            buildFilterOptions(allAthletes); // 最新データでチーム名等の選択肢を更新（選択中の値は維持）
             if (cache?.athletes) {
                 // キャッシュ描画済み → バッジを最新化（DNS含む）
                 allAthletes.forEach(ath => {
@@ -337,7 +462,8 @@
                 });
             } else {
                 // 初回：全体描画
-                renderList(tour, allAthletes);
+                renderList(tour, applyFilters(allAthletes));
+                restoreScrollPosition();
             }
             saveCache(tour, allAthletes);
         } catch(e) {
