@@ -116,7 +116,11 @@
     import { db } from "./firebase-config.js";
     import { doc, getDoc, updateDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getSkills } from "./cache.js";
-    import { checkIfAdmin } from "./auth.js";
+    // auth.js（Firebase Authの重いSDK本体を含む）は、選手が普段見るこのページでは
+    // 静的importしない。以前は静的importしており、スマホ等でauth.js側の読み込みが
+    // 失敗/タイムアウトするとESモジュールの仕様上スクリプト全体が実行されず、
+    // 管理者に限らずスマホでのリロード時に選手一覧そのものが表示されなくなる不具合が
+    // あった。?from=admin の時だけ動的importし、失敗しても一覧表示自体は継続させる。
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -505,8 +509,11 @@
             backDiv.style.display = 'block';
             backDiv.querySelector('a').href = `admin_menu.html?event=${eventId}`;
             // リダイレクトしないチェックのみ（未ログインの選手が誤って?from=adminを付けても
-            // 通常表示のまま使えるようにするため、ensureAdminは使わない）
-            checkIfAdmin(v => { isAdminUser = v; maybeShowAdminSettings(); });
+            // 通常表示のまま使えるようにするため、ensureAdminは使わない）。
+            // auth.jsの読み込み自体に失敗しても一覧表示には影響させない。
+            import('./auth.js')
+                .then(({ checkIfAdmin }) => checkIfAdmin(v => { isAdminUser = v; maybeShowAdminSettings(); }))
+                .catch(e => console.warn('管理者確認用スクリプトの読み込みに失敗しました:', e.message));
         }
 
         // ① キャッシュがあれば即座に描画（0ms）
