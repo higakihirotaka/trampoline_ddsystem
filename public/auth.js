@@ -56,6 +56,16 @@ export function ensureAdmin(callback) {
     });
 }
 
+// ensureAdmin()と違い、管理者でなくてもログイン画面へリダイレクトしない版。
+// event.html等、通常は選手（未ログイン）が見るページで、from=admin等の
+// パラメータがある時だけ管理者向けUIを追加で出したい場合に使う。
+export function checkIfAdmin(callback) {
+    if (isLocalDev) { callback(true); return; }
+    onAuthStateChanged(auth, async (user) => {
+        callback(!!(user && await checkAdminStatus(user)));
+    });
+}
+
 // --- Firestore & Data Functions ---
 
 export async function getTournaments() {
