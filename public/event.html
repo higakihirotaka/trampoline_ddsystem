@@ -93,7 +93,13 @@
 <div class="list-container">
     <div id="admin-back" class="admin-back"><a href="#">← 管理メニューに戻る</a></div>
     <div id="admin-settings" class="admin-settings">
-        <label><input type="checkbox" id="admin-show-group"> グループ（Gr）列を表示する</label>
+        <span id="admin-not-logged-in" style="display:none;">
+            ⚠ 管理者としてログインされていないため、Gr列の設定は変更できません。
+            <a id="admin-login-link" href="admin_login.html" style="color:var(--primary-blue);font-weight:bold;">ログインする →</a>
+        </span>
+        <label id="admin-show-group-row" style="display:none;align-items:center;gap:8px;">
+            <input type="checkbox" id="admin-show-group"> グループ（Gr）列を表示する
+        </label>
         <span id="admin-show-group-note" class="save-note">保存しました</span>
     </div>
     <div class="header-section">
@@ -470,13 +476,26 @@
     // ── 管理者向け: Gr列の表示/非表示チェックボックス ──────────
     // ?from=admin かつ実際に管理者ログイン済みの時だけ出す（選手が普通に見るときは常に非表示）。
     // ここで保存した値は tournaments/{eventId}.showGroupColumn として全端末（選手側も含む）に反映される。
-    let isAdminUser  = false;
-    let adminDataOk  = false;
+    let isAdminUser    = false;
+    let adminCheckDone = false; // checkIfAdmin()の判定がまだ済んでいない間は何も表示しない（誤って「未ログイン」を出さないため）
+    let adminDataOk    = false;
     function maybeShowAdminSettings() {
-        if (params.get('from') !== 'admin' || !isAdminUser || !adminDataOk) return;
-        const panel = document.getElementById('admin-settings');
-        const chk   = document.getElementById('admin-show-group');
+        if (params.get('from') !== 'admin' || !adminCheckDone || !adminDataOk) return;
+        const panel      = document.getElementById('admin-settings');
+        const notLoggedEl = document.getElementById('admin-not-logged-in');
+        const rowEl       = document.getElementById('admin-show-group-row');
         panel.style.display = 'flex';
+        if (!isAdminUser) {
+            // 管理者ログインが確認できない場合（スマホ等、PCとは別のブラウザ・端末で
+            // このURLだけ開いた場合に起こりうる）: チェックボックスの代わりにログイン導線を出す。
+            // 単に何も出さないと「チェックが出ない」という分かりにくい不具合に見えてしまうため。
+            notLoggedEl.style.display = 'inline';
+            rowEl.style.display = 'none';
+            return;
+        }
+        notLoggedEl.style.display = 'none';
+        rowEl.style.display = 'flex';
+        const chk   = document.getElementById('admin-show-group');
         const autoShowGroup = new Set(liveAthletes.map(a => a.flightGroup).filter(g => g != null && g !== '')).size > 1;
         chk.checked = (typeof liveTour.showGroupColumn === 'boolean') ? liveTour.showGroupColumn : autoShowGroup;
         chk.onchange = async () => {
@@ -512,7 +531,7 @@
             // 通常表示のまま使えるようにするため、ensureAdminは使わない）。
             // auth.jsの読み込み自体に失敗しても一覧表示には影響させない。
             import('./auth.js')
-                .then(({ checkIfAdmin }) => checkIfAdmin(v => { isAdminUser = v; maybeShowAdminSettings(); }))
+                .then(({ checkIfAdmin }) => checkIfAdmin(v => { isAdminUser = v; adminCheckDone = true; maybeShowAdminSettings(); }))
                 .catch(e => console.warn('管理者確認用スクリプトの読み込みに失敗しました:', e.message));
         }
 
