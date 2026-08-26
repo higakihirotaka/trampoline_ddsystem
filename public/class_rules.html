@@ -203,6 +203,9 @@
         const perSkillDDCap = (rule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
         const _rtc = parseFloat(rule.routineDDCap);
         const routineDDCap  = (rule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+        // 難度下限（null=なし）
+        const _mdd = parseFloat(rule.minRoutineDD);
+        const minRoutineDD = (rule.minRoutineDD != null && !isNaN(_mdd)) ? _mdd : null;
 
         const card = document.createElement('div');
         card.className = 'class-card';
@@ -374,6 +377,27 @@
                 </div>
             </div>
 
+            <!-- 難度下限 -->
+            <div class="rule-row">
+                <div class="rule-label">難度下限</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="mindd-${key}" value="off" ${minRoutineDD == null ? 'checked' : ''}>
+                            <span>なし</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="mindd-${key}" value="on" ${minRoutineDD != null ? 'checked' : ''}>
+                            <span>あり</span>
+                        </label>
+                    </div>
+                    <div class="num-input-wrap conditional ${minRoutineDD == null ? 'hidden' : ''}" id="mindd-wrap-${key}" style="margin-top:8px;">
+                        <input type="number" id="mindd-val-${key}" value="${minRoutineDD != null ? minRoutineDD : ''}" min="0" max="30" step="0.1" placeholder="6.0">
+                        <span class="num-unit">点（10本演技した合計難度がこれ未満の場合、D審判画面の確定・保存ボタンの表記を変える。登録自体は禁止しない）</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- H審判（H5・H6） -->
             <div class="rule-row">
                 <div class="rule-label">H審判（H5・H6）</div>
@@ -446,7 +470,7 @@
             .forEach(radio => radio.addEventListener('change', refreshConditionals));
 
         // 難度上限 あり/なし → 数値入力欄の表示切替
-        [['skillcap', 'skillcap-wrap'], ['routinecap', 'routinecap-wrap']].forEach(([nm, wrap]) => {
+        [['skillcap', 'skillcap-wrap'], ['routinecap', 'routinecap-wrap'], ['mindd', 'mindd-wrap']].forEach(([nm, wrap]) => {
             card.querySelectorAll(`input[name="${nm}-${key}"]`).forEach(radio =>
                 radio.addEventListener('change', () => {
                     const on = card.querySelector(`input[name="${nm}-${key}"]:checked`)?.value === 'on';
@@ -492,6 +516,10 @@
                 const routineCapOn = card.querySelector(`input[name="routinecap-${key}"]:checked`)?.value === 'on';
                 const _rcRaw = parseFloat(card.querySelector(`#routinecap-val-${key}`)?.value);
                 const routineDDCap = (routineCapOn && !isNaN(_rcRaw)) ? _rcRaw : null;
+                // 難度下限（あり かつ 有効な数値のときのみ値、それ以外は null）
+                const minDDOn = card.querySelector(`input[name="mindd-${key}"]:checked`)?.value === 'on';
+                const _mddRaw = parseFloat(card.querySelector(`#mindd-val-${key}`)?.value);
+                const minRoutineDD = (minDDOn && !isNaN(_mddRaw)) ? _mddRaw : null;
 
                 const ruleObj = {
                     qualifyingRoutines: qualRoutes,
@@ -506,7 +534,8 @@
                     hasH5H6,
                     useHDTS,
                     perSkillDDCap,
-                    routineDDCap
+                    routineDDCap,
+                    minRoutineDD
                 };
                 if (type === 'synchro') synchro[name] = ruleObj;
                 else individual[name] = ruleObj;

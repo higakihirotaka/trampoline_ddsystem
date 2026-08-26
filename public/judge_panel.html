@@ -86,6 +86,7 @@
         .action-area { margin: 0; flex: 1; display: flex; }
         .btn { width: 100%; height: 100%; min-height: 110px; padding: 18px 12px; border: none; border-radius: 14px; font-size: 1.25em; font-weight: bold; cursor: pointer; transition: 0.2s; line-height: 1.4; }
         .btn-submit { background: var(--ok-green); color: white; box-shadow: 0 8px 20px rgba(46, 125, 50, 0.2); }
+        .btn-submit.btn-below-min { background: var(--warn-orange); box-shadow: 0 8px 20px rgba(245, 124, 0, 0.25); }
         .btn-modify { background: white; color: var(--warn-orange); border: 3px solid var(--warn-orange); }
         .btn-fetch-declared { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--accent); background: #e8f0fe; color: var(--accent); font-size: 0.82em; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.15s; }
         .btn-fetch-declared:hover { background: var(--accent); color: #fff; }
@@ -144,6 +145,7 @@
     let designatedDDCount = -1;   // -1=無効, 0=全DD0, 1以上=N本指定
     let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
     let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
+    let minRoutineDD  = null;     // 難度下限（null=なし。10本演技かつ未満の時に確定ボタンの表記を変える）
     let designatedDDIndices = []; // 指定技インデックス（0-based）
 
     // Firestore doc ID (文字列 or 数値) でスキルを引く。位置アクセスは使わない
@@ -466,7 +468,7 @@
                         const dSaved = !!data;
                         actionArea.innerHTML = dSaved
                             ? `<button id="btn-save" class="btn btn-modify" onclick="enableEditing()">修正する</button>`
-                            : `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">確定・保存</button>`;
+                            : `<button id="btn-save" class="btn btn-submit" data-orig-label="確定・保存" onclick="saveOfficialScore()">確定・保存</button>`;
                     }
                 }
             }
@@ -517,6 +519,8 @@
         perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
         const _rtc = parseFloat(classRule.routineDDCap);
         routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+        const _mdd = parseFloat(classRule.minRoutineDD);
+        minRoutineDD  = (classRule.minRoutineDD != null && !isNaN(_mdd)) ? _mdd : null;
         const rawDDCount = classRule.designatedDDCount ?? -1;
         const validDesig = rawDDCount >= 0
             && classRule.qualifyingRoutines === 2
@@ -570,7 +574,7 @@
         // 難度制限（1技/構成）があるときは合計Dの下に参考表示する（確定ボタンはその分だけ縦が縮む）
         const actionBtnHtml = cjpConfirmed
             ? `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`
-            : `<button id="btn-save" class="btn ${dSaved ? 'btn-modify' : 'btn-submit'}" onclick="${dSaved ? 'enableEditing()' : 'saveOfficialScore()'}">${dSaved ? '修正する' : '確定・保存'}</button>`;
+            : `<button id="btn-save" class="btn ${dSaved ? 'btn-modify' : 'btn-submit'}" ${dSaved ? '' : 'data-orig-label="確定・保存"'} onclick="${dSaved ? 'enableEditing()' : 'saveOfficialScore()'}">${dSaved ? '修正する' : '確定・保存'}</button>`;
         const capRefHtml = (perSkillDDCap != null || routineDDCap != null) ? `
                         <div class="cap-ref">
                             <span class="cap-ref-title">難度制限（参考）</span>
@@ -776,6 +780,15 @@
         totalDDContainer.classList.toggle('dd-capped', routineCapped);
         const capNote = routineCapped ? ` <span style="font-size:0.4em; color:#e65100; font-weight:bold;">上限${routineDDCap.toFixed(1)}</span>` : '';
         totalDDContainer.innerHTML = `${totalDD.toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>${capNote}`;
+
+        // 難度下限: 10本演技した上で合計難度がこの値未満の場合、確定・保存系ボタンの表記だけ変える
+        // （登録自体は禁止しない。「修正する」ボタン＝dSaved時の未編集状態には適用しない）
+        const saveBtn = document.getElementById('btn-save');
+        if (saveBtn && saveBtn.dataset.origLabel) {
+            const belowMin = minRoutineDD != null && validLimit === 10 && totalDD < minRoutineDD;
+            saveBtn.textContent = belowMin ? '⚠ 難度下限未満' : saveBtn.dataset.origLabel;
+            saveBtn.classList.toggle('btn-below-min', belowMin);
+        }
     };
 
     // 申請種目（選手申告）をD入力欄に取り込む（CJPがDなしで確定した等で空欄化した場合の救済用）
@@ -809,7 +822,8 @@
     window.enableEditing = () => {
         if (cjpConfirmed) return; // CJP確定済のため修正不可
         document.querySelectorAll('select').forEach(s => s.disabled = false);
-        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">修正を保存</button>`;
+        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" data-orig-label="修正を保存" onclick="saveOfficialScore()">修正を保存</button>`;
+        calcTotal(); // 表記を今の入力内容（難度下限判定含む）に合わせて即座に更新
         // 修正開始 → D確定を解除（CJP画面を「未確定」表示に戻す）。再度「修正を保存」で確定される。
         if (athleteId && round) {
             setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { dConfirmedAt: deleteField() }, { merge: true })
