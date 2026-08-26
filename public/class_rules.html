@@ -194,6 +194,8 @@
         const hasH5H6 = (rule.hasH5H6 === true || rule.hasH5H6 === 'true' || Number(rule.hasH5H6) === 1);
         const useHDTS       = (rule.useHDTS !== false); // default true
         const finalScoreMode = (rule.finalScoreMode === 'combined') ? 'combined' : 'zero';
+        // 難度下限（未設定 = null）
+        const ddMinimum = (rule.ddMinimum != null && !isNaN(parseFloat(rule.ddMinimum))) ? parseFloat(rule.ddMinimum) : null;
 
         const card = document.createElement('div');
         card.className = 'class-card';
@@ -318,6 +320,18 @@
                 </div>
             </div>
 
+            <!-- 難度下限 -->
+            <div class="rule-row">
+                <div class="rule-label">難度下限</div>
+                <div class="rule-controls">
+                    <div class="num-input-wrap">
+                        <input type="number" id="dd-min-${key}" value="${ddMinimum != null ? ddMinimum : ''}" min="0" step="0.1" placeholder="未設定" style="width:100px;">
+                        <span class="num-unit">点</span>
+                    </div>
+                    <div style="font-size:0.75rem;color:#90a4ae;margin-top:4px;">10本演技した上で難度点がこの値に満たない場合、D審判画面に警告表示されます（登録自体は可能）</div>
+                </div>
+            </div>
+
             <!-- H審判（H5・H6） -->
             <div class="rule-row">
                 <div class="rule-label">H審判（H5・H6）</div>
@@ -431,6 +445,9 @@
                 const hasH5H6        = card.querySelector(`input[name="h56-${key}"]:checked`)?.value === 'true';
                 const useHDTS        = card.querySelector(`input[name="hdts-${key}"]:checked`)?.value !== 'false';
                 const finalScoreMode = card.querySelector(`input[name="final-score-mode-${key}"]:checked`)?.value || 'zero';
+                // 難度下限（未入力 = null = 制限なし）
+                const _ddMinRaw = card.querySelector(`#dd-min-${key}`)?.value;
+                const ddMinimum = (_ddMinRaw !== '' && _ddMinRaw != null && !isNaN(parseFloat(_ddMinRaw))) ? parseFloat(_ddMinRaw) : null;
 
                 const ruleObj = {
                     qualifyingRoutines: qualRoutes,
@@ -442,7 +459,8 @@
                     finalScoreMode,
                     designatedDDCount,
                     hasH5H6,
-                    useHDTS
+                    useHDTS,
+                    ddMinimum
                 };
                 if (type === 'synchro') synchro[name] = ruleObj;
                 else individual[name] = ruleObj;

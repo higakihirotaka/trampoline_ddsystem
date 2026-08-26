@@ -71,16 +71,20 @@
         .valid-count-area { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: flex-end; gap: 15px; border: 1px solid #eee; }
         .footer-stats { display: flex; justify-content: flex-end; gap: 50px; margin-top: 20px; padding-top: 20px; border-top: 2px solid #eee; }
         .total-official { font-size: 3em; font-weight: 900; color: var(--ok-green); }
+        .total-official.below-dd-min { color: var(--warn-orange); }
         .total-official.diff-skill { color: var(--danger); }
+        .dd-min-warn { display: block; font-size: 0.32em; color: var(--warn-orange); font-weight: bold; margin-top: 4px; }
 
         .action-area { margin-top: 30px; }
         .btn { width: 100%; padding: 22px; border: none; border-radius: 14px; font-size: 1.3em; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-submit { background: var(--ok-green); color: white; box-shadow: 0 8px 20px rgba(46, 125, 50, 0.2); }
         .btn-modify { background: white; color: var(--warn-orange); border: 3px solid var(--warn-orange); }
+        .btn-submit.btn-below-min { background: var(--warn-orange); box-shadow: 0 8px 20px rgba(245, 124, 0, 0.25); }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
         .status-badge { display: inline-block; font-size: 0.75em; font-weight: bold; padding: 4px 12px; border-radius: 20px; }
         .badge-locked { background: #e8f5e9; color: var(--ok-green); border: 1px solid #c8e6c9; }
         .badge-cjp-locked { background: #ffebee; color: var(--danger); border: 1px solid #ffcdd2; }
+        .badge-dd-min-warn { background: #fff3e0; color: var(--warn-orange); border: 1px solid #ffcc80; }
         .cjp-lock-msg { color: var(--danger); font-weight: bold; padding: 14px; text-align: center; background: #ffebee; border-radius: 10px; border: 2px solid #ffcdd2; }
     </style>
 </head>
@@ -120,6 +124,7 @@
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let designatedDDCount = -1;   // -1=無効, 0=全DD0, 1以上=N本指定
     let designatedDDIndices = []; // 指定技インデックス（0-based）
+    let belowDDMin = false; // 10本演技済かつ難度点がクラスの難度下限未満か
 
     // Firestore doc ID (文字列 or 数値) でスキルを引く。位置アクセスは使わない
     function findSkillById(id) {
@@ -380,7 +385,7 @@
                         const dSaved = !!data;
                         actionArea.innerHTML = dSaved
                             ? `<button id="btn-save" class="btn btn-modify" onclick="enableEditing()">修正する</button>`
-                            : `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">確定・保存</button>`;
+                            : `<button id="btn-save" class="btn btn-submit" data-mode="create" onclick="saveOfficialScore()">確定・保存</button>`;
                     }
                 }
             }
@@ -460,6 +465,7 @@
                         <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
                         ${cjpConfirmed ? '<span class="status-badge badge-cjp-locked">🔒 CJP確定済</span>' : dSaved ? '<span class="status-badge badge-locked">✓ D確定済</span>' : ''}
                         ${noSub ? '<span style="font-size:0.85em; font-weight:bold; color:var(--warn-orange); background:#fff3e0; padding:4px 10px; border-radius:6px; border:1px solid #ffcc80;">⚠ 選手未申告</span>' : ''}
+                        <span id="dd-min-badge" class="status-badge badge-dd-min-warn" style="display:none;">⚠ 難度下限未満</span>
                     </div>
                     <h2>No.${ath.order} ${headerName} <span style="font-size:0.5em; color:#666;">${headerKana ? `(${headerKana})` : ''}</span></h2>
                     ${headerClub ? `<div style="font-size:0.9em; color:#78909c; margin-top:2px;">${headerClub}</div>` : ''}
@@ -478,7 +484,7 @@
                 <div class="action-area" id="action-area">
                     ${cjpConfirmed
                         ? `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`
-                        : `<button id="btn-save" class="btn ${dSaved?'btn-modify':'btn-submit'}" onclick="${dSaved?'enableEditing()':'saveOfficialScore()'}">
+                        : `<button id="btn-save" class="btn ${dSaved?'btn-modify':'btn-submit'}" ${dSaved?'':'data-mode="create"'} onclick="${dSaved?'enableEditing()':'saveOfficialScore()'}">
                             ${dSaved?'修正する':'確定・保存'}</button>`
                     }
                 </div>
@@ -604,13 +610,33 @@
         else if ((ath?.gender === '女子' || ath?.gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
-        totalDDContainer.innerHTML = `${(baseDD + bonus).toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>`;
+
+        // 難度下限判定（10本演技済のときのみ）
+        const classRuleForMin = currentTour?.classRules?.[ath?.type || 'individual']?.[ath?.class || ath?.category || ''] || {};
+        const ddMinVal = Number(classRuleForMin.ddMinimum);
+        const totalDDNum = baseDD + bonus;
+        belowDDMin = validLimit === 10 && ddMinVal > 0 && totalDDNum < ddMinVal;
+        totalDDContainer.classList.toggle('below-dd-min', belowDDMin);
+
+        totalDDContainer.innerHTML = `${totalDDNum.toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>${belowDDMin ? `<span class="dd-min-warn">⚠ 難度下限 ${ddMinVal.toFixed(1)} 未満</span>` : ''}`;
+
+        const ddMinBadge = document.getElementById('dd-min-badge');
+        if (ddMinBadge) ddMinBadge.style.display = belowDDMin ? '' : 'none';
+
+        // 確定・保存/修正を保存ボタンの表記を難度下限未満に切り替え
+        const saveBtn = document.getElementById('btn-save');
+        if (saveBtn && saveBtn.dataset.mode) {
+            const baseLabel = saveBtn.dataset.mode === 'edit' ? '修正を保存' : '確定・保存';
+            saveBtn.textContent = belowDDMin ? '難度下限未満' : baseLabel;
+            saveBtn.classList.toggle('btn-below-min', belowDDMin);
+        }
     };
 
     window.enableEditing = () => {
         if (cjpConfirmed) return; // CJP確定済のため修正不可
         document.querySelectorAll('select').forEach(s => s.disabled = false);
-        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">修正を保存</button>`;
+        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" data-mode="edit" onclick="saveOfficialScore()">修正を保存</button>`;
+        calcTotal(); // 難度下限判定・ボタン表記を再適用
     };
 
     window.saveOfficialScore = async () => {
