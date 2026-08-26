@@ -1331,6 +1331,14 @@
       monitor.style.opacity = '0';
     }
 
+    // シンクロは選手1・選手2の所属を両方併記するため、ダブルネーム登録同士が重なると
+    // かなり長い文字列になり、そのままだと折り返されて2〜3行になってしまう。
+    // 文字数に応じて縮小し、1行に収まるようにする（.athlete-nameで既に使っている手法と同じ）。
+    const clubFsCqw = text => {
+      const len = (text || '').length;
+      return len <= 20 ? 2.2 : len <= 30 ? 1.8 : len <= 40 ? 1.5 : len <= 50 ? 1.25 : len <= 60 ? 1.05 : 0.9;
+    };
+
     // ---- DNS（棄権）表示 ----
     if (resData.dns === true) {
       resetForNewFocusContent();
@@ -1349,7 +1357,7 @@
           <div class="session-info">${getRoundLabel(resData.round)}</div>
           <div class="athlete-identity-group">
             <h1 class="athlete-name">${nameDns}</h1>
-            <div class="athlete-team">${clubDns}</div>
+            <div class="athlete-team" style="white-space:nowrap;font-size:${clubFsCqw(clubDns)}cqw">${clubDns}</div>
           </div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
@@ -1638,9 +1646,9 @@
         <div class="athlete-identity-group">
           ${ath.type === 'synchro' && ath.name2
             ? `<h1 class="athlete-name" style="font-size:5cqw">${ath.name1 || '---'} <span style="opacity:0.5;font-weight:400;letter-spacing:0">/</span> ${ath.name2}</h1>
-               <div class="athlete-team">${clubLabel}</div>`
+               <div class="athlete-team" style="white-space:nowrap;font-size:${clubFsCqw(clubLabel)}cqw">${clubLabel}</div>`
             : `<h1 class="athlete-name">${ath.name1 || '---'}</h1>
-               <div class="athlete-team">${clubLabel}</div>`
+               <div class="athlete-team" style="white-space:nowrap;font-size:${clubFsCqw(clubLabel)}cqw">${clubLabel}</div>`
           }
         </div>
       </div>
