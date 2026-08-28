@@ -150,6 +150,10 @@
                 <div class="add-field-label">3回転</div>
                 <input type="checkbox" id="new-triple">
             </div>
+            <div class="add-triple-wrap">
+                <div class="add-field-label">D審のみ</div>
+                <input type="checkbox" id="new-djudge">
+            </div>
             <div class="add-field-wrap">
                 <div class="add-field-label">系統</div>
                 <select class="add-input" id="new-dir">
@@ -195,6 +199,7 @@
         <button class="filter-btn" data-dir="後方系" onclick="setDir(this)">後方系</button>
         <button class="filter-btn" data-dir="基礎技" onclick="setDir(this)">基礎技</button>
         <button class="filter-btn" id="triple-btn" onclick="setTriple(this)">3回転のみ</button>
+        <button class="filter-btn" id="djudge-btn" onclick="setDJudgeOnly(this)" title="選手入力画面では選択できず、管理者入力・D審判画面のみ選択できる技">D審のみ</button>
         <span style="width:1px; background:#ddd; align-self:stretch; margin:0 4px;"></span>
         <button class="filter-btn active" data-soma="" onclick="setSoma(this)">宙系: 全て</button>
         <button class="filter-btn" data-soma="1回宙" onclick="setSoma(this)">1回宙</button>
@@ -219,6 +224,7 @@
                 <th class="col-disp">表示用</th>
                 <th class="col-dd">DD</th>
                 <th class="col-triple">3回転</th>
+                <th class="col-triple" title="選手入力画面では選択できず、管理者入力・D審判画面のみ選択できる">D審のみ</th>
                 <th class="col-dir">系統</th>
                 <th class="col-soma">宙系</th>
                 <th class="col-note">注釈</th>
@@ -246,6 +252,7 @@
     let editingId = null;   // 現在編集中の行ID
     let currentDir = '';
     let tripleOnly = false;
+    let dJudgeOnlyFilter = false;
     let currentSoma = '';
     let orderDirty = false; // 順序変更フラグ
     let savedOrder = [];    // 保存前の順序（元に戻す用）
@@ -339,6 +346,7 @@
             displaySymbol: newDisplaySymbol,
             dd: parseFloat(document.getElementById('new-dd').value) || 0,
             isTriple: document.getElementById('new-triple').checked,
+            dJudgeOnly: document.getElementById('new-djudge').checked,
             direction: newDir,
             somersaultType: newSoma,
             note: document.getElementById('new-note').value.trim(),
@@ -376,6 +384,12 @@
         render();
     };
 
+    window.setDJudgeOnly = function(btn) {
+        dJudgeOnlyFilter = !dJudgeOnlyFilter;
+        btn.classList.toggle('active', dJudgeOnlyFilter);
+        render();
+    };
+
     window.setSoma = function(btn) {
         document.querySelectorAll('[data-soma]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -401,6 +415,7 @@
         if (currentDir && s.direction !== currentDir) return false;
         if (currentSoma && s.somersaultType !== currentSoma) return false;
         if (tripleOnly && !s.isTriple) return false;
+        if (dJudgeOnlyFilter && !s.dJudgeOnly) return false;
         const q = document.getElementById('search').value.trim().toLowerCase();
         if (q && !s.symbol.toLowerCase().includes(q)) return false;
         return true;
@@ -418,7 +433,7 @@
             document.getElementById('empty-msg').style.display = '';
         } else {
             document.getElementById('empty-msg').style.display = 'none';
-            const isFiltered = !!(currentDir || currentSoma || tripleOnly || q);
+            const isFiltered = !!(currentDir || currentSoma || tripleOnly || dJudgeOnlyFilter || q);
             tbody.innerHTML = filtered.map((s, fi) => {
                 // skills配列内のインデックス（フィルタなしの全体順序）
                 const globalIdx = skills.indexOf(s);
@@ -446,6 +461,10 @@
                         <td class="col-triple">
                             <input type="checkbox" class="edit-triple-cb" data-id="${s.id}" data-field="isTriple"
                                 ${s.isTriple ? 'checked' : ''}>
+                        </td>
+                        <td class="col-triple">
+                            <input type="checkbox" class="edit-djudge-cb" data-id="${s.id}" data-field="dJudgeOnly"
+                                ${s.dJudgeOnly ? 'checked' : ''}>
                         </td>
                         <td class="col-dir">
                             <select class="edit-input" data-id="${s.id}" data-field="direction" style="width:80px;">
@@ -499,6 +518,7 @@
                         <td class="col-disp">${s.displaySymbol || '<span class="display-empty">—</span>'}</td>
                         <td class="col-dd" style="text-align:center;">${Number(s.dd).toFixed(1)}</td>
                         <td class="col-triple">${s.isTriple ? '<span class="triple-check">✓</span>' : ''}</td>
+                        <td class="col-triple">${s.dJudgeOnly ? '<span class="triple-check">✓</span>' : ''}</td>
                         <td class="col-dir">${dirLabel[s.direction] || s.direction || ''}</td>
                         <td class="col-soma">${s.somersaultType || ''}</td>
                         <td class="col-note">${noteText}</td>
@@ -635,6 +655,7 @@
         const dispSymbolEl  = document.querySelector(`input.edit-input[data-id="${id}"][data-field="displaySymbol"]`);
         const ddEl          = document.querySelector(`input.edit-input[data-id="${id}"][data-field="dd"]`);
         const tripleEl      = document.querySelector(`input.edit-triple-cb[data-id="${id}"]`);
+        const djudgeEl      = document.querySelector(`input.edit-djudge-cb[data-id="${id}"]`);
         const dirEl         = document.querySelector(`select.edit-input[data-id="${id}"][data-field="direction"]`);
         const somaEl        = document.querySelector(`select.edit-input[data-id="${id}"][data-field="somersaultType"]`);
         const noteEl        = document.querySelector(`input.edit-input[data-id="${id}"][data-field="note"]`);
@@ -643,6 +664,7 @@
         const newDisplaySymbol  = dispSymbolEl?.value.trim() || newSymbol;
         const newDd             = parseFloat(ddEl?.value) || 0;
         const newIsTriple       = tripleEl?.checked || false;
+        const newDJudgeOnly     = djudgeEl?.checked || false;
         const newDirection      = dirEl?.value || skill.direction;
         const newSomersault     = somaEl?.value || '';
         const newNote           = noteEl?.value.trim() || '';
@@ -658,6 +680,7 @@
             displaySymbol: newDisplaySymbol,
             dd: newDd,
             isTriple: newIsTriple,
+            dJudgeOnly: newDJudgeOnly,
             direction: newDirection,
             somersaultType: newSomersault,
             note: newNote,
@@ -670,7 +693,7 @@
 
             const idx = skills.findIndex(s => s.id === id);
             if (idx >= 0) {
-                skills[idx] = { ...skills[idx], symbol: newSymbol, displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, direction: newDirection, somersaultType: newSomersault, note: newNote };
+                skills[idx] = { ...skills[idx], symbol: newSymbol, displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, dJudgeOnly: newDJudgeOnly, direction: newDirection, somersaultType: newSomersault, note: newNote };
             }
             editingId = null;
             render();

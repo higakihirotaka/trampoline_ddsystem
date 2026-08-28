@@ -517,6 +517,10 @@
                 if (s.direction !== dir) return false;
                 if (somaType && s.somersaultType !== somaType) return false;
                 if (somaGroup && s.doubleSomaGroup !== somaGroup) return false;
+                // 「D審のみ」技は選手入力画面（admin=1でない）では新規に選べないようにする。
+                // ただし既に選択済み（D審判が入力した等）の場合は、選択肢から消えて
+                // 見えなくなってしまわないよう例外的に残す。
+                if (!isAdmin && s.dJudgeOnly && s.id !== selectedId) return false;
                 return true;
             }).forEach(s => {
                 const opt = document.createElement('option');
