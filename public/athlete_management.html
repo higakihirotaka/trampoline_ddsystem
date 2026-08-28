@@ -252,7 +252,7 @@
     function renderTable() {
         const classes = currentClasses();
         const isIndiv = currentTab === 'individual';
-        const cols    = isIndiv ? 9 : 13; // 個人9列 / シンクロ13列
+        const cols    = isIndiv ? 10 : 14; // 個人10列 / シンクロ14列（決勝試技順を含む）
 
         // クラス設定の display_order 順 → 男女順 → グループ → 試技順 でソートして表示
         const classIdx  = name => { const i = classes.indexOf(name ?? ''); return i === -1 ? 9999 : i; };
@@ -275,6 +275,7 @@
                 <th style="width:76px">性別</th>
                 <th style="width:65px">グループ</th>
                 <th class="col-order">試技順</th>
+                <th class="col-order" title="手動入力のみ。CSVインポート・エクスポート対象外">決勝試技順</th>
                 <th style="min-width:100px">氏名</th>
                 <th style="min-width:100px">氏名ふりがな</th>
                 <th style="min-width:100px">所属</th>
@@ -287,6 +288,7 @@
                 <th style="width:76px">性別</th>
                 <th style="width:65px">グループ</th>
                 <th class="col-order">試技順</th>
+                <th class="col-order" title="手動入力のみ。CSVインポート・エクスポート対象外">決勝試技順</th>
                 <th style="min-width:100px">選手1</th>
                 <th style="min-width:100px">選手1ふりがな</th>
                 <th style="min-width:100px">所属1</th>
@@ -339,6 +341,7 @@
                 <td><select onchange="${ev}'gender',this.value)">${genderOpts}</select></td>
                 ${num('flightGroup', ath.flightGroup, 'G')}
                 ${num('order', ath.order, '#')}
+                ${num('finalOrder', ath.finalOrder, '#')}
                 ${inp('name1',    ath.name1,    '氏名')}
                 ${inp('kana1',    ath.kana1,    'ふりがな')}
                 ${inp('club1',    ath.club1,    '所属')}
@@ -353,6 +356,7 @@
                 <td><select onchange="${ev}'gender',this.value)">${genderOpts}</select></td>
                 ${num('flightGroup', ath.flightGroup, 'G')}
                 ${num('order', ath.order, '#')}
+                ${num('finalOrder', ath.finalOrder, '#')}
                 ${inp('name1',     ath.name1,     '選手1')}
                 ${inp('kana1',     ath.kana1,     '選手1ふりがな')}
                 ${inp('club1',     ath.club1,     '所属1')}
@@ -370,6 +374,15 @@
     window._set = (key, field, value) => {
         const ath = currentList().find(a => a._key === key);
         if (!ath) return;
+        if (field === 'finalOrder') {
+            // 空欄にしたら「決勝進出」フラグも一緒に外す（決勝スタートリスト等はisInFinalも見るため）。
+            // 数値を入れたら決勝進出扱いにする。既存の決勝処理（admin_final_order.html）で
+            // 割り当てられた値もここで直接編集・上書きできる。
+            const num = isNaN(value) ? null : value;
+            ath.finalOrder = num;
+            ath.isInFinal  = num != null;
+            return;
+        }
         ath[field] = (field === 'order' || field === 'flightGroup')
             ? (isNaN(value) ? undefined : value)
             : value;
