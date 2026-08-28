@@ -571,15 +571,16 @@
             headerClub = c1 ? c1 + (ck1 ? `（${ck1}）` : '') : '';
         }
 
-        // 難度制限（1技/構成）があるときは合計Dの下に参考表示する（確定ボタンはその分だけ縦が縮む）
+        // 難度制限（1技上限/構成上限/難度下限）があるときは合計Dの下に参考表示する（確定ボタンはその分だけ縦が縮む）
         const actionBtnHtml = cjpConfirmed
             ? `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`
             : `<button id="btn-save" class="btn ${dSaved ? 'btn-modify' : 'btn-submit'}" ${dSaved ? '' : 'data-orig-label="確定・保存"'} onclick="${dSaved ? 'enableEditing()' : 'saveOfficialScore()'}">${dSaved ? '修正する' : '確定・保存'}</button>`;
-        const capRefHtml = (perSkillDDCap != null || routineDDCap != null) ? `
+        const capRefHtml = (perSkillDDCap != null || routineDDCap != null || minRoutineDD != null) ? `
                         <div class="cap-ref">
                             <span class="cap-ref-title">難度制限（参考）</span>
                             ${perSkillDDCap != null ? `<div class="cap-ref-row"><span>1技あたり上限</span><b>${perSkillDDCap.toFixed(1)}</b></div>` : ''}
                             ${routineDDCap  != null ? `<div class="cap-ref-row"><span>構成上限</span><b>${routineDDCap.toFixed(1)}</b></div>` : ''}
+                            ${minRoutineDD  != null ? `<div class="cap-ref-row"><span>難度下限</span><b>${minRoutineDD.toFixed(1)}</b></div>` : ''}
                         </div>` : '';
 
         document.getElementById('main-content').innerHTML = `
