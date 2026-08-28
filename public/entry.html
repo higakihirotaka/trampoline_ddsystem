@@ -77,6 +77,10 @@
 <body>
 <div class="container">
     <div id="deadline-banner" class="deadline-banner" style="display:none;"></div>
+    <div id="skill-load-error-banner" class="deadline-banner" style="display:none;">
+        <span>⚠ 技リストの読み込みに失敗しました（通信環境をご確認ください）。すでに入力・提出した内容は消えていません。表示できるまで再読み込みしてください。</span>
+        <button onclick="location.reload()" style="margin-left:auto;padding:6px 16px;border:none;border-radius:8px;background:var(--danger);color:#fff;font-weight:bold;cursor:pointer;">再読み込み</button>
+    </div>
     <div class="info-card">
         <div class="info-name-row">
             <span id="ath-name" class="info-name">読み込み中...</span>
@@ -262,6 +266,20 @@
             skillsPromise, tourPromise, athPromise, subPromise
         ]);
         skillMaster = skillsResult;
+
+        // 技マスタが1件も取れていない場合、既に提出済みの技IDを技マスタと照合できず
+        // 「未入力」に見えてしまう（savedSkillIds が全て空になる）。
+        // 通信環境が悪いだけの一時的な失敗であることが多いため、間を空けて数回リトライしてから、
+        // それでも空なら「入力済みかどうか判断できない」状態のまま描画しないようにする。
+        for (let i = 0; i < 2 && skillMaster.length === 0; i++) {
+            await new Promise(r => setTimeout(r, 1500));
+            skillMaster = await getSkills();
+        }
+        if (skillMaster.length === 0) {
+            document.getElementById('skill-load-error-banner').style.display = 'flex';
+            return; // 技リストが無いまま描画すると提出済みの技が「未入力」に見えてしまうため、ここで止める
+        }
+
         tourData = tourDoc.exists() ? tourDoc.data() : {};
         subDocRef = subDocResult;
 
