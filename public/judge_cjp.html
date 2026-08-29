@@ -232,6 +232,7 @@
     let _dConfirmed = false; // D審判が確定済みか（内訳Dは確定まで非表示）
     let _eComplete = false;  // E: 全審判が有効本数分入力済みか（最後の全体描画時の値を保持）
     let _eConfirmed = false; // E: 全審判が「確定」押下済みか（calc(ec無し)でも状態を保つため保持）
+    let _lastSummaryBorderColor = null; // 内訳ボックスの現在の枠線色（確定時に黄色枠だったかの判定に使う）
 
     function roundLabel(r) {
         if (r === 'pre1')  return 'Routine 1';
@@ -567,6 +568,8 @@
         const r = results[id];
         return (r?.published ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
                (r?.dns === true ? ' dns-dot' : '') +
+               // 内訳が黄色枠（D/E/ToF/HDのいずれか未確定・未入力）のまま確定された場合、目立たせる
+               (r?.published && r?.confirmedIncomplete === true ? ' confirmed-incomplete' : '') +
                (aid === athleteId && rid === round ? ' current' : '');
     }
 
@@ -1695,6 +1698,7 @@
         hEl.style.color = colorOf(hState);
         totEl.style.setProperty('color', borderColor, 'important'); // CSS の !important を上書き
         if (summary) summary.style.borderColor = borderColor;
+        _lastSummaryBorderColor = borderColor; // 確定(publish)時に「黄色枠のまま確定した」かの判定に使う
     }
 
     window.toggleRowManual = function(jKey, on) {
@@ -2132,10 +2136,15 @@
         const th     = t + h;
         const total  = Math.max(0, d + e + t + h - p); // 全精度で保持（表示値ではなく計算値）
 
+        // 内訳ボックスが黄色枠（D/E/ToF/HDのいずれかが未確定・未入力）のまま確定されたかを記録する。
+        // 左サイドバーのバッジに反映し、後から一覧で見つけやすくするため。
+        const confirmedIncomplete = _lastSummaryBorderColor === _BD_YELLOW;
+
         const saveData = {
             eventId, athleteId, round,
             published: true, publishedAt: serverTimestamp(),
             verifiedAt: serverTimestamp(),
+            confirmedIncomplete,
             tof: t, hd: { total: h }, penalty: p,
             // CJPペナルティの内訳（日本語・英文・表示用テキスト・点数）と手動加点も保存（再読込で復元・会場表示用）
             penaltyItems: appliedPenalties.map(x => ({ ja: x.ja, en: x.en, display: x.display, points: x.points })),
@@ -2215,6 +2224,7 @@
             ]);
             if (!results[resId]) results[resId] = {};
             results[resId].published = true;
+            results[resId].confirmedIncomplete = confirmedIncomplete;
             renderSidebar();
         } catch (err) {
             alert('送信に失敗しました: ' + err.message);
