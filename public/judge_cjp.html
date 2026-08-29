@@ -186,6 +186,23 @@
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
     let athleteId = params.get('athlete'), round = params.get('round') || "pre1";
+    // 記録主任モード: 特定パネルに紐づかず、どちらのパネルの選手も横断して確定済み記録を
+    // 確認・修正できるようにする。CJPが得点を確定していく最中でも、E審判の画面や会場
+    // ディスプレイなど大会進行中の表示に一切影響を与えないことを目的とする（詳細は各箇所のコメント参照）。
+    const isRecorder = params.get('mode') === 'recorder';
+    // E審判の入力キー（execution.judges.{panel}_{role}）を引くための実際のパネルを解決する。
+    // 通常モードでは自分の固定パネルでよいが、記録主任モードはPANEL A/Bどちらの選手も扱うため、
+    // 選手がどちらのパネルで競技したかを示す確実なフィールドが無い（flightGroupは組・グループ番号で
+    // A/Bとは別概念）。そこで、現在読み込んでいる結果ドキュメント（latestData）に実際に保存されている
+    // execution.judgesのキーの接頭辞（"A_"/"B_"）から実パネルを逆引きする。
+    function detectPanelFromData(data) {
+        const keys = Object.keys(data?.execution?.judges || {});
+        if (!keys.length) return null;
+        return keys[0].split('_')[0] || null;
+    }
+    function curPanel() {
+        return isRecorder ? (detectPanelFromData(latestData) || panel || 'A') : panel;
+    }
 
     let athletes = [], submissions = {}, results = {}, currentTour = null;
     let teamCategoryKeys = new Set(); // 団体戦: チーム登録のあるカテゴリー "class|gender"
@@ -279,8 +296,18 @@
         if (!eventId || _initRunning) return;
         _initRunning = true;
         document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
-        document.getElementById('exit-link').href = `judge_role_select.html?event=${eventId}`;
-        document.getElementById('panel-role-label').innerText = `PANEL ${panel} | ROLE ${role}`;
+        document.getElementById('exit-link').href = isRecorder
+            ? `judge_menu.html?event=${eventId}`
+            : `judge_role_select.html?event=${eventId}`;
+        document.getElementById('panel-role-label').innerText = isRecorder
+            ? '📋 記録主任'
+            : `PANEL ${panel} | ROLE ${role}`;
+        if (isRecorder) {
+            // 会場ディスプレイを直接操作するボタンは記録主任モードでは使わない（大会進行に影響させないため）
+            ['btn-republish', 'btn-calculating'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.style.display = 'none';
+            });
+        }
 
         // 初期化完了前はアクションボタンを無効化
         ['btn-confirm','btn-confirm-silent','btn-unlock','btn-republish','btn-calculating','btn-hdts'].forEach(id => {
@@ -348,8 +375,9 @@
                 document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${roundLabel(round)}`;
                 updateDesignatedForAthlete(ath, round);
 
-                // E審判が自動追従するために liveState を更新（パネルごとに分離）
-                await setDoc(doc(db, 'tournaments', eventId), {
+                // E審判が自動追従するために liveState を更新（パネルごとに分離）。
+                // 記録主任モードはE審判画面に一切影響を与えないためスキップする。
+                if (!isRecorder) await setDoc(doc(db, 'tournaments', eventId), {
                     liveState: {
                         [panel]: {
                             athleteId,
@@ -637,8 +665,9 @@
             document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${roundLabel(rid)}`;
             updateTeamRankingBtn();
 
-            // liveState 更新（選手切り替え時は必ずロック解除）
-            await setDoc(doc(db, 'tournaments', eventId), {
+            // liveState 更新（選手切り替え時は必ずロック解除）。
+            // 記録主任モードはE審判画面に一切影響を与えないためスキップする。
+            if (!isRecorder) await setDoc(doc(db, 'tournaments', eventId), {
                 liveState: { [panel]: {
                     athleteId: aid,
                     athleteName: `No.${displayOrder2} ${dispName2}`,
@@ -657,7 +686,9 @@
         }
 
         // URL 更新（ブラウザ履歴に残す）
-        history.pushState({}, '', `judge_cjp.html?event=${eventId}&panel=${panel}&role=${role}&athlete=${aid}&round=${rid}`);
+        history.pushState({}, '', isRecorder
+            ? `judge_cjp.html?event=${eventId}&mode=recorder&athlete=${aid}&round=${rid}`
+            : `judge_cjp.html?event=${eventId}&panel=${panel}&role=${role}&athlete=${aid}&round=${rid}`);
 
         // サイドバー更新 → スコア監視開始
         renderSidebar();
@@ -748,8 +779,8 @@
             const lockChanged = newLocked !== isLocked;
             renderScores(latestData);
             updateCurrentDot(); // ドット色をリアルタイムに更新（フル再描画は避け、該当ドットのみ差し替え）
-            // E審判のロック状態をFirestoreに同期（変化があった場合のみ）
-            if (lockChanged) {
+            // E審判のロック状態をFirestoreに同期（変化があった場合のみ）。記録主任モードは対象外。
+            if (lockChanged && !isRecorder) {
                 setDoc(doc(db, 'tournaments', eventId), {
                     liveState: { [panel]: { locked: newLocked } }
                 }, { merge: true }).catch(() => {});
@@ -810,7 +841,8 @@
             renderScores(latestData);
         }
         await Promise.all([
-            setDoc(doc(db, 'tournaments', eventId), {
+            // 記録主任モードはE審判画面に一切影響を与えないためliveState更新をスキップする。
+            isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
                 liveState: { [panel]: { locked: false } }
             }, { merge: true }),
             athleteId ? setDoc(doc(db, 'results', resId), {
@@ -828,7 +860,8 @@
         try {
             await Promise.all([
                 deleteDoc(doc(db, 'results', resId)),
-                setDoc(doc(db, 'tournaments', eventId), {
+                // 記録主任モードはliveState・calculating（会場ディスプレイ関連）を一切書き換えない
+                isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
                     liveState: { [panel]: { locked: false } },
                     calculating: false
                 }, { merge: true })
@@ -888,7 +921,8 @@
                     eventId, athleteId, round,
                     dns: true, published: true, dnsAt: serverTimestamp()
                 }, { merge: true }),
-                setDoc(doc(db, 'tournaments', eventId), {
+                // 記録主任モードはE審判画面に一切影響を与えないためliveState更新をスキップする。
+                isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
                     liveState: { [panel]: { locked: true } }
                 }, { merge: true })
             ]);
@@ -903,7 +937,8 @@
         try {
             await Promise.all([
                 deleteDoc(doc(db, 'results', resId)),
-                setDoc(doc(db, 'tournaments', eventId), {
+                // 記録主任モードはliveState・calculating（会場ディスプレイ関連）を一切書き換えない
+                isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
                     liveState: { [panel]: { locked: false } }, calculating: false
                 }, { merge: true })
             ]);
@@ -968,6 +1003,7 @@
     function updateTeamRankingBtn() {
         const btn = document.getElementById('btn-team-ranking');
         if (!btn) return;
+        if (isRecorder) { btn.style.display = 'none'; return; } // 会場ディスプレイを切り替えるボタンのため記録主任モードでは常に非表示
         const ath = athletes.find(a => a.id === athleteId);
         const key = ath ? `${ath.class || ath.category || ''}|${ath.gender || ''}` : '';
         btn.style.display = (ath && teamCategoryKeys.has(key)) ? '' : 'none';
@@ -1087,9 +1123,11 @@
     // ---- 演技点計算 ----
     function calcExecution(data) {
         const isSynchro = fType === 'synchro';
-        // パネルプレフィックスでフィルタリングし、表示用にプレフィックスを除去
+        // パネルプレフィックスでフィルタリングし、表示用にプレフィックスを除去。
+        // 記録主任モードでは選手が実際に競技したパネル（flightGroup）を使う（PANEL A/Bどちらの
+        // 選手でも確定済みのE審判の得点を正しく拾えるようにするため）。
         const allJudges   = data?.execution?.judges || {};
-        const panelPrefix = `${panel}_`;
+        const panelPrefix = `${curPanel()}_`;
         const judges      = Object.fromEntries(
             Object.entries(allJudges)
                 .filter(([k]) => k.startsWith(panelPrefix))
@@ -1369,7 +1407,7 @@
                     return d !== null ? d / 10 : null;
                 });
                 const landing = pe.landing !== null ? pe.landing / 10 : null;
-                mergedJudges[`${panel}_${jKey}`] = { deductions, landing };
+                mergedJudges[`${curPanel()}_${jKey}`] = { deductions, landing };
             });
             mergedData = { ...data, execution: { ...(data.execution || {}), judges: mergedJudges } };
         }
@@ -1475,12 +1513,12 @@
 
         // 確定済み(published)の場合はモードに関わらず保存値を表示する
         if (tofMode === 'auto' || data.published === true) {
-            const rawTof = data.tofByPanel?.[panel] ?? data.tof ?? "";
+            const rawTof = data.tofByPanel?.[curPanel()] ?? data.tof ?? "";
             document.getElementById('tof').value = (fType === 'synchro' && rawTof !== "")
                 ? (parseFloat(rawTof) / 2).toFixed(3) : rawTof;
         }
         if (hdMode === 'auto' || data.published === true) {
-            document.getElementById('hd').value  = data.hdByPanel?.[panel] ?? data.hd?.total ?? "";
+            document.getElementById('hd').value  = data.hdByPanel?.[curPanel()] ?? data.hd?.total ?? "";
         }
         // ペナルティは常にCJP入力。CJP未操作 or 確定済みのときだけ保存値から復元
         if (!_penDirty || data.published === true) restorePenalty(data);
@@ -1664,7 +1702,7 @@
         if (on) {
             manualRows.add(jKey);
             const allJudges = latestData?.execution?.judges || {};
-            const jd = allJudges[`${panel}_${jKey}`] || {};
+            const jd = allJudges[`${curPanel()}_${jKey}`] || {};
             pendingEdits[jKey] = {
                 deductions: Array.from({ length: 10 }, (_, i) =>
                     jd.deductions?.[i] != null ? Math.round(jd.deductions[i] * 10) : null),
@@ -1704,7 +1742,7 @@
 
     // ---- HDTS 技別 ToF/HD を Firestore の保存値（パネル別）から復元表示 ----
     function renderHdtsRows(data) {
-        const ps = data?.hdtsPerSkillByPanel?.[panel];
+        const ps = data?.hdtsPerSkillByPanel?.[curPanel()];
         // シンクロ保存データ（Syn + 2人分HD）の復元
         if (ps && (ps.isSynchro || ps.syn || ps.hd1 || ps.hd2)) {
             for (let i = 1; i <= 10; i++) {
@@ -1734,7 +1772,7 @@
         }
         const tofSumEl = document.getElementById('hdts-tof-sum');
         const hdSumEl  = document.getElementById('hdts-hd-sum');
-        const tofTotal = ps?.tofTotal ?? data?.tofByPanel?.[panel] ?? data?.tof;
+        const tofTotal = ps?.tofTotal ?? data?.tofByPanel?.[curPanel()] ?? data?.tof;
         if (tofSumEl) tofSumEl.textContent = (tofTotal != null && tofTotal !== '') ? Number(tofTotal).toFixed(3) : '-';
         if (hdSumEl)  hdSumEl.textContent  = hasHd ? hdSum : (ps?.hdTotal != null ? ps.hdTotal : '-');
     }
@@ -1874,7 +1912,7 @@
                     if (hdSumEl)  hdSumEl.textContent  = synHdScore(hd1Total, hd2Total, vcVal);
                     if (athleteId) {
                         setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
-                            { hdtsPerSkillByPanel: { [panel]: { isSynchro: true, syn: perSkillSyn, hd1: perSkillHd1, hd2: perSkillHd2, synTotal: synSum, hd1Total, hd2Total } } },
+                            { hdtsPerSkillByPanel: { [curPanel()]: { isSynchro: true, syn: perSkillSyn, hd1: perSkillHd1, hd2: perSkillHd2, synTotal: synSum, hd1Total, hd2Total } } },
                             { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
                     }
                 } else {
@@ -1902,7 +1940,7 @@
                     if (hdSumEl) hdSumEl.textContent = hdDedTotal;
                     if (athleteId) {
                         setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
-                            { hdtsPerSkillByPanel: { [panel]: { tof: perSkillTof, hd: perSkillHd, tofTotal: (tofVal ?? null), hdTotal: hdDedTotal } } },
+                            { hdtsPerSkillByPanel: { [curPanel()]: { tof: perSkillTof, hd: perSkillHd, tofTotal: (tofVal ?? null), hdTotal: hdDedTotal } } },
                             { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
                     }
                 }
@@ -1943,7 +1981,7 @@
         } else {
             btn.textContent = '読込'; btn.classList.remove('manual');
             inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
-            const rawTof2 = latestData.tofByPanel?.[panel] ?? latestData.tof ?? "";
+            const rawTof2 = latestData.tofByPanel?.[curPanel()] ?? latestData.tof ?? "";
             inp.value = (fType === 'synchro' && rawTof2 !== "")
                 ? (parseFloat(rawTof2) / 2).toFixed(3) : rawTof2;
             calc();
@@ -1962,7 +2000,7 @@
         } else {
             btn.textContent = '読込'; btn.classList.remove('manual');
             inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
-            inp.value = latestData.hdByPanel?.[panel] ?? latestData.hd?.total ?? ""; calc();
+            inp.value = latestData.hdByPanel?.[curPanel()] ?? latestData.hd?.total ?? ""; calc();
         }
     };
 
@@ -2102,7 +2140,7 @@
             // CJPペナルティの内訳（日本語・英文・表示用テキスト・点数）と手動加点も保存（再読込で復元・会場表示用）
             penaltyItems: appliedPenalties.map(x => ({ ja: x.ja, en: x.en, display: x.display, points: x.points })),
             penaltyManual: parseFloat(document.getElementById('pen').value) || 0,
-            tofByPanel: { [panel]: t }, hdByPanel: { [panel]: h },
+            tofByPanel: { [curPanel()]: t }, hdByPanel: { [curPanel()]: h },
             officialD: d, officialE: e, officialTH: th, officialTotal: total,
             // 技ごとのE減点（会場ディスプレイの per-skill 表示をCJP値と一致させる）
             ...(_lastEc ? {
@@ -2110,8 +2148,9 @@
                 officialELanding:  _lastEc.landingResult.sum
             } : {}),
             // displaySkip: true のとき会場ディスプレイをスキップ（確定のみ）
-            // false/undefined のとき通常表示（フィールドを削除して「なし」状態に戻す）
-            displaySkip: opts.displaySkip === true ? true : deleteField(),
+            // false/undefined のとき通常表示（フィールドを削除して「なし」状態に戻す）。
+            // 記録主任モードは大会進行中の会場ディスプレイに一切影響させないため常にスキップする。
+            displaySkip: (isRecorder || opts.displaySkip === true) ? true : deleteField(),
             ...(designatedDDCount > 0 ? { officialDesignatedDDIndices: [...designatedDDIndices] } : {})
         };
 
@@ -2152,10 +2191,10 @@
                     const peL = pendingEdits[jKey]?.landing ?? null;
                     const landing = vLimit === 10 ? (peL !== null ? Math.min(10, Math.max(0, peL)) / 10 : 0) : 0;
                     const totalDeduction = deductions.slice(0, vLimit).reduce((a, b) => a + b, 0) + landing;
-                    judgesData[`${panel}_${jKey}`] = { deductions, landing, totalDeduction };
+                    judgesData[`${curPanel()}_${jKey}`] = { deductions, landing, totalDeduction };
                 } else {
-                    const existing = existingJudges[`${panel}_${jKey}`];
-                    if (existing) judgesData[`${panel}_${jKey}`] = existing;
+                    const existing = existingJudges[`${curPanel()}_${jKey}`];
+                    if (existing) judgesData[`${curPanel()}_${jKey}`] = existing;
                 }
             });
             saveData.execution = { judges: judgesData };
@@ -2167,8 +2206,9 @@
                 // calculating:false / venueScreen:'score' はログイン済みCJPが書く
                 // （venue_displayは非ログインのため書けない）
                 // venueScreen:'score' を同時に書くことで、warmupタイマー等の
-                // 後続スナップショット発火でも会場練習画面に戻らなくなる
-                setDoc(doc(db, 'tournaments', eventId), {
+                // 後続スナップショット発火でも会場練習画面に戻らなくなる。
+                // 記録主任モードは大会進行中の会場ディスプレイを一切切り替えないためスキップする。
+                isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
                     calculating: false,
                     venueScreen: 'score'
                 }, { merge: true })
@@ -2237,7 +2277,7 @@
         const existingJudges = latestData?.execution?.judges || {};
         const mergedJudges = {};
         jKeys.forEach(jKey => {
-            const fullKey = `${panel}_${jKey}`;
+            const fullKey = `${curPanel()}_${jKey}`;
             if (manualRows.has(jKey)) {
                 const pe = pendingEdits[jKey];
                 if (!pe) return;
@@ -2256,7 +2296,7 @@
         // 各技・着地の計算（個人: 中間2名合計、シンクロ: 審判数に応じた平均）
         const isSynchro = fType === 'synchro';
         const skillResults = Array.from({length: 10}, (_, si) => {
-            const vals = jKeys.map(k => (mergedJudges[`${panel}_${k}`]?.deductions || [])[si] ?? null);
+            const vals = jKeys.map(k => (mergedJudges[`${curPanel()}_${k}`]?.deductions || [])[si] ?? null);
             if (isSynchro) {
                 const r = synchroEDed(vals, numE);
                 return { sum: r.avg, indices: new Set(), hasData: r.hasData };
@@ -2265,7 +2305,7 @@
         });
         const landingResult = vLimit === 10
             ? (() => {
-                const vals = jKeys.map(k => mergedJudges[`${panel}_${k}`]?.landing ?? null);
+                const vals = jKeys.map(k => mergedJudges[`${curPanel()}_${k}`]?.landing ?? null);
                 if (isSynchro) {
                     const r = synchroEDed(vals, numE);
                     return { sum: r.avg, indices: new Set(), hasData: r.hasData };
@@ -2294,7 +2334,7 @@
         cells[12].textContent = hasData ? (isSynchro ? execution.toFixed(3) : execution.toFixed(1)) : '-';
         // 青い箱のEスコア・Total・色・枠線を updateScoreSummary 経由で更新（未完了はE空欄）
         const judgesNoPrefix = {};
-        jKeys.forEach(k => { const fk = `${panel}_${k}`; if (mergedJudges[fk]) judgesNoPrefix[k] = mergedJudges[fk]; });
+        jKeys.forEach(k => { const fk = `${curPanel()}_${k}`; if (mergedJudges[fk]) judgesNoPrefix[k] = mergedJudges[fk]; });
         updateScoreSummary({ judges: judgesNoPrefix, jKeys, vLimit, execution }, hasData);
     }
 
