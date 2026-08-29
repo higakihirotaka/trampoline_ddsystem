@@ -101,11 +101,6 @@
         <div><div class="nav-title">審判入力</div></div>
         <span class="nav-arrow">›</span>
     </a>
-    <a class="nav-card" id="nav-recorder" href="#">
-        <div class="nav-icon purple">📝</div>
-        <div><div class="nav-title">記録主任</div><div class="nav-desc">PANEL A/B横断で確定済み記録を修正（大会進行に影響なし）</div></div>
-        <span class="nav-arrow">›</span>
-    </a>
     <a class="nav-card" id="nav-score" href="#">
         <div class="nav-icon purple">📊</div>
         <div><div class="nav-title">スコア確認</div></div>
@@ -149,7 +144,6 @@
     document.getElementById('nav-cardcheck').href = `admin_card_check.html?event=${eventId}&from=judge`;
     document.getElementById('nav-entry').href     = `event.html?event=${eventId}`;
     document.getElementById('nav-input').href     = `judge_role_select.html?event=${eventId}`;
-    document.getElementById('nav-recorder').href  = `judge_cjp.html?event=${eventId}&mode=recorder`;
     document.getElementById('nav-score').href   = `score_viewer.html?event=${eventId}`;
     document.getElementById('nav-ranking').href = `ranking.html?event=${eventId}`;
     document.getElementById('nav-display').href = `display.html?event=${eventId}`;
