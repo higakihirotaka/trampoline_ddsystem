@@ -643,17 +643,16 @@
     flex-shrink:0; display:flex; flex-direction:column; align-items:flex-start; gap:1.4cqh;
     padding-bottom:5cqh;
   }
-  .inquiry-icon-row{ display:flex; align-items:center; gap:1.4cqw; }
-  .inquiry-icon{ font-size:3.4cqw; filter: drop-shadow(0 0 1.2cqw rgba(220,38,38,0.7)); animation: calcPulse 1.4s ease-in-out infinite; }
   .inquiry-line-en{
-    font-size:1.5cqw; font-weight:900; letter-spacing:0.35em; color:#ff5252; text-transform:uppercase;
+    font-size:2.2cqw; font-weight:900; letter-spacing:0.35em; color:#ff5252; text-transform:uppercase;
+    animation: calcPulse 1.4s ease-in-out infinite;
   }
   .inquiry-line-ja{
-    font-size:3.2cqw; font-weight:900; letter-spacing:0.12em; color:#ffffff;
-    text-shadow: 0 0 1.4cqw rgba(220,38,38,0.55);
+    font-size:5.5cqw; font-weight:900; letter-spacing:0.1em; color:#ffffff;
+    text-shadow: 0 0 1.6cqw rgba(220,38,38,0.6);
   }
   .inquiry-line-sub{
-    font-size:1.5cqw; font-weight:700; letter-spacing:0.05em; color:rgba(255,255,255,0.62);
+    font-size:2.2cqw; font-weight:700; letter-spacing:0.05em; color:rgba(255,255,255,0.68);
   }
   @keyframes inquiryEdgePulse{
     0%,100%{ box-shadow: inset 0 0 12cqh rgba(220,38,38,0.18); }
@@ -2541,7 +2540,7 @@
             <div class="calc-team">${ath.club1||''}</div>
           </div>
           <div class="inquiry-status-block">
-            <div class="inquiry-icon-row"><span class="inquiry-icon">🔍</span><span class="inquiry-line-en">Inquiry Under Review</span></div>
+            <div class="inquiry-line-en">Inquiry Under Review</div>
             <div class="inquiry-line-ja">得点問い合わせ確認中</div>
             <div class="inquiry-line-sub">得点・順位が変更になる可能性があります</div>
           </div>
