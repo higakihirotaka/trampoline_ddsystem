@@ -634,8 +634,7 @@
   /* ===== インクワイアリ画面（集計中と同じ骨格・警戒色でアレンジ） ===== */
   #vs-inquiry{
     container-type:size; padding:0; align-items:stretch; justify-content:flex-start;
-    box-shadow: inset 0 0 12cqh rgba(220,38,38,0.25);
-    animation: inquiryEdgePulse 2.2s ease-in-out infinite;
+    box-shadow: inset 0 0 14cqh rgba(220,38,38,0.3);
   }
   #vs-inquiry .calc-conv{ color:rgba(255,138,101,0.9); }
   #vs-inquiry .calc-class{ color:rgba(255,138,101,0.95); }
@@ -645,7 +644,6 @@
   }
   .inquiry-line-en{
     font-size:2.2cqw; font-weight:900; letter-spacing:0.35em; color:#ff5252; text-transform:uppercase;
-    animation: calcPulse 1.4s ease-in-out infinite;
   }
   .inquiry-line-ja{
     font-size:5.5cqw; font-weight:900; letter-spacing:0.1em; color:#ffffff;
@@ -653,10 +651,6 @@
   }
   .inquiry-line-sub{
     font-size:2.2cqw; font-weight:700; letter-spacing:0.05em; color:rgba(255,255,255,0.68);
-  }
-  @keyframes inquiryEdgePulse{
-    0%,100%{ box-shadow: inset 0 0 12cqh rgba(220,38,38,0.18); }
-    50%{ box-shadow: inset 0 0 18cqh rgba(220,38,38,0.4); }
   }
   /* 大会タイトル画面：COMPETITION ラベルの分だけ下 padding を増やして光学的中心に揃える */
   #vs-title{ padding-bottom: 6vw; }
