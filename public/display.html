@@ -631,6 +631,34 @@
   @keyframes calcPulse{
     0%,100%{ opacity:1; } 50%{ opacity:0.3; }
   }
+  /* ===== インクワイアリ画面（集計中と同じ骨格・警戒色でアレンジ） ===== */
+  #vs-inquiry{
+    container-type:size; padding:0; align-items:stretch; justify-content:flex-start;
+    box-shadow: inset 0 0 12cqh rgba(220,38,38,0.25);
+    animation: inquiryEdgePulse 2.2s ease-in-out infinite;
+  }
+  #vs-inquiry .calc-conv{ color:rgba(255,138,101,0.9); }
+  #vs-inquiry .calc-class{ color:rgba(255,138,101,0.95); }
+  .inquiry-status-block{
+    flex-shrink:0; display:flex; flex-direction:column; align-items:flex-start; gap:1.4cqh;
+    padding-bottom:5cqh;
+  }
+  .inquiry-icon-row{ display:flex; align-items:center; gap:1.4cqw; }
+  .inquiry-icon{ font-size:3.4cqw; filter: drop-shadow(0 0 1.2cqw rgba(220,38,38,0.7)); animation: calcPulse 1.4s ease-in-out infinite; }
+  .inquiry-line-en{
+    font-size:1.5cqw; font-weight:900; letter-spacing:0.35em; color:#ff5252; text-transform:uppercase;
+  }
+  .inquiry-line-ja{
+    font-size:3.2cqw; font-weight:900; letter-spacing:0.12em; color:#ffffff;
+    text-shadow: 0 0 1.4cqw rgba(220,38,38,0.55);
+  }
+  .inquiry-line-sub{
+    font-size:1.5cqw; font-weight:700; letter-spacing:0.05em; color:rgba(255,255,255,0.62);
+  }
+  @keyframes inquiryEdgePulse{
+    0%,100%{ box-shadow: inset 0 0 12cqh rgba(220,38,38,0.18); }
+    50%{ box-shadow: inset 0 0 18cqh rgba(220,38,38,0.4); }
+  }
   /* 大会タイトル画面：COMPETITION ラベルの分だけ下 padding を増やして光学的中心に揃える */
   #vs-title{ padding-bottom: 6vw; }
   .vs-label{
@@ -1066,6 +1094,7 @@
 
   <!-- 集計中画面（内容はJS動的生成） -->
   <div id="vs-calculating" class="venue-screen"></div>
+  <div id="vs-inquiry" class="venue-screen"></div>
 
   <!-- 会場練習画面 -->
   <div id="vs-warmup" class="venue-screen">
@@ -2388,6 +2417,7 @@
     return JSON.stringify({
       s:  t.venueScreen || 'score',
       calc: t.calculating || false, ca: t.calculatingAthleteId || '', cr: t.calculatingRound || '',
+      inq: t.inquiry || false, ia: t.inquiryAthleteId || '', ir: t.inquiryRound || '',
       tr: t.teamRankingTarget || 0, fs: t.finalStartlistTarget || 0,
       intro: t.introSettings || 0, car: t.rankingCarousel || 0,
       ts: t.titleSettings || 0, cs: t.ceremonySettings || 0, wu: t.warmupSettings || 0
@@ -2441,7 +2471,7 @@
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
     // 全画面を一旦非表示（巡回中の団体画面・決勝スタートリスト画面は巡回側が管理するので保持する）
-    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-final-startlist','vs-team-ranking'].forEach(id => {
+    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-inquiry','vs-final-startlist','vs-team-ranking'].forEach(id => {
       if (carouselActive && (id === 'vs-team-ranking' || id === 'vs-final-startlist')) return;
       document.getElementById(id)?.classList.remove('active');
     });
@@ -2487,6 +2517,39 @@
     }
     // 集計中でない: 未発火のフラッシュタイマーを片付ける
     if (calcFlashTimer) { clearTimeout(calcFlashTimer); calcFlashTimer = null; }
+
+    // インクワイアリ（得点問い合わせ）: 集計中と同じ最優先。他の誰かの得点が確定するまで出し続ける
+    // （集計中と違いキューのバックログでフラッシュ退避はしない＝問い合わせ中である旨を優先して見せ続ける）
+    if (tourData.inquiry) {
+      const inqEl = document.getElementById('vs-inquiry');
+      const ath = athleteMap[tourData.inquiryAthleteId || ''] || {};
+      const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
+      const orderPart   = ath.order ? ` / No.${ath.order}` : '';
+      const roundLbl    = tourData.inquiryRound ? getRoundLabel(tourData.inquiryRound) : '';
+      const nameHtml = ath.type === 'synchro' && ath.name2
+        ? `<div class="calc-name" style="font-size:4.8cqw">${ath.name1||'---'} <span style="opacity:0.45;font-weight:400">/</span> ${ath.name2}</div>`
+        : `<div class="calc-name">${ath.name1||'---'}</div>`;
+      inqEl.innerHTML = `
+        <div class="calc-layout">
+          <div class="calc-conv">${tournamentName}</div>
+          <div class="calc-meta">
+            <div class="calc-class">${classGender}${orderPart}</div>
+            <div class="calc-round">${roundLbl}</div>
+          </div>
+          <div class="calc-name-block">
+            ${nameHtml}
+            <div class="calc-team">${ath.club1||''}</div>
+          </div>
+          <div class="inquiry-status-block">
+            <div class="inquiry-icon-row"><span class="inquiry-icon">🔍</span><span class="inquiry-line-en">Inquiry Under Review</span></div>
+            <div class="inquiry-line-ja">得点問い合わせ確認中</div>
+            <div class="inquiry-line-sub">得点・順位が変更になる可能性があります</div>
+          </div>
+          <div class="calc-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>
+        </div>`;
+      inqEl.classList.add('active');
+      return;
+    }
 
     // 団体順位表（CJPが明示表示。スコア表示中でも最前面に出す）
     if (screen === 'teamRanking') {
@@ -2902,6 +2965,9 @@
             }
             // 集計中フラッシュ待ちがあれば解除（新規公開でキュー処理が走るため二重処理を防ぐ）
             if (calcFlashTimer) { clearTimeout(calcFlashTimer); calcFlashTimer = null; }
+            // インクワイアリ画面も、誰かの得点が確定した時点でローカルで即消す
+            // （inquiry:false はCJPのpublish()側で書き込む＝venue_displayは非ログインのため不可）
+            document.getElementById('vs-inquiry')?.classList.remove('active');
             // スコア確定時：全会場画面を即時非表示にし、復元しない
             ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-final-startlist'].forEach(id => {
               document.getElementById(id)?.classList.remove('active');

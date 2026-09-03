@@ -168,6 +168,8 @@
             <button class="btn-action btn-hdts"           id="btn-hdts"           onclick="getFromQira()">HDTS</button>
             <!-- 2行目 -->
             <button class="btn-action btn-confirm-silent" id="btn-confirm-silent" onclick="publishSilent()">確定のみ</button>
+            <!-- 集計中ボタン（1行目・4列目）の真下に配置 -->
+            <button class="btn-action btn-inquiry" id="btn-inquiry" onclick="showInquiry()" style="grid-column:4; background:#c62828; color:#fff;">🔍 インクワイアリ</button>
             <!-- 団体順位表は常に最後尾（表示/非表示しても他ボタンのレイアウトが変わらないように） -->
             <button class="btn-action"                    id="btn-team-ranking"   onclick="showTeamRanking()" style="display:none; background:#7e57c2; color:#fff;">団体順位表</button>
         </div>
@@ -305,13 +307,13 @@
             : `PANEL ${panel} | ROLE ${role}`;
         if (isRecorder) {
             // 会場ディスプレイを直接操作するボタンは記録主任モードでは使わない（大会進行に影響させないため）
-            ['btn-republish', 'btn-calculating'].forEach(id => {
+            ['btn-republish', 'btn-calculating', 'btn-inquiry'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.style.display = 'none';
             });
         }
 
         // 初期化完了前はアクションボタンを無効化
-        ['btn-confirm','btn-confirm-silent','btn-unlock','btn-republish','btn-calculating','btn-hdts'].forEach(id => {
+        ['btn-confirm','btn-confirm-silent','btn-unlock','btn-republish','btn-calculating','btn-inquiry','btn-hdts'].forEach(id => {
             const el = document.getElementById(id); if (el) el.disabled = true;
         });
 
@@ -415,7 +417,7 @@
         } finally {
             _initRunning = false;
             // 選手選択に依存しないボタンは初期化完了後に常に有効化
-            ['btn-calculating','btn-republish','btn-hdts'].forEach(id => {
+            ['btn-calculating','btn-inquiry','btn-republish','btn-hdts'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.disabled = false;
             });
         }
@@ -798,6 +800,7 @@
         document.getElementById('btn-unlock').disabled         = !locked;  // 未確定時は修正不要
         document.getElementById('btn-republish').disabled   = false;    // 選手選択後は常に有効
         document.getElementById('btn-calculating').disabled = false;    // 選手選択後は常に有効
+        document.getElementById('btn-inquiry').disabled     = false;    // 選手選択後は常に有効（確定後の問い合わせにも対応するため）
         document.getElementById('btn-hdts').disabled        = locked;   // 確定後は操作不可
         // 確定後: 手動切替・有効本数・入力欄をロック
         document.getElementById('tof-mode-btn').disabled = locked;
@@ -984,6 +987,19 @@
             calculating: true,
             calculatingAthleteId: athleteId || null,
             calculatingRound:     round     || null
+        }, { merge: true });
+    };
+
+    // インクワイアリ表示: 会場ディスプレイに選手情報付きの「得点問い合わせ確認中」画面を出す
+    // （集計中と同じ優先度・同じライフサイクル。他の誰かの得点が確定した時点で自動的に消える）
+    window.showInquiry = async function() {
+        if (!athleteId) return;
+        const ath = athletes.find(a => a.id === athleteId);
+        if (!confirm(`No.${ath?.order ?? ''} ${ath?.name1 || ''} のインクワイアリを会場ディスプレイに表示しますか？`)) return;
+        await setDoc(doc(db, 'tournaments', eventId), {
+            inquiry: true,
+            inquiryAthleteId: athleteId || null,
+            inquiryRound:     round     || null
         }, { merge: true });
     };
 
@@ -2217,8 +2233,10 @@
                 // venueScreen:'score' を同時に書くことで、warmupタイマー等の
                 // 後続スナップショット発火でも会場練習画面に戻らなくなる。
                 // 記録主任モードは大会進行中の会場ディスプレイを一切切り替えないためスキップする。
+                // inquiry（インクワイアリ表示）も、誰かの得点が確定した時点で自動的に消すため一緒にfalseへ。
                 isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
                     calculating: false,
+                    inquiry: false,
                     venueScreen: 'score'
                 }, { merge: true })
             ]);
