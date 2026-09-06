@@ -69,7 +69,7 @@
 </head>
 <body>
 
-<div class="timer-bar">
+<div class="timer-bar" style="display:none;">
     <span class="timer-label">会場練習残り時間</span>
     <span class="timer-classes" id="bar-classes"></span>
     <span class="timer-val" id="timer-val">00:00</span>
@@ -174,12 +174,16 @@
     }
     function startTimerTick() {
         clearInterval(timerInterval);
-        const el = document.getElementById('timer-val');
+        const el  = document.getElementById('timer-val');
+        const bar = document.querySelector('.timer-bar');
         function tick() {
             const { rem, running } = warmupRem(warmupData);
+            // カウント中（残り0秒より多い）でなければバーごと非表示にする
+            if (!running || rem <= 0) { bar.style.display = 'none'; return; }
+            bar.style.display = 'flex';
             const s = Math.ceil(rem / 1000);
             el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-            el.className = 'timer-val' + (rem === 0 ? ' done' : rem < 60000 ? ' warning' : running ? ' running' : '');
+            el.className = 'timer-val' + (rem < 60000 ? ' warning' : ' running');
         }
         tick(); timerInterval = setInterval(tick, 500);
     }
