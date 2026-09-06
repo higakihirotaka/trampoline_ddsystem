@@ -76,12 +76,12 @@
     </div>
 
     <!-- クラス別 -->
-    <div id="classes-container"></div>
+    <div id="classes-container"><p class="empty-msg" id="loading-msg">読み込み中...</p></div>
 </div>
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDocFromServer, getDocsFromServer, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, getDocs, getDocFromServer, getDocsFromServer, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { buildJudgeRosterGroups, applyJudgeRosterOrder, filterHiddenJudgeRosterGroups } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
@@ -93,14 +93,30 @@
         return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
     }
 
+    // 常に最新を取りに行きたいのでまずサーバー直取得を試すが、通信が悪い環境（スマホの
+    // モバイル回線など）では接続確立に時間がかかりタイムアウトしてしまうことがある。
+    // その場合は素通しで失敗にせず、キャッシュも使える通常のgetDoc/getDocsにフォールバックする
+    // （多少古い可能性はあっても、真っ白なまま失敗するよりはましなため）。
+    async function fetchTournamentAndAthletes() {
+        try {
+            return await withTimeout(Promise.all([
+                getDocFromServer(doc(db, 'tournaments', eventId)),
+                getDocsFromServer(collection(db, 'tournaments', eventId, 'athletes'))
+            ]), 6000);
+        } catch (e) {
+            console.warn('サーバー直取得に失敗、通常取得にフォールバックします:', e.message);
+            return await withTimeout(Promise.all([
+                getDoc(doc(db, 'tournaments', eventId)),
+                getDocs(collection(db, 'tournaments', eventId, 'athletes'))
+            ]), 8000);
+        }
+    }
+
     async function init() {
         if (!eventId) return;
 
-        // 大会データと選手リストを並列取得（両方ともキャッシュ回避でサーバー直取得）
-        const [snap, athSnap] = await withTimeout(Promise.all([
-            getDocFromServer(doc(db, 'tournaments', eventId)),
-            getDocsFromServer(collection(db, 'tournaments', eventId, 'athletes'))
-        ]));
+        // 大会データと選手リストを取得（フォールバック込み。関数コメント参照）
+        const [snap, athSnap] = await fetchTournamentAndAthletes();
 
         if (!snap.exists()) return;
         const d = snap.data();
@@ -146,6 +162,7 @@
     const rosterOrder  = d.judgeConfig?.rosterOrder  || {}; // admin_roster_order.html で設定したブロック表示順
     const rosterHidden = d.judgeConfig?.rosterHidden || {}; // admin_roster_order.html で「非表示」にしたブロック
     const container    = document.getElementById('classes-container');
+    container.innerHTML = ''; // 「読み込み中...」を消してから実際の内容を積み上げる
 
     function escHtml(s) {
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
