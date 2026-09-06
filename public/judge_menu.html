@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>審判用メニュー - Trampoline System</title>
+    <!-- SNS等のリンクプレビュー用（本文が拾われるのを防ぐ） -->
+    <meta name="description" content="トランポリン競技の採点・運営システム">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Trampoline Scoring System">
+    <meta property="og:title" content="審判用メニュー">
+    <meta property="og:description" content="トランポリン競技の採点・運営システム">
+    <meta property="og:image" content="https://travaults-system.web.app/logo.png">
     <style>
         :root { --accent: #1a73e8; --bg: #f4f5f7; --card: #fff; --text: #1a1a1a; --sub: #6b7280; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,6 +54,10 @@
         .nav-icon.red    { background: #fce4ec; }
         .nav-icon.gold   { background: #fff8e1; }
         .nav-icon.sky    { background: #e1f5fe; }
+        .nav-icon.gray   { background: #eceff1; }
+
+        /* 管理メニュー（要権限）— 審判用ツールと少し区切る */
+        .nav-admin { margin-top: 10px; }
         .nav-title { font-size: 0.95rem; font-weight: 700; }
         .nav-desc  { font-size: 0.7rem; color: var(--sub); margin-top: 1px; }
         .nav-arrow { margin-left: auto; color: #ccc; font-size: 1.1rem; flex-shrink: 0; }
@@ -58,7 +69,7 @@
 </head>
 <body>
 
-<div class="timer-bar">
+<div class="timer-bar" style="display:none;">
     <span class="timer-label">会場練習残り時間</span>
     <span class="timer-classes" id="bar-classes"></span>
     <span class="timer-val" id="timer-val">00:00</span>
@@ -110,6 +121,11 @@
         <div><div class="nav-title">選手用入力画面</div></div>
         <span class="nav-arrow">›</span>
     </a>
+    <a class="nav-card nav-admin" id="nav-admin" href="#">
+        <div class="nav-icon gray">⚙️</div>
+        <div><div class="nav-title">管理メニュー（要権限）</div></div>
+        <span class="nav-arrow">›</span>
+    </a>
 </div>
 
 <div class="footer-credit">
@@ -131,28 +147,43 @@
     document.getElementById('nav-score').href   = `score_viewer.html?event=${eventId}`;
     document.getElementById('nav-ranking').href = `ranking.html?event=${eventId}`;
     document.getElementById('nav-display').href = `display.html?event=${eventId}`;
+    document.getElementById('nav-admin').href   = `admin_menu.html?event=${eventId}`;
 
-    let timerInterval = null, warmupData = {}, _serverOffset = 0, _timerRefMs = null;
+    let timerInterval = null, warmupData = {}, _wuServerOffset = 0, _wuRefMs = null;
+    // サーバー時刻補正（会場ディスプレイ/制御PC/E審判画面と同一ロジック）。
+    // timerRef(=serverTimestamp) 受信時に自端末の時計とサーバー時刻の差を測り補正するため、
+    // 端末ごとの時計ズレがあっても表示が一致する。offset は refMs 変化時のみ測定する。
+    // ※以前は書き込まれない timerEndTime を参照しておりカウントしなかったが、
+    //   timerRef + timerRemainingMs 方式に統一して復活させる。
+    function warmupRem(w) {
+        if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
+        if (w.timerRef?.toMillis) {
+            const refMs = w.timerRef.toMillis();
+            if (refMs !== _wuRefMs) {
+                const newOffset = refMs - Date.now();
+                // 初回 or 大きな食い違い時のみ採用（微小な遅延ゆらぎでの毎回スナップを防ぐ）。
+                if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+                _wuRefMs = refMs;
+            }
+            const endServer = refMs + (w.timerRemainingMs ?? 0);
+            const nowServer = Date.now() + _wuServerOffset;
+            return { rem: Math.max(0, endServer - nowServer), running: true };
+        }
+        if (w.timerEndMs != null) return { rem: Math.max(0, w.timerEndMs - Date.now()), running: true };
+        return { rem: w.timerRemainingMs ?? 0, running: false };
+    }
     function startTimerTick() {
         clearInterval(timerInterval);
-        // timerRef が変わった時（タイマー操作時）だけ再計算する
-        // 古い timerRef で毎回再計算するとオフセットがずれてタイマーが狂う
-        if (warmupData.timerRef?.toMillis) {
-            const refMs = warmupData.timerRef.toMillis();
-            if (refMs !== _timerRefMs) {
-                _serverOffset = refMs - Date.now();
-                _timerRefMs   = refMs;
-            }
-        }
-        const el = document.getElementById('timer-val');
+        const el  = document.getElementById('timer-val');
+        const bar = document.querySelector('.timer-bar');
         function tick() {
-            const wu = warmupData;
-            let ms, running;
-            if (wu.timerPaused || !wu.timerEndTime) { ms = wu.timerRemainingMs ?? 0; running = false; }
-            else { ms = Math.max(0, wu.timerEndTime - (Date.now() + _serverOffset)); running = true; }
-            const s = Math.ceil(ms / 1000);
+            const { rem, running } = warmupRem(warmupData);
+            // カウント中（残り0秒より多い）でなければバーごと非表示にする
+            if (!running || rem <= 0) { bar.style.display = 'none'; return; }
+            bar.style.display = 'flex';
+            const s = Math.ceil(rem / 1000);
             el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-            el.className = 'timer-val' + (ms === 0 ? ' done' : ms < 60000 ? ' warning' : running ? ' running' : '');
+            el.className = 'timer-val' + (rem < 60000 ? ' warning' : ' running');
         }
         tick(); timerInterval = setInterval(tick, 500);
     }

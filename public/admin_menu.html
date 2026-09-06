@@ -58,14 +58,32 @@
     const eventId = params.get('event');
 
     async function initPage() {
-        if (!eventId) { 
-            location.href = 'admin_index.html'; 
-            return; 
+        if (!eventId) {
+            location.href = 'admin_index.html';
+            return;
         }
 
-        // Fetch tournament details using the centralized function
-        const tour = await getTournamentDetails(eventId);
         const eventNameEl = document.getElementById('event-name');
+        const menuContainer = document.getElementById('menu-container');
+
+        // Fetch tournament details using the centralized function
+        let tour;
+        try {
+            tour = await getTournamentDetails(eventId);
+        } catch (e) {
+            // 権限エラー・通信断などで取得に失敗した場合、"Loading..." のまま固まらないよう
+            // エラー表示＋再読み込みボタンを出す（admin_card_check.html等と同じパターン）
+            console.error('大会データの取得に失敗:', e);
+            eventNameEl.innerText = '読み込みに失敗しました';
+            menuContainer.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;color:#90a4ae;">
+                    <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
+                    <div style="margin-bottom:20px;">大会データの読み込みに失敗しました。通信状況をご確認のうえ、再読み込みしてください。</div>
+                    <button onclick="location.reload()" style="padding:10px 28px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:bold;cursor:pointer;">🔄 再読み込み</button>
+                </div>`;
+            return;
+        }
+
         if (tour) {
             eventNameEl.innerText = tour.name;
         } else {
@@ -74,7 +92,6 @@
         }
 
         // Dynamically create menu content
-        const menuContainer = document.getElementById('menu-container');
         menuContainer.innerHTML = `
             <div class="section-title">📋 大会前設定 (Pre-Tournament Setup)</div>
             <div class="menu-grid sec-setup">
@@ -82,6 +99,7 @@
                 <a href="class_rules.html?event=${eventId}" class="menu-card"><span class="icon">📜</span><div class="card-body"><h3>クラス別設定</h3><p>クラスごとの予選本数・決勝人数などを設定</p></div></a>
                 <a href="athlete_management.html?event=${eventId}" class="menu-card"><span class="icon">👥</span><div class="card-body"><h3>選手管理</h3><p>選手の追加、削除、グループ分け</p></div></a>
                 <a href="judge_config.html?event=${eventId}" class="menu-card"><span class="icon">🧑‍⚖️</span><div class="card-body"><h3>審判構成設定</h3><p>審判長・CJP・E審判・D審判をクラス別に設定</p></div></a>
+                <a href="team_setup.html?event=${eventId}" class="menu-card"><span class="icon">🏆</span><div class="card-body"><h3>団体戦設定</h3><p>団体チームの編成・メンバー登録</p></div></a>
             </div>
 
             <div class="section-title">🎴 競技カード関連 (Card Management)</div>
@@ -90,15 +108,20 @@
                 <a href="deadline_settings.html?event=${eventId}" class="menu-card"><span class="icon">⏰</span><div class="card-body"><h3>締め切り時間の設定</h3><p>提出・修正・決勝の締め切り時間を設定</p></div></a>
                 <a href="bulk_entry.html?event=${eventId}" class="menu-card"><span class="icon">📤</span><div class="card-body"><h3>競技カード一括登録</h3><p>CSVから演技構成を一括登録</p></div></a>
                 <a href="admin_card_edit.html?event=${eventId}" class="menu-card"><span class="icon">✏️</span><div class="card-body"><h3>DDカード直接編集</h3><p>選手のDDカードを直接編集（緊急用）</p></div></a>
+                <a href="card_history.html?event=${eventId}" class="menu-card"><span class="icon">🕒</span><div class="card-body"><h3>競技カード提出履歴</h3><p>誰がいつ提出・修正したかを時系列で確認</p></div></a>
             </div>
 
             <div class="section-title">⚖️ 審判用メニュー (Judge Operations)</div>
             <div class="menu-grid sec-judge">
                 <a href="judge_menu.html?event=${eventId}" class="menu-card"><span class="icon">📋</span><div class="card-body"><h3>審判共有用メニュー</h3><p>審判員向けの情報・入力・表示をまとめた共有画面</p></div></a>
+                <a href="judge_cjp.html?event=${eventId}&mode=recorder" class="menu-card"><span class="icon">📝</span><div class="card-body"><h3>記録主任</h3><p>PANEL A/B横断で確定済み記録を修正（大会進行に影響なし）</p></div></a>
                 <a href="admin_card_check.html?event=${eventId}" class="menu-card"><span class="icon">🔎</span><div class="card-body"><h3>競技カードチェック</h3><p>全選手のカード提出状況と内容を確認</p></div></a>
                 <a href="judge_role_select.html?event=${eventId}" class="menu-card"><span class="icon">👨‍⚖️</span><div class="card-body"><h3>審判員画面（役割選択）</h3><p>審判員用の役割選択画面を開く</p></div></a>
+                <a href="admin_roster_order.html?event=${eventId}" class="menu-card"><span class="icon">🔀</span><div class="card-body"><h3>表示順設定</h3><p>審判構成画面のクラスブロックの表示順を並べ替え</p></div></a>
                 <a href="admin_final_order.html?event=${eventId}" class="menu-card"><span class="icon">🏆</span><div class="card-body"><h3>決勝試技順処理</h3><p>予選結果をもとに決勝進出選手の試技順を設定</p></div></a>
                 <a href="ranking.html?event=${eventId}" class="menu-card"><span class="icon">📊</span><div class="card-body"><h3>順位表</h3><p>クラス・ラウンド別の順位表を表示・印刷</p></div></a>
+                <a href="ranking_detail.html?event=${eventId}" class="menu-card"><span class="icon">📈</span><div class="card-body"><h3>順位表（詳細版）</h3><p>技ごとのD/E/ToF/HDを1本ずつ記載した詳細な順位表</p></div></a>
+                <a href="public_ranking_gen.html?event=${eventId}" class="menu-card"><span class="icon">👥</span><div class="card-body"><h3>観客用順位表（書き出し）</h3><p>クラスごとに順位表を公開用スナップショットへ書き出す</p></div></a>
             </div>
 
             <div class="section-title">🖥️ 画面表示系 (Displays)</div>
@@ -111,7 +134,10 @@
             <div class="menu-grid sec-admin">
                 <a href="admin_url_gen.html?event=${eventId}" class="menu-card"><span class="icon">🔗</span><div class="card-body"><h3>URL生成</h3><p>選手への配布用URLを生成</p></div></a>
                 <a href="skill_master.html" class="menu-card"><span class="icon">📖</span><div class="card-body"><h3>技マスター</h3><p>演技に使用できる技の一覧・DD値を確認</p></div></a>
+                <a href="d_calc.html?event=${eventId}" class="menu-card"><span class="icon">🧮</span><div class="card-body"><h3>D計算用</h3><p>選手名・技を入力してDDを計算し、CSVで保存（計算専用）</p></div></a>
+                <a href="flight_timer.html?event=${eventId}" class="menu-card"><span class="icon">🎬</span><div class="card-body"><h3>トランポリン動画検証システム</h3><p>動画から離床・着床を指定して滞空時間(ToF)を計測し、CSVで保存</p></div></a>
                 <a href="readme.html" class="menu-card"><span class="icon">📘</span><div class="card-body"><h3>Readme</h3><p>システムの運用マニュアル・設定手順</p></div></a>
+                <a href="hdts_test.html" class="menu-card"><span class="icon">🔌</span><div class="card-body"><h3>HDTS接続テスト</h3><p>QIRAとの通信テスト・接続確認</p></div></a>
             </div>
         `;
     }

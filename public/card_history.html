@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>競技カード提出履歴 - Trampoline System</title>
+    <style>
+        :root { --primary:#263238; --accent:#1a73e8; --bg:#f0f2f5; --card:#fff; --sub:#78909c; --border:#e0e7ef; --green:#1e8e3e; --amber:#f29900; }
+        * { box-sizing:border-box; }
+        body { font-family:'Inter','Hiragino Sans',sans-serif; background:var(--bg); margin:0; padding:20px; color:var(--primary); }
+        .container { max-width:1100px; margin:0 auto; }
+        .header-bar { display:flex; align-items:center; gap:14px; margin-bottom:6px; flex-wrap:wrap; }
+        .btn-back { text-decoration:none; color:var(--sub); font-size:0.9rem; border:1px solid #ccc; padding:8px 18px; border-radius:8px; white-space:nowrap; }
+        h1 { font-size:1.4rem; margin:0; flex:1; }
+        .btn-refresh { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:9px 18px; font-size:0.9rem; font-weight:bold; cursor:pointer; white-space:nowrap; }
+        .btn-refresh:hover { background:#1557b0; }
+        .event-name { color:var(--sub); font-size:0.95rem; margin-bottom:16px; }
+        .summary { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+        .stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 18px; min-width:110px; }
+        .stat .n { font-size:1.5rem; font-weight:900; color:var(--accent); line-height:1.1; }
+        .stat .l { font-size:0.72rem; color:var(--sub); font-weight:bold; }
+        .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+        .toolbar select { padding:8px 12px; border-radius:8px; border:1.5px solid #d0d7de; background:#f8fbff; font-size:0.9rem; }
+        .count-note { font-size:0.82rem; color:var(--sub); margin-left:auto; }
+        .table-wrap { background:var(--card); border-radius:14px; border:1px solid var(--border); overflow:hidden; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+        th { background:#f8f9fb; padding:11px 12px; color:var(--sub); font-size:0.72rem; white-space:nowrap; border-bottom:1px solid var(--border); font-weight:700; text-align:left; }
+        td { padding:10px 12px; border-bottom:1px solid #f3f3f3; vertical-align:middle; white-space:nowrap; }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:#fafcff; }
+        .dt { font-variant-numeric:tabular-nums; color:#37474f; font-weight:600; }
+        .nm { font-weight:700; }
+        .club { font-size:0.74rem; color:var(--sub); }
+        .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:0.72rem; font-weight:bold; }
+        .b-new { background:#e8f0fe; color:var(--accent); }
+        .b-rev { background:#fff3e0; color:var(--amber); }
+        .b-bulk { background:#eceff1; color:var(--sub); }
+        .b-round { background:#eef2f7; color:#455a64; }
+        .b-indiv { background:#ede7f6; color:#5e35b1; }
+        .b-synchro { background:#e0f2f1; color:#00897b; }
+        .b-rev.clickable { cursor:pointer; border:1px solid transparent; transition:0.15s; }
+        .b-rev.clickable:hover { background:#ffe4b3; border-color:var(--amber); }
+        .noop-tag { display:inline-block; margin-top:2px; font-size:0.68rem; font-weight:600; color:var(--sub); }
+        .st0 { color:var(--sub); }
+        .st1 { color:var(--amber); font-weight:bold; }
+        .st2 { color:var(--green); font-weight:bold; }
+        .msg { text-align:center; padding:48px; color:var(--sub); }
+        .msg button { margin-top:12px; padding:8px 22px; border:none; background:var(--accent); color:#fff; border-radius:8px; cursor:pointer; font-size:0.95em; }
+
+        /* ---- 修正差分モーダル ---- */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:100; align-items:flex-start; justify-content:center; overflow-y:auto; padding:30px 16px; }
+        .modal-overlay.show { display:flex; }
+        .modal-box { background:#fff; border-radius:16px; max-width:900px; width:100%; padding:24px 28px 28px; box-shadow:0 12px 40px rgba(0,0,0,0.2); }
+        .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:4px; }
+        .modal-title { font-size:1.15rem; font-weight:900; }
+        .modal-sub { font-size:0.85rem; color:var(--sub); margin-top:2px; }
+        .modal-close { background:none; border:none; font-size:1.3rem; color:var(--sub); cursor:pointer; line-height:1; padding:4px; }
+        .modal-close:hover { color:var(--primary); }
+        .diff-table-wrap { overflow-x:auto; margin-top:18px; }
+        .diff-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+        .diff-table th, .diff-table td { padding:8px 10px; border-bottom:1px solid #f0f0f0; text-align:center; white-space:nowrap; }
+        .diff-table th { background:#f8f9fb; color:var(--sub); font-size:0.72rem; font-weight:700; }
+        .diff-table td:first-child, .diff-table th:first-child { text-align:left; color:var(--sub); font-weight:700; width:60px; }
+        .diff-table .ver-head { display:flex; flex-direction:column; gap:2px; }
+        .diff-table .ver-label { font-weight:900; color:var(--primary); }
+        .diff-table .ver-time { font-weight:400; font-variant-numeric:tabular-nums; }
+        .diff-cell.changed { background:#fff3e0; color:#e65100; font-weight:900; border-radius:6px; }
+        .diff-total-row td { font-weight:900; border-top:2px solid var(--border); }
+        .diff-loading { text-align:center; padding:30px; color:var(--sub); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-bar">
+        <a class="btn-back" id="btn-back" href="#">← 戻る</a>
+        <h1>🎴 競技カード提出履歴</h1>
+        <button class="btn-refresh" onclick="location.reload()">⟳ 更新</button>
+    </div>
+    <div class="event-name" id="event-name">読み込み中...</div>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="toolbar">
+        <select id="filter-round"><option value="">全ラウンド</option><option value="pre1">予選1</option><option value="pre2">予選2</option><option value="final">決勝</option></select>
+        <select id="sort-order"><option value="desc">新しい順</option><option value="asc">古い順</option></select>
+        <span class="count-note" id="count-note"></span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>#</th><th>提出/修正日時</th><th>氏名</th><th>カテゴリ</th><th>ラウンド</th><th>種別</th><th>状態</th></tr></thead>
+            <tbody id="rows"><tr><td colspan="7" class="msg" id="loading">読み込み中...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal-overlay" id="diff-modal" onclick="if(event.target===this) window.closeDiffModal()">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div>
+                <div class="modal-title" id="diff-title">構成の変更履歴</div>
+                <div class="modal-sub" id="diff-subtitle"></div>
+            </div>
+            <button class="modal-close" onclick="window.closeDiffModal()">✕</button>
+        </div>
+        <div id="diff-body"><div class="diff-loading">読み込み中...</div></div>
+    </div>
+</div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc, collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin } from "./auth.js";
+    import { getTournament, getAthletes, getSkills } from "./cache.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    document.getElementById('btn-back').href = `admin_menu.html?event=${eventId}`;
+
+    const ROUND = { pre1:'予選1', pre2:'予選2', final:'決勝' };
+    let allRows = [];
+    let skillMasterById = new Map(), skillMasterBySymbol = new Map(); // 修正差分モーダル用
+
+    // iOS等で getDocs が応答しないハングを防ぐタイムアウト
+    function withTimeout(promise, ms = 8000) {
+        return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+    }
+
+    function fmt(ts) {
+        if (!ts) return '—';
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        if (isNaN(d)) return '—';
+        const p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+
+    function kindBadge(rc, subId) {
+        if (rc == null)  return '<span class="badge b-bulk">一括/旧</span>';
+        if (rc <= 1)     return '<span class="badge b-new">新規</span>';
+        // 修正ありの場合のみ、構成の変更履歴（revisionsサブコレクション）をクリックで見られる
+        return `<span class="badge b-rev clickable" onclick="window.showRevisionDiff('${subId}')" title="クリックで構成の変更履歴を表示">修正 ${rc-1}回</span>`;
+    }
+
+    // 技1件を { symbol, dd } に解決する（judge_panel.html / admin_card_check.html と同じ形式対応）
+    function resolveSkill(raw) {
+        if (!raw && raw !== 0) return { symbol: '-', dd: null };
+        if (typeof raw === 'object' && raw !== null) {
+            const found = raw.id
+                ? (skillMasterById.get(String(raw.id)) || skillMasterBySymbol.get(raw.skill))
+                : skillMasterBySymbol.get(raw.skill);
+            return { symbol: raw.skill || found?.symbol || '-', dd: raw.dd ?? found?.dd ?? null };
+        }
+        const found = skillMasterById.get(String(raw));
+        return found ? { symbol: found.symbol || '-', dd: found.dd ?? null } : { symbol: '-', dd: null };
+    }
+    function statusLabel(cs) {
+        if (cs === 2) return '<span class="st2">✓ 確認済</span>';
+        if (cs === 1) return '<span class="st1">確認中</span>';
+        return '<span class="st0">確認前</span>';
+    }
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    function render() {
+        const fr   = document.getElementById('filter-round').value;
+        const sort = document.getElementById('sort-order').value;
+        let rows = fr ? allRows.filter(r => r.round === fr) : allRows.slice();
+        rows.sort((a, b) => sort === 'asc' ? a.ts - b.ts : b.ts - a.ts);
+
+        const tbody = document.getElementById('rows');
+        if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="msg">該当する提出はありません。</td></tr>';
+        } else {
+            tbody.innerHTML = rows.map((r, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td class="dt">${fmt(r.updatedAt)}${r.lastSubmitChanged === false ? '<br><span class="noop-tag" title="内容を変更せずに再提出のみ行われました">変更なし再提出</span>' : ''}</td>
+                    <td><span class="nm">${esc(r.name)}</span><br><span class="club">${esc(r.club)}</span></td>
+                    <td><span class="badge ${r.type === 'synchro' ? 'b-synchro' : 'b-indiv'}">${r.type === 'synchro' ? 'シンクロ' : '個人'}</span> ${esc(r.cls)}${r.gender ? ' ・' + esc(r.gender) : ''}</td>
+                    <td><span class="badge b-round">${ROUND[r.round] || r.round}</span></td>
+                    <td>${kindBadge(r.revisionCount, r.subId)}</td>
+                    <td>${statusLabel(r.checkStatus)}</td>
+                </tr>`).join('');
+        }
+        document.getElementById('count-note').textContent = `${rows.length} 件を表示`;
+    }
+
+    async function load() {
+        const [tour, athletes, subSnap, skillMaster] = await withTimeout(Promise.all([
+            getTournament(eventId),
+            getAthletes(eventId),
+            getDocs(query(collection(db, 'submissions'), where('eventId', '==', eventId))),
+            getSkills()
+        ]));
+        skillMasterById     = new Map(skillMaster.map(s => [s.id, s]));
+        skillMasterBySymbol = new Map(skillMaster.map(s => [s.symbol, s]));
+
+        document.getElementById('event-name').textContent = (tour?.name || '大会') + ' — 提出された競技カードの時系列';
+        document.title = `${tour?.name || '大会'} — 競技カード提出履歴`;
+
+        const aMap = {};
+        athletes.forEach(a => { aMap[a.id] = a; });
+
+        allRows = subSnap.docs.map(d => {
+            const s = d.data();
+            const a = aMap[s.athleteId] || {};
+            const ts = s.updatedAt?.toDate ? s.updatedAt.toDate().getTime() : 0;
+            const isSynchro = a.type === 'synchro';
+            // シンクロは2名分の氏名・所属を両方表示する（従来はname1/club1しか出ておらず、
+            // ペアの片方が消えているうえ個人との見分けもつかなかった）
+            const name = isSynchro
+                ? `${a.name1 || '（不明）'} / ${a.name2 || '（不明）'}`
+                : (a.name1 || '（不明）');
+            const club = isSynchro
+                ? (a.club1 && a.club2 && a.club1 !== a.club2 ? `${a.club1} / ${a.club2}` : (a.club1 || a.club2 || ''))
+                : (a.club1 || '');
+            return {
+                subId: d.id, ts, updatedAt: s.updatedAt, round: s.round,
+                revisionCount: s.revisionCount ?? null, checkStatus: s.checkStatus ?? 0,
+                lastSubmitChanged: s.lastSubmitChanged ?? null, // false: 直近の提出は内容変更なしの再提出だった
+                name, club, cls: a.class || a.category || '—', gender: a.gender || '', type: a.type || 'individual'
+            };
+        });
+
+        // サマリー
+        const total   = allRows.length;
+        const revised = allRows.filter(r => (r.revisionCount ?? 0) > 1).length;
+        const byRound = { pre1:0, pre2:0, final:0 };
+        allRows.forEach(r => { if (byRound[r.round] != null) byRound[r.round]++; });
+        document.getElementById('summary').innerHTML = `
+            <div class="stat"><div class="n">${total}</div><div class="l">総提出数</div></div>
+            <div class="stat"><div class="n">${revised}</div><div class="l">修正あり</div></div>
+            <div class="stat"><div class="n">${byRound.pre1}</div><div class="l">予選1</div></div>
+            <div class="stat"><div class="n">${byRound.pre2}</div><div class="l">予選2</div></div>
+            <div class="stat"><div class="n">${byRound.final}</div><div class="l">決勝</div></div>`;
+
+        render();
+    }
+
+    // ---- 修正差分モーダル ----
+    window.closeDiffModal = () => {
+        document.getElementById('diff-modal').classList.remove('show');
+    };
+
+    window.showRevisionDiff = async (subId) => {
+        const modal = document.getElementById('diff-modal');
+        const body  = document.getElementById('diff-body');
+        const row   = allRows.find(r => r.subId === subId);
+        document.getElementById('diff-title').textContent = row ? `${row.name} — 構成の変更履歴` : '構成の変更履歴';
+        document.getElementById('diff-subtitle').textContent = row
+            ? `${row.cls}${row.gender ? ' ・' + row.gender : ''} / ${ROUND[row.round] || row.round}` : '';
+        body.innerHTML = '<div class="diff-loading">読み込み中...</div>';
+        modal.classList.add('show');
+
+        try {
+            const [curSnap, revSnap] = await withTimeout(Promise.all([
+                getDoc(doc(db, 'submissions', subId)),
+                getDocs(query(collection(db, 'submissions', subId, 'revisions'), orderBy('archivedAt', 'asc')))
+            ]));
+
+            // 古い順に並んだバージョン一覧（過去の修正 → 現在の内容）を作る
+            const versions = revSnap.docs.map((d, i) => {
+                const rev = d.data();
+                return {
+                    label: i === 0 ? '初回提出' : `修正${i}`,
+                    // archivedAt は「このバージョンが次の修正で上書きされた時刻」＝次バージョンの
+                    // 提出時刻であり、このバージョン自体がいつ提出されたかとは別物（archivedAtだけを
+                    // 使うと、直前バージョンの時刻が次バージョンの提出時刻と同じに見えてしまっていた）。
+                    // このバージョン自身の提出時刻は updatedAt（上書き前のデータをそのまま退避して
+                    // いるので引き継がれている）を使う。古いデータ等でupdatedAtが無い場合のみ
+                    // archivedAtにフォールバックする。
+                    time: rev.updatedAt || rev.archivedAt,
+                    skills: rev.skills || [],
+                    totalDD: rev.totalDD
+                };
+            });
+            if (curSnap.exists()) {
+                const cur = curSnap.data();
+                versions.push({ label: '現在の内容', time: cur.updatedAt, skills: cur.skills || [], totalDD: cur.totalDD });
+            }
+
+            if (versions.length === 0) {
+                body.innerHTML = '<div class="diff-loading">変更履歴が見つかりませんでした。</div>';
+                return;
+            }
+
+            const theadHtml = '<tr><th>#</th>' + versions.map(v => `
+                <th><div class="ver-head"><span class="ver-label">${esc(v.label)}</span><span class="ver-time">${fmt(v.time)}</span></div></th>
+            `).join('') + '</tr>';
+
+            // 技10本ぶんの行。直前バージョン（1つ左の列）と記号が異なるセルだけハイライトする
+            let bodyRows = '';
+            for (let i = 0; i < 10; i++) {
+                let prevSymbol = null;
+                let rowHtml = `<tr><td>${i + 1}</td>`;
+                versions.forEach(v => {
+                    const sk = resolveSkill(v.skills[i]);
+                    const changed = prevSymbol !== null && sk.symbol !== prevSymbol;
+                    rowHtml += `<td class="${changed ? 'diff-cell changed' : ''}">${esc(sk.symbol)}</td>`;
+                    prevSymbol = sk.symbol;
+                });
+                bodyRows += rowHtml + '</tr>';
+            }
+
+            // DD合計行
+            let prevDD = null;
+            let ddRow = '<tr class="diff-total-row"><td>DD合計</td>';
+            versions.forEach(v => {
+                const dd = typeof v.totalDD === 'number' ? v.totalDD.toFixed(1) : '-';
+                const changed = prevDD !== null && dd !== prevDD;
+                ddRow += `<td class="${changed ? 'diff-cell changed' : ''}">${dd}</td>`;
+                prevDD = dd;
+            });
+            ddRow += '</tr>';
+
+            body.innerHTML = `<div class="diff-table-wrap"><table class="diff-table"><thead>${theadHtml}</thead><tbody>${bodyRows}${ddRow}</tbody></table></div>`;
+        } catch (e) {
+            console.error('修正履歴の読み込みに失敗:', e);
+            body.innerHTML = '<div class="diff-loading">読み込みに失敗しました。</div>';
+        }
+    };
+
+    document.getElementById('filter-round').addEventListener('change', render);
+    document.getElementById('sort-order').addEventListener('change', render);
+
+    ensureAdmin(() => {
+        if (!eventId) { document.getElementById('loading').textContent = '大会IDが指定されていません。'; return; }
+        load().catch(e => {
+            console.error('提出履歴の読み込みに失敗:', e);
+            document.getElementById('rows').innerHTML =
+                '<tr><td colspan="7" class="msg">読み込みに失敗しました。通信状況をご確認ください。'
+                + '<br><button onclick="location.reload()">再読み込み</button></td></tr>';
+        });
+    });
+</script>
+</body>
+</html>

@@ -37,18 +37,26 @@
         .r-dot.current { border: 2px solid #000; transform: scale(1.15); z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .r-dot.current:not(.has-res) { background: #fff; color: var(--accent); }
         .r-dot.has-res.current { background: var(--ok-green); color: #fff; border-color: #000; }
+        /* CJPがDNS（棄権）で確定したラウンドは薄い赤にする（CJP画面と統一） */
+        .r-dot.dns-dot { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+        .r-dot.dns-dot.current { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
 
         /* 【重要】申告相違があるラウンドの文字を赤くする */
         .r-dot.diff-dot { color: var(--danger) !important; font-weight: 900; }
 
-        .main-content { flex-grow: 1; overflow-y: auto; padding: 30px; display: flex; justify-content: center; align-items: flex-start; }
-        .score-card { background: white; width: 100%; max-width: 1100px; padding: 35px; border-radius: 20px; box-shadow: 0 4px 25px rgba(0,0,0,0.08); margin-top: 5px; }
-        
-        .header-info { border-bottom: 2px solid #eee; padding-bottom: 25px; margin-bottom: 25px; }
-        .header-info h2 { margin: 5px 0 10px 0; font-size: 1.8em; font-weight: 900; display: flex; align-items: baseline; gap: 10px; }
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 18px 24px; display: flex; justify-content: center; align-items: flex-start; }
+        .score-card { background: white; width: 100%; max-width: 1150px; padding: 20px 26px; border-radius: 20px; box-shadow: 0 4px 25px rgba(0,0,0,0.08); margin-top: 4px; }
+
+        .header-info { border-bottom: 2px solid #eee; padding-bottom: 12px; margin-bottom: 16px; }
+        .header-info h2 { margin: 4px 0 6px 0; font-size: 1.5em; font-weight: 900; display: flex; align-items: baseline; gap: 10px; }
+
+        /* 技テーブル（左）＋ サイドパネル（右：有効本数・合計・縦長の確定ボタン）の横並び */
+        .score-body { display: flex; gap: 18px; align-items: stretch; }
+        .table-wrap { flex: 1; min-width: 0; }
+        .side-panel { width: 230px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
 
         .comparison-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .comparison-table th, .comparison-table td { padding: 12px 5px; border-bottom: 1px solid #f0f0f0; text-align: center; font-size: 1.05em; transition: 0.3s; }
+        .comparison-table th, .comparison-table td { padding: 7px 5px; border-bottom: 1px solid #f0f0f0; text-align: center; font-size: 1.05em; transition: 0.3s; }
         .col-num { width: 45px; color: #999; font-size: 0.85em; position: relative; }
         .col-num.designated { color: #d97706; font-weight: 900; }
         .col-num.designated::after {
@@ -59,7 +67,7 @@
         .col-sub { width: 22%; background: #f9f9f9; color: #555; font-weight: bold; } 
         .col-sub-dd { width: 65px; background: #f9f9f9; color: #999; font-family: monospace; }
         
-        select { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 1em; background: #fff; cursor: pointer; }
+        select { width: 100%; box-sizing: border-box; padding: 7px 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 1em; background: #fff; cursor: pointer; }
         select:disabled { background: #f5f5f5; color: #777; cursor: default; border-color: #eee; }
 
         /* 重複ハイライト & 無効行 & 申告相違赤字 */
@@ -67,21 +75,31 @@
         .invalid-row td { background-color: #f5f5f5 !important; color: #bbb !important; }
         .diff-skill { color: var(--danger) !important; font-weight: 900; }
         .dd-zero { color: var(--danger) !important; font-weight: 900; }
+        .dd-capped { color: #e65100 !important; font-weight: 900; }
 
-        .valid-count-area { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: flex-end; gap: 15px; border: 1px solid #eee; }
-        .footer-stats { display: flex; justify-content: flex-end; gap: 50px; margin-top: 20px; padding-top: 20px; border-top: 2px solid #eee; }
-        .total-official { font-size: 3em; font-weight: 900; color: var(--ok-green); }
+        .valid-count-area { margin: 0; padding: 10px; background: #f8f9fa; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 1px solid #eee; }
+        .footer-stats { margin: 0; padding: 10px 8px; border-top: none; display: flex; flex-direction: column; align-items: center; gap: 3px; background: #f1f8e9; border-radius: 12px; border: 1px solid #c8e6c9; }
+        .total-official { font-size: 2.4em; font-weight: 900; color: var(--ok-green); line-height: 1.0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .total-official span { white-space: nowrap; }
         .total-official.diff-skill { color: var(--danger); }
 
-        .action-area { margin-top: 30px; }
-        .btn { width: 100%; padding: 22px; border: none; border-radius: 14px; font-size: 1.3em; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .action-area { margin: 0; flex: 1; display: flex; }
+        .btn { width: 100%; height: 100%; min-height: 110px; padding: 18px 12px; border: none; border-radius: 14px; font-size: 1.25em; font-weight: bold; cursor: pointer; transition: 0.2s; line-height: 1.4; }
         .btn-submit { background: var(--ok-green); color: white; box-shadow: 0 8px 20px rgba(46, 125, 50, 0.2); }
+        .btn-submit.btn-below-min { background: var(--warn-orange); box-shadow: 0 8px 20px rgba(245, 124, 0, 0.25); }
         .btn-modify { background: white; color: var(--warn-orange); border: 3px solid var(--warn-orange); }
+        .btn-fetch-declared { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--accent); background: #e8f0fe; color: var(--accent); font-size: 0.82em; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.15s; }
+        .btn-fetch-declared:hover { background: var(--accent); color: #fff; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
+        /* 難度制限あり: 合計Dの下に参考表示（確定ボタンはその分だけ縦が縮むだけ） */
+        .cap-ref { margin: 0; padding: 10px 12px; background: #fff8e1; border: 1px solid #ffe0b2; border-radius: 12px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+        .cap-ref-title { font-size: 0.78em; font-weight: 900; color: #e65100; letter-spacing: 0.03em; text-align: center; }
+        .cap-ref-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.9em; color: #6d4c41; }
+        .cap-ref-row b { font-size: 1.15em; color: #e65100; }
         .status-badge { display: inline-block; font-size: 0.75em; font-weight: bold; padding: 4px 12px; border-radius: 20px; }
         .badge-locked { background: #e8f5e9; color: var(--ok-green); border: 1px solid #c8e6c9; }
         .badge-cjp-locked { background: #ffebee; color: var(--danger); border: 1px solid #ffcdd2; }
-        .cjp-lock-msg { color: var(--danger); font-weight: bold; padding: 14px; text-align: center; background: #ffebee; border-radius: 10px; border: 2px solid #ffcdd2; }
+        .cjp-lock-msg { width: 100%; min-height: 110px; box-sizing: border-box; color: var(--danger); font-weight: bold; padding: 14px; text-align: center; background: #ffebee; border-radius: 10px; border: 2px solid #ffcdd2; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -106,7 +124,9 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
+    import { round1 } from "./shared.js";
     
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim();
@@ -115,69 +135,125 @@
     let athleteId = params.get('athlete')?.trim(), round = params.get('round') || "pre1";
 
     let skillMaster = [], athletes = [], submissions = {}, results = {}, currentTour = null;
+    // id/symbol → skill の索引。renderSidebar 経由で checkHasDiff が選手×ラウンドぶん
+    // 繰り返し呼ぶため、線形 .find() のままだと再描画のたびに技マスタ全件スキャンになる。
+    let skillMasterById = new Map(), skillMasterBySymbol = new Map();
+    let _pendingSidebarScroll = null; // 確定後の再読込で左リストのスクロール位置を保持するため
     let cjpConfirmed = false; // CJPが公式スコアを確定済（published:true）かどうか
     let unsubValidCount = null;
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let designatedDDCount = -1;   // -1=無効, 0=全DD0, 1以上=N本指定
+    let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
+    let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
+    let minRoutineDD  = null;     // 難度下限（null=なし。10本演技かつ未満の時に確定ボタンの表記を変える）
     let designatedDDIndices = []; // 指定技インデックス（0-based）
 
     // Firestore doc ID (文字列 or 数値) でスキルを引く。位置アクセスは使わない
     function findSkillById(id) {
         if (id === null || id === undefined || id === '') return null;
-        return skillMaster.find(m => m.id === String(id)) || null;
+        return skillMasterById.get(String(id)) || null;
     }
 
     function resolveSubSkill(s) {
         if (!s) return null;
         if (typeof s === 'object') {
             if (s.id) return findSkillById(s.id);
-            if (s.skill) return skillMaster.find(m => m.symbol === s.skill) || null;
+            if (s.skill) return skillMasterBySymbol.get(s.skill) || null;
             return null;
         }
         // 数値文字列 → ID として検索（旧形式互換）
-        if (!isNaN(s) && s !== '') return findSkillById(s) || skillMaster.find(m => m.symbol === String(s)) || null;
-        return skillMaster.find(m => m.symbol === s) || null;
+        if (!isNaN(s) && s !== '') return findSkillById(s) || skillMasterBySymbol.get(String(s)) || null;
+        return skillMasterBySymbol.get(s) || null;
     }
 
+    function withTimeout(promise, ms) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), ms))
+        ]);
+    }
+
+    function showLoadState(msg, isError) {
+        document.getElementById('sidebar-list').innerHTML = `
+            <div style="padding:24px;text-align:center;color:${isError ? '#e53935' : '#90a4ae'};">
+                <div style="font-size:2em;margin-bottom:10px;">${isError ? '⚠️' : '⏳'}</div>
+                <div style="font-weight:bold;margin-bottom:${isError ? '14px' : '0'};">${msg}</div>
+                ${isError ? '<button onclick="retryInit()" style="padding:10px 24px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:bold;">🔄 再読み込み</button>' : ''}
+            </div>`;
+        if (isError) document.getElementById('event-name').innerText = '読み込みエラー';
+    }
+
+    window.retryInit = () => init();
+    let _initRunning = false;
+
     async function init() {
-        if (!eventId) return;
+        if (!eventId || _initRunning) return;
+        _initRunning = true;
         document.getElementById('menu-back').href = `judge_role_select.html?event=${eventId}`;
         if (panel || role) {
             const parts = [panel && `PANEL ${panel}`, role && `ROLE ${role}`].filter(Boolean);
             document.getElementById('panel-role-label').textContent = parts.join(' | ');
         }
-
+        showLoadState('データを読み込んでいます...', false);
         try {
-            const [tourSnap, athSnap, subSnap, resSnap, smSnap] = await Promise.all([
-                getDoc(doc(db, "tournaments", eventId)),
-                getDocs(collection(db, "tournaments", eventId, "athletes")),
-                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
-                getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
-                getDocs(collection(db, "skillMaster"))
-            ]);
+            // tournaments/athletes は cache.js 経由（同タブ内で他画面が読み込み済みならFirestore不要）。
+            // finalOrder/isInFinal は試技順変更で頻繁に更新されるためキャッシュ対象外＝毎回取得し、
+            // athletes にマージする（judge_cjp.html と同一パターン）。
+            const [tourData, athleteList, subSnap, resSnap, smSnap, finalOrders] = await withTimeout(
+                Promise.all([
+                    getTournament(eventId),
+                    getAthletes(eventId),
+                    getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+                    getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
+                    getDocs(collection(db, "skillMaster")),
+                    getFinalOrders(eventId)
+                ]),
+                20000
+            );
 
             // skillMaster: ドキュメントID（数値文字列）でソートして配列化（ID=インデックスでアクセスされる）
             skillMaster = smSnap.docs
                 .sort((a, b) => parseInt(a.id) - parseInt(b.id))
-                .map(d => ({
-                    id: d.id,
-                    symbol: d.data().symbol,
-                    dd: parseFloat(d.data().dd) || 0,
-                    isTriple: d.data().isTriple === true,
-                    direction: d.data().direction || '',
-                    somersaultType: d.data().somersaultType || '',
-                    displayOrder: d.data().displayOrder ?? parseInt(d.id)
-                }));
+                .map(d => {
+                    const data = d.data();
+                    const dd = parseFloat(data.dd) || 0;
+                    const s = {
+                        id: d.id,
+                        symbol: data.symbol,
+                        dd,
+                        isTriple: data.isTriple === true,
+                        direction: data.direction || '',
+                        somersaultType: data.somersaultType || '',
+                        note: data.note || '',
+                        displayOrder: data.displayOrder ?? parseInt(d.id)
+                    };
+                    // 2回宙は DD で低(≤1.5)/高(≥1.6) に自動分類（選手入力の getSkills と同一）
+                    if (s.somersaultType === '2回宙') s.doubleSomaGroup = (dd >= 1.6) ? 'high' : 'low';
+                    return s;
+                });
+            skillMasterById     = new Map(skillMaster.map(s => [s.id, s]));
+            skillMasterBySymbol = new Map(skillMaster.map(s => [s.symbol, s]));
 
-            currentTour = tourSnap.data();
+            if (!tourData) throw new Error('大会データが見つかりません');
+            currentTour = tourData;
             document.getElementById('event-name').innerText = currentTour.name;
-            athletes = athSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            // 決勝試技順はキャッシュ除外なので毎回取得したものをマージ
+            athletes = athleteList.map(a => {
+                const fo = finalOrders[a.id];
+                return fo ? { ...a, finalOrder: fo.finalOrder, isInFinal: fo.isInFinal } : a;
+            });
             submissions = {}; subSnap.forEach(d => { submissions[d.id] = d.data(); });
             results = {}; resSnap.forEach(d => { results[d.id] = d.data(); });
 
             renderSidebar();
             if (athleteId) renderScoringArea();
-        } catch (e) { console.error("Init Error:", e); }
+        } catch (e) {
+            console.error("Init Error:", e);
+            const msg = e.message === 'TIMEOUT' ? 'ネットワーク接続に時間がかかっています' : 'データの読み込みに失敗しました';
+            showLoadState(msg, true);
+        } finally {
+            _initRunning = false;
+        }
     }
 
     function checkHasDiff(aid, rid) {
@@ -201,7 +277,7 @@
         const byType = athletes.filter(a => (a.type || 'individual') === fType);
 
         // クラス一覧
-        const tourClassDefs = (currentTour?.classes?.[fType] || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+        const tourClassDefs = (Array.isArray(currentTour?.classes) ? currentTour.classes : (currentTour?.classes?.[fType] || [])).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
         const rawClasses = [...new Set(byType.map(a => a.class || a.category || ''))];
         const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
 
@@ -270,17 +346,17 @@
         }
 
         const listEl = document.getElementById('sidebar-list');
-        listEl.innerHTML = "";
+        let html = "";
         let lastCat = "", lastGender = "";
 
         filtered.forEach(ath => {
             const cls = ath.class || ath.category || '';
             if (cls !== lastCat) {
-                listEl.innerHTML += `<div class="cat-group">${cls}</div>`;
+                html +=`<div class="cat-group">${cls}</div>`;
                 lastCat = cls; lastGender = "";
             }
             if (!fFinalOnly && (ath.gender || '') !== lastGender) {
-                listEl.innerHTML += `<div class="gender-group">${ath.gender || ''}</div>`;
+                html +=`<div class="gender-group">${ath.gender || ''}</div>`;
                 lastGender = ath.gender || '';
             }
 
@@ -307,7 +383,7 @@
                 : (ath.kana1 || '');
             const titleAttr = `${ath.name1 || ''}${ath.kana1 ? ' (' + ath.kana1 + ')' : ''}`;
 
-            listEl.innerHTML += `
+            html += `
                 <div class="athlete-row ${ath.id === athleteId ? 'active-athlete' : ''}" title="${titleAttr}">
                     <div class="ath-name-text">
                         <div class="ath-name-main">${nameLine1}</div>
@@ -316,6 +392,15 @@
                     <div class="round-box">${dotsHtml}</div>
                 </div>`;
         });
+
+        listEl.innerHTML = html; // 一括代入（innerHTML += の逐次再パースを避ける）
+
+        // 確定後の再読込などでは、退避しておいた位置に左リストのスクロールを復元する
+        if (_pendingSidebarScroll != null) {
+            const sc = _pendingSidebarScroll; _pendingSidebarScroll = null;
+            listEl.scrollTop = sc;
+            requestAnimationFrame(() => { listEl.scrollTop = sc; });
+        }
     }
 
     window.setFilter = (key, val) => {
@@ -328,9 +413,12 @@
 
     function getDotHtml(aid, rid, label) {
         const id = `${eventId}_${aid}_${rid}`;
-        const cls = (results[id] ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
+        const r = results[id];
+        const isDns = r?.dns === true; // CJPがDNS（棄権）で確定
+        const cls = (r ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
+                    (isDns ? ' dns-dot' : '') +
                     (aid === athleteId && rid === round ? ' current' : '') +
-                    (checkHasDiff(aid, rid) ? ' diff-dot' : '');
+                    (!isDns && checkHasDiff(aid, rid) ? ' diff-dot' : '');
         return `<a href="#" class="r-dot ${cls}" onclick="selectRound('${aid}','${rid}');return false;">${label}</a>`;
     }
 
@@ -380,14 +468,37 @@
                         const dSaved = !!data;
                         actionArea.innerHTML = dSaved
                             ? `<button id="btn-save" class="btn btn-modify" onclick="enableEditing()">修正する</button>`
-                            : `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">確定・保存</button>`;
+                            : `<button id="btn-save" class="btn btn-submit" data-orig-label="確定・保存" onclick="saveOfficialScore()">確定・保存</button>`;
                     }
                 }
             }
 
             calcTotal();
+            scheduleFit();
         });
     }
+
+    // ディスプレイサイズに合わせてスコアカード全体を自動フィット（縮小/拡大）させる
+    function fitScoreCard() {
+        const mc = document.getElementById('main-content');
+        const card = mc && mc.querySelector('.score-card');
+        if (!card) return;
+        card.style.zoom = '1';
+        const cs = getComputedStyle(mc);
+        const availW = mc.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        const availH = mc.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
+        const natW = card.offsetWidth, natH = card.offsetHeight;
+        if (!natW || !natH) return;
+        let z = Math.min(availW / natW, (availH - 6) / natH);
+        z = Math.max(0.5, Math.min(z, 1.4)); // 縮小は0.5倍まで・拡大は1.4倍まで
+        card.style.zoom = String(z);
+    }
+    let _fitRAF = null;
+    function scheduleFit() {
+        if (_fitRAF) cancelAnimationFrame(_fitRAF);
+        _fitRAF = requestAnimationFrame(() => { _fitRAF = null; fitScoreCard(); });
+    }
+    window.addEventListener('resize', scheduleFit);
 
     function renderScoringArea() {
         const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId], resData = results[subId], ath = athletes.find(a => a.id === athleteId);
@@ -403,6 +514,13 @@
         const athType2 = ath.type || 'individual';
         const athClass2 = ath.class || ath.category || '';
         const classRule = currentTour?.classRules?.[athType2]?.[athClass2] || {};
+        // 難度点上限（null=なし）
+        const _psc = parseFloat(classRule.perSkillDDCap);
+        perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+        const _rtc = parseFloat(classRule.routineDDCap);
+        routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+        const _mdd = parseFloat(classRule.minRoutineDD);
+        minRoutineDD  = (classRule.minRoutineDD != null && !isNaN(_mdd)) ? _mdd : null;
         const rawDDCount = classRule.designatedDDCount ?? -1;
         const validDesig = rawDDCount >= 0
             && classRule.qualifyingRoutines === 2
@@ -453,34 +571,52 @@
             headerClub = c1 ? c1 + (ck1 ? `（${ck1}）` : '') : '';
         }
 
+        // 難度制限（1技上限/構成上限/難度下限）があるときは合計Dの下に参考表示する（確定ボタンはその分だけ縦が縮む）
+        const actionBtnHtml = cjpConfirmed
+            ? `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`
+            : `<button id="btn-save" class="btn ${dSaved ? 'btn-modify' : 'btn-submit'}" ${dSaved ? '' : 'data-orig-label="確定・保存"'} onclick="${dSaved ? 'enableEditing()' : 'saveOfficialScore()'}">${dSaved ? '修正する' : '確定・保存'}</button>`;
+        const capRefHtml = (perSkillDDCap != null || routineDDCap != null || minRoutineDD != null) ? `
+                        <div class="cap-ref">
+                            <span class="cap-ref-title">難度制限（参考）</span>
+                            ${perSkillDDCap != null ? `<div class="cap-ref-row"><span>1技あたり上限</span><b>${perSkillDDCap.toFixed(1)}</b></div>` : ''}
+                            ${routineDDCap  != null ? `<div class="cap-ref-row"><span>構成上限</span><b>${routineDDCap.toFixed(1)}</b></div>` : ''}
+                            ${minRoutineDD  != null ? `<div class="cap-ref-row"><span>難度下限</span><b>${minRoutineDD.toFixed(1)}</b></div>` : ''}
+                        </div>` : '';
+
         document.getElementById('main-content').innerHTML = `
             <div class="score-card">
                 <div class="header-info">
-                    <div style="display:flex; justify-content:space-between;">
-                        <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
-                        ${cjpConfirmed ? '<span class="status-badge badge-cjp-locked">🔒 CJP確定済</span>' : dSaved ? '<span class="status-badge badge-locked">✓ D確定済</span>' : ''}
-                        ${noSub ? '<span style="font-size:0.85em; font-weight:bold; color:var(--warn-orange); background:#fff3e0; padding:4px 10px; border-radius:6px; border:1px solid #ffcc80;">⚠ 選手未申告</span>' : ''}
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
+                            ${cjpConfirmed ? '<span class="status-badge badge-cjp-locked">🔒 CJP確定済</span>' : dSaved ? '<span class="status-badge badge-locked">✓ D確定済</span>' : ''}
+                            ${noSub ? '<span style="font-size:0.85em; font-weight:bold; color:var(--warn-orange); background:#fff3e0; padding:4px 10px; border-radius:6px; border:1px solid #ffcc80;">⚠ 選手未申告</span>' : ''}
+                        </div>
+                        <button class="btn-fetch-declared" onclick="loadDeclaredSkills()" title="選手の申請種目をD入力欄に取り込みます。CJPがDなしで確定する等で空欄になった場合の救済用です。">📥 申請種目を取得</button>
                     </div>
-                    <h2>No.${ath.order} ${headerName} <span style="font-size:0.5em; color:#666;">${headerKana ? `(${headerKana})` : ''}</span></h2>
+                    <h2>No.${round === 'final' ? (ath.finalOrder ?? ath.order) : ath.order} ${headerName} <span style="font-size:0.5em; color:#666;">${headerKana ? `(${headerKana})` : ''}</span></h2>
                     ${headerClub ? `<div style="font-size:0.9em; color:#78909c; margin-top:2px;">${headerClub}</div>` : ''}
                 </div>
-                <table class="comparison-table">
-                    <thead><tr><th class="col-num">#</th><th class="col-sub">選手申告</th><th class="col-sub-dd">DD</th><th>系統</th><th>宙系</th><th>記号</th><th class="col-dd">DD</th></tr></thead>
-                    <tbody id="skill-rows"></tbody>
-                </table>
-                <div class="valid-count-area">
-                    <label style="font-weight:bold;">有効本数:</label>
-                    <span id="valid-count-display" style="font-size:1.2em; font-weight:900; color:var(--ok-green); padding:6px 14px; background:#f1f8e9; border-radius:8px; border:1px solid #c8e6c9;">${validCount}本</span>
-                    <input type="hidden" id="valid-count" value="${validCount}">
-                    <span style="font-size:0.75em; color:#90a4ae;">(CJP設定)</span>
-                </div>
-                <div class="footer-stats"><span id="total-dd" class="total-official">0.0</span></div>
-                <div class="action-area" id="action-area">
-                    ${cjpConfirmed
-                        ? `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`
-                        : `<button id="btn-save" class="btn ${dSaved?'btn-modify':'btn-submit'}" onclick="${dSaved?'enableEditing()':'saveOfficialScore()'}">
-                            ${dSaved?'修正する':'確定・保存'}</button>`
-                    }
+                <div class="score-body">
+                    <div class="table-wrap">
+                        <table class="comparison-table">
+                            <thead><tr><th class="col-num">#</th><th class="col-sub">選手申告</th><th class="col-sub-dd">DD</th><th>系統</th><th>宙系</th><th>記号</th><th class="col-dd">DD</th></tr></thead>
+                            <tbody id="skill-rows"></tbody>
+                        </table>
+                    </div>
+                    <div class="side-panel">
+                        <div class="valid-count-area">
+                            <label style="font-weight:bold; font-size:0.82em; color:#546e7a;">有効本数 (CJP設定)</label>
+                            <span id="valid-count-display" style="font-size:1.3em; font-weight:900; color:var(--ok-green); padding:5px 16px; background:#f1f8e9; border-radius:8px; border:1px solid #c8e6c9;">${validCount}本</span>
+                            <input type="hidden" id="valid-count" value="${validCount}">
+                        </div>
+                        <div class="footer-stats">
+                            <span style="font-size:0.78em; color:#90a4ae; font-weight:bold; letter-spacing:0.05em;">合計DD</span>
+                            <span id="total-dd" class="total-official">0.0</span>
+                        </div>
+                        ${capRefHtml}
+                        <div class="action-area" id="action-area">${actionBtnHtml}</div>
+                    </div>
                 </div>
             </div>`;
 
@@ -491,18 +627,13 @@
             const subSkill = resolveSubSkill((sub?.skills || [])[i-1]);
 
             const tr = document.createElement('tr'); tr.id = `row-${i}`;
-            const hasSoma = skill.direction && skill.direction !== '基礎技';
+            // 2段目セレクタ（宙系 or 基礎技の開始姿勢）は updateOptions() が系統に応じて動的構築する（選手入力と同一）
             tr.innerHTML = `<td class="col-num">${i}</td><td class="col-sub">${subSkill?.symbol || "-"}</td><td class="col-sub-dd">${subSkill?.dd?.toFixed(1) || '0.0'}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}>
                     <option value="">--</option><option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方</option>
                     <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方</option><option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎</option>
                 </select></td>
-                <td><select id="soma-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''} style="${hasSoma ? '' : 'visibility:hidden'}">
-                    <option value="">--</option><option value="1回宙" ${skill.somersaultType==='1回宙'?'selected':''}>1回宙</option>
-                    <option value="2回宙" ${skill.somersaultType==='2回宙'?'selected':''}>2回宙</option>
-                    <option value="3回宙" ${skill.somersaultType==='3回宙'?'selected':''}>3回宙</option>
-                    <option value="4回宙" ${skill.somersaultType==='4回宙'?'selected':''}>4回宙</option>
-                </select></td>
+                <td><select id="soma-${i}" onchange="updateOptions(${i})" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}></select></td>
                 <td><select id="skill-${i}" onchange="calcTotal()" ${(isLocked || cjpConfirmed) ? 'disabled' : ''}></select></td>
                 <td><span id="dd-${i}">0.0</span></td>`;
             tbody.appendChild(tr);
@@ -510,27 +641,61 @@
         }
         calcTotal();
         watchValidCount(subId);
+        scheduleFit();
     }
 
+    // 2段目セレクタの選択肢（系統で出し分け: 基礎技=開始姿勢 / 宙技=宙系）※選手入力(entry.html)と同一
+    const SOMA_OPTIONS = {
+        basic:  [['','--（全て）'], ['スタンドから','スタンドから'], ['腰から','腰から'], ['腹から','腹から'], ['背から','背から']],
+        aerial: [['','--'], ['1回宙','1回宙系'], ['2回宙（1.5以下）','2回宙系（1.5以下）'], ['2回宙（1.6以上）','2回宙系（1.6以上）'], ['3回宙','3回宙系'], ['4回宙','4回宙系']]
+    };
+
     window.updateOptions = (idx, selectedId = "", doCalc = true) => {
-        const dir = document.getElementById(`dir-${idx}`).value;
+        const dir    = document.getElementById(`dir-${idx}`).value;
         const somaEl = document.getElementById(`soma-${idx}`);
-        const sel = document.getElementById(`skill-${idx}`);
+        const sel    = document.getElementById(`skill-${idx}`);
         if (!sel) return;
-        // 基礎技は宙系不要
+        const currentVal = sel.value;
+        const isBasic = dir === '基礎技';
+        // 2段目セレクタ: 系統に応じて選択肢を再構築（基礎技でも表示し、開始姿勢を選べるようにする）
         if (somaEl) {
-            const showSoma = dir && dir !== '基礎技';
+            const showSoma = !!dir;
             somaEl.style.visibility = showSoma ? '' : 'hidden';
-            if (!showSoma) somaEl.value = '';
+            let want = somaEl.value;
+            if (selectedId) {
+                const sk = skillMaster.find(s => s.id === selectedId);
+                if (sk) {
+                    want = (sk.direction === '基礎技') ? (sk.somersaultType || '')
+                         : (sk.somersaultType === '2回宙')
+                             ? (sk.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）')
+                             : (sk.somersaultType || '');
+                }
+            }
+            const opts = isBasic ? SOMA_OPTIONS.basic : SOMA_OPTIONS.aerial;
+            somaEl.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+            somaEl.value = (showSoma && opts.some(([v]) => v === want)) ? want : '';
         }
         const soma = somaEl?.value || '';
+        // '2回宙（1.5以下）' / '2回宙（1.6以上）' を somersaultType + doubleSomaGroup にマップ
+        let somaType = soma, somaGroup = '';
+        if (soma === '2回宙（1.5以下）') { somaType = '2回宙'; somaGroup = 'low'; }
+        else if (soma === '2回宙（1.6以上）') { somaType = '2回宙'; somaGroup = 'high'; }
         sel.innerHTML = '<option value="">選択</option>';
-        if (dir) skillMaster.filter(s => s.direction === dir && (!soma || s.somersaultType === soma))
-            .sort((a, b) => a.displayOrder - b.displayOrder).forEach(s => {
-                const opt = document.createElement('option'); opt.value = s.id; opt.innerText = s.symbol;
+        if (dir) {
+            skillMaster.filter(s => {
+                if (s.direction !== dir) return false;
+                if (somaType && s.somersaultType !== somaType) return false;
+                if (somaGroup && s.doubleSomaGroup !== somaGroup) return false;
+                return true;
+            }).sort((a, b) => a.displayOrder - b.displayOrder).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.note ? `${s.symbol}（${s.note}）` : s.symbol;
                 if (s.id === selectedId) opt.selected = true;
                 sel.appendChild(opt);
             });
+        }
+        if (!selectedId && currentVal) sel.value = currentVal;
         if (doCalc) calcTotal();
     };
 
@@ -556,6 +721,7 @@
             const isDesigIdx = designatedDDCount > 0 && designatedDDIndices.includes(i - 1);
             const numCell = row?.querySelector('td.col-num');
             if (numCell) numCell.classList.toggle('designated', isDesigIdx);
+            if (ddSpan) ddSpan.classList.remove('dd-capped'); // 前回描画の上限色をリセット
 
             if (i > validLimit) {
                 row.classList.add('invalid-row');
@@ -590,7 +756,11 @@
                 const isDesig = designatedDDCount < 0
                     || (designatedDDCount > 0 && designatedDDIndices.includes(i - 1));
                 if (isDesig) {
-                    baseDD += skill.dd; ddSpan.innerText = skill.dd.toFixed(1); if (skill.isTriple) tripleCount++;
+                    // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
+                    const isCapped = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
+                    const usedDD   = isCapped ? perSkillDDCap : skill.dd;
+                    baseDD += usedDD; ddSpan.innerText = usedDD.toFixed(1); if (skill.isTriple) tripleCount++;
+                    ddSpan.classList.toggle('dd-capped', isCapped);
                 } else {
                     ddSpan.innerText = '-';
                     if (!ddSpan.classList.contains('diff-skill')) ddSpan.style.color = '#90a4ae';
@@ -603,14 +773,63 @@
         if (ath?.gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
         else if ((ath?.gender === '女子' || ath?.gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
 
+        // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
+        let totalDD = baseDD + bonus;
+        const routineCapped = (routineDDCap != null && round1(totalDD) > routineDDCap);
+        if (routineCapped) totalDD = routineDDCap;
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
-        totalDDContainer.innerHTML = `${(baseDD + bonus).toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>`;
+        totalDDContainer.classList.toggle('dd-capped', routineCapped);
+        const capNote = routineCapped ? ` <span style="font-size:0.4em; color:#e65100; font-weight:bold;">上限${routineDDCap.toFixed(1)}</span>` : '';
+        totalDDContainer.innerHTML = `${totalDD.toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>${capNote}`;
+
+        // 難度下限: 10本演技した上で合計難度がこの値未満の場合、確定・保存系ボタンの表記だけ変える
+        // （登録自体は禁止しない。「修正する」ボタン＝dSaved時の未編集状態には適用しない）
+        const saveBtn = document.getElementById('btn-save');
+        if (saveBtn && saveBtn.dataset.origLabel) {
+            const belowMin = minRoutineDD != null && validLimit === 10 && totalDD < minRoutineDD;
+            saveBtn.textContent = belowMin ? '⚠ 難度下限未満' : saveBtn.dataset.origLabel;
+            saveBtn.classList.toggle('btn-below-min', belowMin);
+        }
+    };
+
+    // 申請種目（選手申告）をD入力欄に取り込む（CJPがDなしで確定した等で空欄化した場合の救済用）
+    window.loadDeclaredSkills = function() {
+        const subId = `${eventId}_${athleteId}_${round}`;
+        const declared = submissions[subId]?.skills || [];
+        if (cjpConfirmed) { alert('CJPが確定済みのため取得できません。\n先にCJP側で確定を解除してください。'); return; }
+        if (!declared.length) { alert('この選手の申請種目データがありません。'); return; }
+        const hasExisting = Array.from({ length: 10 }, (_, i) => document.getElementById(`skill-${i + 1}`)?.value).some(v => v);
+        if (hasExisting && !confirm('現在のD入力を、選手の申請種目で上書きします。よろしいですか？')) return;
+        // ソフトロック中（「修正する」ボタン状態）なら編集を有効化してから取り込む
+        if (document.getElementById('skill-1')?.disabled) enableEditing();
+        for (let i = 1; i <= 10; i++) {
+            const dirEl = document.getElementById(`dir-${i}`);
+            const somaEl = document.getElementById(`soma-${i}`);
+            if (!dirEl) continue;
+            const m = resolveSubSkill(declared[i - 1]);
+            if (m) {
+                dirEl.value = m.direction || '';
+                if (somaEl) somaEl.value = (m.direction && m.direction !== '基礎技') ? (m.somersaultType || '') : '';
+                updateOptions(i, m.id, false);
+            } else {
+                dirEl.value = '';
+                if (somaEl) somaEl.value = '';
+                updateOptions(i, '', false);
+            }
+        }
+        calcTotal();
     };
 
     window.enableEditing = () => {
         if (cjpConfirmed) return; // CJP確定済のため修正不可
         document.querySelectorAll('select').forEach(s => s.disabled = false);
-        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" onclick="saveOfficialScore()">修正を保存</button>`;
+        document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" data-orig-label="修正を保存" onclick="saveOfficialScore()">修正を保存</button>`;
+        calcTotal(); // 表記を今の入力内容（難度下限判定含む）に合わせて即座に更新
+        // 修正開始 → D確定を解除（CJP画面を「未確定」表示に戻す）。再度「修正を保存」で確定される。
+        if (athleteId && round) {
+            setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { dConfirmedAt: deleteField() }, { merge: true })
+                .catch(e => console.error('D確定解除に失敗:', e));
+        }
     };
 
     window.saveOfficialScore = async () => {
@@ -628,10 +847,20 @@
         btn.disabled = true;
         try {
             const totalVal = parseFloat(document.getElementById('total-dd').innerText.split(' ')[0]);
-            await setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
-            init(); 
+            const resId = `${eventId}_${athleteId}_${round}`;
+            await setDoc(doc(db, "results", resId), { eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
+            // 全データ再取得(init)は重い（大会全体の submissions/results と技マスタ全件を毎回フェッチ）。
+            // 確定で変わるのは自分が書いた1件だけなので、ローカルの results を更新して
+            // 左リストと採点エリアのみ再描画する（再フェッチなし）。
+            results[resId] = { ...(results[resId] || {}), eventId, athleteId, round, officialSkills: skills, validCount, officialTotalDD: totalVal, dConfirmedAt: new Date() };
+            _pendingSidebarScroll = document.getElementById('sidebar-list')?.scrollTop ?? null; // 再描画後も左リストの位置を維持
+            renderSidebar();
+            renderScoringArea();
         } catch (e) { console.error(e); btn.disabled = false; }
     };
+    window.addEventListener('pageshow', e => {
+        if (e.persisted) { _initRunning = false; init(); }
+    });
     init();
 </script>
 </body>

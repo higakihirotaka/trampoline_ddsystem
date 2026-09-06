@@ -3,99 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <title>スコア確認 - Trampoline System</title>
+    <link rel="stylesheet" href="cjp_panel.css">
     <style>
-        :root {
-            --bg: #edf1f7; --card-bg: #ffffff; --accent: #1a73e8;
-            --success: #2e7d32; --danger: #c62828; --text: #1a2a3a; --text-dim: #607d8b;
-            --sidebar-bg: #f4f7fb; --primary: #1e3a5f;
-            --border: #d4dce8; --th-bg: #1e3a5f; --th-text: #e8f0fa;
-            --cell-bg: #ffffff; --cell-alt: #f5f8fc;
-        }
-        html { height: 100%; }
-        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100%; display: flex; overflow: hidden; }
-
-        /* ===== サイドバー ===== */
-        .sidebar { width: 300px; min-height: 0; flex-shrink: 0; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: 2px 0 8px rgba(0,0,0,0.06); }
-        .sidebar-header { background: var(--primary); padding: 14px 20px 12px; flex-shrink: 0; }
-        .sidebar-header::after { content: ''; display: block; height: 3px; margin-top: 12px; background: linear-gradient(90deg, var(--accent) 0%, rgba(30,115,232,0) 100%); border-radius: 2px; }
-        .sb-system-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.18em; color: rgba(255,255,255,0.45); text-transform: uppercase; margin-bottom: 5px; }
-        .sb-event-name { font-size: 0.98rem; font-weight: 900; color: #fff; line-height: 1.25; }
-        .sb-back-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.68rem; color: rgba(255,255,255,0.5); text-decoration: none; }
-        .sb-back-link:hover { color: rgba(255,255,255,0.85); }
-
-        /* フィルター */
-        .sidebar-filters { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; }
-        .filter-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
-        .filter-label { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #94a3b8; min-width: 28px; margin-right: 2px; }
-        .tab-btn { padding: 3px 9px; border-radius: 20px; border: 1.5px solid #dde3ec; background: #fff; color: #64748b; font-size: 0.68rem; font-weight: 700; cursor: pointer; transition: all 0.12s; white-space: nowrap; line-height: 1.6; }
-        .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
-        .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-        /* 選手リスト */
-        .sidebar-list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 20px; }
-        .cat-group { padding: 7px 16px 5px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); background: #f0f5ff; border-top: 1px solid #dde6f7; border-bottom: 1px solid #dde6f7; }
-        .gender-group { padding: 4px 16px; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; background: #f8fafc; }
-        .athlete-row { padding: 7px 14px 7px 12px; border-bottom: 1px solid #f0f4f8; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.1s; border-left: 3px solid transparent; }
-        .athlete-row:hover { background: #f5f8ff; }
-        .active-athlete { background: #eef4ff !important; border-left-color: var(--accent) !important; }
-        .ath-name-text { font-size: 0.82rem; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1e293b; }
-        .ath-order { color: var(--accent); margin-right: 4px; font-family: monospace; font-size: 0.75rem; font-weight: 900; }
-        .active-athlete .ath-name-text { color: var(--accent); }
-        .round-box { display: flex; gap: 3px; flex-shrink: 0; margin-left: 6px; }
-        .r-dot { min-width: 28px; height: 22px; border-radius: 5px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; text-decoration: none; font-weight: 800; border: 1.5px solid transparent; transition: all 0.1s; cursor: pointer; letter-spacing: -0.02em; }
-        .r-dot.has-sub { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
-        .r-dot.has-res { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
-        .r-dot.current { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
-
-        /* ===== メインエリア ===== */
-        .console-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-        .top-bar { background: var(--primary); padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0d2440; flex-shrink: 0; }
+        /* score_viewer-only styles (everything else is shared via cjp_panel.css) */
+        .d-dd.dd-capped { color: #e65100 !important; font-weight: 900; }
+        /* score_viewer は console-scroll ラッパーが無いため main-content 自身をスクロール領域にする */
+        .main-content { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .readonly-badge { background: #43a047; color: #fff; font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.1em; }
-        .athlete-banner { background: var(--card-bg); padding: 12px 22px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.06); flex-shrink: 0; }
-        .main-content { flex: 1; min-height: 0; padding: 16px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 16px; }
-
-        /* テーブル */
-        .monitor-table { width: 100%; min-width: 680px; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
-        .monitor-table th, .monitor-table td { padding: 8px 6px; text-align: center; border-radius: 4px; background: var(--cell-bg); font-size: 1.1rem; overflow: hidden; white-space: nowrap; color: var(--text); border: 1px solid transparent; }
-        .monitor-table th { background: var(--th-bg); font-size: 0.65rem; color: var(--th-text); border-color: #0d2440; font-weight: 700; letter-spacing: 0.03em; }
-        .monitor-table thead th { font-size: 0.82rem; }
-        .val-filled { color: #2e7d32; font-weight: bold; }
-        .middle-cell { background: #c8e6c9 !important; color: #1b5e20 !important; font-weight: 900; outline: 2px solid #66bb6a; }
-        .low-cell-mild { background: #e8f1fb !important; color: #2c5fa8 !important; font-weight: 700; outline: 1px solid #a8c4e8; }
-        .low-cell { background: #cfe0f7 !important; color: #1a3d7a !important; font-weight: 900; outline: 2px solid #7aaee0; }
-        .high-cell-mild { background: #fdf0f0 !important; color: #a83232 !important; font-weight: 700; outline: 1px solid #e8a8a8; }
-        .high-cell { background: #f7d5d5 !important; color: #7a1a1a !important; font-weight: 900; outline: 2px solid #e07a7a; }
-        .middle-row td { background: rgba(67,160,71,0.08) !important; color: var(--success); font-weight: bold; font-size: 0.9rem; border-top: 1px solid rgba(67,160,71,0.3) !important; }
-        .middle-row .ded-total { color: var(--danger) !important; font-weight: 900; font-size: 1rem; }
-        .sn-th { user-select: none; }
-        .sn-th.sn-valid { background: rgba(67,160,71,0.18); color: #1b5e20; }
-        .sn-th.sn-cutoff { background: var(--accent) !important; color: #fff !important; font-weight: 900; outline: 2px solid #0d47a1; }
-        .sn-th.sn-invalid { opacity: 0.4; }
-        .d-info-row th { font-size: 0.9rem; color: var(--text-dim); background: rgba(26,115,232,0.07); font-weight: normal; border-color: rgba(26,115,232,0.15) !important; }
-        .d-info-row.d-confirmed th { background: rgba(67,160,71,0.1); color: var(--success); }
-        .cell-blank { background: transparent !important; border-color: transparent !important; }
-        .d-badge { font-size: 0.72rem; background: #43a047; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: bold; vertical-align: middle; }
-        #dd-total-cell { white-space: normal; line-height: 1.3; }
-        .d-dup { background: rgba(255, 193, 7, 0.22) !important; }
-        #skill-symbols-row:not(.d-confirmed) th { opacity: 0.65; filter: grayscale(0.2); }
-        #skill-symbols-row.d-confirmed th { opacity: 1; filter: none; font-weight: bold; color: #003c8f !important; }
-        #skill-symbols-row th.d-mismatch { color: var(--danger) !important; opacity: 1 !important; filter: none !important; }
-
-        /* HDTS 行 (read-only) */
         .sv-hdts-head th { background: #f0fdfa !important; color: #0f766e !important; font-weight: bold; border-bottom: 2px solid #5eead4 !important; }
         .sv-hdts-row th { background: #f0fdfa !important; color: #0f766e !important; border-color: #99f6e4 !important; font-size: 0.78rem !important; font-family: monospace; }
         .sv-hdts-label { font-size: 0.63rem !important; font-family: inherit !important; white-space: normal; line-height: 1.4; }
         .sv-hdts-sum { font-weight: bold; }
-
-        /* スコア集計 */
-        .score-summary { background: var(--card-bg); padding: 16px 20px; border-radius: 12px; display: flex; justify-content: space-around; align-items: center; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,0.12); }
-        .score-box { text-align: center; }
-        .score-box label { font-size: 0.7rem; color: var(--text-dim); display: block; margin-bottom: 4px; font-weight: bold; }
-        .score-box div { font-size: 2rem; font-weight: 900; font-family: monospace; color: var(--text); }
         .info-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
         .info-card { background: var(--card-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border); text-align: center; }
         .info-card label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 6px; font-weight: bold; }
         .info-card .val { font-size: 1.5rem; font-weight: 900; font-family: monospace; }
+        .pen-reasons { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; justify-content: center; }
+        .pen-reason-chip { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 6px; padding: 3px 9px; font-size: 0.8rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -119,12 +43,9 @@
     <div class="athlete-banner">
         <div>
             <div style="font-size:1.5rem;font-weight:900;" id="ath-name">選手を選択してください</div>
-            <div id="ath-meta" style="color:var(--text-dim);font-size:0.88rem;">— / —</div>
+            <div id="ath-club" style="color:var(--text-dim);font-size:0.8rem;font-weight:600;margin-top:2px;"></div>
         </div>
-        <div style="margin-left:auto;text-align:right;">
-            <div id="dd-label" style="font-size:1.2rem;font-weight:900;color:var(--accent);">DD: 0.0</div>
-            <div id="confirmed-badge-banner" style="font-size:0.78rem;margin-top:2px;"></div>
-        </div>
+        <div id="ath-meta" style="margin-left:auto;color:var(--text-dim);font-size:0.88rem;">— / —</div>
     </div>
 
     <div class="main-content">
@@ -197,8 +118,11 @@
             <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
             <div class="score-box"><label id="res-t-label">T</label><div id="res-t">0.000</div></div>
             <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
+            <div class="score-box"><label>Penalty</label><div id="res-pen">0.0</div></div>
             <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.000</div></div>
         </div>
+        <!-- ペナルティ内容 -->
+        <div id="pen-reasons" class="pen-reasons" style="display:none;"></div>
     </div>
 </div>
 
@@ -206,6 +130,7 @@
     import { db } from "./firebase-config.js";
     import { doc, onSnapshot, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
+    import { round1 } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -226,18 +151,23 @@
         return 'A';
     }
 
+    // iOS等で getDocs が応答しないハングを防ぐタイムアウト
+    function withTimeout(promise, ms = 8000) {
+        return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+    }
+
     // ---- 初期化 ----
     async function init() {
         if (!eventId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">大会IDが見つかりません</p>'; return; }
         document.getElementById('menu-back').href = `judge_menu.html?event=${eventId}`;
 
-        const [tourData, athleteList, subSnap, resSnap, smSnap] = await Promise.all([
+        const [tourData, athleteList, subSnap, resSnap, smSnap] = await withTimeout(Promise.all([
             getTournament(eventId),
             getAthletes(eventId),
             getDocs(query(collection(db, 'submissions'), where('eventId','==',eventId))),
             getDocs(query(collection(db, 'results'),     where('eventId','==',eventId))),
             getDocs(collection(db, 'skillMaster'))
-        ]);
+        ]));
 
         smSnap.forEach(d => {
             skillMasterMap[d.id] = { id: d.id, symbol: d.data().symbol, dd: parseFloat(d.data().dd) || 0 };
@@ -248,7 +178,7 @@
 
         athleteList.forEach(a => { athletes[a.id] = a; });
         // 決勝試技順（キャッシュ除外）をマージ
-        const finalOrders = await getFinalOrders(eventId);
+        const finalOrders = await withTimeout(getFinalOrders(eventId));
         Object.values(athletes).forEach(a => {
             const fo = finalOrders[a.id];
             if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
@@ -273,88 +203,93 @@
     // ---- サイドバー ----
     function renderSidebar() {
         const filtered  = Object.values(athletes).filter(a => (a.type || 'individual') === fType);
-        const tourClassDefs = (currentTour?.classes?.[fType] || []).slice().sort((a,b) => (a.display_order??99)-(b.display_order??99)).map(c => c.name);
+        const tourClassDefs = (Array.isArray(currentTour?.classes) ? currentTour.classes : (currentTour?.classes?.[fType] || [])).slice().sort((a,b) => (a.display_order??99)-(b.display_order??99)).map(c => c.name);
         const rawClasses = [...new Set(filtered.map(a => a.class || a.category || ''))];
         const classes = [...tourClassDefs.filter(c => rawClasses.includes(c)), ...rawClasses.filter(c => !tourClassDefs.includes(c))];
         const genders   = [...new Set(filtered.map(a => a.gender || ''))].filter(Boolean);
 
-        // フィルターUI
+        // フィルターUI（judge_cjp と同一: 種目 → クラス → 性別 → ラウンド）
         const filtersEl = document.getElementById('sidebar-filters');
-        let fHtml = `<div class="filter-row"><span class="filter-label">種目</span>
-            <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
-            <button class="tab-btn ${fType==='synchro'?'active':''}"    onclick="setFilter('type','synchro')">シンクロ</button>
-        </div>`;
-        fHtml += `<div class="filter-row"><span class="filter-label">ラウンド</span>
-            <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">予選</button>
-            <button class="tab-btn ${fFinalOnly?'active':''}"  onclick="setFilter('finalOnly',true)">🏆 決勝</button>
-        </div>`;
-        if (classes.length > 1) {
-            fHtml += `<div class="filter-row"><span class="filter-label">CLS</span>
-                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">ALL</button>
+        const hasType = Object.values(athletes).some(a => (a.type || 'individual') === 'synchro');
+        let fHtml = '';
+        if (hasType) {
+            fHtml += `<div class="filter-row"><span class="filter-label">種目</span>
+                <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
+                <button class="tab-btn ${fType==='synchro'?'active':''}"    onclick="setFilter('type','synchro')">シンクロ</button>
+            </div>`;
+        }
+        if (classes.length >= 1) {
+            fHtml += `<div class="filter-row"><span class="filter-label">クラス</span>
+                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">全て</button>
                 ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c.replace(/'/g,"\\'")}')">${c}</button>`).join('')}
             </div>`;
         }
         if (genders.length > 1) {
             fHtml += `<div class="filter-row"><span class="filter-label">性別</span>
-                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">ALL</button>
+                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">全て</button>
                 ${genders.map(g => `<button class="tab-btn ${fGender===g?'active':''}" onclick="setFilter('gender','${g}')">${g}</button>`).join('')}
             </div>`;
         }
+        fHtml += `<div class="filter-row"><span class="filter-label">ラウンド</span>
+            <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">予選</button>
+            <button class="tab-btn ${fFinalOnly?'active':''}"  onclick="setFilter('finalOnly',true)">🏆 決勝</button>
+        </div>`;
+        filtersEl.style.display = fHtml ? '' : 'none';
         filtersEl.innerHTML = fHtml;
 
-        // 選手リスト
+        // 選手リスト（judge_cjp と同一のソート・グループ分け）
         let listHtml = '';
-        const display = fFinalOnly
-            ? filtered
+        let display;
+        if (fFinalOnly) {
+            display = filtered
                 .filter(a => a.isInFinal && a.finalOrder != null)
                 .filter(a => (!fClass  || (a.class||a.category||'') === fClass))
                 .filter(a => (!fGender || a.gender === fGender))
-                .sort((a, b) => a.finalOrder - b.finalOrder)
-            : filtered
+                .sort((a, b) => a.finalOrder - b.finalOrder);
+        } else {
+            display = filtered
                 .filter(a => (!fClass  || (a.class||a.category||'') === fClass))
                 .filter(a => (!fGender || a.gender === fGender))
-                .sort((a, b) => (a.order||0) - (b.order||0));
-
-        const byClass = {};
-        display.forEach(a => {
-            const c = a.class || a.category || '—';
-            if (!byClass[c]) byClass[c] = {};
-            const g = a.gender || '—';
-            if (!byClass[c][g]) byClass[c][g] = [];
-            byClass[c][g].push(a);
-        });
-
-        // フィルターボタンと同じ順序でクラスグループを表示
-        const orderedClasses = [
-            ...classes.filter(c => byClass[c]),
-            ...Object.keys(byClass).filter(c => !classes.includes(c))
-        ];
-        orderedClasses.forEach(cls => {
-            const genderMap = byClass[cls];
-            if (!genderMap) return;
-            listHtml += `<div class="cat-group">${cls}</div>`;
-            Object.entries(genderMap).forEach(([gnd, athl]) => {
-                if (Object.keys(genderMap).length > 1) listHtml += `<div class="gender-group">${gnd}</div>`;
-                athl.forEach(a => {
-                    const dispName = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
-                    const isActive = a.id === athleteId;
-                    const rounds = fFinalOnly ? [{ key:'final', label:'F' }] : getRoundsForAth(a);
-                    const defaultRound = fFinalOnly ? 'final' : round;
-                    const orderNum = fFinalOnly ? a.finalOrder : (a.order || '');
-                    const dotsHtml = rounds.map(r => {
-                        const key = `${eventId}_${a.id}_${r.key}`;
-                        const cls2 = (results[key]?.published ? 'has-res' : submissions[key] ? 'has-sub' : '') +
-                            (a.id === athleteId && r.key === round ? ' current' : '');
-                        return `<span class="r-dot ${cls2}" onclick="selectAthlete('${a.id}','${r.key}');event.stopPropagation()">${r.label}</span>`;
-                    }).join('');
-                    listHtml += `<div class="athlete-row ${isActive?'active-athlete':''}" onclick="selectAthlete('${a.id}','${defaultRound}')">
-                        <div style="flex:1;min-width:0;">
-                            <div class="ath-name-text"><span class="ath-order">${orderNum}</span>${dispName}</div>
-                        </div>
-                        <div class="round-box">${dotsHtml}</div>
-                    </div>`;
+                .sort((a, b) => {
+                    const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                    if (ca !== cb) return ca.localeCompare(cb);
+                    const ga = a.gender || '', gb = b.gender || '';
+                    if (ga !== gb) return ga.localeCompare(gb);
+                    return (a.order ?? 999) - (b.order ?? 999);
                 });
-            });
+        }
+
+        let lastCat = '', lastGender = '';
+        display.forEach(a => {
+            const cls = a.class || a.category || '';
+            if (cls !== lastCat) {
+                listHtml += `<div class="cat-group">${cls}</div>`;
+                lastCat = cls; lastGender = '';
+            }
+            if (!fFinalOnly && (a.gender || '') !== lastGender) {
+                listHtml += `<div class="gender-group">${a.gender || ''}</div>`;
+                lastGender = a.gender || '';
+            }
+            const dispName = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
+            const dispClub = a.type === 'synchro' && a.club2 && a.club1 !== a.club2 ? `${a.club1 || ''} / ${a.club2}` : (a.club1 || '');
+            const isActive = a.id === athleteId;
+            const rounds = fFinalOnly ? [{ key:'final', label:'F' }] : getRoundsForAth(a);
+            const defaultRound = fFinalOnly ? 'final' : round;
+            const orderNum = fFinalOnly ? a.finalOrder : (a.order || '');
+            const dotsHtml = rounds.map(r => {
+                const key = `${eventId}_${a.id}_${r.key}`;
+                const cls2 = (results[key]?.published ? 'has-res' : submissions[key] ? 'has-sub' : '') +
+                    (results[key]?.dns === true ? ' dns-dot' : '') +
+                    (a.id === athleteId && r.key === round ? ' current' : '');
+                return `<span class="r-dot ${cls2}" onclick="selectAthlete('${a.id}','${r.key}');event.stopPropagation()">${r.label}</span>`;
+            }).join('');
+            listHtml += `<div class="athlete-row ${isActive?'active-athlete':''}" onclick="selectAthlete('${a.id}','${defaultRound}')">
+                <div style="flex:1;min-width:0;">
+                    <div class="ath-name-text"><span class="ath-order">${orderNum}.</span>${dispName}</div>
+                    <div class="ath-club-text">${dispClub}</div>
+                </div>
+                <div class="round-box">${dotsHtml}</div>
+            </div>`;
         });
         document.getElementById('sidebar-list').innerHTML = listHtml || '<div style="padding:20px;color:#94a3b8;font-size:0.8rem;text-align:center;">選手なし</div>';
     }
@@ -362,7 +297,7 @@
     function getRoundsForAth(a) {
         const rule = currentTour?.classRules?.[a.type||'individual']?.[a.class||a.category||''] || {};
         const n = rule.qualifyingRoutines || 2;
-        const rounds = Array.from({length:n}, (_, i) => ({ key:`pre${i+1}`, label:`P${i+1}` }));
+        const rounds = Array.from({length:n}, (_, i) => ({ key:`pre${i+1}`, label:`R${i+1}` }));
 if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         return rounds;
     }
@@ -391,8 +326,12 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
 
     function setAthleteBanner(ath, rid) {
         const dispName = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
-        document.getElementById('ath-name').textContent = `No.${ath.order} ${dispName}`;
-        document.getElementById('ath-meta').textContent = `${ath.class || ath.category || '-'} / ${rid.toUpperCase()}`;
+        const dispClub = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2 ? `${ath.club1 || ''} / ${ath.club2}` : (ath.club1 || '');
+        const dispOrder = (rid === 'final' && ath.finalOrder != null) ? ath.finalOrder : ath.order;
+        const rl = rid === 'pre1' ? 'Routine 1' : rid === 'pre2' ? 'Routine 2' : rid === 'final' ? 'Final' : rid.toUpperCase();
+        document.getElementById('ath-name').textContent = `No.${dispOrder} ${dispName}`;
+        document.getElementById('ath-club').textContent = dispClub;
+        document.getElementById('ath-meta').textContent = `${ath.class || ath.category || '-'} / ${rl}`;
     }
 
     // ---- Firestore監視 ----
@@ -461,6 +400,7 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         // 実施行
         const skillHeaders = document.querySelectorAll('.skill-header');
         const seenExec = new Set();
+        let hasDeclaredMismatch = false; // 申告と実施の相違有無（内訳Dの色判定用）
         skillHeaders.forEach((el, i) => {
             el.style.color = ''; el.classList.remove('d-dup','d-mismatch');
             const id = execSkills[i];
@@ -470,47 +410,54 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
             el.textContent = sym;
             if (seenExec.has(sym)) el.classList.add('d-dup');
             else seenExec.add(sym);
-            if (i < vLimit && declaredSymbols[i] && sym !== declaredSymbols[i]) el.classList.add('d-mismatch');
+            if (i < vLimit && declaredSymbols[i] && sym !== declaredSymbols[i]) { el.classList.add('d-mismatch'); hasDeclaredMismatch = true; }
         });
 
         // D確定バッジ
         const badge = document.getElementById('d-confirmed-badge');
-        const skillsRow = document.getElementById('skill-symbols-row');
+        // CJPと同様、申請・実施・DDの3行すべてを確定色にする
+        const dRows = ['declared-row','skill-symbols-row','dd-row'].map(id => document.getElementById(id)).filter(Boolean);
         if (data.dConfirmedAt) {
             badge.textContent = '確定'; badge.className = 'd-badge';
-            skillsRow.classList.add('d-confirmed');
+            dRows.forEach(r => r.classList.add('d-confirmed'));
         } else {
             badge.textContent = '未確定'; badge.style.cssText = 'font-size:0.68rem;color:#90a4ae;font-weight:normal;margin-left:4px;';
             badge.className = '';
-            skillsRow.classList.remove('d-confirmed');
+            dRows.forEach(r => r.classList.remove('d-confirmed'));
         }
 
         // DD行
+        // 難度点上限（1技あたり。合計は officialTotalDD で既に上限反映済み）
+        const _vAth  = athletes[athleteId] || {};
+        const _vRule = currentTour?.classRules?.[_vAth.type||'individual']?.[_vAth.class||_vAth.category||''] || {};
+        const _vpsc  = parseFloat(_vRule.perSkillDDCap);
+        const perSkillDDCap = (_vRule.perSkillDDCap != null && !isNaN(_vpsc)) ? _vpsc : null;
         const totalDD = data.officialTotalDD || 0;
         const bonus   = data.officialDDBonus || 0;
         const ddCells = document.querySelectorAll('.d-dd');
         if (data.officialDDValues?.length > 0) {
-            ddCells.forEach((el, i) => { el.textContent = data.officialDDValues[i] != null ? Number(data.officialDDValues[i]).toFixed(1) : '-'; });
+            // 手動確定値はそのまま表示（上限で書き換えない）
+            ddCells.forEach((el, i) => { el.classList.remove('dd-capped'); el.textContent = data.officialDDValues[i] != null ? Number(data.officialDDValues[i]).toFixed(1) : '-'; });
         } else {
             const seen = new Set();
             ddCells.forEach((el, i) => {
+                el.classList.remove('dd-capped');
                 const id = execSkills[i];
                 if (i >= vLimit || !id) { el.textContent = '-'; return; }
                 // ID直接参照、なければSymbolでフォールバック（manual保存の旧データ互換）
                 const skill = skillMasterMap[id] || Object.values(skillMasterMap).find(v => v.symbol === id);
                 if (!skill) { el.textContent = '-'; return; }
                 const key = skill.id; // 重複判定はIDで統一
-                el.textContent = seen.has(key) ? '0.0' : skill.dd.toFixed(1);
+                const _dup    = seen.has(key);
+                const _capped = (!_dup && perSkillDDCap != null && round1(skill.dd) > perSkillDDCap); // 1技あたり上限
+                el.textContent = _dup ? '0.0' : (_capped ? perSkillDDCap : skill.dd).toFixed(1);
+                if (_capped) el.classList.add('dd-capped');
                 seen.add(key);
             });
         }
         document.getElementById('dd-bonus-cell').textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
         document.getElementById('dd-total-cell').textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
-        document.getElementById('dd-label').textContent = `DD: ${totalDD.toFixed(1)}`;
         document.getElementById('res-d').textContent = totalDD.toFixed(1);
-        const bannerBadge = document.getElementById('confirmed-badge-banner');
-        bannerBadge.textContent = data.published ? '✓ 確定済み' : '';
-        bannerBadge.style.color = data.published ? '#43a047' : '';
 
         // ---- E審判テーブル ----
         // クラスルール優先、なければ大会設定、なければ 6（judge_cjp の getNumE() と同ロジック）
@@ -547,7 +494,13 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
             const lv = jData.landing ?? null;
             const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit, isSynchro);
             rows += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
-            rows += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - (jData.totalDeduction || 0)).toFixed(1)}</td>`;
+            // jData.totalDeduction はE審判が確定した時点のvLimitで計算済みの値のため、
+            // CJPが後から有効本数(vLimit)を変更（中断等）すると、範囲外だった技の減点が
+            // 残ったまま合計されてしまう不具合があった（judge_cjp.htmlと同じ問題）。
+            // 表示側で現在のvLimitに合わせてdeductions/landingから毎回計算し直す。
+            const dedSum = (jData.deductions || []).slice(0, vLimit).reduce((a, b) => a + (b ?? 0), 0)
+                         + (vLimit === 10 ? (jData.landing ?? 0) : 0);
+            rows += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - dedSum).toFixed(1)}</td>`;
             rows += `</tr>`;
         });
 
@@ -574,14 +527,95 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         document.getElementById('info-hd').textContent  = h ? Number(h).toFixed(3) : '—';
         document.getElementById('info-pen').textContent = p ? Number(p).toFixed(1) : '—';
         document.getElementById('res-t-label').textContent = isSynchro ? 'Syn' : 'T';
-        document.getElementById('res-e').textContent    = hasData ? execution.toFixed(1) : '0.0';
-        document.getElementById('res-t').textContent    = t ? Number(t).toFixed(3) : '0.000';
-        document.getElementById('res-hd').textContent   = h ? Number(h).toFixed(3) : '0.000';
-        document.getElementById('res-total').textContent = Math.max(0, totalDD + (hasData ? execution : 0) + Number(t) + Number(h) - p).toFixed(3);
+        // ---- 内訳の色分け・枠線（CJP画面と同じロジック） ----
+        const _dConfirmed = !!(data.dConfirmedAt || data.published); // D審判確定または公開済みでDを表示
+        const tNum = Number(t) || 0, hNum = Number(h) || 0;
+        // E: 全審判が有効本数分（vLimit本 + vLimit===10なら着地）入力済みか
+        let eComplete = true;
+        for (const k of jKeys) {
+            const ded = judges[k]?.deductions || [];
+            for (let i = 0; i < vLimit; i++) if (ded[i] == null) { eComplete = false; break; }
+            if (!eComplete) break;
+            if (vLimit === 10 && judges[k]?.landing == null) { eComplete = false; break; }
+        }
+        const tEntered = tNum > 0, hEntered = hNum > 0;
+        const hdInRange = hNum >= vLimit * 0.5 - 1e-9 && hNum <= vLimit * 1.0 + 1e-9;
+        const dState = !_dConfirmed ? 'blank' : (hasDeclaredMismatch ? 'red' : 'green'); // 文字色用
+        const dBorder = !_dConfirmed ? 'blank' : 'green'; // 枠線用: Dの相違では枠を赤にしない
+        const eState = eComplete ? 'green' : 'blank';
+        const tState = tEntered ? 'green' : 'blank';
+        const hState = hEntered ? (hdInRange ? 'green' : 'red') : 'blank';
 
-        // HDTS 合計列（技別データは Firestore 未保存のため合計値のみ）
-        document.getElementById('sv-hdts-tof-sum').textContent = t ? Number(t).toFixed(3) : '-';
-        document.getElementById('sv-hdts-hd-sum').textContent  = h ? Number(h).toFixed(3)  : '-';
+        document.getElementById('res-d').textContent   = _dConfirmed ? totalDD.toFixed(1) : '';
+        document.getElementById('res-e').textContent   = eComplete ? execution.toFixed(isSynchro ? 3 : 1) : '';
+        document.getElementById('res-t').textContent   = tEntered ? tNum.toFixed(3) : '';
+        document.getElementById('res-hd').textContent  = hEntered ? hNum.toFixed(3) : '';
+        const _penEl = document.getElementById('res-pen');
+        if (_penEl) { _penEl.textContent = p > 0 ? `-${p.toFixed(1)}` : '0.0'; _penEl.style.color = p > 0 ? '#ef4444' : ''; }
+        // ペナルティ内容（違反名・点数）
+        const _prEl = document.getElementById('pen-reasons');
+        if (_prEl) {
+            const _items = Array.isArray(data.penaltyItems) ? data.penaltyItems : [];
+            _prEl.innerHTML = _items.map(it => `<span class="pen-reason-chip">${it.ja || it.display || ''} <span style="opacity:0.65;">-${Number(it.points).toFixed(1)}</span></span>`).join('');
+            _prEl.style.display = _items.length ? '' : 'none';
+        }
+        const _total = Math.max(0, (_dConfirmed ? totalDD : 0) + (eComplete ? execution : 0) + (tEntered ? tNum : 0) + (hEntered ? hNum : 0) - p);
+        document.getElementById('res-total').textContent = _total.toFixed(2);
+
+        // 枠線色（赤 > 黄 > 緑）、文字色も連動
+        const _G = '#34d399', _R = '#ef4444', _Y = '#facc15';
+        const _states = [dBorder, eState, tState, hState];
+        const _border = _states.includes('red') ? _R : _states.includes('blank') ? _Y : _G;
+        const _colorOf = st => st === 'red' ? _R : st === 'green' ? _G : '';
+        document.getElementById('res-d').style.color   = _colorOf(dState);
+        document.getElementById('res-e').style.color   = _colorOf(eState);
+        document.getElementById('res-t').style.color   = _colorOf(tState);
+        document.getElementById('res-hd').style.color  = _colorOf(hState);
+        document.getElementById('res-total').style.setProperty('color', _border, 'important');
+        const _summary = document.querySelector('.score-summary');
+        if (_summary) _summary.style.borderColor = _border;
+
+        // HDTS 技別（1本ごと）+ 合計。judge_cjp.html の renderHdtsRows() と同じ読み取り方
+        // （hdtsPerSkillByPanel.{パネル}）で、以前は合計値しか表示していなかった。
+        renderHdtsRows(data, activePanel, isSynchro);
+    }
+
+    function renderHdtsRows(data, activePanel, isSynchro) {
+        const ps = data?.hdtsPerSkillByPanel?.[activePanel];
+        if (isSynchro && ps && (ps.isSynchro || ps.syn || ps.hd1 || ps.hd2)) {
+            // シンクロ: Syn（同期スコア）1本ごと + HDは2人分を "d1 / d2" 表示
+            for (let i = 1; i <= 10; i++) {
+                const synCell = document.getElementById(`sv-hdts-tof-${i}`);
+                const hdCell  = document.getElementById(`sv-hdts-hd-${i}`);
+                const sv = ps.syn?.[i - 1];
+                const d1 = ps.hd1?.[i - 1], d2 = ps.hd2?.[i - 1];
+                if (synCell) synCell.textContent = (sv != null) ? Number(sv).toFixed(2) : '-';
+                if (hdCell)  hdCell.textContent  = (d1 != null || d2 != null) ? `${d1 ?? '-'} / ${d2 ?? '-'}` : '-';
+            }
+            const tofSumEl = document.getElementById('sv-hdts-tof-sum');
+            const hdSumEl  = document.getElementById('sv-hdts-hd-sum');
+            if (tofSumEl) tofSumEl.textContent = (ps.synTotal != null) ? Number(ps.synTotal).toFixed(2) : '-';
+            if (hdSumEl)  hdSumEl.textContent  = (ps.hd1Total != null || ps.hd2Total != null)
+                ? (Number(data?.validCount) || 10) - (((Number(ps.hd1Total) || 0) + (Number(ps.hd2Total) || 0)) / 20)
+                : '-';
+            return;
+        }
+        // 個人: ToF/HD を1本ごとに表示
+        let hdSum = 0, hasHd = false;
+        for (let i = 1; i <= 10; i++) {
+            const tofCell = document.getElementById(`sv-hdts-tof-${i}`);
+            const hdCell  = document.getElementById(`sv-hdts-hd-${i}`);
+            const tv = ps?.tof?.[i - 1];
+            const hv = ps?.hd?.[i - 1];
+            if (tofCell) tofCell.textContent = (tv != null) ? Number(tv).toFixed(3) : '-';
+            if (hdCell)  hdCell.textContent  = (hv != null) ? hv : '-';
+            if (hv != null) { hdSum += hv; hasHd = true; }
+        }
+        const tofSumEl = document.getElementById('sv-hdts-tof-sum');
+        const hdSumEl  = document.getElementById('sv-hdts-hd-sum');
+        const tofTotal = ps?.tofTotal ?? data?.tofByPanel?.[activePanel] ?? data?.tof;
+        if (tofSumEl) tofSumEl.textContent = (tofTotal != null && tofTotal !== '') ? Number(tofTotal).toFixed(3) : '-';
+        if (hdSumEl)  hdSumEl.textContent  = hasHd ? hdSum : (ps?.hdTotal != null ? ps.hdTotal : '-');
     }
 
     // ---- HDTS 行 表示切替 ----
@@ -684,7 +718,12 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         return 'val-filled';
     }
 
-    init();
+    init().catch(e => {
+        console.error('スコア確認の読み込みに失敗:', e);
+        const sl = document.getElementById('sidebar-list');
+        if (sl) sl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">読み込みに失敗しました。'
+            + '<br><button onclick="location.reload()" style="margin-top:12px;padding:8px 18px;border:none;background:var(--accent);color:#fff;border-radius:8px;cursor:pointer;">再読み込み</button></div>';
+    });
 </script>
 </body>
 </html>

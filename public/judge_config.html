@@ -11,8 +11,8 @@
             --green: #2e7d32; --green-light: #e8f5e9;
             --blue-light: #e3f2fd;
         }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text-main); }
-        .container { max-width: 860px; margin: 0 auto; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px 32px; color: var(--text-main); }
+        .container { max-width: 1400px; margin: 0 auto; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
         .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
         .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
@@ -52,6 +52,48 @@
         .judge-field label { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); }
         .judge-field input { padding: 7px 10px; border: 1.5px solid #d0d7de; border-radius: 8px; font-size: 0.9rem; background: #f8fbff; transition: border-color 0.2s; width: 100%; box-sizing: border-box; }
         .judge-field input:focus { border-color: var(--accent); outline: none; background: #fff; }
+
+        /* クラスグリッド（複数クラスを横並びで表示） */
+        .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; margin-bottom: 8px; }
+
+        /* 性別×ラウンド 2×2セクショングリッド */
+        .sec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e0e5ec; border-radius: 10px; overflow: hidden; border: 1px solid #e0e5ec; margin-bottom: 14px; }
+        .sec-panel { background: #fff; min-width: 0; }
+        .sec-panel.editing { background: #fafcff; }
+        .sec-header { display: flex; align-items: center; padding: 6px 8px; background: #f5f7fb; border-bottom: 1px solid #e8ecf0; gap: 4px; }
+        .sec-label { font-size: 0.72rem; font-weight: 800; color: var(--text-sub); flex: 1; white-space: nowrap; }
+        .sec-actions { display: flex; gap: 3px; align-items: center; }
+        .btn-edit-sec, .btn-done-sec { font-size: 0.7rem; padding: 2px 8px; border-radius: 5px; border: 1.5px solid; cursor: pointer; font-weight: 700; white-space: nowrap; }
+        .btn-edit-sec { background: #f0f4ff; color: var(--accent); border-color: #c5d8ff; }
+        .btn-edit-sec:hover { background: #dce8ff; }
+        .btn-done-sec { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .btn-done-sec:hover { background: #1251a3; }
+        .btn-copy-sec, .btn-paste-sec { font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-weight: 700; border: 1.5px solid; line-height: 1.4; }
+        .btn-copy-sec { color: var(--accent); border-color: #c5d8ff; background: #f0f4ff; }
+        .btn-copy-sec:hover { background: #dce8ff; }
+        .btn-copy-sec.copied { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .btn-paste-sec { color: var(--green); border-color: #b2dfbd; background: #f0fff4; }
+        .btn-paste-sec:hover:not(:disabled) { background: #d4f5de; }
+        .btn-paste-sec:disabled { opacity: 0.35; cursor: default; }
+
+        /* 審判行（表示モード） */
+        .sec-body { padding: 2px 0; }
+        .judge-row { display: flex; align-items: center; gap: 5px; padding: 5px 8px; border-bottom: 1px solid #f3f5f8; cursor: grab; }
+        .judge-row:last-child { border-bottom: none; }
+        .judge-row.dragging { opacity: 0.35; }
+        .judge-row.drag-over { background: #e8f0fe; box-shadow: inset 0 2px 0 var(--accent); }
+        .drag-handle { color: #ccc; font-size: 0.85rem; cursor: grab; user-select: none; flex-shrink: 0; }
+        .role-tag { font-size: 0.65rem; font-weight: 800; color: #9ab; width: 24px; flex-shrink: 0; }
+        .judge-name-text { font-size: 0.85rem; font-weight: 600; color: var(--text-main); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .judge-name-text.empty { color: #c5cdd5; font-weight: 400; font-style: italic; }
+        /* 編集モード */
+        .sec-panel.editing .drag-handle { display: none; }
+        .sec-panel.editing .judge-row { cursor: default; }
+        .judge-edit-wrap { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .judge-edit-name { font-size: 0.85rem; padding: 3px 6px; border: 1.5px solid #d0d7de; border-radius: 5px; background: #f8fbff; width: 100%; box-sizing: border-box; }
+        .judge-edit-name:focus { border-color: var(--accent); outline: none; background: #fff; }
+        .judge-edit-kind { font-size: 0.72rem; padding: 2px 6px; border: 1.5px solid #e0e5ec; border-radius: 4px; background: #f8fbff; width: 100%; box-sizing: border-box; color: var(--text-sub); }
+        .judge-edit-kind:focus { border-color: var(--accent); outline: none; background: #fff; }
 
         /* カード下部ボタン行 */
         .card-actions { display: flex; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f0f0f0; flex-wrap: wrap; }
@@ -102,6 +144,21 @@
         </div>
     </div>
 
+    <!-- CSV 入出力 -->
+    <div class="card">
+        <div class="card-title">📄 CSVで一括入力</div>
+        <p style="margin:0 0 14px; color:var(--text-sub); font-size:0.88rem; line-height:1.6;">
+            大会設定（クラス・E審判人数・決勝の有無）から審判構成のCSVテンプレートを自動生成します。
+            入力済みの場合は<b>現在の内容がそのままテンプレート</b>になります。
+            Excel等で氏名を編集して「CSVを読み込む」で各欄に反映できます（既存の手入力も引き続き使えます）。
+        </p>
+        <div class="card-actions" style="border-top:none; padding-top:0; margin-top:0;">
+            <button class="btn btn-copy" id="btn-csv-template">⬇ CSVテンプレート／現在の構成をダウンロード</button>
+            <button class="btn btn-paste" id="btn-csv-import">⬆ CSVを読み込む</button>
+            <input type="file" id="csv-file" accept=".csv,text/csv" style="display:none">
+        </div>
+    </div>
+
     <!-- 大会スタッフ -->
     <div class="card">
         <div class="card-title">🏅 大会スタッフ</div>
@@ -147,16 +204,18 @@
 <div id="toast" class="toast"></div>
 
 <script type="module">
-    import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
-    import { getTournament, invalidateCache } from "./cache.js";
+    import { getTournament, getAthletes, invalidateCache } from "./cache.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
     let judgeConfig = {};
     let copiedData  = null; // コピー中のデータ
+    let _struct     = { individual: [], synchro: [] }; // クラス構成（名前/E人数/H5H6/決勝有無）
+    let _tourName   = '';
 
     ensureAdmin(user => {
         document.getElementById('auth-info').style.display = 'flex';
@@ -171,7 +230,8 @@
 
         const d = await getTournament(eventId);
         if (!d) { showToast('大会データが見つかりません', true); return; }
-        judgeConfig = d.judgeConfig || {};
+        // deep-clone でキャッシュオブジェクトへの参照を切断（cache.js の _mem 汚染防止）
+        judgeConfig = JSON.parse(JSON.stringify(d.judgeConfig || {}));
 
         // 大会スタッフ
         const staff = judgeConfig.staff || {};
@@ -193,51 +253,84 @@
             chk.addEventListener('change', () => { inp.disabled = chk.checked; });
         });
 
-        // クラス一覧
+        // 選手登録済みクラスのみ対象
+        const athletes = await getAthletes(eventId);
+        const athClasses = new Set(athletes.map(a =>
+            `${a.type || 'individual'}:${a.class || a.category || ''}`
+        ));
+        // クラスごとに実際に選手がいる性別を集計（男子/女子に限らず「混合」等も拾う）
+        const classGenders = new Map();   // `${type}:${class}` → Set<gender>
+        athletes.forEach(a => {
+            const key = `${a.type || 'individual'}:${a.class || a.category || ''}`;
+            const gender = a.gender || '';
+            if (!gender) return;
+            if (!classGenders.has(key)) classGenders.set(key, new Set());
+            classGenders.get(key).add(gender);
+        });
+        // 表示順: 女子→男子→それ以外（混合など、登場順）
+        function sortGenders(genders) {
+            const order = g => g === '女子' ? 0 : g === '男子' ? 1 : 2;
+            return [...genders].sort((a, b) => order(a) - order(b));
+        }
+
+        // クラス一覧（選手が1人以上いるクラスのみ）
         const cls = d.classes || {};
         const individual = [];
         const synchro    = [];
         if (cls.individual?.length || cls.synchro?.length) {
-            (cls.individual || []).forEach(c => individual.push(c.name));
-            (cls.synchro    || []).forEach(c => synchro.push(c.name));
+            (cls.individual || []).forEach(c => {
+                if (athClasses.has(`individual:${c.name}`)) individual.push(c.name);
+            });
+            (cls.synchro || []).forEach(c => {
+                if (athClasses.has(`synchro:${c.name}`)) synchro.push(c.name);
+            });
         } else if (Array.isArray(cls) && cls.length) {
-            cls.forEach(c => individual.push(c.name || c));
+            cls.forEach(c => {
+                const name = c.name || c;
+                if (athClasses.has(`individual:${name}`)) individual.push(name);
+            });
         }
 
+        _tourName = d.name || '';
+        const classRules = d.classRules || {};   // クラス別設定（E審判人数・決勝有無の取得用）
+        const mkStruct = (names, type) => names.map(name => {
+            const cr = classRules[type]?.[name] || {};
+            const genders = sortGenders(classGenders.get(`${type}:${name}`) || new Set(['男子','女子']));
+            return { name, numE: parseInt(cr.eJudgeCount) || 4, hasH5H6: cr.hasH5H6 === true, hasFinal: ruleHasFinal(cr), finalOnly: cr.finalOnly === true, genders };
+        });
+        _struct = { individual: mkStruct(individual, 'individual'), synchro: mkStruct(synchro, 'synchro') };
+
+        renderClasses();
+
+        // CSV 入出力ボタン
+        document.getElementById('btn-csv-template').addEventListener('click', downloadTemplate);
+        document.getElementById('btn-csv-import').addEventListener('click', () => document.getElementById('csv-file').click());
+        document.getElementById('csv-file').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) importCSVFile(file);
+            e.target.value = '';
+        });
+    }
+
+    // ---- クラスカードの描画（初回・CSVインポート後に再描画） ----
+    function renderClasses() {
         const container = document.getElementById('classes-container');
-        if (individual.length === 0 && synchro.length === 0) return;
-
-        document.getElementById('no-class-msg').remove();
-
-        const classRules = d.classRules || {};   // クラス別設定（E審判人数取得用）
-
-        // 個人
-        if (individual.length > 0) {
+        container.innerHTML = '';
+        if (!_struct.individual.length && !_struct.synchro.length) {
+            container.innerHTML = '<div class="empty-msg" id="no-class-msg">クラスが設定されていません。先に大会設定でクラスを追加し、選手を登録してください。</div>';
+            return;
+        }
+        [['individual','個人'], ['synchro','シンクロ']].forEach(([type, label]) => {
+            if (!_struct[type].length) return;
             const heading = document.createElement('div');
             heading.className = 'section-heading';
-            heading.innerHTML = '<span class="section-badge individual">個人</span>';
+            heading.innerHTML = `<span class="section-badge ${type}">${label}</span>`;
             container.appendChild(heading);
-            individual.forEach(name => {
-                const numE    = parseInt(classRules.individual?.[name]?.eJudgeCount) || 4;
-                const hasH5H6 = classRules.individual?.[name]?.hasH5H6 === true;
-                container.appendChild(buildClassCard(name, 'individual', numE, hasH5H6));
-            });
-        }
-
-        // シンクロ
-        if (synchro.length > 0) {
-            const heading = document.createElement('div');
-            heading.className = 'section-heading';
-            heading.innerHTML = '<span class="section-badge synchro">シンクロ</span>';
-            container.appendChild(heading);
-            synchro.forEach(name => {
-                const numE    = parseInt(classRules.synchro?.[name]?.eJudgeCount) || 4;
-                const hasH5H6 = classRules.synchro?.[name]?.hasH5H6 === true;
-                container.appendChild(buildClassCard(name, 'synchro', numE, hasH5H6));
-            });
-        }
-
-        // 一括保存
+            const grid = document.createElement('div');
+            grid.className = 'class-grid';
+            _struct[type].forEach(c => grid.appendChild(buildClassCard(c.name, type, c.numE, c.hasH5H6, c.hasFinal, c.finalOnly, c.genders)));
+            container.appendChild(grid);
+        });
         const saveAllBtn = document.createElement('button');
         saveAllBtn.className = 'btn-save-all';
         saveAllBtn.id = 'btn-save-all';
@@ -246,128 +339,237 @@
         container.appendChild(saveAllBtn);
     }
 
-    // ---- カード生成 ----
-    function buildClassCard(className, type, numE = 6, hasH5H6 = false) {
-        const data = (judgeConfig.classes || {})[className] || {};
-        const isSynchro = type === 'synchro';
+    // クラスの役割リスト（CJP / E1..EN / H5,H6 / D7,D8）
+    function rolesFor(numE, hasH5H6) {
+        const roles = [['cjp','CJP']];
+        for (let i = 1; i <= numE; i++) roles.push([`e${i}`, `E${i}`]);
+        if (hasH5H6) roles.push(['h5','H5'], ['h6','H6']);
+        roles.push(['d7','D7'], ['d8','D8']);
+        return roles;
+    }
 
-        // E審判フィールドを numE 人分動的生成
-        const eCols  = 'cols-1';
-        const eLabel = `E 審判（E1 〜 E${numE}）`;
-        let eFields  = '';
-        for (let i = 1; i <= numE; i++) eFields += jf(`e${i}`, `E${i}`, data[`e${i}`], data[`e${i}_kind`]);
+    // クラスルールから決勝の有無を判定
+    function ruleHasFinal(r) {
+        return !!r && (r.hasFinal === true || r.hasFinal === 'true' || Number(r.hasFinal) === 1);
+    }
+
+    // ---- カード生成（性別×ラウンド グリッド。決勝なしクラスは予選のみ） ----
+    function buildClassCard(className, type, numE = 4, hasH5H6 = false, hasFinal = false, finalOnly = false, genders = ['男子','女子']) {
+        // 新形式: classes[type][className]、旧形式: classes[className]（後方互換）
+        const rawData = judgeConfig.classes?.[type]?.[className]
+                     || judgeConfig.classes?.[className]
+                     || {};
+        const isSynchro = type === 'synchro';
+        const isOldFormat = Object.keys(rawData).some(k => ['cjp','e1','e2','e3','e4','d7','d8'].includes(k));
+        function getSectionData(g, r) { return isOldFormat ? rawData : (rawData[g]?.[r] || {}); }
+
+        const roles = rolesFor(numE, hasH5H6);
 
         const card = document.createElement('div');
         card.className = 'card';
         card.dataset.cls  = className;
         card.dataset.type = type;
-
         card.innerHTML = `
             <div class="card-title${isSynchro ? ' synchro' : ''}">${escHtml(className)}</div>
-            <div class="judge-section">
-                <div class="judge-section-title">CJP</div>
-                <div class="judge-grid cols-1">
-                    ${jf('cjp', 'CJP', data.cjp, data.cjp_kind)}
-                </div>
-            </div>
-            <div class="judge-section">
-                <div class="judge-section-title">${eLabel}</div>
-                <div class="judge-grid ${eCols}">
-                    ${eFields}
-                </div>
-            </div>
-            ${hasH5H6 ? `
-            <div class="judge-section">
-                <div class="judge-section-title">H 審判（H5・H6）</div>
-                <div class="judge-grid cols-1">
-                    ${jf('h5','H5',data.h5,data.h5_kind)}${jf('h6','H6',data.h6,data.h6_kind)}
-                </div>
-            </div>` : ''}
-            <div class="judge-section">
-                <div class="judge-section-title">D 審判（D7・D8）</div>
-                <div class="judge-grid cols-1">
-                    ${jf('d7','D7',data.d7,data.d7_kind)}${jf('d8','D8',data.d8,data.d8_kind)}
-                </div>
-            </div>
+            <div class="sec-grid"></div>
             <div class="card-actions">
-                <button class="btn btn-copy">📋 コピー</button>
-                <button class="btn btn-paste" disabled>📌 貼り付け</button>
                 <button class="btn btn-save-card${isSynchro ? ' synchro' : ''}">保存</button>
             </div>
         `;
 
-        // コピーボタン
-        const copyBtn = card.querySelector('.btn-copy');
-        copyBtn.addEventListener('click', () => {
-            copiedData = readCard(card);
-            // 全貼り付けボタンを有効化
-            document.querySelectorAll('.btn-paste').forEach(btn => btn.disabled = false);
-            // コピー元を一時的にハイライト
-            copyBtn.classList.add('copied');
-            copyBtn.textContent = '✓ コピー済み';
-            setTimeout(() => {
-                copyBtn.classList.remove('copied');
-                copyBtn.textContent = '📋 コピー';
-            }, 2000);
-        });
+        const secGrid = card.querySelector('.sec-grid');
+        const rounds  = finalOnly ? ['決勝'] : (hasFinal ? ['予選','決勝'] : ['予選']);   // 決勝のみは決勝だけ
+        for (const gender of genders) {
+            for (const round of rounds) {
+                secGrid.appendChild(buildSecPanel(gender, round, getSectionData(gender, round), roles));
+            }
+        }
 
-        // 貼り付けボタン
-        const pasteBtn = card.querySelector('.btn-paste');
-        pasteBtn.addEventListener('click', () => {
-            if (!copiedData) return;
-            writeCard(card, copiedData);
-            pasteBtn.textContent = '✓ 貼り付け済み';
-            setTimeout(() => { pasteBtn.textContent = '📌 貼り付け'; }, 1500);
-        });
-
-        // カード単体保存
-        const saveBtn = card.querySelector('.btn-save-card');
-        saveBtn.addEventListener('click', async () => {
-            saveBtn.disabled = true; saveBtn.textContent = '保存中…';
+        card.querySelector('.btn-save-card').addEventListener('click', async () => {
+            const btn = card.querySelector('.btn-save-card');
+            btn.disabled = true; btn.textContent = '保存中…';
             try {
-                collectCard(card);
-                await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+                const data = readClassCard(card);
+                if (!judgeConfig.classes) judgeConfig.classes = {};
+                if (!judgeConfig.classes[type]) judgeConfig.classes[type] = {};
+                judgeConfig.classes[type][className] = data;
+                await updateDoc(doc(db, 'tournaments', eventId), {
+                    [`judgeConfig.classes.${type}.${className}`]: data
+                });
                 invalidateCache(eventId);
                 showToast(`「${className}」を保存しました`);
             } catch (e) {
                 showToast('保存に失敗: ' + e.message, true);
             } finally {
-                saveBtn.disabled = false; saveBtn.textContent = '保存';
+                btn.disabled = false; btn.textContent = '保存';
             }
         });
-
         return card;
     }
 
-    function jf(key, label, value, kind) {
-        return `<div class="judge-field">
-            <label>${label}</label>
-            <input type="text" data-key="${key}" placeholder="氏名" value="${escHtml(value || '')}">
-            <input type="text" data-key="${key}_kind" placeholder="種別（帯同先チーム・招聘 等）" value="${escHtml(kind || '')}">
-        </div>`;
-    }
-
-    // カードのinputを読んでオブジェクト返す
-    function readCard(card) {
-        const data = {};
-        card.querySelectorAll('input[data-key]').forEach(inp => {
-            data[inp.dataset.key] = inp.value.trim();
+    // ---- セクションパネル（表示/編集モード切り替え + ドラッグで入れ替え） ----
+    function buildSecPanel(gender, round, initData, roles) {
+        // 内部状態: role → {name, kind}
+        const state = {};
+        roles.forEach(([key]) => {
+            state[key] = { name: initData[key] || '', kind: initData[key+'_kind'] || '' };
         });
-        return data;
-    }
 
-    // オブジェクトをカードに書き込む
-    function writeCard(card, data) {
-        card.querySelectorAll('input[data-key]').forEach(inp => {
-            if (data[inp.dataset.key] !== undefined) inp.value = data[inp.dataset.key];
+        const panel = document.createElement('div');
+        panel.className = 'sec-panel';
+        panel.dataset.gender = gender;
+        panel.dataset.round  = round;
+
+        let isEditing  = false;
+        let dragSrcKey = null;
+
+        // --- 表示モード描画 ---
+        function renderView() {
+            panel.classList.remove('editing');
+            const body = panel.querySelector('.sec-body');
+            body.innerHTML = '';
+            roles.forEach(([key, label]) => {
+                const row = document.createElement('div');
+                row.className = 'judge-row';
+                row.dataset.role = key;
+                row.draggable = true;
+                const hasName = !!state[key].name;
+                row.innerHTML = `
+                    <span class="drag-handle">⠿</span>
+                    <span class="role-tag">${label}</span>
+                    <span class="judge-name-text${hasName ? '' : ' empty'}">${escHtml(state[key].name || '—')}</span>
+                `;
+                row.addEventListener('dragstart', e => {
+                    dragSrcKey = key;
+                    e.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => row.classList.add('dragging'), 0);
+                });
+                row.addEventListener('dragend', () => {
+                    row.classList.remove('dragging');
+                    panel.querySelectorAll('.judge-row').forEach(r => r.classList.remove('drag-over'));
+                    dragSrcKey = null;
+                });
+                row.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    if (key !== dragSrcKey) {
+                        panel.querySelectorAll('.judge-row').forEach(r => r.classList.remove('drag-over'));
+                        row.classList.add('drag-over');
+                    }
+                });
+                row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+                row.addEventListener('drop', e => {
+                    e.preventDefault();
+                    row.classList.remove('drag-over');
+                    if (!dragSrcKey || dragSrcKey === key) return;
+                    // 名前と種別を入れ替え
+                    const tmp = { ...state[dragSrcKey] };
+                    state[dragSrcKey] = { ...state[key] };
+                    state[key] = tmp;
+                    renderView();
+                });
+                body.appendChild(row);
+            });
+        }
+
+        // --- 編集モード描画 ---
+        function renderEdit() {
+            panel.classList.add('editing');
+            const body = panel.querySelector('.sec-body');
+            body.innerHTML = '';
+            roles.forEach(([key, label]) => {
+                const row = document.createElement('div');
+                row.className = 'judge-row';
+                row.dataset.role = key;
+                row.innerHTML = `
+                    <span class="role-tag">${label}</span>
+                    <div class="judge-edit-wrap">
+                        <input class="judge-edit-name" type="text" placeholder="氏名" value="${escHtml(state[key].name)}">
+                        <input class="judge-edit-kind" type="text" placeholder="種別（招聘・帯同等）" value="${escHtml(state[key].kind)}">
+                    </div>
+                `;
+                body.appendChild(row);
+            });
+        }
+
+        // 編集中のinputを state に同期
+        function syncEdit() {
+            panel.querySelectorAll('.judge-row[data-role]').forEach(row => {
+                const key = row.dataset.role;
+                const n = row.querySelector('.judge-edit-name');
+                const k = row.querySelector('.judge-edit-kind');
+                if (n) state[key].name = n.value.trim();
+                if (k) state[key].kind = k.value.trim();
+            });
+        }
+
+        // 公開API: 現在の状態をフラットオブジェクトで返す（保存時に使用）
+        panel.readData = () => {
+            if (isEditing) syncEdit();
+            const data = {};
+            roles.forEach(([key]) => {
+                data[key] = state[key].name;
+                data[key + '_kind'] = state[key].kind;
+            });
+            return data;
+        };
+
+        // パネル骨格HTML
+        panel.innerHTML = `
+            <div class="sec-header">
+                <span class="sec-label">${gender} / ${round}</span>
+                <div class="sec-actions">
+                    <button class="btn-copy-sec" title="このセクションをコピー">📋</button>
+                    <button class="btn-paste-sec" title="貼り付け" disabled>📌</button>
+                    <button class="btn-edit-sec">編集</button>
+                    <button class="btn-done-sec" style="display:none">完了</button>
+                </div>
+            </div>
+            <div class="sec-body"></div>
+        `;
+
+        panel.querySelector('.btn-edit-sec').addEventListener('click', () => {
+            isEditing = true;
+            renderEdit();
+            panel.querySelector('.btn-edit-sec').style.display = 'none';
+            panel.querySelector('.btn-done-sec').style.display = '';
         });
+        panel.querySelector('.btn-done-sec').addEventListener('click', () => {
+            syncEdit();
+            isEditing = false;
+            renderView();
+            panel.querySelector('.btn-edit-sec').style.display = '';
+            panel.querySelector('.btn-done-sec').style.display = 'none';
+        });
+        panel.querySelector('.btn-copy-sec').addEventListener('click', e => {
+            copiedData = panel.readData();
+            document.querySelectorAll('.btn-paste-sec').forEach(b => b.disabled = false);
+            const btn = e.currentTarget;
+            btn.textContent = '✓'; btn.classList.add('copied');
+            setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 2000);
+        });
+        panel.querySelector('.btn-paste-sec').addEventListener('click', () => {
+            if (!copiedData) return;
+            roles.forEach(([key]) => {
+                if (copiedData[key] !== undefined)       state[key].name = copiedData[key];
+                if (copiedData[key+'_kind'] !== undefined) state[key].kind = copiedData[key+'_kind'];
+            });
+            if (isEditing) renderEdit(); else renderView();
+        });
+
+        renderView();
+        return panel;
     }
 
-    // カードのデータをjudgeConfigに収集
-    function collectCard(card) {
-        const cls = card.dataset.cls;
-        if (!judgeConfig.classes) judgeConfig.classes = {};
-        judgeConfig.classes[cls] = readCard(card);
+    // カード全体を {男子:{予選:{...},決勝:{...}}, 女子:{...}} で返す
+    function readClassCard(card) {
+        const result = {};
+        card.querySelectorAll('.sec-panel[data-gender]').forEach(panel => {
+            const g = panel.dataset.gender;
+            const r = panel.dataset.round;
+            if (!result[g]) result[g] = {};
+            result[g][r] = panel.readData();
+        });
+        return result;
     }
 
     // 全クラス一括保存
@@ -375,8 +577,18 @@
         const btn = document.getElementById('btn-save-all');
         btn.disabled = true; btn.textContent = '保存中…';
         try {
-            document.querySelectorAll('.card[data-cls]').forEach(card => collectCard(card));
-            await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+            // per-class の dotted path で保存（表示外のクラスデータを消さない）
+            const updates = {};
+            document.querySelectorAll('.card[data-cls]').forEach(card => {
+                const cls  = card.dataset.cls;
+                const t    = card.dataset.type;
+                const data = readClassCard(card);
+                updates[`judgeConfig.classes.${t}.${cls}`] = data;
+                if (!judgeConfig.classes) judgeConfig.classes = {};
+                if (!judgeConfig.classes[t]) judgeConfig.classes[t] = {};
+                judgeConfig.classes[t][cls] = data;
+            });
+            await updateDoc(doc(db, 'tournaments', eventId), updates);
             invalidateCache(eventId);
             showToast('全クラスの審判構成を保存しました');
         } catch (e) {
@@ -386,12 +598,162 @@
         }
     }
 
-    // 大会スタッフ保存
+    // ==== CSV 入出力 ====
+    // 現在の画面内容から審判構成CSVの行配列を生成（入力済みならその値がテンプレになる）
+    function buildCSVRows() {
+        const rows = [['種目','クラス','性別','ラウンド','役割','氏名','種別']];
+        // 大会スタッフ
+        [['審判長','chief-judge','chief-judge-disabled'],
+         ['記録主任','chief-recorder','chief-recorder-disabled'],
+         ['上級審判1','senior-judge-1','senior-judge-1-disabled'],
+         ['上級審判2','senior-judge-2','senior-judge-2-disabled']].forEach(([label, inpId, chkId]) => {
+            const disabled = document.getElementById(chkId).checked;
+            const name = document.getElementById(inpId).value.trim();
+            rows.push(['大会スタッフ','','','', label, disabled ? '' : name, disabled ? '設定しない' : '']);
+        });
+        // クラス別（画面カードの現在値から読む）
+        const cardByKey = {};
+        document.querySelectorAll('.card[data-cls]').forEach(card => {
+            cardByKey[`${card.dataset.type}|${card.dataset.cls}`] = card;
+        });
+        [['individual','個人'], ['synchro','シンクロ']].forEach(([type, tLabel]) => {
+            _struct[type].forEach(c => {
+                const card = cardByKey[`${type}|${c.name}`];
+                const allData = card ? readClassCard(card) : {};
+                const roles  = rolesFor(c.numE, c.hasH5H6);
+                const rounds = c.finalOnly ? ['決勝'] : (c.hasFinal ? ['予選','決勝'] : ['予選']);
+                for (const gender of c.genders || ['男子','女子']) {
+                    for (const round of rounds) {
+                        const sec = (allData[gender] && allData[gender][round]) || {};
+                        roles.forEach(([key, roleLabel]) => {
+                            rows.push([tLabel, c.name, gender, round, roleLabel, sec[key] || '', sec[key+'_kind'] || '']);
+                        });
+                    }
+                }
+            });
+        });
+        return rows;
+    }
+
+    const csvCell = v => { v = String(v ?? ''); return /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; };
+    const sanitizeFn = s => String(s || '').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').replace(/^_|_$/g, '');
+
+    function downloadTemplate() {
+        const csv  = buildCSVRows().map(r => r.map(csvCell).join(',')).join('\r\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `審判構成_${sanitizeFn(_tourName) || eventId}.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('CSVをダウンロードしました');
+    }
+
+    // 引用符対応の簡易CSVパーサ
+    function parseCSV(text) {
+        const rows = [];
+        let row = [], field = '', inQ = false;
+        text = text.replace(/^﻿/, '');
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            if (inQ) {
+                if (ch === '"') { if (text[i+1] === '"') { field += '"'; i++; } else inQ = false; }
+                else field += ch;
+            } else {
+                if (ch === '"') inQ = true;
+                else if (ch === ',') { row.push(field); field = ''; }
+                else if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+                else if (ch !== '\r') field += ch;
+            }
+        }
+        if (field !== '' || row.length) { row.push(field); rows.push(row); }
+        return rows;
+    }
+
+    // 役割ラベル(CJP/E1/H5/D7…) → 内部キー
+    function roleLabelToKey(label) {
+        label = (label || '').trim().toUpperCase();
+        if (label === 'CJP') return 'cjp';
+        const m = label.match(/^([EHD])(\d+)$/);
+        return m ? m[1].toLowerCase() + m[2] : null;
+    }
+
+    function importCSVFile(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            try { applyCSV(parseCSV(String(reader.result))); }
+            catch (e) { showToast('CSVの読み込みに失敗: ' + e.message, true); }
+        };
+        reader.readAsText(file); // UTF-8
+    }
+
+    // CSVを画面に反映（保存は既存の各ボタンで）
+    function applyCSV(rows) {
+        if (!rows.length) { showToast('CSVが空です', true); return; }
+        if (!judgeConfig.classes) judgeConfig.classes = {};
+        const typeMap  = { '個人':'individual', 'シンクロ':'synchro' };
+        const staffMap = {
+            '審判長':['chief-judge','chief-judge-disabled'],
+            '記録主任':['chief-recorder','chief-recorder-disabled'],
+            '上級審判1':['senior-judge-1','senior-judge-1-disabled'],
+            '上級審判2':['senior-judge-2','senior-judge-2-disabled'],
+        };
+        // 1st pass: CSVに現れたクラスは旧形式をクリアして新形式で作り直す
+        const seen = new Set();
+        rows.slice(1).forEach(cols => {
+            const type = typeMap[(cols[0]||'').trim()];
+            if (!type) return;
+            const className = (cols[1]||'').trim();
+            const k = `${type}|${className}`;
+            if (!seen.has(k)) {
+                seen.add(k);
+                judgeConfig.classes[type] = judgeConfig.classes[type] || {};
+                judgeConfig.classes[type][className] = {};
+            }
+        });
+        // 2nd pass: 反映
+        let staffCount = 0, judgeCount = 0;
+        rows.slice(1).forEach(cols => {
+            if (!cols || !cols.length) return;
+            const tLabel = (cols[0]||'').trim();
+            if (!tLabel) return;
+            const className = (cols[1]||'').trim();
+            const gender    = (cols[2]||'').trim();
+            const round     = (cols[3]||'').trim();
+            const roleLabel = (cols[4]||'').trim();
+            const name      = (cols[5]||'').trim();
+            const kind      = (cols[6]||'').trim();
+            if (tLabel === '大会スタッフ') {
+                const m = staffMap[roleLabel];
+                if (!m) return;
+                const [inpId, chkId] = m;
+                const disabled = (kind === '設定しない');
+                document.getElementById(chkId).checked  = disabled;
+                document.getElementById(inpId).value     = disabled ? '' : name;
+                document.getElementById(inpId).disabled  = disabled;
+                staffCount++;
+                return;
+            }
+            const type = typeMap[tLabel];
+            const key  = roleLabelToKey(roleLabel);
+            if (!type || !className || !gender || !round || !key) return;
+            const cd = judgeConfig.classes[type][className] = judgeConfig.classes[type][className] || {};
+            cd[gender] = cd[gender] || {};
+            cd[gender][round] = cd[gender][round] || {};
+            cd[gender][round][key] = name;
+            cd[gender][round][key+'_kind'] = kind;
+            judgeCount++;
+        });
+        renderClasses();
+        showToast(`CSVを読み込みました（審判 ${judgeCount} 件／スタッフ ${staffCount} 件）。内容を確認して保存してください。`);
+    }
+
+    // 大会スタッフ保存（staff フィールドのみ更新）
     document.getElementById('btn-save-staff').addEventListener('click', async () => {
         const btn = document.getElementById('btn-save-staff');
         btn.disabled = true; btn.textContent = '保存中…';
         try {
-            judgeConfig.staff = {
+            const staff = {
                 chiefJudge:            document.getElementById('chief-judge').value.trim(),
                 chiefJudgeDisabled:    document.getElementById('chief-judge-disabled').checked,
                 chiefRecorder:         document.getElementById('chief-recorder').value.trim(),
@@ -401,7 +763,8 @@
                 seniorJudge2:          document.getElementById('senior-judge-2').value.trim(),
                 seniorJudge2Disabled:  document.getElementById('senior-judge-2-disabled').checked,
             };
-            await setDoc(doc(db, 'tournaments', eventId), { judgeConfig }, { merge: true });
+            judgeConfig.staff = staff;
+            await updateDoc(doc(db, 'tournaments', eventId), { 'judgeConfig.staff': staff });
             invalidateCache(eventId);
             showToast('大会スタッフを保存しました');
         } catch (e) {

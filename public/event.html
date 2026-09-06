@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>選手一覧 - トランポリン大会システム</title>
+    <!-- LINE等のリンクプレビュー用。無いと本文の断片がそのまま表示されてしまうため明示的に指定する -->
+    <meta name="description" content="オンライン競技カードシステム">
+    <meta property="og:title" content="選手一覧 - トランポリン大会システム">
+    <meta property="og:description" content="オンライン競技カードシステム">
+    <meta property="og:type" content="website">
     <style>
         :root { --primary-blue: #1a73e8; --bg-gray: #f0f2f5; --text-dark: #202124; --text-gray: #5f6368; --success-green: #1e8e3e; --warning-orange: #f57c00; --indiv-purple: #5e35b1; --sync-teal: #00897b; }
         body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; padding: 20px; background: var(--bg-gray); margin: 0; }
@@ -11,6 +16,8 @@
         .header-section { text-align: center; margin-bottom: 20px; }
         .admin-back { display: none; margin-bottom: 16px; }
         .admin-back a { text-decoration: none; color: #5f6368; font-size: 0.9rem; border: 1px solid #ccc; padding: 7px 18px; border-radius: 8px; }
+        .notice-box { background: #fffbea; border: 1px solid #f0e2a3; border-radius: 10px; padding: 10px 16px;
+            margin-bottom: 20px; font-size: 0.82em; line-height: 1.6; color: #6b5a1e; text-align: center; }
         .countdown-container { display: none; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; justify-content: center; }
         .timer-card { flex: 1; min-width: 150px; max-width: 250px; background: #fff; padding: 12px; border-radius: 12px; border-left: 4px solid var(--primary-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; }
         .timer-label { font-size: 0.65em; font-weight: bold; color: #90a4ae; margin-bottom: 3px; }
@@ -32,46 +39,104 @@
         th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; }
         th { color: var(--text-gray); font-size: 0.75em; text-transform: uppercase; white-space: nowrap; }
         .col-num { width: 36px; }
+        .col-gr { width: 30px; }
         .col-name { text-align: left; min-width: 120px; }
         .col-btn { width: 88px; white-space: nowrap; }
         .status-link { text-decoration: none; padding: 8px 0; border-radius: 8px; font-size: 0.78em; font-weight: bold; display: block; width: 80px; margin: 0 auto; border: 1px solid transparent; transition: 0.2s; }
         .status-none { background: #fff; color: var(--primary-blue); border-color: var(--primary-blue); }
         .status-done { background: #e8f0fe; color: var(--primary-blue); border-color: transparent; }
+        .status-dns { background: #fdecee; color: #d32f2f; border-color: #f3c2c2; }
         .withdrawn-row { background-color: #f5f5f5; color: #999; }
         .withdrawn-row td { text-decoration: line-through; }
 
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+        .filter-bar { display: none; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;
+            margin-bottom: 24px; padding: 12px 16px; background: var(--bg-gray); border-radius: 12px; }
+        .filter-bar label { display: flex; flex-direction: column; gap: 3px; font-size: 0.72em; color: var(--text-gray); font-weight: bold; }
+        .filter-bar select { padding: 7px 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; font-size: 0.9em; min-width: 140px; }
+        .filter-bar select:focus { outline: 2px solid var(--primary-blue); }
+        .filter-bar .filter-clear { align-self: flex-end; padding: 7px 14px; border-radius: 8px; border: 1px solid #ccc;
+            background: #fff; color: var(--text-gray); font-size: 0.82em; cursor: pointer; }
+        .filter-bar .filter-clear:hover { background: #f0f2f5; }
+        .filter-highlight { outline: 3px solid var(--primary-blue); outline-offset: 2px; }
+
         @media (max-width: 600px) {
+            .filter-bar { gap: 8px; padding: 10px; margin-bottom: 16px; }
+            .filter-bar select { min-width: 100px; font-size: 0.82em; }
             body { padding: 10px; }
             .list-container { padding: 14px; border-radius: 12px; }
             #event-title { font-size: 1.3em !important; }
             .section-header { font-size: 1.3em; margin: 30px 0 12px; }
             .class-header { font-size: 1em; padding: 8px 14px; margin: 20px 0 10px; }
-            th, td { padding: 8px 5px; font-size: 0.85em; }
-            .col-num { width: 28px; }
-            .col-btn { width: 70px; }
-            .col-name { min-width: 90px; }
-            .status-link { width: 62px; font-size: 0.72em; padding: 7px 0; }
+            th, td { padding: 8px 3px; font-size: 0.85em; }
+            .col-num { width: 24px; }
+            .col-gr { width: 20px; }
+            .col-btn { width: 62px; }
+            .col-name { min-width: 76px; }
+            .status-link { width: 54px; font-size: 0.68em; padding: 7px 0; }
         }
+
+        /* iPhone SE(第1世代)相当の幅の狭い端末向け追加調整（Gr列表示時でも横にきれいに収まるように） */
+        @media (max-width: 340px) {
+            th, td { padding: 6px 2px; }
+            .col-num { width: 20px; }
+            .col-gr { width: 16px; }
+            .col-btn { width: 48px; }
+            .col-name { min-width: 58px; }
+            .status-link { width: 42px; font-size: 0.6em; padding: 6px 0; }
+        }
+
+        .admin-settings { display: none; align-items: center; gap: 8px; margin-bottom: 16px;
+            padding: 8px 14px; background: #fff8e1; border: 1px solid #ffe0b2; border-radius: 10px;
+            font-size: 0.85em; color: var(--text-gray); }
+        .admin-settings input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+        .admin-settings label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .admin-settings .save-note { font-size: 0.85em; color: var(--success-green); opacity: 0; transition: opacity 0.3s; }
+        .admin-settings .save-note.show { opacity: 1; }
     </style>
 </head>
 <body>
 <div class="list-container">
     <div id="admin-back" class="admin-back"><a href="#">← 管理メニューに戻る</a></div>
+    <div id="admin-settings" class="admin-settings">
+        <span id="admin-not-logged-in" style="display:none;">
+            ⚠ 管理者としてログインされていないため、Gr列の設定は変更できません。
+            <a id="admin-login-link" href="admin_login.html" style="color:var(--primary-blue);font-weight:bold;">ログインする →</a>
+        </span>
+        <label id="admin-show-group-row" style="display:none;align-items:center;gap:8px;">
+            <input type="checkbox" id="admin-show-group"> グループ（Gr）列を表示する
+        </label>
+        <span id="admin-show-group-note" class="save-note">保存しました</span>
+    </div>
     <div class="header-section">
         <h1 id="event-title" style="font-size:2em; margin-bottom:5px;">読み込み中...</h1>
         <div id="event-date" style="font-size: 1em; color: #888;"></div>
         <div id="event-venue" style="font-size: 0.95em; color: #888;"></div>
     </div>
+    <div class="notice-box">
+        提出および修正の履歴はサーバーに保存されています。締切後に不審な変更（改ざん等）にお気づきの場合は、競技開始前までに審判席までお越しください。
+    </div>
     <div id="countdown-area" class="countdown-container"></div>
+    <div id="filter-bar" class="filter-bar">
+        <label>クラス<select id="filter-class"><option value="">すべて</option></select></label>
+        <label>性別<select id="filter-gender"><option value="">すべて</option></select></label>
+        <label>チーム名<select id="filter-team"><option value="">すべて</option></select></label>
+        <button type="button" id="filter-clear" class="filter-clear">条件をクリア</button>
+    </div>
     <div id="indiv-list"></div>
     <div id="sync-list"></div>
 </div>
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, updateDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getSkills } from "./cache.js";
+    // auth.js（Firebase Authの重いSDK本体を含む）は、選手が普段見るこのページでは
+    // 静的importしない。以前は静的importしており、スマホ等でauth.js側の読み込みが
+    // 失敗/タイムアウトするとESモジュールの仕様上スクリプト全体が実行されず、
+    // 管理者に限らずスマホでのリロード時に選手一覧そのものが表示されなくなる不具合が
+    // あった。?from=admin の時だけ動的importし、失敗しても一覧表示自体は継続させる。
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -82,32 +147,175 @@
         try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
         catch { return null; }
     }
-    function saveCache(tour, athletes, subMap) {
+    function saveCache(tour, athletes) {
         try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify({
-                tour, athletes, submissions: Object.fromEntries(subMap)
-            }));
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ tour, athletes }));
         } catch {}
+    }
+
+    // ── フィルタ状態（クラス・性別・チーム名）── sessionStorageに保存し、
+    // entry.html で技を入力して一覧に戻ってきた時も同じ絞り込みを維持する。
+    const FILTER_KEY = `ev_filter_${eventId}`;
+    const LAST_ATH_KEY = `ev_lastath_${eventId}`;
+    function loadFilterState() {
+        try { return JSON.parse(sessionStorage.getItem(FILTER_KEY) || 'null') || { cls:'', gender:'', team:'' }; }
+        catch { return { cls:'', gender:'', team:'' }; }
+    }
+    function saveFilterState() {
+        try { sessionStorage.setItem(FILTER_KEY, JSON.stringify(filterState)); } catch {}
+    }
+    let filterState = loadFilterState();
+    // 一覧に戻ってきた時にスクロール位置を復元するため、直前に開いた選手IDを一度だけ消費する
+    let pendingScrollAthleteId = (() => {
+        try { return sessionStorage.getItem(LAST_ATH_KEY) || null; } catch { return null; }
+    })();
+
+    // チーム名フィルタの選択肢: club1/club2は "A/B" のようにダブル所属が「/」区切りで
+    // 1フィールドにまとまっていることがあるため、分割した個々のチーム名を選択肢にする。
+    // フィルタ適用時は選んだチーム名を「含む」選手を対象にする（=ダブル所属もヒットする）。
+    function collectTeamNames(athletes) {
+        const set = new Set();
+        athletes.forEach(a => {
+            [a.club1, a.club2].forEach(c => {
+                (c || '').split('/').map(s => s.trim()).filter(Boolean).forEach(name => set.add(name));
+            });
+        });
+        return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
+    }
+
+    // クラスの選択肢: 個人・シンクロで同じクラス名（例:「Aクラス」）が使われることが多く、
+    // 素の名前だけだと「片方だけ」を選べない（選ぶと個人・シンクロ両方が対象になってしまう）。
+    // 他画面（順位表巡回の候補一覧など）と同じ「クラス名（個人/シンクロ）」表記にして、
+    // 個人のAクラスだけ／シンクロのAクラスだけを選べるようにする。
+    function collectClassOptions(athletes) {
+        const seen = new Set();
+        const opts = [];
+        athletes.forEach(a => {
+            if (!a.class) return;
+            const type = a.type === 'synchro' ? 'synchro' : 'individual';
+            const key = `${type}::${a.class}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            const label = `${a.class}（${type === 'synchro' ? 'シンクロ' : '個人'}）`;
+            opts.push({ value: key, label });
+        });
+        opts.sort((x, y) => x.label.localeCompare(y.label, 'ja'));
+        return opts;
+    }
+
+    function buildFilterOptions(athletes) {
+        if (!athletes.length) return;
+        const bar = document.getElementById('filter-bar');
+        bar.style.display = 'flex';
+
+        const classOpts = collectClassOptions(athletes);
+        // 性別は男子/女子/混合など実データにある値だけを出す（決め打ちしない）
+        const genderOrder = g => g === '女子' ? 0 : g === '男子' ? 1 : 2;
+        const genders = [...new Set(athletes.map(a => a.gender).filter(Boolean))].sort((a,b)=>genderOrder(a)-genderOrder(b));
+        const teams = collectTeamNames(athletes);
+
+        const fillSelect = (id, values, current) => {
+            const sel = document.getElementById(id);
+            const prev = sel.value;
+            const items = values.map(v => typeof v === 'string' ? { value: v, label: v } : v);
+            sel.innerHTML = '<option value="">すべて</option>' +
+                items.map(it => `<option value="${it.value}">${it.label}</option>`).join('');
+            // 選択肢再構築後も、有効な値であれば選択状態を保つ（sessionStorage復元 or 選択済みの維持）
+            const want = current !== undefined ? current : prev;
+            if (want && items.some(it => it.value === want)) sel.value = want;
+        };
+        fillSelect('filter-class',  classOpts, filterState.cls);
+        fillSelect('filter-gender', genders,   filterState.gender);
+        fillSelect('filter-team',   teams,     filterState.team);
+    }
+
+    function applyFilters(athletes) {
+        if (!filterState.cls && !filterState.gender && !filterState.team) return athletes;
+        // filterState.cls は "individual::Aクラス" のような "型::クラス名" 形式
+        const [wantType, wantClass] = filterState.cls ? filterState.cls.split('::') : [null, null];
+        return athletes.filter(a => {
+            if (filterState.cls) {
+                const type = a.type === 'synchro' ? 'synchro' : 'individual';
+                if (type !== wantType || a.class !== wantClass) return false;
+            }
+            if (filterState.gender && a.gender !== filterState.gender) return false;
+            if (filterState.team) {
+                const inClub = (c) => (c || '').includes(filterState.team);
+                if (!inClub(a.club1) && !inClub(a.club2)) return false;
+            }
+            return true;
+        });
+    }
+
+    function rerenderFiltered() {
+        if (!liveTour || !liveAthletes.length) return;
+        renderList(liveTour, applyFilters(liveAthletes));
+        restoreScrollPosition();
+    }
+
+    document.getElementById('filter-class').addEventListener('change', e => { filterState.cls = e.target.value; saveFilterState(); rerenderFiltered(); });
+    document.getElementById('filter-gender').addEventListener('change', e => { filterState.gender = e.target.value; saveFilterState(); rerenderFiltered(); });
+    document.getElementById('filter-team').addEventListener('change', e => { filterState.team = e.target.value; saveFilterState(); rerenderFiltered(); });
+    document.getElementById('filter-clear').addEventListener('click', () => {
+        filterState = { cls:'', gender:'', team:'' };
+        saveFilterState();
+        buildFilterOptions(liveAthletes);
+        rerenderFiltered();
+    });
+
+    // 選手が「入力」リンクを押した瞬間に選手IDを覚えておく（entry.htmlから戻った時のスクロール復元用）
+    document.addEventListener('click', e => {
+        const link = e.target.closest('.status-link');
+        if (!link || !link.id) return;
+        const m = link.id.match(/^status-(.+)-(pre\d+|final)$/);
+        if (!m) return;
+        try { sessionStorage.setItem(LAST_ATH_KEY, m[1]); } catch {}
+    });
+
+    function restoreScrollPosition() {
+        if (!pendingScrollAthleteId) return;
+        const row = document.querySelector(`[id^="status-${pendingScrollAthleteId}-"]`)?.closest('tr');
+        if (!row) return;
+        row.scrollIntoView({ block: 'center' });
+        row.classList.add('filter-highlight');
+        setTimeout(() => row.classList.remove('filter-highlight'), 2000);
+        pendingScrollAthleteId = null; // 一度だけ復元する
+        try { sessionStorage.removeItem(LAST_ATH_KEY); } catch {}
+    }
+
+    // ── Promise にタイムアウトを付与（iOS等で getDocs が応答しないハングを防ぐ）──
+    function withTimeout(promise, ms = 8000) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+        ]);
     }
 
     // ── 大会情報をDOMに反映 ─────────────────────────────────
     function applyTourInfo(tour) {
         document.getElementById('event-title').innerText = tour.name;
-        document.getElementById('event-date').innerText =
-            `${tour.startDate || tour.start_date || ''} ～ ${tour.endDate || tour.end_date || ''}`;
-        if (tour.venue) document.getElementById('event-venue').innerText = `📍 ${tour.venue}`;
+        const _sd = tour.startDate || tour.start_date || '';
+        const _ed = tour.endDate   || tour.end_date   || '';
+        const _dateStr = (_sd && _ed && _sd !== _ed) ? `${_sd} ～ ${_ed}` : (_sd || _ed);
+        document.getElementById('event-date').innerText  = _dateStr    ? `開催日：${_dateStr}` : '';
+        document.getElementById('event-venue').innerText = tour.venue ? `会場：${tour.venue}` : '';
     }
 
     // ── バッジのピンポイント更新 ────────────────────────────
-    function updateStatusBadge(athId, round, sub) {
+    function updateStatusBadge(athId, round, isDone) {
         const el = document.getElementById(`status-${athId}-${round}`);
         if (!el) return;
-        el.className = `status-link ${sub ? 'status-done' : 'status-none'}`;
-        el.textContent = sub ? '提出済' : '入力';
+        if (dnsSet.has(`${eventId}_${athId}_${round}`)) {
+            el.className = 'status-link status-dns';
+            el.textContent = 'DNS';
+            return;
+        }
+        el.className = `status-link ${isDone ? 'status-done' : 'status-none'}`;
+        el.textContent = isDone ? '提出済' : '入力';
     }
 
     // ── 選手リスト全体描画（初回のみ呼ぶ）────────────────────
-    function renderList(tour, athletes, subMap) {
+    function renderList(tour, athletes) {
         const rawClassRules = tour.classRules || {};
         const hasNewFormat  = 'individual' in rawClassRules || 'synchro' in rawClassRules;
         const classRules    = hasNewFormat ? rawClassRules :
@@ -123,19 +331,26 @@
         }
         const indivAthletes = athletes.filter(a => a.type !== 'synchro');
         const syncAthletes  = athletes.filter(a => a.type === 'synchro');
+        // グループが1種類しかない大会では Gr 列を表示しない。
+        // ただし管理者がGr列表示のON/OFFを明示的に設定していれば、そちらを優先する。
+        const autoShowGroup = new Set(athletes.map(a => a.flightGroup).filter(g => g != null && g !== '')).size > 1;
+        const showGroup = (typeof tour.showGroupColumn === 'boolean') ? tour.showGroupColumn : autoShowGroup;
+        // フィルタで該当0件になった側は、前回描画分が残らないよう明示的に空にする
+        // （フィルタ導入前は renderList が常に全選手で1回しか呼ばれず、0件になることが
+        //   無かったため、このクリア漏れは表面化していなかった）
         const indivContainer = document.getElementById('indiv-list');
-        if (indivAthletes.length > 0) {
-            indivContainer.innerHTML = '<h2 class="section-header indiv-header">個人競技</h2>' +
-                buildTablesHtml(indivAthletes, classRules.individual, subMap, 'individual', rawClassRules, indivClassOrder);
-        }
+        indivContainer.innerHTML = indivAthletes.length > 0
+            ? '<h2 class="section-header indiv-header">個人競技</h2>' +
+                buildTablesHtml(indivAthletes, classRules.individual, 'individual', rawClassRules, indivClassOrder, showGroup)
+            : '';
         const syncContainer = document.getElementById('sync-list');
-        if (syncAthletes.length > 0) {
-            syncContainer.innerHTML = '<h2 class="section-header sync-header">シンクロ競技</h2>' +
-                buildTablesHtml(syncAthletes, classRules.synchro, subMap, 'synchro', rawClassRules, syncClassOrder);
-        }
+        syncContainer.innerHTML = syncAthletes.length > 0
+            ? '<h2 class="section-header sync-header">シンクロ競技</h2>' +
+                buildTablesHtml(syncAthletes, classRules.synchro, 'synchro', rawClassRules, syncClassOrder, showGroup)
+            : '';
     }
 
-    function buildTablesHtml(athletes, rulesByType, subMap, type, fallbackRules = {}, classOrder = []) {
+    function buildTablesHtml(athletes, rulesByType, type, fallbackRules = {}, classOrder = [], showGroup = true) {
         const byClass = athletes.reduce((acc, ath) => {
             const cn = ath.class || 'N/A';
             (acc[cn] = acc[cn] || []).push(ath);
@@ -147,6 +362,7 @@
         for (const cn of [...ordered, ...leftover]) {
             const cls   = byClass[cn];
             const rules = (rulesByType || {})[cn] || fallbackRules[cn] || { qualifyingRoutines: 2, hasFinal: false };
+            const numPre = rules.finalOnly === true ? 0 : rules.qualifyingRoutines;   // 決勝のみは予選なし
             cls.sort((a, b) =>
                 `${a.gender||''}-${String(a.flightGroup||'').padStart(3,'0')}-${String(a.order||'').padStart(3,'0')}`.localeCompare(
                 `${b.gender||''}-${String(b.flightGroup||'').padStart(3,'0')}-${String(b.order||'').padStart(3,'0')}`));
@@ -156,19 +372,25 @@
                 if (curGender !== ath.gender) {
                     if (curGender !== '') html += '</tbody></table></div>';
                     curGender = ath.gender;
-                    const rh = Array.from({length: rules.qualifyingRoutines}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
+                    const rh = Array.from({length: numPre}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
                     const fh = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
+                    const grH = showGroup ? '<th class="col-gr">Gr</th>' : '';
                     html += `<div class="table-wrap"><table><thead>
-                        <tr class="category-row"><td colspan="${3+rules.qualifyingRoutines+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
-                        <tr><th class="col-num">Gr</th><th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
+                        <tr class="category-row"><td colspan="${(showGroup?3:2)+numPre+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
+                        <tr>${grH}<th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
                         </thead><tbody>`;
                 }
+                // シンクロで所属が同じ場合は1つだけ表示する（違う場合のみ両方を "/" で併記）
+                const clubDisp = type === 'synchro'
+                    ? (ath.club1 && ath.club2 && ath.club1 !== ath.club2 ? `${ath.club1} / ${ath.club2}` : (ath.club1 || ath.club2 || ''))
+                    : (ath.club1 || '');
                 const pHtml = type === 'synchro'
-                    ? `<span style="font-weight:bold;">${ath.name1||''} / ${ath.name2||''}</span><br><small style="color:#888;">${ath.club1||''} / ${ath.club2||''}</small>`
-                    : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${ath.club1}</small>`;
-                html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}"><td class="col-num">${ath.flightGroup||'-'}</td><td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
-                for (let i = 1; i <= rules.qualifyingRoutines; i++) html += `<td>${statusButton(ath, `pre${i}`, subMap)}</td>`;
-                if (rules.hasFinal) html += `<td>${statusButton(ath, 'final', subMap)}</td>`;
+                    ? `<span style="font-weight:bold;">${ath.name1||''} / ${ath.name2||''}</span><br><small style="color:#888;">${clubDisp}</small>`
+                    : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${clubDisp}</small>`;
+                const grCell = showGroup ? `<td class="col-gr">${ath.flightGroup||'-'}</td>` : '';
+                html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}">${grCell}<td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
+                for (let i = 1; i <= numPre; i++) html += `<td>${statusButton(ath, `pre${i}`)}</td>`;
+                if (rules.hasFinal) html += `<td>${statusButton(ath, 'final')}</td>`;
                 html += '</tr>';
             });
             if (cls.length > 0) html += '</tbody></table></div>';
@@ -176,10 +398,17 @@
         return html;
     }
 
-    function statusButton(ath, round, subMap) {
+    // 済/未は選手ドキュメントの submissions.{round} フラグで判定する（entry.htmlの提出/クリア、
+    // auth.jsの一括登録/一括削除がどちらも書込・削除して同期している）。
+    // これにより submissions コレクション全件取得が不要になる。
+    function statusButton(ath, round) {
         if (ath.isWithdrawn) return `<span style="font-size:0.8em;color:#d32f2f;">棄権</span>`;
-        const sub = subMap.get(`${eventId}_${ath.id}_${round}`);
-        return `<a id="status-${ath.id}-${round}" href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${sub?'status-done':'status-none'}">${sub?'提出済':'入力'}</a>`;
+        const subId = `${eventId}_${ath.id}_${round}`;
+        const isDns  = dnsSet.has(subId);
+        const isDone = ath.submissions?.[round] !== undefined;
+        const cls   = isDns ? 'status-dns' : (isDone ? 'status-done' : 'status-none');
+        const label = isDns ? 'DNS' : (isDone ? '提出済' : '入力');
+        return `<a id="status-${ath.id}-${round}" href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${cls}">${label}</a>`;
     }
 
     // ── カウントダウンタイマー ────────────────────────────────
@@ -193,7 +422,8 @@
         const deadlines = [
             { id: 'sub', label: '提出締切', time: tour.submissionDeadline },
             { id: 'rev', label: '修正締切', time: tour.revisionDeadline },
-            { id: 'fin', label: '決勝締切', time: tour.finalSubmissionDeadline }
+            // 決勝締切が「提出締切と同じ」のときは重複するので表示しない
+            ...(tour.finalSubmissionDeadlineMode === 'same' ? [] : [{ id: 'fin', label: '決勝締切', time: tour.finalSubmissionDeadline }])
         ].filter(d => d.time).map(d => {
             const dt = new Date(d.time);
             return { ...d,
@@ -231,22 +461,72 @@
     // ── バックグラウンド差分同期 ─────────────────────────────
     let liveTour     = null;
     let liveAthletes = [];
+    let dnsSet       = new Set(); // CJPがDNS（棄権）で確定したラウンドの submission/result ID
 
     async function backgroundSync() {
         if (!eventId || !liveAthletes.length) return;
         try {
-            const snap = await getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId)));
-            const freshMap = new Map(snap.docs.map(d => [d.id, d.data()]));
-            liveAthletes.forEach(ath => {
+            // 済/未は選手ドキュメントの submissions.{round} フラグを見るので、athletes サブコレクション
+            // （選手数分。最大でも submissions コレクションより小さい）だけ再取得すれば済む。
+            const snap = await getDocs(collection(db, "tournaments", eventId, "athletes"));
+            const freshAthletes = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+            freshAthletes.forEach(ath => {
                 ['pre1','pre2','pre3','final'].forEach(round => {
                     const el = document.getElementById(`status-${ath.id}-${round}`);
                     if (!el) return;
-                    const sub = freshMap.get(`${eventId}_${ath.id}_${round}`) || null;
-                    if (el.classList.contains('status-done') !== !!sub) updateStatusBadge(ath.id, round, sub);
+                    const isDone = ath.submissions?.[round] !== undefined;
+                    if (el.classList.contains('status-done') !== isDone) updateStatusBadge(ath.id, round, isDone);
                 });
             });
-            if (liveTour) saveCache(liveTour, liveAthletes, freshMap);
+            liveAthletes = freshAthletes;
+            if (liveTour) saveCache(liveTour, freshAthletes);
         } catch(e) { console.warn('BG sync failed:', e.message); }
+    }
+
+    // ── 管理者向け: Gr列の表示/非表示チェックボックス ──────────
+    // ?from=admin かつ実際に管理者ログイン済みの時だけ出す（選手が普通に見るときは常に非表示）。
+    // ここで保存した値は tournaments/{eventId}.showGroupColumn として全端末（選手側も含む）に反映される。
+    let isAdminUser    = false;
+    let adminCheckDone = false; // checkIfAdmin()の判定がまだ済んでいない間は何も表示しない（誤って「未ログイン」を出さないため）
+    let adminDataOk    = false;
+    function maybeShowAdminSettings() {
+        if (params.get('from') !== 'admin' || !adminCheckDone || !adminDataOk) return;
+        const panel      = document.getElementById('admin-settings');
+        const notLoggedEl = document.getElementById('admin-not-logged-in');
+        const rowEl       = document.getElementById('admin-show-group-row');
+        panel.style.display = 'flex';
+        if (!isAdminUser) {
+            // 管理者ログインが確認できない場合（スマホ等、PCとは別のブラウザ・端末で
+            // このURLだけ開いた場合に起こりうる）: チェックボックスの代わりにログイン導線を出す。
+            // 単に何も出さないと「チェックが出ない」という分かりにくい不具合に見えてしまうため。
+            notLoggedEl.style.display = 'inline';
+            rowEl.style.display = 'none';
+            return;
+        }
+        notLoggedEl.style.display = 'none';
+        rowEl.style.display = 'flex';
+        const chk   = document.getElementById('admin-show-group');
+        const autoShowGroup = new Set(liveAthletes.map(a => a.flightGroup).filter(g => g != null && g !== '')).size > 1;
+        chk.checked = (typeof liveTour.showGroupColumn === 'boolean') ? liveTour.showGroupColumn : autoShowGroup;
+        chk.onchange = async () => {
+            const val = chk.checked;
+            chk.disabled = true;
+            try {
+                await updateDoc(doc(db, 'tournaments', eventId), { showGroupColumn: val });
+                liveTour.showGroupColumn = val;
+                saveCache(liveTour, liveAthletes);
+                renderList(liveTour, applyFilters(liveAthletes));
+                restoreScrollPosition();
+                const note = document.getElementById('admin-show-group-note');
+                note.classList.add('show');
+                setTimeout(() => note.classList.remove('show'), 1500);
+            } catch (e) {
+                alert('保存に失敗しました（管理者としてログインしているかご確認ください）: ' + e.message);
+                chk.checked = !val; // 失敗時は表示をロールバック
+            } finally {
+                chk.disabled = false;
+            }
+        };
     }
 
     // ── 初期化 ───────────────────────────────────────────────
@@ -257,6 +537,12 @@
             const backDiv = document.getElementById('admin-back');
             backDiv.style.display = 'block';
             backDiv.querySelector('a').href = `admin_menu.html?event=${eventId}`;
+            // リダイレクトしないチェックのみ（未ログインの選手が誤って?from=adminを付けても
+            // 通常表示のまま使えるようにするため、ensureAdminは使わない）。
+            // auth.jsの読み込み自体に失敗しても一覧表示には影響させない。
+            import('./auth.js')
+                .then(({ checkIfAdmin }) => checkIfAdmin(v => { isAdminUser = v; adminCheckDone = true; maybeShowAdminSettings(); }))
+                .catch(e => console.warn('管理者確認用スクリプトの読み込みに失敗しました:', e.message));
         }
 
         // ① キャッシュがあれば即座に描画（0ms）
@@ -266,45 +552,66 @@
             liveAthletes = cache.athletes;
             applyTourInfo(cache.tour);
             startGlobalTimers(cache.tour);
-            renderList(cache.tour, cache.athletes, new Map(Object.entries(cache.submissions || {})));
+            buildFilterOptions(cache.athletes);
+            renderList(cache.tour, applyFilters(cache.athletes));
+            restoreScrollPosition();
+            adminDataOk = true;
+            maybeShowAdminSettings();
         }
 
-        // ② 最新データを常時フェッチ
+        // ② 最新データを常時フェッチ（iOS等での失敗/ハングに備えタイムアウトを付与）
+        // 大会ドキュメントと他2つのクエリは互いに依存しない（athletes/resultsはURLのeventIdだけで取得できる）
+        // ので直列awaitにせず1回のPromise.allにまとめ、往復を1回分減らす。
+        // 済/未は選手ドキュメントの submissions.{round} フラグ（athletesクエリに含まれる）で判定するため、
+        // submissions コレクションの全件取得はここでは行わない。
         try {
-            const tourSnap = await getDoc(doc(db, "tournaments", eventId));
+            const [tourSnap, athSnap, resSnap] = await withTimeout(Promise.all([
+                getDoc(doc(db, "tournaments", eventId)),
+                getDocs(collection(db, "tournaments", eventId, "athletes")),
+                getDocs(query(collection(db, "results"), where("eventId", "==", eventId)))
+            ]));
             if (!tourSnap.exists()) return;
             const tour = tourSnap.data();
             liveTour = tour;
             applyTourInfo(tour);
             startGlobalTimers(tour); // timerStarted フラグで二重起動ガード
 
-            const [subSnap, athSnap] = await Promise.all([
-                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
-                getDocs(collection(db, "tournaments", eventId, "athletes"))
-            ]);
-            const freshSubMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
             const allAthletes = athSnap.docs.map(d => ({ ...d.data(), id: d.id }));
             liveAthletes = allAthletes;
+            // CJPがDNS（棄権）で確定したラウンド（results.dns===true）
+            dnsSet = new Set(resSnap.docs.filter(d => d.data().dns === true).map(d => d.id));
 
+            buildFilterOptions(allAthletes); // 最新データでチーム名等の選択肢を更新（選択中の値は維持）
             if (cache?.athletes) {
-                // キャッシュ描画済み → 差分バッジ更新のみ
+                // キャッシュ描画済み → バッジを最新化（DNS含む）
                 allAthletes.forEach(ath => {
                     ['pre1','pre2','pre3','final'].forEach(round => {
-                        const el = document.getElementById(`status-${ath.id}-${round}`);
-                        if (!el) return;
-                        const sub = freshSubMap.get(`${eventId}_${ath.id}_${round}`) || null;
-                        if (el.classList.contains('status-done') !== !!sub) updateStatusBadge(ath.id, round, sub);
+                        if (!document.getElementById(`status-${ath.id}-${round}`)) return;
+                        updateStatusBadge(ath.id, round, ath.submissions?.[round] !== undefined);
                     });
                 });
             } else {
                 // 初回：全体描画
-                renderList(tour, allAthletes, freshSubMap);
+                renderList(tour, applyFilters(allAthletes));
+                restoreScrollPosition();
             }
-            saveCache(tour, allAthletes, freshSubMap);
+            saveCache(tour, allAthletes);
+            adminDataOk = true;
+            maybeShowAdminSettings(); // 最新のtourData（showGroupColumn含む）でチェック状態を同期し直す
         } catch(e) {
             console.error('Fetch failed:', e.message);
-            if (!cache) document.getElementById('event-title').innerText = '読み込みに失敗しました';
+            // キャッシュからの一覧描画も無い場合は、空白のまま固まらないよう失敗を明示し再読み込み導線を出す
+            if (!cache?.athletes) {
+                document.getElementById('indiv-list').innerHTML =
+                    '<div style="text-align:center;padding:40px;color:#90a4ae;">読み込みに失敗しました。通信状況をご確認ください。'
+                    + '<br><button onclick="location.reload()" style="margin-top:12px;padding:8px 22px;border:none;background:#1a73e8;color:#fff;border-radius:8px;cursor:pointer;font-size:0.95em;">再読み込み</button></div>';
+            }
         }
+
+        // 技マスタを裏で先読み（sessionStorageに10分キャッシュ）。
+        // 選手はこの後ほぼ確実に entry.html（入力画面）へ進むため、ここで温めておくと
+        // entry.html 初回表示時の技マスタ取得（127件）が待たずに済む。一覧表示は待たせない。
+        getSkills();
     }
 
     // ③ タブ復帰時にバックグラウンド差分同期

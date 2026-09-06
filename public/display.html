@@ -236,6 +236,20 @@
       font-size: 2cqw; font-weight:900;
       line-height:1;
     }
+    /* ===== HDTS: 技別 ToF / HD（HDTSデータがある選手のみ6段表示） ===== */
+    .ribbon-wrapper.has-hdts .row-labels,
+    .ribbon-wrapper.has-hdts .skill-stack{ grid-template-rows: 9fr 34fr 14fr 14fr 14fr 15fr; }
+    .card.tof-card{
+      grid-row:5; background: rgba(0,0,0,0.3); border-color: var(--border-ui);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .tof-val{ font-size: 1.35cqw; font-weight:800; color: var(--text-white); line-height:1; letter-spacing:-0.3px; }
+    .card.hd-card{
+      grid-row:6; background: rgba(0,0,0,0.3); border-color: var(--border-ui);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .hd-val{ font-size: 1.5cqw; font-weight:800; color: var(--text-white); line-height:1; }
+    .skill-stack.bonus-style .empty-card{ background: rgba(255,255,255,0.01); border:1px dashed rgba(0,242,255,0.06); border-radius:4px; }
     /* ===== LAN列 ===== */
     .skill-stack.bonus-style .col-idx{
       font-size: 0.95cqw;
@@ -289,7 +303,7 @@
       background: rgba(0,242,255,0.02);
       min-height:0;
     }
-    .stat-item{ display:flex; align-items:center; gap: 1.2cqw; height:100%; }
+    .stat-item{ display:flex; align-items:center; justify-content:center; gap: 1.2cqw; height:100%; }
     .stat-item label{
       font-size: 1cqw; font-weight:800;
       color: var(--text-muted);
@@ -301,6 +315,20 @@
       letter-spacing: -1.5px;
       line-height:1;
     }
+    /* Penalty セル: ペナルティ内容がある時のみ、数字の下に内訳チップを積む（横線内に収める） */
+    .stat-item.pen-item{ flex-direction:column; gap:0.4cqh; }
+    .stat-item.pen-item .pen-top{ display:flex; align-items:center; justify-content:center; gap:1cqw; }
+    .stat-item.pen-item .pen-top .val{ font-size:2.8cqw; } /* 内容を収めるため数字をやや縮小 */
+    .pen-reasons{ display:flex; flex-direction:column; align-items:center; gap:0.28cqh; max-width:100%; line-height:1; }
+    .pen-reason-chip{
+      display:inline-flex; align-items:center; gap:0.4cqw; max-width:100%;
+      padding:0.18cqh 0.7cqw; border-radius:999px;
+      background:rgba(255,61,61,0.12); border:1px solid rgba(255,61,61,0.55);
+      color:#ff6b6b; font-size:0.74cqw; font-weight:800;
+      letter-spacing:0.02cqw; text-transform:uppercase;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .pen-reason-chip .pt{ font-weight:900; opacity:0.85; }
     /* ===== 5. 結果 ===== */
     .result-section{
       display:grid;
@@ -368,6 +396,7 @@
     .alert{ color: var(--alert-red) !important; }
     .repeat{ color: var(--alert-red) !important; font-weight:900; }
     .dim{ opacity: 0.35; }
+    .d-val.capped{ color: #ff9800 !important; }
     /* ===== 待機状態 ===== */
     .waiting-msg{
       grid-column: 1 / -1; grid-row: 1 / -1;
@@ -452,7 +481,8 @@
     .rk-tot{ font-size: calc(3.8cqw  * var(--rk-scale, 1)); font-weight: 900; line-height: 1.0; text-align: right; }
     .rk-current .rk-tot{ color: var(--accent-gold); }
     .rk-page-info{
-      float: right;
+      /* float:right だと右上の大会名(.rk-event-name)と重なるため、STANDINGS の直後にインライン表示 */
+      margin-left: 0.8cqw;
       font-size: 0.9cqw;
       color: var(--text-muted);
       letter-spacing: 0.1cqw;
@@ -485,7 +515,59 @@
     color:white; text-align:center;
     padding:4vw;
   }
-  .venue-screen.active{ opacity:1; pointer-events:auto; }
+  /* 表示は即時（フェードインで裏のスコア/順位表が透けないように）。非表示はフェードアウト。 */
+  .venue-screen.active{ opacity:1; pointer-events:auto; transition:none; }
+  /* ===== 団体順位表 画面 ===== */
+  #vs-team-ranking{ container-type:size; padding:0; }
+  .tr-layout{ width:100%; height:100%; display:grid; grid-template-rows: 7% 11.5% 77.5% 4%; padding: 0 3cqw; }
+  .tr-conv{ border-bottom:1.5px solid rgba(0,242,255,0.2); display:flex; align-items:center; justify-content:center;
+    font-size:1.1cqw; font-weight:700; letter-spacing:0.8cqw; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* 左に「団体競技 クラス名 男女」を同じ書式で並べる（TRA表記なし・右側の記載は無し） */
+  .tr-cat{ display:flex; align-items:baseline; gap:1.6cqw; padding:0.9cqh 0.2cqw 0.3cqh; }
+  .tr-cat-title, .tr-cat-part{ font-size:2.6cqw; font-weight:900; color:#ffd700; letter-spacing:-0.5px; line-height:1; }
+  .tr-cat-round{ font-size:1.7cqw; font-weight:800; color:#cbd5e0; line-height:1; }
+  /* 3チーム固定（1画面3チーム・1,2チームでも同サイズ。4以上はJSでページ送り） */
+  .tr-list{ display:grid; grid-template-rows:repeat(3,1fr); row-gap:1cqh; padding:0.6cqh 0; min-height:0; }
+  .tr-row{ display:grid; grid-template-columns: 6cqw 20cqw 1fr 13cqw; align-items:stretch; column-gap:1.4cqw;
+    background:rgba(255,255,255,0.05); border:1.5px solid rgba(0,242,255,0.2); border-left:5px solid rgba(0,242,255,0.35);
+    border-radius:8px; padding:0.5cqh 1.4cqw; min-height:0; overflow:hidden; box-shadow: inset 0 0 20px rgba(0,242,255,0.03); }
+  .tr-rank{ display:flex; align-items:center; justify-content:center; font-size:3.2cqw; font-weight:900; letter-spacing:-1px; line-height:1; font-variant-numeric:tabular-nums; }
+  .tr-name{ min-width:0; align-self:center; font-size:2.6cqw; font-weight:900; line-height:1.15; overflow:hidden;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; word-break:break-word;
+    text-shadow: 0 0 22px rgba(0,242,255,0.15); }
+  /* 出場選手を縦並び（4枠。3人でも同配置＝空き枠でそろえる）。名前を囲むブロックは無し */
+  .tr-members{ display:grid; grid-template-rows:1fr; min-height:0; }
+  .tr-members.has-head{ grid-template-rows:auto 1fr; }
+  .tr-mem-list{ display:grid; grid-auto-rows:1fr; gap:0.25cqh; min-height:0; }
+  .tr-mem, .tr-mem-head{ display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:1cqw; min-height:0; overflow:hidden; padding:0 0.3cqw; }
+  .tr-mem-head{ padding-bottom:0.25cqh; }
+  .tr-mem-name{ font-size:1.3cqw; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* 予選2本は1本目・2本目の得点を横に並べ、上に Rtn1/Rtn2 ラベルを付ける */
+  .tr-mem-scores{ display:flex; gap:0.9cqw; flex-shrink:0; }
+  .tr-mem-scores span{ font-size:1.5cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; min-width:5cqw; text-align:right; }
+  .tr-mem-head .tr-mem-scores span{ font-size:0.95cqw; font-weight:800; color:#8aa0b5; letter-spacing:0.03cqw; }
+  .tr-mem.count .tr-mem-scores span{ color:#fff; }
+  .tr-mem.drop .tr-mem-scores span{ color:#cbd5e0; text-decoration:line-through; text-decoration-thickness:1.5px; }
+  /* best制で採用しない方の本（採用選手の低い方）を取り消し線 */
+  .tr-mem-scores span.struck{ color:#9fb0c0 !important; text-decoration:line-through; text-decoration-thickness:1.5px; }
+  .tr-page{ font-size:1.4cqw; color:#00f2ff; font-weight:900; align-self:center; }
+  .tr-total{ display:flex; flex-direction:column; justify-content:center; align-items:flex-end; text-align:right; }
+  .tr-total label{ display:block; font-size:0.85cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
+  .tr-total-num{ font-size:3cqw; font-weight:900; letter-spacing:-1.5px; line-height:1; font-variant-numeric:tabular-nums; }
+  .tr-gap{ font-size:0.95cqw; font-weight:800; color:#ff8a80; letter-spacing:0.02cqw; margin-top:0.35cqh; line-height:1; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tr-row.r1{ border-color:rgba(255,215,0,0.55); border-left-color:#ffd700; background:rgba(255,215,0,0.06); }
+  .tr-row.r1 .tr-rank, .tr-row.r1 .tr-total-num{ color:#ffd700; text-shadow: 0 0 16px rgba(255,215,0,0.25); }
+  .tr-row.r2{ border-left-color:#d6e0ea; } .tr-row.r2 .tr-rank{ color:#d6e0ea; }
+  .tr-row.r3{ border-left-color:#e8a06a; } .tr-row.r3 .tr-rank{ color:#e8a06a; }
+  /* 団体順位表の登場アニメ：初回表示・ページ送りのたびに各行がフェード＋スライドアップ（個人順位表の登場に合わせた演出） */
+  @keyframes trRowEnter{ from{ opacity:0; transform:translateY(1.6cqw); } to{ opacity:1; transform:translateY(0); } }
+  .tr-row{ animation: trRowEnter 700ms cubic-bezier(0.22,1,0.36,1) both; }
+  .tr-row:nth-child(1){ animation-delay:0ms; }
+  .tr-row:nth-child(2){ animation-delay:300ms; }
+  .tr-row:nth-child(3){ animation-delay:600ms; }
+  .tr-credit{ display:flex; justify-content:flex-end; align-items:center; font-size:0.8cqw; color:rgba(255,255,255,0.2);
+    letter-spacing:0.2cqw; font-weight:700; text-transform:uppercase; }
+  .tr-empty{ grid-row:1 / -1; display:flex; align-items:center; justify-content:center; font-size:1.6cqw; color:#cbd5e0; }
   /* ===== 集計中画面 ===== */
   #vs-calculating{ container-type:size; padding:0; align-items:stretch; justify-content:flex-start; }
   .calc-layout{
@@ -548,6 +630,27 @@
   }
   @keyframes calcPulse{
     0%,100%{ opacity:1; } 50%{ opacity:0.3; }
+  }
+  /* ===== インクワイアリ画面（集計中と同じ骨格・警戒色でアレンジ） ===== */
+  #vs-inquiry{
+    container-type:size; padding:0; align-items:stretch; justify-content:flex-start;
+    box-shadow: inset 0 0 14cqh rgba(239,68,68,0.3);
+  }
+  #vs-inquiry .calc-conv{ color:rgba(239,68,68,0.85); }
+  #vs-inquiry .calc-class{ color:rgba(239,68,68,0.95); }
+  .inquiry-status-block{
+    flex-shrink:0; display:flex; flex-direction:column; align-items:flex-start; gap:1.4cqh;
+    padding-bottom:5cqh;
+  }
+  .inquiry-line-en{
+    font-size:2.2cqw; font-weight:900; letter-spacing:0.35em; color:#ef4444; text-transform:uppercase;
+  }
+  .inquiry-line-ja{
+    font-size:5.5cqw; font-weight:900; letter-spacing:0.1em; color:#ffffff;
+    text-shadow: 0 0 1.6cqw rgba(239,68,68,0.6);
+  }
+  .inquiry-line-sub{
+    font-size:2.2cqw; font-weight:700; letter-spacing:0.05em; color:rgba(255,255,255,0.68);
   }
   /* 大会タイトル画面：COMPETITION ラベルの分だけ下 padding を増やして光学的中心に揃える */
   #vs-title{ padding-bottom: 6vw; }
@@ -693,7 +796,7 @@
     opacity:0; pointer-events:none;
   }
   .intro-layout.intro-flash::before{
-    animation: intro-flash-glow 900ms ease-out forwards;
+    animation: intro-flash-glow 1800ms ease-out forwards;
   }
   @keyframes intro-flash-glow{
     0%  { opacity:1; }
@@ -705,7 +808,7 @@
     background:linear-gradient(90deg, transparent, rgba(0,242,255,0.6), transparent);
   }
   .intro-anim .intro-divider{
-    animation: intro-line-expand 600ms 350ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-line-expand 1200ms 700ms cubic-bezier(0.22,1,0.36,1) both;
   }
   @keyframes intro-line-expand{
     from{ width:0; }
@@ -717,13 +820,90 @@
     padding: 2.2cqh 4cqw;
   }
   .intro-event-lbl{
-    font-size:1.2cqw; font-weight:700; letter-spacing:0.55em;
+    font-size:1.5cqw; font-weight:700; letter-spacing:0.25em;
     color:rgba(255,255,255,0.28); text-transform:uppercase;
+    /* 大会名は隠さない: 長い場合は折り返し（カウンタには届かない幅まで） */
+    max-width:70cqw; line-height:1.4;
   }
-  .intro-counter-lbl{
-    font-size:1.2cqw; font-weight:700; letter-spacing:0.15em;
-    color:rgba(255,255,255,0.28);
+  /* 右上: 選手紹介ループ中の会場練習 残り時間（タイマーがカウント中のみ表示） */
+  .intro-warmup-timer{
+    font-size:120px; font-weight:900; letter-spacing:0.06em;  /* タイマー本体は120px固定（以前の60pxの2倍） */
+    color:var(--accent-gold); line-height:1;
+    text-shadow:0 0 24px rgba(255,215,0,0.25);
+    text-align:center;                   /* ラベルと時間を互いにセンタリング */
   }
+  .intro-warmup-timer .lbl{
+    display:block;                       /* ラベルと時間を縦積み */
+    font-size:0.6em; font-weight:800; letter-spacing:0.18em;  /* =72px（本体に連動して2倍） */
+    color:rgba(255,255,255,0.6);
+    margin:0 0 0.8cqh;
+  }
+  .intro-warmup-timer.warning{ color:#ff6b35; text-shadow:0 0 24px rgba(255,107,53,0.35); }
+  /* ループ開始時のタイトル画面「選手紹介」（currentIndex=-1 のとき表示） */
+  .intro-title-screen{
+    position:absolute; inset:0;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:1.8cqh;
+    pointer-events:none;
+  }
+  .intro-title-screen.active{ display:flex; }
+  .intro-title-big{
+    font-size:9cqw; font-weight:900; letter-spacing:0.3em; text-indent:0.3em;
+    color:var(--accent-gold); white-space:nowrap;
+    text-shadow:0 0 80px rgba(255,215,0,0.28);
+  }
+  .intro-title-screen.active .intro-title-big{
+    animation: intro-title-in 1600ms 150ms cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes intro-title-in{
+    0%  { opacity:0; transform:scale(1.15); filter:blur(14px); }
+    60% { opacity:1; filter:blur(0); }
+    100%{ opacity:1; transform:scale(1); filter:blur(0); }
+  }
+  /* 英語併記（デザイン上のバイリンガル表記） */
+  .intro-title-en{
+    font-size:1.8cqw; font-weight:700; letter-spacing:0.5em; text-indent:0.5em;
+    color:rgba(255,255,255,0.4); text-transform:uppercase; white-space:nowrap;
+  }
+  .intro-title-screen.active .intro-title-en{
+    animation: intro-fade-up 1000ms 600ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  /* ループ最後の選手一覧ページ（currentIndex = 選手数 のとき表示） */
+  .intro-roster-screen{
+    position:absolute; inset:0;
+    display:none; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:3cqh; padding:9cqh 6cqw 5cqh;
+    pointer-events:none;
+  }
+  .intro-roster-screen.active{ display:flex; }
+  .intro-roster-title{
+    font-size:3.2cqw; font-weight:900; letter-spacing:0.4em; text-indent:0.4em;
+    color:var(--accent-gold); line-height:1;
+    text-shadow:0 0 40px rgba(255,215,0,0.2);
+  }
+  .intro-roster-screen.active .intro-roster-title{
+    animation: intro-fade-up 1000ms 0ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  .intro-roster-grid{
+    width:88cqw; height:70cqh; column-gap:4cqw;
+  }
+  .intro-roster-screen.active .intro-roster-grid{
+    animation: intro-fade-up 1000ms 300ms cubic-bezier(0.22,1,0.36,1) both;
+  }
+  .intro-roster-head{
+    break-inside:avoid; font-weight:900; color:var(--accent-gold);
+    margin:0.7em 0 0.25em; letter-spacing:0.12em; font-size:0.72em;
+    border-bottom:1px solid rgba(0,242,255,0.25); padding-bottom:0.12em;
+  }
+  .intro-roster-head:first-child{ margin-top:0; }
+  .intro-roster-item{
+    break-inside:avoid; display:flex; align-items:baseline; gap:0.55em;
+    color:#fff; font-weight:700; line-height:1.5;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .intro-roster-item .rno{ color:var(--text-muted); font-weight:800; min-width:3em; text-align:right; flex-shrink:0; }
+  .intro-roster-item .rclub{ color:rgba(255,255,255,0.45); font-size:0.6em; font-weight:600; overflow:hidden; text-overflow:ellipsis; }
   .intro-card{
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
@@ -736,7 +916,7 @@
   }
   /* クラスラベル: 左からスライド */
   .intro-anim .intro-class-lbl{
-    animation: intro-from-left 600ms 0ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-from-left 1200ms 0ms cubic-bezier(0.22,1,0.36,1) both;
   }
   @keyframes intro-from-left{
     from{ opacity:0; transform:translateX(-4cqw); }
@@ -744,11 +924,11 @@
   }
   /* 順番ラベル */
   .intro-anim .intro-order-lbl{
-    animation: intro-fade-up 500ms 80ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-fade-up 1000ms 200ms cubic-bezier(0.22,1,0.36,1) both;
   }
   /* 名前: 最派手 — 拡縮＋ブラー */
   .intro-anim .intro-name-lbl{
-    animation: intro-name-burst 800ms 150ms cubic-bezier(0.16,1,0.3,1) both;
+    animation: intro-name-burst 1600ms 300ms cubic-bezier(0.16,1,0.3,1) both;
   }
   @keyframes intro-name-burst{
     0%  { opacity:0; transform:scale(1.18) translateY(1.5cqh); filter:blur(18px); }
@@ -756,47 +936,36 @@
     100%{ opacity:1; transform:scale(1) translateY(0); filter:blur(0);
           text-shadow: 0 0 120px rgba(255,255,255,0.35), 0 0 40px rgba(0,242,255,0.2); }
   }
-  /* かな */
-  .intro-anim .intro-kana-lbl{
-    animation: intro-fade-up 500ms 380ms cubic-bezier(0.22,1,0.36,1) both;
-  }
   /* 所属 */
   .intro-anim .intro-club-lbl{
-    animation: intro-fade-up 500ms 500ms cubic-bezier(0.22,1,0.36,1) both;
+    animation: intro-fade-up 1000ms 800ms cubic-bezier(0.22,1,0.36,1) both;
   }
   @keyframes intro-fade-up{
     from{ opacity:0; transform:translateY(2cqh); }
     to  { opacity:1; transform:translateY(0); }
   }
   .intro-class-lbl{
-    font-size:2.2cqw; font-weight:800; letter-spacing:0.4em;
+    font-size:2.8cqw; font-weight:800; letter-spacing:0.4em;
     color:var(--accent-gold); text-transform:uppercase; line-height:1;
   }
   .intro-order-lbl{
-    font-size:1.7cqw; font-weight:700; letter-spacing:0.2em;
+    font-size:2.2cqw; font-weight:700; letter-spacing:0.2em;
     color:var(--text-muted); line-height:1;
   }
   .intro-name-lbl{
-    font-size:11cqw; font-weight:900; line-height:0.9;
+    font-size:12cqw; font-weight:900; line-height:0.9;
     letter-spacing:-2px; color:#ffffff; white-space:nowrap;
     text-shadow:0 0 80px rgba(255,255,255,0.12);
-  }
-  .intro-kana-lbl{
-    font-size:2.6cqw; font-weight:600; letter-spacing:0.25em;
-    color:rgba(255,255,255,0.45); line-height:1;
+    /* シンクロ（2名分）等で既定サイズのままだと画面幅をはみ出すため、
+       JS側で文字数に応じてfont-sizeを縮小する（下のapplyIntroSlide参照）。
+       以前はここにmax-width+overflow:hiddenの保険を付けていたが、
+       line-height:0.9の詰めた行送りやtext-shadowの広い滲みが箱型に
+       切り取られ、名前部分が四角く色の違う塊に見えたり下端が欠けたりして
+       いたため撤去した（JS側の縮小だけで画面内に収まることは確認済み）。 */
   }
   .intro-club-lbl{
-    font-size:3.2cqw; font-weight:800; letter-spacing:0.12em;
+    font-size:4cqw; font-weight:800; letter-spacing:0.12em;
     color:rgba(255,255,255,0.75); line-height:1;
-  }
-  .intro-progress-wrap{
-    position:absolute; bottom:0; left:0; right:0;
-    height:3px; background:rgba(255,255,255,0.06); overflow:hidden;
-  }
-  .intro-progress-fill{
-    height:100%; width:0%;
-    background:linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-gold) 100%);
-    transition:none;
   }
   /* ===== 決勝スタートリスト画面 ===== */
   #vs-final-startlist{
@@ -830,10 +999,14 @@
   .fsl-class{
     font-size:3.2cqw; font-weight:900; color:var(--accent-gold); line-height:1.1;
   }
-  /* リスト：grid で名前列幅を最長名前に統一 → チーム名が全行同じ位置に揃う */
+  /* リスト：grid で名前列幅を最長名前に統一 → チーム名が全行同じ位置に揃う。
+     チーム名列も1fr（残り幅を使い切る）ではなくmax-content（内容分だけ）にし、
+     justify-content:centerで番号・名前・チーム名のブロック全体を中央寄せする
+     （1frのままだと短いチーム名の右側が全部空白になり、全体が左に寄って見えるため） */
   .fsl-table{
     flex:1; display:grid;
-    grid-template-columns: 5cqw max-content 1fr;  /* 番号 | 名前(最長に揃える) | チーム名 */
+    grid-template-columns: 5cqw max-content max-content;  /* 番号 | 名前(最長に揃える) | チーム名(最長に揃える) */
+    justify-content:center;
     align-content:space-evenly;
     align-items:baseline;
     column-gap:1.5cqw;
@@ -854,10 +1027,11 @@
     white-space:nowrap;
     line-height:1.05;
   }
-  /* チーム名：残り幅を使い切る */
+  /* チーム名：内容分の幅（max-content列）。極端に長い所属名の場合だけ省略記号で収める */
   .fsl-club{
     font-size:var(--fsl-club-fs,1.6cqw); font-weight:600;
     color:rgba(255,255,255,0.4);
+    max-width:26cqw;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     line-height:1.3;
   }
@@ -913,6 +1087,7 @@
 
   <!-- 集計中画面（内容はJS動的生成） -->
   <div id="vs-calculating" class="venue-screen"></div>
+  <div id="vs-inquiry" class="venue-screen"></div>
 
   <!-- 会場練習画面 -->
   <div id="vs-warmup" class="venue-screen">
@@ -935,31 +1110,40 @@
     <div class="fsl-layout" id="fsl-layout"></div>
   </div>
 
+  <!-- 団体順位表画面 -->
+  <div id="vs-team-ranking" class="venue-screen">
+    <div class="tr-layout" id="tr-layout"></div>
+  </div>
+
   <!-- 選手紹介画面 -->
   <div id="vs-intro" class="venue-screen">
     <div class="intro-layout" id="intro-layout">
       <div class="intro-top-bar">
         <div class="intro-event-lbl" id="intro-event-lbl"></div>
-        <div class="intro-counter-lbl" id="intro-counter-lbl"></div>
+        <div class="intro-warmup-timer num" id="intro-warmup-timer" style="display:none"></div>
+      </div>
+      <div class="intro-title-screen" id="intro-title-screen">
+        <div class="intro-title-big">選手紹介</div>
+        <div class="intro-title-en">ATHLETE INTRODUCTION</div>
+      </div>
+      <div class="intro-roster-screen" id="intro-roster-screen">
+        <div class="intro-roster-title" id="intro-roster-title">出場選手</div>
+        <div class="intro-roster-grid" id="intro-roster-grid"></div>
       </div>
       <div class="intro-card" id="intro-card">
         <div class="intro-class-lbl" id="intro-class-lbl"></div>
         <div class="intro-order-lbl" id="intro-order-lbl"></div>
         <div class="intro-divider"></div>
         <div class="intro-name-lbl" id="intro-name-lbl"></div>
-        <div class="intro-kana-lbl" id="intro-kana-lbl"></div>
         <div class="intro-club-lbl" id="intro-club-lbl"></div>
-      </div>
-      <div class="intro-progress-wrap">
-        <div class="intro-progress-fill" id="intro-progress-fill"></div>
       </div>
     </div>
   </div>
 
 <script type="module">
   import { db } from "./firebase-config.js";
-  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries } from "./shared.js";
+  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, round1, buildIntroSteps } from "./shared.js";
   import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
@@ -1139,6 +1323,23 @@
     } catch { return null; }
   }
 
+  // renderFocusResult() の各分岐（通常スコア表示・DNS表示）が新しいコンテンツを出す直前に
+  // 必ず呼ぶ共通リセット。片方の分岐だけがこれを忘れると、古い順位表ループ/タイマーが
+  // 残ったまま新しいコンテンツと競合する。
+  function resetForNewFocusContent() {
+    if (rankingTimer) { clearTimeout(rankingTimer); rankingTimer = null; }
+    stopRankingLoop();
+  }
+
+  // renderFocusResult() の各分岐が表示を終えた後、必ず呼ぶ共通の「次へ進める」処理。
+  // これを呼ばない分岐が1つでもあると、そこでキュー処理が永久に止まってしまう
+  // （以前DNS分岐がこれを呼んでおらず、DNS確定後は会場ディスプレイが固まったまま
+  //   以後のスコアも一切表示されなくなっていた）。
+  function scheduleNextFocusStep() {
+    const displayDelay = (displaySettings.animTotalSec + displaySettings.holdSec) * 1000;
+    rankingTimer = setTimeout(() => onScoreDisplayDone(), displayDelay);
+  }
+
   // ---- メインレンダリング ----
   async function renderFocusResult(resultDoc) {
     const isNew   = resultDoc.id !== lastResultId;
@@ -1152,13 +1353,25 @@
       monitor.style.opacity = '0';
     }
 
+    // シンクロは選手1・選手2の所属を両方併記するため、ダブルネーム登録同士が重なると
+    // かなり長い文字列になり、そのままだと折り返されて2〜3行になってしまう。
+    // 文字数に応じて縮小し、1行に収まるようにする（.athlete-nameで既に使っている手法と同じ）。
+    const clubFsCqw = text => {
+      const len = (text || '').length;
+      return len <= 20 ? 2.2 : len <= 30 ? 1.8 : len <= 40 ? 1.5 : len <= 50 ? 1.25 : len <= 60 ? 1.05 : 0.9;
+    };
+
     // ---- DNS（棄権）表示 ----
     if (resData.dns === true) {
+      resetForNewFocusContent();
       const classGenderDns = [ath.class || ath.category, ath.gender].filter(Boolean).join(' ');
       const orderLabelDns  = `No.${ath.order || '?'}`;
       const nameDns = ath.type === 'synchro' && ath.name2
         ? `${ath.name1 || '---'} / ${ath.name2}`
         : (ath.name1 || '---');
+      // シンクロは選手1・選手2の所属が異なりうるので両方併記する（同じ場合は1つだけ）
+      const clubDns = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+        ? `${ath.club1 || ''} / ${ath.club2 || ''}` : (ath.club1 || '');
       monitor.innerHTML = `
         <div class="convention-header">${tournamentName}</div>
         <div class="athlete-section">
@@ -1166,7 +1379,7 @@
           <div class="session-info">${getRoundLabel(resData.round)}</div>
           <div class="athlete-identity-group">
             <h1 class="athlete-name">${nameDns}</h1>
-            <div class="athlete-team">${ath.club1 || ''}</div>
+            <div class="athlete-team" style="white-space:nowrap;font-size:${clubFsCqw(clubDns)}cqw">${clubDns}</div>
           </div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
@@ -1176,6 +1389,7 @@
         <footer class="footer-credits">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
       monitor.style.opacity = '1';
       lastShownResData = resData; lastShownAth = ath;
+      scheduleNextFocusStep();
       return;
     }
 
@@ -1193,6 +1407,11 @@
 
     // ---- 指定難度 ----
     const _classRule  = getClassRule(ath);
+    // 難度点上限（null=なし）
+    const _psc = parseFloat(_classRule.perSkillDDCap);
+    const perSkillDDCap = (_classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+    const _rtc = parseFloat(_classRule.routineDDCap);
+    const routineDDCap  = (_classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
     const _rawDesig   = _classRule.designatedDDCount ?? -1;
     const _validDesig = _rawDesig >= 0
         && _classRule.qualifyingRoutines === 2
@@ -1207,6 +1426,22 @@
 
     const hasManualDDValues = !!(resData.officialDDValues && resData.officialDDValues.length > 0);
 
+    // ---- HDTS 技別 ToF/HD（アクティブパネルの保存値。存在する時だけ表示） ----
+    // シンクロは judge_cjp.html 側で個人と別の形（syn / hd1 / hd2、HD欄は2人分をスラッシュ表示）で
+    // 保存されるため、検出・表示ともに個人形式（tof / hd）とシンクロ形式の両方に対応する。
+    const _hdtsMap = resData.hdtsPerSkillByPanel;
+    let hdtsPerSkill = null;
+    if (_hdtsMap && Object.keys(_hdtsMap).length) {
+      const _counts = {};
+      Object.keys(resData.execution?.judges || {}).forEach(k => { const p = k.split('_')[0]; _counts[p] = (_counts[p] || 0) + 1; });
+      const _active = Object.entries(_counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      hdtsPerSkill = _hdtsMap[_active] || _hdtsMap[Object.keys(_hdtsMap)[0]] || null;
+    }
+    const isSynHdts = !!(hdtsPerSkill && (hdtsPerSkill.isSynchro || hdtsPerSkill.syn || hdtsPerSkill.hd1 || hdtsPerSkill.hd2));
+    const hasHdts = !!(hdtsPerSkill && (isSynHdts
+      ? ((hdtsPerSkill.syn || []).some(v => v != null) || (hdtsPerSkill.hd1 || []).some(v => v != null) || (hdtsPerSkill.hd2 || []).some(v => v != null))
+      : ((hdtsPerSkill.tof || []).some(v => v != null) || (hdtsPerSkill.hd || []).some(v => v != null))));
+
     const skillCols = [];
     for (let i = 0; i < 10; i++) {
       if (i >= vLimit) {
@@ -1218,6 +1453,7 @@
               <div class="d-code">-</div>
               <div class="d-val num">-</div>
             </div>
+            ${hasHdts ? '<div class="card tof-card"><div class="tof-val num">-</div></div><div class="card hd-card"><div class="hd-val num">-</div></div>' : ''}
           </div>`);
         continue;
       }
@@ -1249,7 +1485,7 @@
       const isDesigSkill = desigCount < 0
           || (desigCount > 0 && desigIndices.includes(i));
 
-      let displayDD = 0, dCodeTxt, dValTxt;
+      let displayDD = 0, dCodeTxt, dValTxt, isCappedSkill = false;
       if (hasManualDDValues) {
         // 手動入力: officialDDValues から各技の DD 値を復元
         displayDD = Number(resData.officialDDValues[i]) || 0;
@@ -1264,8 +1500,10 @@
         if (skill && !isRepeat) {
           seenIds.add(repeatKey);
           if (isDesigSkill) {
-            displayDD = skill.dd;
-            baseDD   += skill.dd;
+            // 1技あたり難度上限: 上限超の技は上限値で計算（色付け）
+            isCappedSkill = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
+            displayDD = isCappedSkill ? perSkillDDCap : skill.dd;
+            baseDD   += displayDD;
             if (skill.isTriple) tripleCount++;
           }
         }
@@ -1288,37 +1526,51 @@
       const dimCode = !isDesigSkill && !codeAlert; // 非指定かつ差異なし→薄く
       const dimVal  = !isDesigSkill && !valAlert;
 
+      const tofTxt = isSynHdts
+          ? ((hdtsPerSkill?.syn?.[i] != null) ? Number(hdtsPerSkill.syn[i]).toFixed(2) : '-')
+          : ((hdtsPerSkill?.tof?.[i] != null) ? Number(hdtsPerSkill.tof[i]).toFixed(3) : '-');
+      const hdTxt  = isSynHdts
+          ? ((hdtsPerSkill?.hd1?.[i] != null || hdtsPerSkill?.hd2?.[i] != null)
+              ? `${hdtsPerSkill.hd1?.[i] ?? '-'} / ${hdtsPerSkill.hd2?.[i] ?? '-'}` : '-')
+          : ((hdtsPerSkill?.hd?.[i] != null) ? hdtsPerSkill.hd[i] : '-');
       skillCols.push(`
         <div class="skill-stack">
           <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
           <div class="card e-card"><div class="e-val num${synchro ? ' syn' : ''}">${eDisplay}</div></div>
           <div class="card d-card">
             <div class="d-code${codeAlert ? ' alert' : dimCode ? ' dim' : ''}">${dCodeTxt}</div>
-            <div class="d-val num${valAlert ? ' alert' : dimVal ? ' dim' : ''}">${dValTxt}</div>
+            <div class="d-val num${valAlert ? ' alert' : dimVal ? ' dim' : isCappedSkill ? ' capped' : ''}">${dValTxt}</div>
           </div>
+          ${hasHdts ? `<div class="card tof-card"><div class="tof-val num">${tofTxt}</div></div><div class="card hd-card"><div class="hd-val num">${hdTxt}</div></div>` : ''}
         </div>`);
     }
 
     // ---- ボーナス計算 ----
     const bonus   = hasManualDDValues ? (resData.officialDDBonus || 0) : calcBonus(ath.gender, tripleCount);
-    const finalDD = hasManualDDValues ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
+    let finalDD = hasManualDDValues ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
+    // 構成あたり難度上限（自動計算時のみ。手動確定値 officialTotalDD はそのまま尊重）
+    if (!hasManualDDValues && routineDDCap != null && round1(finalDD) > routineDDCap) finalDD = routineDDCap;
 
     // LAN列（officialELanding があれば CJP 値を優先）
     const landDed = (resData.officialELanding != null)
         ? resData.officialELanding
         : getLandingDed(panelJudges, synchro, numE);
     const isLanValid = vLimit === 10;
+    // LAN(着地)は中断時のみ薄く。ボーナスは 0 なら非表示・>0 なら常に濃く表示（中断でも薄くしない）
+    const lanDim = isLanValid ? '' : 'opacity:0.25;';
     const bonusCol = `
-      <div class="skill-stack bonus-style" style="${isLanValid ? '' : 'opacity:0.25;'}">
-        <div class="col-idx">LAN</div>
-        <div class="card e-card"><div class="e-val num${synchro ? ' syn' : ''}">${isLanValid && landDed !== null ? (synchro ? (landDed * 10).toFixed(2) : Math.round(landDed * 10)) : '--'}</div></div>
-        <div class="bonus-note-block" style="${bonus > 0 ? '' : 'opacity:0.25;'}">
+      <div class="skill-stack bonus-style">
+        <div class="col-idx" style="${lanDim}">LAN</div>
+        <div class="card e-card" style="${lanDim}"><div class="e-val num${synchro ? ' syn' : ''}">${isLanValid && landDed !== null ? (synchro ? (landDed * 10).toFixed(2) : Math.round(landDed * 10)) : '--'}</div></div>
+        ${bonus > 0 ? `
+        <div class="bonus-note-block">
           <span>D-SCORE</span>
           <span>BONUS</span>
         </div>
-        <div class="bonus-dval" style="${bonus > 0 ? '' : 'opacity:0.25;'}">
+        <div class="bonus-dval">
           <span class="bonus-val num">+${bonus.toFixed(1)}</span>
-        </div>
+        </div>` : ''}
+        ${hasHdts ? '<div class="empty-card" style="grid-row:5;"></div><div class="empty-card" style="grid-row:6;"></div>' : ''}
       </div>`;
 
     // ---- スコア集計 ----
@@ -1339,6 +1591,8 @@
     const fmt1 = v => (v !== null && v !== undefined) ? Number(v).toFixed(1) : '--';
     const fmt2 = v => (v !== null && v !== undefined) ? Number(v).toFixed(2) : '--';
     const fmt3 = v => (v !== null && v !== undefined) ? Number(v).toFixed(3) : '--';
+    // 四捨五入して小数第2位表示（FP堅牢: 既存の満精度保存値 6.675→6.68 等にも対応）
+    const fmt2r = v => (v !== null && v !== undefined) ? (Math.round(Number(v) * 100 + 1e-6) / 100).toFixed(2) : '--';
 
     // ---- 他ラウンド結果 & 順位 ----
     const athResults = await getAthleteResults(resData.athleteId);
@@ -1386,6 +1640,20 @@
     const orderLabel   = (resData.round === 'final' && ath.finalOrder != null)
       ? `No.${ath.finalOrder}`
       : `No.${ath.order || '?'}`;
+    // シンクロは選手1・選手2の所属が異なりうるので両方併記する（同じ場合は1つだけ）
+    const clubLabel = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+      ? `${ath.club1 || ''} / ${ath.club2 || ''}` : (ath.club1 || '---');
+
+    // ---- ペナルティ内容（penaltyItems があれば数字の下にチップ表示、無ければ数値のみ） ----
+    const penItems = Array.isArray(resData.penaltyItems) ? resData.penaltyItems : [];
+    const penCellHTML = penItems.length
+      ? `<div class="stat-item pen-item">
+            <div class="pen-top"><label>Penalty</label><div class="val num alert">${fmt1(pScore)}</div></div>
+            <div class="pen-reasons">
+              ${penItems.map(it => `<span class="pen-reason-chip">${it.display || it.en || it.ja || ''} <span class="pt">−${Number(it.points || 0).toFixed(1)}</span></span>`).join('')}
+            </div>
+          </div>`
+      : `<div class="stat-item"><label>Penalty</label><div class="val num${pScore > 0 ? ' alert' : ''}">${fmt1(pScore)}</div></div>`;
 
     // ---- フルHTML生成 ----
     const html = `
@@ -1400,30 +1668,31 @@
         <div class="athlete-identity-group">
           ${ath.type === 'synchro' && ath.name2
             ? `<h1 class="athlete-name" style="font-size:5cqw">${ath.name1 || '---'} <span style="opacity:0.5;font-weight:400;letter-spacing:0">/</span> ${ath.name2}</h1>
-               <div class="athlete-team">${ath.club1 || '---'}</div>`
+               <div class="athlete-team" style="white-space:nowrap;font-size:${clubFsCqw(clubLabel)}cqw">${clubLabel}</div>`
             : `<h1 class="athlete-name">${ath.name1 || '---'}</h1>
-               <div class="athlete-team">${ath.club1 || '---'}</div>`
+               <div class="athlete-team" style="white-space:nowrap;font-size:${clubFsCqw(clubLabel)}cqw">${clubLabel}</div>`
           }
         </div>
       </div>
 
-      <div class="ribbon-wrapper">
+      <div class="ribbon-wrapper${hasHdts ? ' has-hdts' : ''}">
         <div class="row-labels">
           <div class="row-title idx-label">Skill No</div>
           <div class="row-title e-label">E-Deduction</div>
           <div class="row-title d-sub-label">Skill Code</div>
           <div class="row-title d-sub-label">D-Score</div>
+          ${hasHdts ? `<div class="row-title d-sub-label" style="text-transform:none">${isSynHdts ? 'Syn' : 'ToF'}</div><div class="row-title d-sub-label">HD</div>` : ''}
         </div>
         ${skillCols.join('')}
         ${bonusCol}
       </div>
 
       <div class="breakdown-row">
-        <div class="stat-item"><label>Exec.</label><div class="val num">${fmt3(eScore)}</div></div>
+        <div class="stat-item"><label>Exec.</label><div class="val num">${synchro ? fmt2r(eScore) : fmt3(eScore)}</div></div>
         <div class="stat-item"><label>Diff.</label><div class="val num${hasAnyDiff ? ' alert':''}">${fmt1(dScore)}</div></div>
-        <div class="stat-item"><label>${synchro ? 'Syn' : 'ToF'}</label><div class="val num">${fmt3(tScore)}</div></div>
+        <div class="stat-item"><label${synchro ? '' : ' style="text-transform:none"'}>${synchro ? 'Syn' : 'ToF'}</label><div class="val num">${fmt2(tScore)}</div></div>
         <div class="stat-item"><label>HD</label><div class="val num">${fmt2(hdScore)}</div></div>
-        <div class="stat-item"><label>Penalty</label><div class="val num${pScore > 0 ? ' alert' : ''}">${fmt1(pScore)}</div></div>
+        ${penCellHTML}
       </div>
 
       <div class="result-section">
@@ -1452,10 +1721,12 @@
     lastShownAth     = ath;
 
     // 既存タイマー・オーバーレイをリセット
-    if (rankingTimer) { clearTimeout(rankingTimer); rankingTimer = null; }
-    stopRankingLoop();
+    resetForNewFocusContent();
     let overlay = document.getElementById('ranking-overlay');
     if (overlay) overlay.classList.remove('visible');
+    // 巡回で団体画面を出している最中にスコアが割り込んだら団体画面も隠す
+    // （CJPが明示表示する団体順位表=巡回停止時 は隠さない）
+    if (carouselActive) document.getElementById('vs-team-ranking')?.classList.remove('active');
 
     if (isNew) {
       monitor.classList.remove('no-anim');
@@ -1473,8 +1744,7 @@
     monitor.appendChild(overlay);
 
     // スコア表示後 → キュー処理 or 順位表ループへ
-    const displayDelay = (displaySettings.animTotalSec + displaySettings.holdSec) * 1000;
-    rankingTimer = setTimeout(() => onScoreDisplayDone(), displayDelay);
+    scheduleNextFocusStep();
   }
 
   // ==== 表示設定（Firestoreから読み込み、デフォルト値付き） ====
@@ -1487,13 +1757,13 @@
 
   let rankingTimer     = null;   // スコア表示→順位表遷移タイマー
   let rankingPageTimer = null;   // 順位表ページ切替タイマー
+  let calcFlashTimer   = null;   // キュー滞留中に集計中を1秒だけ見せて戻すタイマー
   let currentMode      = 'idle'; // 'idle' | 'score' | 'ranking' | 'carousel'
   let displayQueue     = [];     // 表示待ちの resultDoc キュー
   let lastShownResData = null;   // 最後に表示したスコアのデータ（順位表用）
   let lastShownAth     = null;   // 最後に表示した選手情報
   let currentRankingPage = 0;
   let allRankingEntries  = [];
-  let savedVenueScreen = null;  // スコア表示中に退避した会場画面（warmup等）
 
   // ---- 順位表 巡回モード ----
   let carouselActive   = false;
@@ -1528,6 +1798,9 @@
     }
     currentMode = 'score';
     stopRankingLoop();
+    // 巡回中にスコアが割り込んだら、残った巡回タイマーが後から発火して
+    // 個人スコア後の順位表を別カテゴリーで上書きするのを防ぐ（巡回はここで止まる）
+    if (carouselTimer) { clearTimeout(carouselTimer); carouselTimer = null; }
     const resultDoc = displayQueue.shift();
     await renderFocusResult(resultDoc);
   }
@@ -1536,20 +1809,6 @@
     // スコア表示完了 → キューに次があれば続行、なければ順位表へ
     // 順位表も終わったら退避していた会場画面（warmup等）を復元
     processQueue();
-  }
-
-  function restoreSavedVenueScreen() {
-    if (savedVenueScreen === 'warmup') {
-      document.getElementById('vs-warmup')?.classList.add('active');
-      // タイマーはintervalが残っていれば継続中、止まっていれば再起動
-      if (!warmupTimerInterval && tournamentData?.warmupSettings) {
-        startWarmupDisplay(tournamentData.warmupSettings);
-      }
-    } else if (savedVenueScreen === 'intro') {
-      document.getElementById('vs-intro')?.classList.add('active');
-      if (tournamentData?.introSettings) applyIntroSlide(tournamentData.introSettings);
-    }
-    savedVenueScreen = null;
   }
 
   // ---- 順位表ループ ----
@@ -1642,6 +1901,183 @@
     } catch(e) { console.error(e); return []; }
   }
 
+  // ==== 団体順位表：teams + results から都度集計（保存なし） ====
+  async function computeTeamRanking(classVal, genderVal, selType) {
+    // 団体（team）の得点はメンバーの個人種目（pre1/pre2）の結果から集計するため、
+    // クラスルールは常に individual 側を参照する（ranking.html の buildTeamSectionHtml と同じ）。
+    // selType（呼び出し元の巡回候補で推定した個人/シンクロ種別）をそのまま使うと、
+    // 個人とシンクロで同名のクラス（例: 「Bクラス」）がある大会では誤ってシンクロ側の
+    // ルール（予選本数・採点方式）を引いてしまい、二本採点のクラスが一本扱いになる不具合があった。
+    const rule = getClassRule({ class: classVal, type: 'individual' });
+    const scoreMode = rule.scoreMode || 'best';
+    const numPre    = rule.qualifyingRoutines ?? tournamentData?.qualifyingRoutines ?? 1;
+    const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
+    const teamDocs = teamSnap.docs.filter(d => {
+      const t = d.data();
+      return (t.class || '') === classVal && (t.gender || '') === genderVal;
+    });
+    const resultDocs = await _getPublishedResultDocs();
+    // 棄権・未実施は全項目0
+    const comp = r => (r.dns === true)
+      ? { total: 0, T: 0, H: 0, D: 0 }
+      : { total: r.officialTotal ?? 0, T: r.tof ?? 0, H: r.hd?.total ?? 0, D: r.officialD ?? 0 };
+    const byAth = {};
+    resultDocs.forEach(d => {
+      const r = d.data();
+      if (r.round !== 'pre1' && r.round !== 'pre2') return;
+      (byAth[r.athleteId] ||= {})[r.round] = comp(r);
+    });
+    const ZERO = { total: 0, T: 0, H: 0, D: 0 };
+    const top3 = arr => [...arr].sort((a, b) => b - a).slice(0, 3).reduce((s, v) => s + v, 0);
+
+    const teams = teamDocs.map(td => {
+      const t = td.data();
+      const members = (t.memberIds || []).map(id => {
+        const ath  = athleteMap[id];
+        const name = ath ? (ath.name1 || id) : id;
+        const p1raw = byAth[id]?.pre1, p2raw = byAth[id]?.pre2;
+        const p1 = p1raw || ZERO, p2 = p2raw || ZERO;
+        const p1has = p1raw != null, p2has = p2raw != null; // その本の結果が存在するか（＝演技済みか）
+        if (scoreMode === 'best') {
+          const useP2 = p2.total > p1.total;
+          const adopt = useP2 ? p2 : p1; // 採用演技（合計が高い方）
+          return { name, score: adopt.total, T: adopt.T, H: adopt.H, D: adopt.D, p1, p2, p1has, p2has, adoptRoutine: useP2 ? 2 : 1 };
+        }
+        return { name, p1, p2, p1has, p2has };
+      });
+      let score, tbT, tbH, tbD;
+      if (scoreMode === 'best') {
+        score = top3(members.map(m => m.score));
+        tbT   = top3(members.map(m => m.T));
+        tbH   = top3(members.map(m => m.H));
+        tbD   = top3(members.map(m => m.D));
+        members.sort((a, b) => b.score - a.score);
+        members.forEach((m, i) => { m._count = i < 3; }); // 上位3名を採用表示
+      } else {
+        score = top3(members.map(m => m.p1.total)) + top3(members.map(m => m.p2.total));
+        tbT   = top3(members.map(m => m.p1.T)) + top3(members.map(m => m.p2.T));
+        tbH   = top3(members.map(m => m.p1.H)) + top3(members.map(m => m.p2.H));
+        tbD   = top3(members.map(m => m.p1.D)) + top3(members.map(m => m.p2.D));
+      }
+      return { teamName: t.teamName || '—', members, score, tbT, tbH, tbD };
+    });
+    // 団体得点 → T → H → D の降順
+    teams.sort((a, b) => b.score - a.score || b.tbT - a.tbT || b.tbH - a.tbH || b.tbD - a.tbD);
+    return { teams, scoreMode, numPre };
+  }
+
+  // ---- 団体順位表（1画面3チーム固定・4チーム以上はページ送り・出場選手を縦並び） ----
+  let _trTeams = [], _trScoreMode = 'best', _trNumPre = 1, _trPage = 0, _trPageTimer = null, _trHead = null;
+  const TR_PER_PAGE = 3;
+
+  function trHeaderHtml(pageInd) {
+    const h = _trHead || {};
+    return `
+      <div class="tr-conv">${h.conv || ''}</div>
+      <div class="tr-cat">
+        <span class="tr-cat-title">団体競技</span>
+        ${h.classVal ? `<span class="tr-cat-part">${h.classVal}</span>` : ''}
+        ${h.genderVal ? `<span class="tr-cat-part">${h.genderVal}</span>` : ''}
+        <span class="tr-cat-round">予選</span>
+        ${pageInd || ''}
+      </div>`;
+  }
+  const trCreditHtml = () => `<footer class="tr-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
+
+  function renderTeamRankPage() {
+    const layout = document.getElementById('tr-layout');
+    if (!layout) return;
+    const totalPages = Math.max(1, Math.ceil(_trTeams.length / TR_PER_PAGE));
+    const page = ((_trPage % totalPages) + totalPages) % totalPages;
+    if (_trTeams.length === 0) {
+      layout.innerHTML = trHeaderHtml('') + `<div class="tr-list"><div class="tr-empty">この区分の登録チームがありません</div></div>` + trCreditHtml();
+      return;
+    }
+    const pageInd = '';   // ページ番号(1/2 等)は表示しない
+    const pageTeams = _trTeams.slice(page * TR_PER_PAGE, page * TR_PER_PAGE + TR_PER_PAGE);
+    const topScore = _trTeams[0]?.score ?? 0;   // 1位（全体の先頭）のスコア = GAP の基準
+    const listHtml = pageTeams.map((t, i) => {
+      const rank = page * TR_PER_PAGE + i + 1;
+      const rcls = rank <= 3 ? ` r${rank}` : '';
+      const twoRtn = _trNumPre === 2;   // 予選2本ならRtn1/Rtn2で両本表示（採点方式に関係なく）
+      const isBest = _trScoreMode === 'best';
+      const slots = Math.max(4, t.members.length);   // 4枠固定（3人でも空き枠でそろえる）
+      let mems = '';
+      for (let k = 0; k < slots; k++) {
+        const m = t.members[k];
+        if (!m) { mems += `<div class="tr-mem tr-mem-empty"></div>`; continue; }
+        if (!twoRtn) {
+          // 予選1本: 単一得点（best=採用スコア・不採用選手は取り消し線）。未演技は空欄
+          const cls = isBest ? (m._count ? 'count' : 'drop') : '';
+          const val = isBest ? m.score : m.p1.total;
+          const disp = m.p1has ? val.toFixed(2) : '';
+          mems += `<div class="tr-mem ${cls}"><span class="tr-mem-name">${m.name}</span>` +
+                  `<span class="tr-mem-scores"><span>${disp}</span></span></div>`;
+        } else {
+          // 予選2本: Rtn1/Rtn2 を横並び。未演技の本は空欄。best は採用しない方の本を取り消し線、不採用選手は両方
+          const d1 = m.p1has ? m.p1.total.toFixed(2) : '';
+          const d2 = m.p2has ? m.p2.total.toFixed(2) : '';
+          let memCls = '', s1 = '', s2 = '';
+          if (isBest) {
+            memCls = m._count ? 'count' : 'drop';
+            // 取り消し線は値のある本にのみ付ける（空欄には付けない）
+            if (m._count) { if (m.adoptRoutine === 1) { if (m.p2has) s2 = 'struck'; } else { if (m.p1has) s1 = 'struck'; } }
+          }
+          mems += `<div class="tr-mem ${memCls}"><span class="tr-mem-name">${m.name}</span>` +
+                  `<span class="tr-mem-scores"><span class="${s1}">${d1}</span><span class="${s2}">${d2}</span></span></div>`;
+        }
+      }
+      const memHead = twoRtn
+        ? `<div class="tr-mem-head"><span class="tr-mem-name"></span><span class="tr-mem-scores"><span>Rtn1</span><span>Rtn2</span></span></div>`
+        : '';
+      const membersCls = twoRtn ? 'tr-members has-head' : 'tr-members';
+      const gap = topScore - t.score;   // 1位との差（1位/同点は非表示）
+      const gapHtml = gap >= 0.005 ? `<span class="tr-gap">GAP -${gap.toFixed(2)}</span>` : '';
+      return `<div class="tr-row${rcls}">
+          <div class="tr-rank">${rank}</div>
+          <div class="tr-name">${t.teamName}</div>
+          <div class="${membersCls}">${memHead}<div class="tr-mem-list">${mems}</div></div>
+          <div class="tr-total"><label>Total</label><span class="tr-total-num">${t.score.toFixed(2)}</span>${gapHtml}</div>
+        </div>`;
+    }).join('');
+    layout.innerHTML = trHeaderHtml(pageInd) + `<div class="tr-list">${listHtml}</div>` + trCreditHtml();
+  }
+
+  function startTeamRankCycle() {
+    stopTeamRankCycle();
+    _trPageTimer = setInterval(() => {
+      const totalPages = Math.max(1, Math.ceil(_trTeams.length / TR_PER_PAGE));
+      _trPage = (_trPage + 1) % totalPages;
+      renderTeamRankPage();
+    }, (displaySettings.rankingPageSec || 8) * 1000);
+  }
+  function stopTeamRankCycle() { if (_trPageTimer) { clearInterval(_trPageTimer); _trPageTimer = null; } }
+
+  let _trTargetSig = null, _trContentSig = null;
+  async function renderTeamRanking(target) {
+    const layout = document.getElementById('tr-layout');
+    if (!layout) return;
+    const classVal = target.class || '', genderVal = target.gender || '', selType = target.type || 'individual';
+    const targetSig = `${classVal}|${genderVal}|${selType}`;
+    const targetChanged = targetSig !== _trTargetSig;
+    _trTargetSig = targetSig;
+    _trHead = { conv: tournamentName || '', classVal, genderVal };
+    // 対象クラスが変わったときだけ「集計中...」を出す（同一対象の再取得ではちらつかせない）
+    if (targetChanged) {
+      stopTeamRankCycle();
+      layout.innerHTML = trHeaderHtml('') + `<div class="tr-list"><div class="tr-empty">集計中...</div></div>` + trCreditHtml();
+    }
+    const { teams, scoreMode, numPre } = await computeTeamRanking(classVal, genderVal, selType);
+    // 内容（順位・点数・メンバー等）が同一なら再描画しない＝行の登場アニメを再生させない＝画面が動かない。
+    // （CJPの選手選択など無関係な大会ドキュメント更新で本関数が呼ばれても、見た目は変化しない）
+    const contentSig = JSON.stringify([teams, scoreMode, numPre, _trHead]);
+    if (!targetChanged && contentSig === _trContentSig) return;
+    _trContentSig = contentSig;
+    _trTeams = teams; _trScoreMode = scoreMode; _trNumPre = numPre; _trPage = 0;
+    renderTeamRankPage();
+    if (teams.length > TR_PER_PAGE) startTeamRankCycle();   // 4チーム以上はページ送り
+  }
+
   async function fetchRankingEntries() {
     if (!lastShownResData) return [];
     const ath = lastShownAth || {};
@@ -1677,8 +2113,8 @@
         while (p1entries.length < rowsPerPage) p1entries.push(null);
         renderRankingOverlay(p1entries, 0, totalPages, 0,
           ath.class || ath.category || '', ath.gender || '', ath.type || 'individual');
-        if (savedVenueScreen) restoreSavedVenueScreen();
-        if (carouselActive) carouselNext();
+        // 巡回中に得点が割り込んでここに来た場合は、巡回へ戻さず終了する（得点確定のクラスで静止表示のまま）
+        if (carouselActive) endCarouselAfterScore();
       } else {
         showRankingPage();
       }
@@ -1733,11 +2169,13 @@
       const rank   = startOffset + i + 1;
       const cur    = e.id === curAthId;
       const hasAny = isFinal ? (e.final !== null || e.pre1 !== null) : (e.pre1 !== null || e.pre2 !== null);
+      // CJPがDNS（棄権）で確定 → スコアの代わりに DNS 表示
+      const isDns  = !hasAny && [e.pre1r, e.pre2r, e.finr].some(r => r?.dns === true);
       const r1val  = isFinal ? e.final : e.pre1;
       const r1col  = showR1 ? `<div class="rk-sc num">${f(r1val)}</div>` : '';
       const r2col  = showR2 ? `<div class="rk-sc num">${f(e.pre2)}</div>` : '';
       return `<div class="rk-row${cur ? ' rk-current' : ''}">
-        <div class="rk-rank num">${rank}</div>
+        <div class="rk-rank num">${isDns ? '-' : rank}</div>
         <div class="rk-name-group">
           ${e.a.type === 'synchro' && e.a.name2
             ? `<div class="rk-name">${e.a.name1} <span style="opacity:0.45;font-weight:400">/</span> ${e.a.name2}</div>`
@@ -1746,7 +2184,7 @@
           }
         </div>
         ${r1col}${r2col}
-        <div class="rk-tot num">${hasAny ? f(e.total) : '--'}</div>
+        <div class="rk-tot num">${isDns ? 'DNS' : (hasAny ? f(e.total) : '--')}</div>
       </div>`;
     }).join('');
 
@@ -1762,7 +2200,7 @@
 
     overlay.innerHTML = `
       <div class="rk-event-name">${tournamentName}</div>
-      <div class="rk-title">${heading} — ${isFinal ? 'FINAL ' : ''}STANDINGS ${pageIndicator}</div>
+      <div class="rk-title">${heading} — ${isFinal ? '決勝 FINAL' : '予選 QUALIFYING'} STANDINGS ${pageIndicator}</div>
       <div class="rk-col-head">
         <span>#</span><span>NAME</span>${r1head}${r2head}<span>${totalHead}</span>
       </div>
@@ -1778,7 +2216,28 @@
     if (overlay) overlay.classList.remove('carousel-mode');
     stopRankingLoop();
     document.getElementById('vs-logo')?.classList.remove('active');
+    // 巡回で出していた団体画面・決勝スタートリスト画面を消す（次に applyVenueScreen が正しく画面を出せるように）
+    document.getElementById('vs-team-ranking')?.classList.remove('active');
+    document.getElementById('vs-final-startlist')?.classList.remove('active');
+    _trTargetSig = null; _trContentSig = null;   // 巡回後のCJP団体表示を確実に再描画させる
     currentMode = 'idle';
+  }
+
+  // 巡回中に得点が確定して割り込んだ場合、得点→順位表の表示が終わっても巡回へは戻さず終了する。
+  // （オペレーターが display_control.html で再度オンにするまで巡回は停止のまま。
+  //   Firestore側のフラグも倒しておき、制御パネルの表示・他クライアントとも状態を合わせる）
+  // ※ carouselStop() と違い、直前に静止表示した順位表（overlayのvisible状態）はそのまま残す。
+  function endCarouselAfterScore() {
+    if (carouselTimer) { clearTimeout(carouselTimer); carouselTimer = null; }
+    carouselActive = false;
+    document.getElementById('ranking-overlay')?.classList.remove('carousel-mode');
+    document.getElementById('vs-logo')?.classList.remove('active');
+    document.getElementById('vs-team-ranking')?.classList.remove('active');
+    document.getElementById('vs-final-startlist')?.classList.remove('active');
+    _trTargetSig = null; _trContentSig = null;
+    if (eventId) {
+      updateDoc(doc(db, 'tournaments', eventId), { 'rankingCarousel.active': false }).catch(() => {});
+    }
   }
 
   async function carouselLoadItem() {
@@ -1787,12 +2246,30 @@
     let tries = 0;
     while (tries < carouselItems.length) {
       const item = carouselItems[carouselIndex % carouselItems.length];
-      carouselEntries = await fetchRankingEntriesFor(item.classVal, item.gender, item.type);
+      if (item.mode === 'team') {
+        // 団体順位表: teams から算出し、team ranking の状態変数に入れて renderTeamRankPage で描画
+        const { teams, scoreMode, numPre } = await computeTeamRanking(item.classVal, item.gender, item.type);
+        _trTeams = teams; _trScoreMode = scoreMode; _trNumPre = numPre;
+        _trHead = { conv: tournamentName || '', classVal: item.classVal, genderVal: item.gender };
+        carouselEntries = teams;   // 長さ判定用（0ならスキップ）
+      } else if (item.mode === 'final_startlist') {
+        // 決勝スタートリスト: renderFinalStartlist()と同じ条件でathleteMapから抽出（長さ判定用）
+        carouselEntries = Object.values(athleteMap).filter(a =>
+          (a.class  || '') === item.classVal &&
+          (a.gender || '') === item.gender &&
+          (a.type   || 'individual') === item.type &&
+          a.finalOrder != null
+        );
+      } else {
+        carouselEntries = await fetchRankingEntriesFor(item.classVal, item.gender, item.type, item.round);
+      }
       if (carouselEntries.length > 0) break;
       carouselIndex++;
       tries++;
     }
     if (carouselEntries.length === 0) { carouselStop(); return; }
+    // await（順位データ取得）中にスコア/順位表が割り込んでいたら描画しない（レース対策）
+    if (!carouselActive || currentMode === 'score' || currentMode === 'ranking') return;
     // carousel-mode が消えていた場合（スコア割り込み後など）に再適用
     const _ov = document.getElementById('ranking-overlay');
     if (_ov) _ov.classList.add('carousel-mode');
@@ -1804,6 +2281,37 @@
   function carouselShowPage() {
     if (!carouselActive || currentMode === 'score' || currentMode === 'ranking') return;
     const item = carouselItems[carouselIndex % carouselItems.length];
+    const advance = (totalPages) => {
+      carouselTimer = setTimeout(async () => {
+        carouselPageIdx++;
+        if (carouselPageIdx >= totalPages) await carouselNext();
+        else carouselShowPage();
+      }, displaySettings.rankingPageSec * 1000);
+    };
+    if (item.mode === 'team') {
+      // 団体順位表を巡回表示: 個人用オーバーレイを隠して団体画面(#vs-team-ranking)を出す
+      document.getElementById('ranking-overlay')?.classList.remove('visible');
+      document.querySelectorAll('.venue-screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('vs-team-ranking')?.classList.add('active');
+      const totalPages = Math.max(1, Math.ceil(_trTeams.length / TR_PER_PAGE));
+      _trPage = carouselPageIdx;
+      renderTeamRankPage();
+      advance(totalPages);
+      return;
+    }
+    if (item.mode === 'final_startlist') {
+      // 決勝スタートリストを巡回表示: 個人/団体オーバーレイを隠してfinal-startlist画面を出す
+      // （renderFinalStartlist()は1ページに全員をまとめて描画するので、ページングは1ページ固定）
+      document.getElementById('ranking-overlay')?.classList.remove('visible');
+      document.querySelectorAll('.venue-screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('vs-final-startlist')?.classList.add('active');
+      renderFinalStartlist({ class: item.classVal, gender: item.gender, type: item.type });
+      advance(1);
+      return;
+    }
+    // 個人/シンクロ: 団体画面・決勝スタートリスト画面が出ていたら消してオーバーレイを表示
+    document.getElementById('vs-team-ranking')?.classList.remove('active');
+    document.getElementById('vs-final-startlist')?.classList.remove('active');
     const rowsPerPage = displaySettings.rankingRows;
     const totalPages  = Math.ceil(carouselEntries.length / rowsPerPage);
     const start = carouselPageIdx * rowsPerPage;
@@ -1811,14 +2319,7 @@
     while (pageEntries.length < rowsPerPage) pageEntries.push(null);
     renderRankingOverlay(pageEntries, start, totalPages, carouselPageIdx,
       item.classVal, item.gender, item.type);
-    carouselTimer = setTimeout(async () => {
-      carouselPageIdx++;
-      if (carouselPageIdx >= totalPages) {
-        await carouselNext();
-      } else {
-        carouselShowPage();
-      }
-    }, displaySettings.rankingPageSec * 1000);
+    advance(totalPages);
   }
 
   async function carouselNext() {
@@ -1866,9 +2367,70 @@
 
   // ---- 会場画面オーバーレイ管理 ----
   let warmupTimerInterval = null;
+  // 会場練習タイマーのサーバー時刻補正。
+  // timerRef(=serverTimestamp) が変わった時だけ自PCの時計とサーバー時刻の差を測り、
+  // 以降その差で補正する。これによりPC間でシステムクロックがずれても表示が一致する。
+  // ※毎回測ると refMs-Date.now() が相殺してタイマーが固まるので、必ず refMs 変化時のみ更新する。
+  let _wuServerOffset = 0, _wuRefMs = null;
+  // バックアップ配信（制御PCが配信を止めたら会場ディスプレイが肩代わり）用の状態
+  let _wuLastFreshRefLocal = 0;  // 新しい timerRef を受信したローカル時刻
+  let _wuOffsetTrusted = false;  // ライブで ref 変化を観測し、オフセットを信頼できるか
+  let _wuBackupLast = 0;         // 直近にバックアップ配信したローカル時刻
+  function warmupRem(w) {
+    if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
+    if (w.timerRef?.toMillis) {
+      const refMs = w.timerRef.toMillis();
+      if (refMs !== _wuRefMs) {
+        const newOffset = refMs - Date.now();
+        // 初回、または現行オフセットと大きく食い違う時だけ採用する。
+        // ・通常運用（開始時に新鮮な ref を受信）→ latency ぶんのゆらぎは無視され安定。
+        // ・カウント途中でリロード → 最初は stale な ref で誤オフセットを持つが、
+        //   制御PCが定期配信する新鮮な ref との差が大きいためここで再較正され復帰する。
+        if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+        if (_wuRefMs !== null) _wuOffsetTrusted = true;  // 初回でなく“変化”を観測＝新鮮な ref で較正済み
+        _wuRefMs = refMs;
+        _wuLastFreshRefLocal = Date.now();
+      }
+      const endServer = refMs + (w.timerRemainingMs ?? 0);
+      const nowServer = Date.now() + _wuServerOffset;
+      return { rem: Math.max(0, endServer - nowServer), running: true };
+    }
+    // timerRef 未確定（書込直後の一瞬のみ・自PC以外では通常発生しない）: 自PC時計で暫定表示
+    if (w.timerEndMs != null) return { rem: Math.max(0, w.timerEndMs - Date.now()), running: true };
+    return { rem: w.timerRemainingMs ?? 0, running: false };
+  }
 
+  let _teamRankKey = null;     // 表示中の団体順位表の対象キー（同一なら再描画せずちらつき防止）
+  let _teamRankLastTarget = null;  // 表示中の団体順位表の対象（class/gender/type）。
+                                    // results の onSnapshot からスコア確定時に再計算を呼ぶために保持する
+                                    // （tournaments ドキュメントの venueSig は変化しないため applyVenueScreen 経由では拾えない）
+  let _venueSig = null;     // 直近に適用した「会場画面に関係する設定」の署名
+  // 会場画面の見た目に影響する大会ドキュメント項目だけを署名化（liveState 等は含めない）
+  function venueSig(t) {
+    return JSON.stringify({
+      s:  t.venueScreen || 'score',
+      calc: t.calculating || false, ca: t.calculatingAthleteId || '', cr: t.calculatingRound || '',
+      inq: t.inquiry || false, ia: t.inquiryAthleteId || '', ir: t.inquiryRound || '',
+      tr: t.teamRankingTarget || 0, fs: t.finalStartlistTarget || 0,
+      intro: t.introSettings || 0, car: t.rankingCarousel || 0,
+      ts: t.titleSettings || 0, cs: t.ceremonySettings || 0, wu: t.warmupSettings || 0
+    });
+  }
   function applyVenueScreen(tourData) {
+    // 会場画面に関係する設定が変わっていなければ DOM を一切触らない。
+    // （CJPの選手選択=liveState更新など無関係な更新でのちらつき・再描画を防ぐ）
+    const sig = venueSig(tourData);
+    if (sig === _venueSig) return;
+    _venueSig = sig;
     const screen = tourData.venueScreen || 'score';
+    // 選手紹介から離れたら、次に選手紹介へ戻った時は必ず（前回と同じ手順でも）
+    // 描画し直す。同じ手順の間だけ登場アニメの二重発火を防ぐガード（applyIntroSlide内）
+    // なので、画面を離れている間はガードの前提が崩れるためリセットしておく。
+    if (screen !== 'intro') _lastIntroSig = null;
+    if (screen !== 'teamRanking') {
+      _teamRankKey = null; _teamRankLastTarget = null;
+      stopTeamRankCycle();  // 他画面へ移ったら次回は再描画・ページ送り停止
+    }
     const warmup = tourData.warmupSettings  || {};
     const ts     = tourData.titleSettings   || {};
     const cs     = tourData.ceremonySettings|| {};
@@ -1901,15 +2463,13 @@
     document.getElementById('vs-class-names').textContent = classes.join('\n');
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
-    // 全画面を一旦非表示
-    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-final-startlist'].forEach(id => {
+    // 全画面を一旦非表示（巡回中の団体画面・決勝スタートリスト画面は巡回側が管理するので保持する）
+    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-inquiry','vs-final-startlist','vs-team-ranking'].forEach(id => {
+      if (carouselActive && (id === 'vs-team-ranking' || id === 'vs-final-startlist')) return;
       document.getElementById(id)?.classList.remove('active');
     });
-    // スコア表示中にwarmupを退避している場合はタイマーを止めない
-    if (!savedVenueScreen) {
-      clearInterval(warmupTimerInterval);
-      warmupTimerInterval = null;
-    }
+    clearInterval(warmupTimerInterval);
+    warmupTimerInterval = null;
 
     // 集計中は最優先（他の画面より前面）
     if (tourData.calculating) {
@@ -1936,6 +2496,66 @@
           <div class="calc-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>
         </div>`;
       calcEl.classList.add('active');
+      // キューに待機中の結果があるときは、集計中を1秒だけ見せてキュー表示に戻す。
+      // （バックログのスコアを集計中でずっと覆い隠さないため。キューが空なら従来どおり出し続ける）
+      if (displayQueue.length > 0 && !calcFlashTimer) {
+        calcFlashTimer = setTimeout(() => {
+          calcFlashTimer = null;
+          document.getElementById('vs-calculating')?.classList.remove('active');
+          // 進行中スコアがあれば後続タイマーで自然に消化される。滞留時のみ処理を促す。
+          if (currentMode !== 'score' && displayQueue.length > 0) processQueue();
+        }, 1000);
+      }
+      return;
+    }
+    // 集計中でない: 未発火のフラッシュタイマーを片付ける
+    if (calcFlashTimer) { clearTimeout(calcFlashTimer); calcFlashTimer = null; }
+
+    // インクワイアリ（得点問い合わせ）: 集計中と同じ最優先。他の誰かの得点が確定するまで出し続ける
+    // （集計中と違いキューのバックログでフラッシュ退避はしない＝問い合わせ中である旨を優先して見せ続ける）
+    if (tourData.inquiry) {
+      const inqEl = document.getElementById('vs-inquiry');
+      const ath = athleteMap[tourData.inquiryAthleteId || ''] || {};
+      const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
+      const orderPart   = ath.order ? ` / No.${ath.order}` : '';
+      const roundLbl    = tourData.inquiryRound ? getRoundLabel(tourData.inquiryRound) : '';
+      const nameHtml = ath.type === 'synchro' && ath.name2
+        ? `<div class="calc-name" style="font-size:4.8cqw">${ath.name1||'---'} <span style="opacity:0.45;font-weight:400">/</span> ${ath.name2}</div>`
+        : `<div class="calc-name">${ath.name1||'---'}</div>`;
+      inqEl.innerHTML = `
+        <div class="calc-layout">
+          <div class="calc-conv">${tournamentName}</div>
+          <div class="calc-meta">
+            <div class="calc-class">${classGender}${orderPart}</div>
+            <div class="calc-round">${roundLbl}</div>
+          </div>
+          <div class="calc-name-block">
+            ${nameHtml}
+            <div class="calc-team">${ath.club1||''}</div>
+          </div>
+          <div class="inquiry-status-block">
+            <div class="inquiry-line-en">Inquiry Under Review</div>
+            <div class="inquiry-line-ja">得点問い合わせ確認中</div>
+            <div class="inquiry-line-sub">得点・順位が変更になる可能性があります</div>
+          </div>
+          <div class="calc-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>
+        </div>`;
+      inqEl.classList.add('active');
+      return;
+    }
+
+    // 団体順位表（CJPが明示表示。スコア表示中でも最前面に出す）
+    if (screen === 'teamRanking') {
+      stopRankingLoop();
+      document.getElementById('vs-team-ranking').classList.add('active');
+      // 対象（class/gender/type）は毎回最新を保持しておく。results の onSnapshot 側からも
+      // これを使って再計算を呼ぶため（新しいスコア確定はここではなく results 監視で届く）。
+      // 再描画するかどうかの判定自体は renderTeamRanking() 内部の内容差分に任せる
+      // （対象キー一致だけで再描画をブロックすると、新しいスコアが反映されなくなるため）。
+      const _tt = tourData.teamRankingTarget || {};
+      _teamRankKey = `${_tt.class || ''}|${_tt.gender || ''}|${_tt.type || ''}`;
+      _teamRankLastTarget = _tt;
+      renderTeamRanking(_tt);
       return;
     }
 
@@ -1982,22 +2602,19 @@
   }
 
   function startWarmupDisplay(warmup) {
-    // timerEndMs = 開始時に Date.now()+残り時間 で確定した絶対終了時刻（Firestore に保存済み）。
-    // remaining = timerEndMs - Date.now()。全デバイスが同一の timerEndMs を参照するので一致する。
+    // サーバー時刻基準（warmupRem）で残り時間を計算する。
+    // snapshot 毎にこの関数が再呼び出しされるため、warmup は毎回最新に更新される。
     clearInterval(warmupTimerInterval);
     warmupTimerInterval = null;
     const timerEl = document.getElementById('vs-timer');
     function tick() {
       if (!timerEl) return;
-      const running = !warmup.timerPaused && warmup.timerEndMs != null;
-      const rem = running
-        ? Math.max(0, warmup.timerEndMs - Date.now())
-        : (warmup.timerRemainingMs ?? 0);
+      const { rem, running } = warmupRem(warmup);
       showTimerDisplay(timerEl, rem);
       if (rem === 0 && running) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
     }
     tick();
-    if (!warmup.timerPaused && warmup.timerEndMs != null) {
+    if (warmupRem(warmup).running) {
       warmupTimerInterval = setInterval(tick, 500);
     }
   }
@@ -2011,30 +2628,91 @@
       (ms === 0 ? ' done' : ms < 60000 ? ' warning' : '');
   }
 
+  // 直近に描画したintroSettingsの内容（無関係な大会ドキュメント更新のたびにapplyVenueScreen経由で
+  // 呼ばれても、選手やページが実際に変わっていなければ登場アニメを再発火させないためのガード）
+  let _lastIntroSig = null;
   function applyIntroSlide(settings) {
-    const athletes  = settings.athletes  || [];
-    const idx       = settings.currentIndex ?? 0;
-    const total     = athletes.length;
-    const durationMs= settings.durationMs || 5000;
-    if (total === 0) return;
-    const ath = athletes[Math.min(idx, total - 1)];
+    const athletes = settings.athletes || [];
+    const idx      = settings.currentIndex ?? 0;
+    if (athletes.length === 0) return;
+    const sig = `${idx}|${athletes.length}|${settings.showPerClassRoster ? 1 : 0}`;
+    if (sig === _lastIntroSig) return; // 同じ手順のまま＝無関係な更新なので何もしない
+    _lastIntroSig = sig;
+    // display_control.html（進行役）と全く同じ組み立て方をし、currentIndexの意味を一致させる
+    const steps = buildIntroSteps(athletes, !!settings.showPerClassRoster);
 
-    document.getElementById('intro-event-lbl').textContent   = tournamentName;
-    document.getElementById('intro-counter-lbl').textContent = `${idx + 1} / ${total}`;
+    document.getElementById('intro-event-lbl').textContent = tournamentName;
+
+    const titleScr  = document.getElementById('intro-title-screen');
+    const rosterScr = document.getElementById('intro-roster-screen');
+    const _layout   = document.getElementById('intro-layout');
+    const _card     = document.getElementById('intro-card');
+
+    // ループ開始・一周ごとのタイトルフェーズ（currentIndex = -1）: 「選手紹介」画面を表示
+    if (idx < 0) {
+      _card.classList.remove('intro-anim');
+      _card.style.visibility = 'hidden';
+      rosterScr.classList.remove('active');
+      _layout.classList.remove('intro-flash');
+      titleScr.classList.remove('active');
+      void titleScr.offsetWidth;
+      titleScr.classList.add('active');
+      _layout.classList.add('intro-flash');
+      return;
+    }
+    titleScr.classList.remove('active');
+
+    // ループ最後の選手一覧ページ（currentIndex = 手順数。全選手を対象にした従来通りの一覧）
+    if (idx >= steps.length) {
+      _card.classList.remove('intro-anim');
+      _card.style.visibility = 'hidden';
+      renderIntroRoster(athletes, '出場選手');
+      _layout.classList.remove('intro-flash');
+      rosterScr.classList.remove('active');
+      void rosterScr.offsetWidth;
+      rosterScr.classList.add('active');
+      _layout.classList.add('intro-flash');
+      return;
+    }
+
+    const step = steps[Math.min(idx, steps.length - 1)];
+
+    // クラスの紹介が終わるたびに挟む、そのクラスだけの一覧ページ
+    if (step.type === 'classRoster') {
+      _card.classList.remove('intro-anim');
+      _card.style.visibility = 'hidden';
+      renderIntroRoster(step.athletes, step.className || '出場選手', false);
+      _layout.classList.remove('intro-flash');
+      rosterScr.classList.remove('active');
+      void rosterScr.offsetWidth;
+      rosterScr.classList.add('active');
+      _layout.classList.add('intro-flash');
+      return;
+    }
+
+    rosterScr.classList.remove('active');
+    _card.style.visibility = '';
+
+    const ath = step.athlete;
 
     const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
-    const orderStr    = ath.order ? `No. ${ath.order}` : '';
+    // 決勝試技順(finalOrder)が割り当て済みならそちらを優先して表示する（予選順(order)ではなく）
+    const introOrderNum = ath.finalOrder ?? ath.order;
+    const orderStr    = introOrderNum ? `No. ${introOrderNum}` : '';
     const name  = ath.type === 'synchro' && ath.name2
                   ? `${ath.name1} / ${ath.name2}` : (ath.name1 || '');
-    const kana  = ath.type === 'synchro' && ath.kana2
-                  ? `${ath.kana1 || ''} / ${ath.kana2 || ''}` : (ath.kana1 || '');
     const club  = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
                   ? `${ath.club1} / ${ath.club2}` : (ath.club1 || '');
 
     document.getElementById('intro-class-lbl').textContent = classGender;
     document.getElementById('intro-order-lbl').textContent = orderStr;
-    document.getElementById('intro-name-lbl').textContent  = name;
-    document.getElementById('intro-kana-lbl').textContent  = kana;
+    const nameLblEl = document.getElementById('intro-name-lbl');
+    nameLblEl.textContent = name;
+    // シンクロは「名前A / 名前B」で単独選手の倍近い長さになり、既定の12cqwのままだと
+    // 画面幅からはみ出すため、文字数に応じて縮小する（個人の短い名前は従来通り12cqwのまま）
+    const nameLen = name.length;
+    const nameFsCqw = nameLen <= 6 ? 12 : nameLen <= 9 ? 9 : nameLen <= 12 ? 7 : nameLen <= 16 ? 5.6 : nameLen <= 20 ? 4.6 : 3.8;
+    nameLblEl.style.fontSize = nameFsCqw + 'cqw';
     document.getElementById('intro-club-lbl').textContent  = club;
 
     // カードアニメーション（フラッシュ＋子要素個別アニメ）
@@ -2045,22 +2723,84 @@
     void card.offsetWidth;
     layout.classList.add('intro-flash');
     card.classList.add('intro-anim');
-
-    // プログレスバー（durationMs かけて 0→100% で残り時間を表示）
-    const fill = document.getElementById('intro-progress-fill');
-    fill.style.transition = 'none';
-    fill.style.width = '0%';
-    void fill.offsetWidth;
-    fill.style.transition = `width ${durationMs}ms linear`;
-    fill.style.width = '100%';
   }
+
+  // 選手一覧ページ描画（クラス見出し＋No./氏名/所属。人数に応じて列数・文字サイズを自動調整）
+  // title: ページ上部の見出し（全体一覧なら「出場選手」、クラス別一覧ならクラス名）
+  function renderIntroRoster(athletes, title, showGroupHeads = true) {
+    const titleEl = document.getElementById('intro-roster-title');
+    if (titleEl && title) titleEl.textContent = title;
+    const grid = document.getElementById('intro-roster-grid');
+    if (!grid) return;
+    const n = athletes.length;
+    const cols = n <= 8 ? 1 : n <= 18 ? 2 : 3;
+    const rowsPerCol = Math.ceil(n / cols) + 2;                  // クラス見出しぶんの余裕
+    const fs = Math.max(2.1, Math.min(4.5, 66 / rowsPerCol));    // cqh
+    grid.style.columnCount = cols;
+    grid.style.fontSize = fs + 'cqh';
+    let html = '', lastGroup = null;
+    athletes.forEach(a => {
+      // クラス別ロスターページ（呼び出し元でtitleに既にクラス名を出している）では、
+      // 一覧内に同じクラス名を重ねて出さない
+      const group = [a.class, a.gender].filter(Boolean).join(' ');
+      if (showGroupHeads && group && group !== lastGroup) {
+        html += `<div class="intro-roster-head">${group}</div>`;
+        lastGroup = group;
+      }
+      const name = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : (a.name1 || '');
+      const club = a.type === 'synchro' && a.club2 && a.club1 !== a.club2
+                   ? `${a.club1 || ''} / ${a.club2 || ''}` : (a.club1 || '');
+      // 決勝試技順(finalOrder)が割り当て済みならそちらを優先（applyIntroSlideの選手カードと同じ）
+      const orderNum = a.finalOrder ?? a.order;
+      html += `<div class="intro-roster-item"><span class="rno num">${orderNum ? 'No.' + orderNum : ''}</span><span>${name}</span><span class="rclub">${club}</span></div>`;
+    });
+    grid.innerHTML = html;
+  }
+
+  // 選手紹介ループ中の会場練習残り時間（右上）
+  // warmupSettings を常時監視し、タイマーがカウント中のみ表示する。
+  // （要素は vs-intro 内にあるため、紹介画面表示中しか見えない＝他画面には影響しない）
+  setInterval(() => {
+    const w = tournamentData?.warmupSettings || {};
+    const { rem, running } = warmupRem(w);   // サーバー時刻補正で会場ディスプレイ用PCと一致
+
+    // ---- バックアップ配信 ----
+    // 制御PC(大会画面コントロール)が新しい timerRef を配信しなくなったとき、常時ONの会場
+    // ディスプレイが肩代わりして fresh な timerRef を書き直し、リロードした審判端末等を再較正させる。
+    // ・オフセットを信頼できる（ライブで ref 変化を観測済み）ときだけ
+    // ・制御PCの配信間隔(10s)を超えて ref が途絶えたときのみ（＝二重書き込み回避）
+    // ・endServer(サーバー基準の終了時刻)を維持したまま timerRef だけ更新する
+    if (running && rem > 2000 && _wuOffsetTrusted && eventId && w.timerRef?.toMillis
+        && (Date.now() - _wuLastFreshRefLocal) > 14000
+        && (Date.now() - _wuBackupLast)       > 10000) {
+      _wuBackupLast = Date.now();
+      const endServer = w.timerRef.toMillis() + (w.timerRemainingMs ?? 0);
+      const newRem    = Math.max(0, endServer - (Date.now() + _wuServerOffset));
+      updateDoc(doc(db, 'tournaments', eventId), {
+        'warmupSettings.timerRef':         serverTimestamp(),
+        'warmupSettings.timerRemainingMs': newRem
+      }).catch(() => {});
+    }
+
+    const el = document.getElementById('intro-warmup-timer');
+    if (!el) return;
+    // クラス別・全選手の一覧ページ表示中は、一覧と重ならないよう会場練習タイマーを隠す
+    const onRosterPage = document.getElementById('intro-roster-screen')?.classList.contains('active');
+    if (!running || rem <= 0 || onRosterPage) { el.style.display = 'none'; return; }
+    const totalSec = Math.ceil(rem / 1000);
+    const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const ss = String(totalSec % 60).padStart(2, '0');
+    el.innerHTML = `<span class="lbl">会場練習</span>${mm}:${ss}`;
+    el.classList.toggle('warning', rem < 60000);
+    el.style.display = 'block';
+  }, 500);
 
   // ---- 決勝スタートリスト描画 ----
   function renderFinalStartlist(target) {
     const cls     = target.class  || '';
     const gender  = target.gender || '';
     const selType = target.type   || 'individual';
-    const heading = [cls, gender, selType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
+    const heading = [cls, gender, selType === 'synchro' ? 'シンクロ' : '個人', '決勝スタートリスト'].filter(Boolean).join(' ');
 
     // finalOrder が設定済みの選手を抽出してソート
     const finalists = Object.values(athleteMap)
@@ -2138,14 +2878,11 @@
       // display.html は朝から終日リロードしないため onSnapshot で常に最新を保持する
       onSnapshot(collection(db, 'tournaments', eventId, 'athletes'), snap => {
         snap.docChanges().forEach(change => {
-          if (change.type === 'modified' || change.type === 'added') {
-            const id = change.doc.id;
-            const d  = change.doc.data();
-            if (athleteMap[id]) {
-              athleteMap[id].finalOrder = d.finalOrder ?? null;
-              athleteMap[id].isInFinal  = d.isInFinal  ?? false;
-            }
-          }
+          const id = change.doc.id;
+          if (change.type === 'removed') { delete athleteMap[id]; return; }
+          // 追加・更新: 選手情報を丸ごと反映。初回 getAthletes が空を返しても
+          // ここで athleteMap が埋まる（団体順位等で選手名がIDにフォールバックしないように）
+          athleteMap[id] = { ...(athleteMap[id] || {}), id, ...change.doc.data() };
         });
       });
 
@@ -2219,19 +2956,28 @@
               displayQueue.length = 0;
               // calculating:false はCJPのpublish()側で書き込む（venue_displayは非ログインのため不可）
             }
+            // 集計中フラッシュ待ちがあれば解除（新規公開でキュー処理が走るため二重処理を防ぐ）
+            if (calcFlashTimer) { clearTimeout(calcFlashTimer); calcFlashTimer = null; }
+            // インクワイアリ画面も、誰かの得点が確定した時点でローカルで即消す
+            // （inquiry:false はCJPのpublish()側で書き込む＝venue_displayは非ログインのため不可）
+            document.getElementById('vs-inquiry')?.classList.remove('active');
             // スコア確定時：全会場画面を即時非表示にし、復元しない
             ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-final-startlist'].forEach(id => {
               document.getElementById(id)?.classList.remove('active');
             });
             // warmupタイマーも停止
             if (warmupTimerInterval) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
-            // 退避をクリア（順位表・スコア表示後に会場画面を復元しない）
-            savedVenueScreen = null;
             // ※ venueScreen:'score' への切替は judge_cjp.html の publish() 側で書き込む
             // （venue_displayは非ログインのためFirestore書き込み不可）
             enqueueResult(change.doc);
           }
         });
+        // 団体順位表を表示中なら、確定した結果を反映して再計算する。
+        // tournaments ドキュメントの onSnapshot（applyVenueScreen）はこの results の変化までは
+        // 検知できないため、ここから明示的に呼ぶ。displaySkip（確定のみ）の更新も団体合計には
+        // 影響するので、上のループ内のスキップ判定とは無関係にここで毎回チェックする。
+        // renderTeamRanking() 自身が内容差分を見るので、無関係なクラスの結果なら実質何もしない。
+        if (_teamRankLastTarget) renderTeamRanking(_teamRankLastTarget);
       });
 
     } catch (e) { console.error(e); }

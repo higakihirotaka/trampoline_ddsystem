@@ -85,6 +85,7 @@
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
     import { normalizeClassRules } from './shared.js';
+    import { invalidateCache } from './cache.js';
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
@@ -186,6 +187,9 @@
         const qualRoutes = (parseInt(rule.qualifyingRoutines) === 1) ? 1 : 2;
         const scoreMode  = (rule.scoreMode === 'total') ? 'total' : 'best';
         const hasFinal   = (rule.hasFinal === true || rule.hasFinal === 'true' || Number(rule.hasFinal) === 1 || (rule.finalCount != null && parseInt(rule.finalCount) > 0));
+        const finalOnly  = (rule.finalOnly === true || rule.finalOnly === 'true' || Number(rule.finalOnly) === 1);
+        // 決勝設定モード: none(なし) / final(あり) / finalOnly(決勝のみ)
+        const finalMode  = finalOnly ? 'finalOnly' : (hasFinal ? 'final' : 'none');
         const eJudge     = isNaN(parseInt(rule.eJudgeCount)) ? 4 : Math.max(1, parseInt(rule.eJudgeCount));
         const tofMode    = (rule.tofDefaultMode === 'manual') ? 'manual' : 'auto';
         const hdMode     = (rule.hdDefaultMode  === 'manual') ? 'manual' : 'auto';
@@ -194,6 +198,14 @@
         const hasH5H6 = (rule.hasH5H6 === true || rule.hasH5H6 === 'true' || Number(rule.hasH5H6) === 1);
         const useHDTS       = (rule.useHDTS !== false); // default true
         const finalScoreMode = (rule.finalScoreMode === 'combined') ? 'combined' : 'zero';
+        // 難度点上限（null=なし）
+        const _psc = parseFloat(rule.perSkillDDCap);
+        const perSkillDDCap = (rule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+        const _rtc = parseFloat(rule.routineDDCap);
+        const routineDDCap  = (rule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+        // 難度下限（null=なし）
+        const _mdd = parseFloat(rule.minRoutineDD);
+        const minRoutineDD = (rule.minRoutineDD != null && !isNaN(_mdd)) ? _mdd : null;
 
         const card = document.createElement('div');
         card.className = 'class-card';
@@ -208,7 +220,7 @@
             </div>
 
             <!-- 予選本数 -->
-            <div class="rule-row">
+            <div class="rule-row conditional ${finalMode === 'finalOnly' ? 'hidden' : ''}" id="qual-row-${key}">
                 <div class="rule-label">予選本数</div>
                 <div class="rule-controls">
                     <div class="radio-group">
@@ -225,7 +237,7 @@
             </div>
 
             <!-- 順位決定方式（2本時のみ） -->
-            <div class="rule-row conditional ${qualRoutes === 1 ? 'hidden' : ''}" id="score-mode-row-${key}">
+            <div class="rule-row conditional ${(finalMode === 'finalOnly' || qualRoutes === 1) ? 'hidden' : ''}" id="score-mode-row-${key}">
                 <div class="rule-label">順位決定方式</div>
                 <div class="rule-controls">
                     <div class="radio-group">
@@ -247,14 +259,19 @@
                 <div class="rule-controls">
                     <div class="radio-group">
                         <label class="radio-btn">
-                            <input type="radio" name="final-${key}" value="false" ${!hasFinal ? 'checked' : ''}>
+                            <input type="radio" name="final-${key}" value="false" ${finalMode === 'none' ? 'checked' : ''}>
                             <span>なし</span>
                         </label>
                         <label class="radio-btn">
-                            <input type="radio" name="final-${key}" value="true" ${hasFinal ? 'checked' : ''}>
+                            <input type="radio" name="final-${key}" value="true" ${finalMode === 'final' ? 'checked' : ''}>
                             <span>あり</span>
                         </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="final-${key}" value="finalOnly" ${finalMode === 'finalOnly' ? 'checked' : ''}>
+                            <span>決勝のみ</span>
+                        </label>
                     </div>
+                    <div style="font-size:0.75rem;color:#90a4ae;margin-top:4px;">「決勝のみ」は予選を行わず決勝だけを実施します（試技順は登録順）</div>
                 </div>
             </div>
 
@@ -305,7 +322,7 @@
             </div>
 
             <!-- 指定難度本数（2本合計時のみ有効） -->
-            <div class="rule-row conditional ${qualRoutes === 2 && scoreMode === 'total' ? '' : 'hidden'}" id="dd-count-row-${key}">
+            <div class="rule-row conditional ${(finalMode !== 'finalOnly' && qualRoutes === 2 && scoreMode === 'total') ? '' : 'hidden'}" id="dd-count-row-${key}">
                 <div class="rule-label">指定難度本数</div>
                 <div class="rule-controls">
                     <div class="num-input-wrap">
@@ -315,6 +332,69 @@
                         </select>
                     </div>
                     <div style="font-size:0.75rem;color:#90a4ae;margin-top:4px;">2本合計時のみ有効。指定した本数の技のみDD算入</div>
+                </div>
+            </div>
+
+            <!-- 1技あたり難度上限 -->
+            <div class="rule-row">
+                <div class="rule-label">1技あたり難度上限</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="skillcap-${key}" value="off" ${perSkillDDCap == null ? 'checked' : ''}>
+                            <span>なし</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="skillcap-${key}" value="on" ${perSkillDDCap != null ? 'checked' : ''}>
+                            <span>あり</span>
+                        </label>
+                    </div>
+                    <div class="num-input-wrap conditional ${perSkillDDCap == null ? 'hidden' : ''}" id="skillcap-wrap-${key}" style="margin-top:8px;">
+                        <input type="number" id="skillcap-val-${key}" value="${perSkillDDCap != null ? perSkillDDCap : ''}" min="0" max="10" step="0.1" placeholder="1.2">
+                        <span class="num-unit">点（この値以上の技はこの値で計算）</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 構成あたり難度上限 -->
+            <div class="rule-row">
+                <div class="rule-label">構成あたり難度上限</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="routinecap-${key}" value="off" ${routineDDCap == null ? 'checked' : ''}>
+                            <span>なし</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="routinecap-${key}" value="on" ${routineDDCap != null ? 'checked' : ''}>
+                            <span>あり</span>
+                        </label>
+                    </div>
+                    <div class="num-input-wrap conditional ${routineDDCap == null ? 'hidden' : ''}" id="routinecap-wrap-${key}" style="margin-top:8px;">
+                        <input type="number" id="routinecap-val-${key}" value="${routineDDCap != null ? routineDDCap : ''}" min="0" max="30" step="0.1" placeholder="8.0">
+                        <span class="num-unit">点（合計＝Base＋ボーナスがこの値を超えたら上限に）</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 難度下限 -->
+            <div class="rule-row">
+                <div class="rule-label">難度下限</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="mindd-${key}" value="off" ${minRoutineDD == null ? 'checked' : ''}>
+                            <span>なし</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="mindd-${key}" value="on" ${minRoutineDD != null ? 'checked' : ''}>
+                            <span>あり</span>
+                        </label>
+                    </div>
+                    <div class="num-input-wrap conditional ${minRoutineDD == null ? 'hidden' : ''}" id="mindd-wrap-${key}" style="margin-top:8px;">
+                        <input type="number" id="mindd-val-${key}" value="${minRoutineDD != null ? minRoutineDD : ''}" min="0" max="30" step="0.1" placeholder="6.0">
+                        <span class="num-unit">点（10本演技した合計難度がこれ未満の場合、D審判画面の確定・保存ボタンの表記を変える。登録自体は禁止しない）</span>
+                    </div>
                 </div>
             </div>
 
@@ -337,7 +417,7 @@
             </div>
 
             <!-- 決勝スコア方式（決勝ありのときのみ表示） -->
-            <div class="rule-row conditional ${!hasFinal ? 'hidden' : ''}" id="final-score-mode-row-${key}">
+            <div class="rule-row conditional ${finalMode !== 'final' ? 'hidden' : ''}" id="final-score-mode-row-${key}">
                 <div class="rule-label">決勝スコア方式</div>
                 <div class="rule-controls">
                     <div class="radio-group">
@@ -373,34 +453,29 @@
             </div>
         `;
 
-        // 指定難度行の表示切替（2本合計時のみ表示）
-        const updateDDCountRow = () => {
-            const qual  = card.querySelector(`input[name="qual-${key}"]:checked`)?.value;
-            const score = card.querySelector(`input[name="score-${key}"]:checked`)?.value;
-            const ddRow = document.getElementById(`dd-count-row-${key}`);
-            if (ddRow) ddRow.classList.toggle('hidden', !(qual === '2' && score === 'total'));
+        // 条件付き行の表示を一括更新（決勝のみ=予選系を全て隠す）。カードがDOMに追加された後に発火する
+        const refreshConditionals = () => {
+            const finalVal    = card.querySelector(`input[name="final-${key}"]:checked`)?.value;
+            const isFinalOnly = finalVal === 'finalOnly';
+            const qual        = card.querySelector(`input[name="qual-${key}"]:checked`)?.value;
+            const score       = card.querySelector(`input[name="score-${key}"]:checked`)?.value;
+            const toggle = (id, hide) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', hide); };
+            toggle(`qual-row-${key}`,             isFinalOnly);                                        // 予選本数
+            toggle(`score-mode-row-${key}`,       isFinalOnly || qual === '1');                        // 順位決定方式
+            toggle(`dd-count-row-${key}`,         isFinalOnly || !(qual === '2' && score === 'total')); // 指定難度
+            toggle(`final-score-mode-row-${key}`, isFinalOnly || finalVal !== 'true');                 // 決勝スコア方式(合計は予選が必要)
         };
 
-        // 予選本数の変更で順位決定方式と指定難度行を更新
-        card.querySelectorAll(`input[name="qual-${key}"]`).forEach(radio => {
-            radio.addEventListener('change', () => {
-                const row = document.getElementById(`score-mode-row-${key}`);
-                row.classList.toggle('hidden', radio.value === '1');
-                updateDDCountRow();
-            });
-        });
+        card.querySelectorAll(`input[name="qual-${key}"], input[name="score-${key}"], input[name="final-${key}"]`)
+            .forEach(radio => radio.addEventListener('change', refreshConditionals));
 
-        // 順位決定方式の変更で指定難度行を更新
-        card.querySelectorAll(`input[name="score-${key}"]`).forEach(radio => {
-            radio.addEventListener('change', updateDDCountRow);
-        });
-
-        // 決勝あり/なしの変更で決勝スコア方式行を更新
-        card.querySelectorAll(`input[name="final-${key}"]`).forEach(radio => {
-            radio.addEventListener('change', () => {
-                const row = document.getElementById(`final-score-mode-row-${key}`);
-                if (row) row.classList.toggle('hidden', radio.value !== 'true');
-            });
+        // 難度上限 あり/なし → 数値入力欄の表示切替
+        [['skillcap', 'skillcap-wrap'], ['routinecap', 'routinecap-wrap'], ['mindd', 'mindd-wrap']].forEach(([nm, wrap]) => {
+            card.querySelectorAll(`input[name="${nm}-${key}"]`).forEach(radio =>
+                radio.addEventListener('change', () => {
+                    const on = card.querySelector(`input[name="${nm}-${key}"]:checked`)?.value === 'on';
+                    document.getElementById(`${wrap}-${key}`)?.classList.toggle('hidden', !on);
+                }));
         });
 
         return card;
@@ -421,7 +496,9 @@
                 const key  = `${type}-${name}`;
                 const qualRoutes = parseInt(card.querySelector(`input[name="qual-${key}"]:checked`)?.value) || 2;
                 const scoreMode  = card.querySelector(`input[name="score-${key}"]:checked`)?.value || 'best';
-                const hasFinal   = card.querySelector(`input[name="final-${key}"]:checked`)?.value === 'true';
+                const finalVal   = card.querySelector(`input[name="final-${key}"]:checked`)?.value;
+                const finalOnly  = finalVal === 'finalOnly';
+                const hasFinal   = finalVal === 'true' || finalOnly;   // 決勝のみも「決勝あり」扱い
                 const eJudge         = parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
                 const tofDefaultMode  = card.querySelector(`input[name="tof-mode-${key}"]:checked`)?.value || 'auto';
                 const hdDefaultMode   = card.querySelector(`input[name="hd-mode-${key}"]:checked`)?.value  || 'auto';
@@ -430,7 +507,19 @@
                 const designatedDDCount = (!isNaN(_ddRaw) && _ddRaw >= 0) ? _ddRaw : -1;
                 const hasH5H6        = card.querySelector(`input[name="h56-${key}"]:checked`)?.value === 'true';
                 const useHDTS        = card.querySelector(`input[name="hdts-${key}"]:checked`)?.value !== 'false';
-                const finalScoreMode = card.querySelector(`input[name="final-score-mode-${key}"]:checked`)?.value || 'zero';
+                // 決勝のみは予選が無いので合計不可 → zero固定
+                const finalScoreMode = finalOnly ? 'zero' : (card.querySelector(`input[name="final-score-mode-${key}"]:checked`)?.value || 'zero');
+                // 難度点上限（あり かつ 有効な数値のときのみ値、それ以外は null）
+                const skillCapOn = card.querySelector(`input[name="skillcap-${key}"]:checked`)?.value === 'on';
+                const _scRaw = parseFloat(card.querySelector(`#skillcap-val-${key}`)?.value);
+                const perSkillDDCap = (skillCapOn && !isNaN(_scRaw)) ? _scRaw : null;
+                const routineCapOn = card.querySelector(`input[name="routinecap-${key}"]:checked`)?.value === 'on';
+                const _rcRaw = parseFloat(card.querySelector(`#routinecap-val-${key}`)?.value);
+                const routineDDCap = (routineCapOn && !isNaN(_rcRaw)) ? _rcRaw : null;
+                // 難度下限（あり かつ 有効な数値のときのみ値、それ以外は null）
+                const minDDOn = card.querySelector(`input[name="mindd-${key}"]:checked`)?.value === 'on';
+                const _mddRaw = parseFloat(card.querySelector(`#mindd-val-${key}`)?.value);
+                const minRoutineDD = (minDDOn && !isNaN(_mddRaw)) ? _mddRaw : null;
 
                 const ruleObj = {
                     qualifyingRoutines: qualRoutes,
@@ -439,10 +528,14 @@
                     tofDefaultMode,
                     hdDefaultMode,
                     hasFinal,
+                    finalOnly,
                     finalScoreMode,
                     designatedDDCount,
                     hasH5H6,
-                    useHDTS
+                    useHDTS,
+                    perSkillDDCap,
+                    routineDDCap,
+                    minRoutineDD
                 };
                 if (type === 'synchro') synchro[name] = ruleObj;
                 else individual[name] = ruleObj;
@@ -454,6 +547,9 @@
                 classRules: { individual, synchro },
                 updatedAt: serverTimestamp()
             });
+
+            // キャッシュをクリア（judge_cjp 等が stale なデータを読まないよう）
+            invalidateCache(eventId);
 
             location.href = `admin_menu.html?event=${eventId}`;
         } catch (e) {

@@ -22,6 +22,12 @@ service cloud.firestore {
     // 公式記録ではないため誰でも読み書き可
     match /submissions/{docId} {
       allow read, write: if true;
+
+      // 修正で上書きされる直前の内容を退避する履歴（card_history.html の差分表示用）。
+      // 親と同じく公式記録ではないため誰でも読み書き可。
+      match /revisions/{revId} {
+        allow read, write: if true;
+      }
     }
 
     // ---- 採点結果 ----

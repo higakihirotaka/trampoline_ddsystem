@@ -31,6 +31,14 @@
             border: 1px solid var(--danger); padding: 5px 12px;
             border-radius: 4px; font-size: 0.75rem; font-weight: bold; flex-shrink: 0;
         }
+        /* 会場練習タイマーの表示/非表示トグル（カウント中のみ表示） */
+        .btn-warmup-toggle {
+            background: transparent; color: var(--accent);
+            border: 1px solid var(--accent); padding: 5px 10px;
+            border-radius: 4px; font-size: 0.75rem; font-weight: bold;
+            flex-shrink: 0; cursor: pointer; white-space: nowrap;
+        }
+        .btn-warmup-toggle.off { color: #888; border-color: #555; }
 
         /* 待機画面 */
         .waiting {
@@ -54,24 +62,36 @@
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; gap: 2px; border: 2px solid transparent;
         }
-        .step-lbl { font-size: clamp(0.4rem, 0.7vw, 0.75rem); color: #444; font-weight: bold; }
-        .step-val { font-size: clamp(1rem, 1.8vw, 2.5rem); font-weight: 900; color: #444; min-height: 1em; }
+        .step-lbl { font-size: clamp(0.55rem, 1vw, 1.05rem); color: #444; font-weight: bold; }
+        .step-val { font-size: clamp(1.4rem, 2.8vw, 3.6rem); font-weight: 900; color: #444; min-height: 1em; }
 
-        .step.filled { background: #162b16; cursor: pointer; }
-        .step.filled .step-lbl { color: #3a6a3a; }
-        .step.filled .step-val { color: var(--accent); }
+        /* 入力済み・確定前: 白文字。緑背景は付けない */
+        .step.filled { cursor: pointer; }
+        .step.filled .step-lbl { color: #fff; }
+        .step.filled .step-val { color: #fff; }
+        /* 確定後: 緑文字＋緑背景（確定済みの目印）。確定後はセル選択不可 */
+        .steps.confirmed .step.filled { background: #162b16; cursor: default; }
+        .steps.confirmed .step.filled .step-lbl { color: #3a6a3a; }
+        .steps.confirmed .step.filled .step-val { color: var(--accent); }
 
-        .step.active { background: #0f2a0f; border-color: var(--accent); }
-        .step.active .step-lbl { color: var(--accent); }
-        .step.active .step-val { color: var(--accent); opacity: 0.7; }
+        /* 選択中: 緑にはせず、太い白枠だけで示す */
+        .step.active { background: #1a1a1a; border: 3px solid #fff; }
+        .step.active .step-lbl { color: #fff; }
+        .step.active .step-val { color: #fff; opacity: 0.7; }
 
         /* キーパッド（1行レイアウト） */
         .keypad {
             margin-top: auto; flex: 0 0 30dvh;
-            display: grid; grid-template-columns: repeat(6, 1fr);
-            grid-template-rows: 1fr 50px;
+            display: flex; flex-direction: column;
             gap: 6px; padding: 8px 8px 12px; background: #0f1217;
         }
+        /* 数字キー行（確定ボタンの下） */
+        .key-row {
+            flex: 1; min-height: 0;
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+        }
+        /* 確定後は数字キーをロック（「確定済み（修正）」を押すまで入力不可） */
+        .key-row.locked { opacity: 0.4; pointer-events: none; }
         .key {
             background: #1e2530; border: none; color: white;
             border-radius: 10px; font-size: 1.5rem; font-weight: bold;
@@ -80,10 +100,17 @@
             touch-action: manipulation;
         }
         .key:active { transform: translateY(2px); border-bottom: none; }
-        .key-zero { color: #555; }
         .key-undo {
             grid-column: span 6; font-size: 1rem;
             background: #2a2020; color: #ff8a65; border-color: #111;
+        }
+        /* 確定ボタン（有効演技数を全て入力すると数字キーの上に出現） */
+        .key-confirm {
+            flex: 0 0 104px; font-size: 1.15rem; font-weight: bold;
+            background: #16351b; color: #6ee7a0; border-color: #06210d;
+        }
+        .key-confirm.confirmed {
+            background: #14532d; color: #d1fae5; border-color: #052e16;
         }
 
         /* ---- 現在技パネル（スマホ縦向けのみ表示） ---- */
@@ -115,6 +142,7 @@
                 flex-direction: column; align-items: flex-end; gap: 3px;
             }
             .btn-exit { padding: 4px 10px; font-size: 0.7rem; }
+            .btn-warmup-toggle { padding: 4px 8px; font-size: 0.65rem; }
 
             /* ステップバーをコンパクトに */
             .steps {
@@ -122,28 +150,50 @@
             }
             .step {
                 aspect-ratio: unset;
-                height: 36px;
+                height: 42px;
                 min-height: unset;
                 border-radius: 4px;
                 gap: 1px;
             }
-            .step-lbl { font-size: 0.5rem; color: #333; }
-            .step.filled .step-lbl { color: #3a6a3a; }
-            .step.active .step-lbl { color: var(--accent); }
-            .step-val { font-size: 0.85rem; }
+            .step-lbl { font-size: 0.65rem; color: #333; }
+            .step.filled .step-lbl { color: #fff; }
+            .step.active .step-lbl { color: #fff; }
+            .step-val { font-size: 1.15rem; }
 
 
             /* キーパッドをコンパクトに */
             .keypad {
                 flex: 0 0 34dvh;
                 margin-top: 0;
-                grid-template-rows: 1fr 52px;
                 padding: 6px 8px 14px;
                 gap: 6px;
             }
             .key { font-size: 1.6rem; border-radius: 10px; }
             .key-undo { font-size: 1rem; }
         }
+        /* ---- 会場練習タイマー（カウント中のみ中央オーバーレイ表示） ---- */
+        .warmup-overlay {
+            position: fixed; inset: 0; z-index: 60;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none; /* 入力を妨げない */
+        }
+        .warmup-card {
+            background: rgba(0,0,0,0.82);
+            border: 3px solid var(--accent); border-radius: 24px;
+            padding: 20px 46px; text-align: center;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.7);
+        }
+        .warmup-card .wu-label {
+            font-size: 0.95rem; color: var(--accent); font-weight: bold; letter-spacing: 3px;
+        }
+        .warmup-classes {
+            font-size: 1rem; color: #ddd; font-weight: bold; margin-top: 4px; min-height: 1em;
+        }
+        .warmup-time {
+            font-size: clamp(4rem, 17vw, 9rem); font-weight: 900;
+            font-variant-numeric: tabular-nums; line-height: 1.05; color: #fff; margin-top: 6px;
+        }
+        .warmup-time.warning { color: #ff9100; }
     </style>
 </head>
 <body>
@@ -156,6 +206,7 @@
     </div>
     <div class="header-right">
         <span class="header-judge" id="header-judge"></span>
+        <button id="warmup-toggle-btn" class="btn-warmup-toggle" style="display:none;" onclick="toggleWarmupView()">会場練習非表示</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
     </div>
 </div>
@@ -169,6 +220,15 @@
     <div class="steps" id="steps"></div>
     <div class="current-panel" id="current-panel"></div>
     <div class="keypad" id="keypad"></div>
+</div>
+
+<!-- 会場練習タイマー（カウント中のみ表示） -->
+<div class="warmup-overlay" id="warmup-overlay" style="display:none;">
+    <div class="warmup-card">
+        <div class="wu-label">会場練習 残り時間</div>
+        <div class="warmup-classes" id="warmup-classes"></div>
+        <div class="warmup-time" id="warmup-time">00:00</div>
+    </div>
 </div>
 
 <script type="module">
@@ -186,8 +246,16 @@
     let deductions = Array(10).fill(null), landing = null;
     let unsubResult = null;
     let isLocked = false;
+    let confirmed = false; // E審判自身が「確定」を押したか（CJP内訳の薄字/黄色判定に使う）
     let judgeName = '';
     let currentTourData = null;
+    let warmupData = {}, warmupInterval = null;
+    let _lastWarmupRaw = null; // startWarmupTick() を無関係な更新で毎回張り直さないための直前値比較用
+    let warmupHidden = false; // 会場練習タイマーをこの端末で手動非表示にしているか
+    // 会場練習タイマーのサーバー時刻補正（会場ディスプレイ/制御PCと同一ロジック）。
+    // timerRef(=serverTimestamp) 受信時に自端末の時計とサーバー時刻の差を測り補正するため、
+    // 端末ごとの時計ズレがあっても表示が一致する。offset は refMs 変化時のみ測定する。
+    let _wuServerOffset = 0, _wuRefMs = null;
 
     // ---- ラウンド表示名 ----
     function roundLabel(r) {
@@ -224,6 +292,74 @@
     headerRole.textContent = `PANEL ${panel} | ${role}`;
     exitLink.href = `judge_role_select.html?event=${eventId}`;
 
+    // ---- 会場練習タイマー（カウント中のみ中央表示・大画面と同じ計算で端末間同期） ----
+    function warmupRem(w) {
+        // サーバー時刻基準で残りを算出（各端末が timerRef で自分の時計を補正）。
+        if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
+        if (w.timerRef?.toMillis) {
+            const refMs = w.timerRef.toMillis();
+            if (refMs !== _wuRefMs) {
+                const newOffset = refMs - Date.now();
+                // 初回 or 大きな食い違い時のみ採用（微小な遅延ゆらぎでの毎回スナップを防ぐ）。
+                // 途中でリロードした端末は制御PCの定期配信で届く新鮮な ref で再較正される。
+                if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+                _wuRefMs = refMs;
+            }
+            const endServer = refMs + (w.timerRemainingMs ?? 0);
+            const nowServer = Date.now() + _wuServerOffset;
+            return { rem: Math.max(0, endServer - nowServer), running: true };
+        }
+        // timerRef 未確定（旧データ等）: 絶対終了時刻で暫定表示
+        if (w.timerEndMs != null) return { rem: Math.max(0, w.timerEndMs - Date.now()), running: true };
+        return { rem: w.timerRemainingMs ?? 0, running: false };
+    }
+    function startWarmupTick() {
+        clearInterval(warmupInterval); warmupInterval = null;
+        const overlay = document.getElementById('warmup-overlay');
+        const valEl   = document.getElementById('warmup-time');
+        document.getElementById('warmup-classes').textContent =
+            [warmupData.class1, warmupData.class2].filter(Boolean).join(' / ');
+
+        const btn = document.getElementById('warmup-toggle-btn');
+
+        function tick() {
+            const { rem, running } = warmupRem(warmupData);
+            if (!running || rem <= 0) {                              // カウント中(残り>0)のみ表示
+                overlay.style.display = 'none';
+                if (btn) btn.style.display = 'none';                 // トグルボタンも隠す
+                warmupHidden = false;                                // 練習終了で次回に備えリセット
+                clearInterval(warmupInterval); warmupInterval = null;
+                return;
+            }
+            const s = Math.ceil(rem / 1000);
+            valEl.textContent = `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+            valEl.className = 'warmup-time' + (rem < 60000 ? ' warning' : '');
+            overlay.style.display = warmupHidden ? 'none' : '';      // 手動非表示なら隠す
+            if (btn) {                                               // カウント中はボタン表示
+                btn.style.display = '';
+                btn.textContent = warmupHidden ? '会場練習表示' : '会場練習非表示';
+                btn.classList.toggle('off', warmupHidden);
+            }
+        }
+        tick();
+        const r0 = warmupRem(warmupData);
+        if (r0.running && r0.rem > 0) warmupInterval = setInterval(tick, 250);
+    }
+
+    // ---- 会場練習タイマー 表示/非表示トグル（ヘッダーのボタン） ----
+    window.toggleWarmupView = () => {
+        warmupHidden = !warmupHidden;
+        const { rem, running } = warmupRem(warmupData);
+        if (!running || rem <= 0) return;                            // 表示中のみ有効
+        const overlay = document.getElementById('warmup-overlay');
+        const btn     = document.getElementById('warmup-toggle-btn');
+        overlay.style.display = warmupHidden ? 'none' : '';
+        if (btn) {
+            btn.textContent = warmupHidden ? '会場練習表示' : '会場練習非表示';
+            btn.classList.toggle('off', warmupHidden);
+        }
+    };
+
     // ---- 初期化 ----
     function init() {
         if (!eventId) { headerAthlete.textContent = 'エラー: 大会IDがありません'; return; }
@@ -232,6 +368,17 @@
             if (!snap.exists()) return;
             const d = snap.data();
             currentTourData = d;  // 常に最新を保持（審判名の引き直しに使う）
+
+            // 会場練習タイマー（カウント中のみ中央オーバーレイ表示）。
+            // このドキュメントは両パネル共有のため他パネルの操作でも毎回発火するが、
+            // warmupSettings が実際に変わった時だけタイマーを張り直す
+            // （無条件だと無関係な更新のたびに setInterval 張り直し・DOM再取得・表示チラつきが起きる）。
+            const newWarmupRaw = JSON.stringify(d.warmupSettings || {});
+            if (newWarmupRaw !== _lastWarmupRaw) {
+                _lastWarmupRaw = newWarmupRaw;
+                warmupData = d.warmupSettings || {};
+                startWarmupTick();
+            }
 
             const state = d?.liveState?.[panel];
             if (!state?.athleteId) { showWaiting(); return; }
@@ -248,19 +395,67 @@
         });
     }
 
-    // ---- 審判名更新（クラス変わるたびに引き直し） ----
-    function updateJudgeName(athleteClass) {
+    // ---- 審判名更新（クラス・性別・ラウンドが変わるたびに引き直し） ----
+    function updateJudgeName(athleteClass, athleteGender, athleteRound, athleteType) {
         const judgeClasses = currentTourData?.judgeConfig?.classes || {};
         const roleKey = role.toLowerCase();
-        let name = '';
-        // 指定クラスで先に探す
-        if (athleteClass && judgeClasses[athleteClass]) {
-            name = judgeClasses[athleteClass][roleKey] || '';
+        const roundKey = (athleteRound === 'final') ? '決勝' : (athleteRound ? '予選' : '');
+
+        function lookupInClass(clsData) {
+            if (!clsData) return '';
+            // 後方互換: フラット形式
+            if (Object.keys(clsData).some(k => ['cjp','e1','e2','e3','e4','d7','d8'].includes(k))) {
+                return clsData[roleKey] || '';
+            }
+            // 新形式: [gender][round][roleKey]
+            const genders = athleteGender
+                ? [athleteGender, ...(athleteGender === '男子' ? ['女子'] : ['男子'])]
+                : ['男子', '女子'];
+            const rounds = roundKey
+                ? [roundKey, ...(roundKey === '予選' ? ['決勝'] : ['予選'])]
+                : ['予選', '決勝'];
+            for (const g of genders) {
+                for (const r of rounds) {
+                    const v = clsData[g]?.[r]?.[roleKey];
+                    if (v) return v;
+                }
+            }
+            return '';
         }
-        // 見つからなければ全クラスから最初の一致をフォールバック
+
+        // judgeClasses 内の全クラスデータを列挙
+        // 新形式: judgeClasses['individual']['Aクラス'] / 旧形式: judgeClasses['Aクラス']
+        function allClassDataList() {
+            const list = [];
+            for (const [key, val] of Object.entries(judgeClasses)) {
+                if (typeof val !== 'object' || val === null) continue;
+                if (key === 'individual' || key === 'synchro') {
+                    Object.values(val).forEach(v => { if (typeof v === 'object' && v) list.push(v); });
+                } else {
+                    list.push(val);
+                }
+            }
+            return list;
+        }
+
+        let name = '';
+        if (athleteClass) {
+            // 新形式: type > className の順で探す
+            const typesToTry = athleteType
+                ? [athleteType, ...(athleteType === 'individual' ? ['synchro'] : ['individual'])]
+                : ['individual', 'synchro'];
+            for (const t of typesToTry) {
+                const clsData = judgeClasses[t]?.[athleteClass];
+                if (clsData) { name = lookupInClass(clsData); if (name) break; }
+            }
+            // 旧形式フォールバック
+            if (!name) name = lookupInClass(judgeClasses[athleteClass]);
+        }
+        // 全クラスからフォールバック（待機中など）
         if (!name) {
-            for (const cls of Object.values(judgeClasses)) {
-                if (cls[roleKey]) { name = cls[roleKey]; break; }
+            for (const clsData of allClassDataList()) {
+                name = lookupInClass(clsData);
+                if (name) break;
             }
         }
         judgeName = name;
@@ -289,8 +484,9 @@
         landing      = null;
         currentIndex = 0;
         vLimit       = 10;
+        confirmed    = false;
 
-        updateJudgeName(state.athleteClass || '');
+        updateJudgeName(state.athleteClass || '', state.athleteGender || '', state.round || '', state.athleteType || '');
         headerAthlete.textContent = state.athleteName || athleteId;
         headerRound.textContent   = roundLabel(round);
         waitingView.style.display = 'none';
@@ -301,15 +497,42 @@
         let firstLoad = true;
 
         unsubResult = onSnapshot(doc(db, 'results', resId), (snap) => {
-            if (!snap.exists()) { vLimit = 10; refresh(); return; }
+            if (!snap.exists()) {
+                // CJPが得点削除した場合など: このE審判の入力状態も得点入力前に戻す。
+                // vLimitだけでなくdeductions/landing/confirmedも戻さないと、確定済みのまま
+                // ドキュメントだけ消え、confirmedが立ったままキー入力を受け付けなくなる。
+                vLimit = 10;
+                deductions = Array(10).fill(null);
+                landing = null;
+                confirmed = false;
+                currentIndex = 0;
+                refresh();
+                return;
+            }
             const data = snap.data();
 
             const prevVLimit = vLimit;
-            vLimit = data.validCount ?? 10;
+            const newVLimit  = data.validCount ?? 10;
 
             const j = data.execution?.judges?.[`${panel}_${role}`] || {};  // パネル付きキー
-            deductions = sanitizeDeductions([...(j.deductions || Array(10).fill(null))]);
-            landing    = sanitizeLanding(j.landing ?? null);
+            const newDeductions = sanitizeDeductions([...(j.deductions || Array(10).fill(null))]);
+            const newLanding    = sanitizeLanding(j.landing ?? null);
+            const newConfirmed  = !!j.confirmedAt;
+
+            // 同じパネルの他のE審判が入力しても results ドキュメントは共有のためこの
+            // onSnapshot は毎回発火する。自分の担当スライスが実際に変わっていなければ
+            // 配列再構築・refresh()（ステップグリッド/キーパッド再描画）は不要なので省略する。
+            if (!firstLoad && newVLimit === prevVLimit &&
+                newConfirmed === confirmed && newLanding === landing &&
+                newDeductions.length === deductions.length &&
+                newDeductions.every((v, i) => v === deductions[i])) {
+                return;
+            }
+
+            vLimit     = newVLimit;
+            deductions = newDeductions;
+            landing    = newLanding;
+            confirmed  = newConfirmed;
 
             if (firstLoad) {
                 // 初回のみ：currentIndex を入力済み本数から決める
@@ -319,6 +542,15 @@
             } else if (vLimit !== prevVLimit) {
                 // CJP が有効本数を変えたときだけ位置を調整
                 if (currentIndex > vLimit) currentIndex = vLimit;
+                // 有効本数が「増えた」ときだけ確定を自動解除（増加分の入力が必要になるため）。
+                // 減った場合は必要な本数は既に入力済みなので確定は維持する。
+                if (confirmed && vLimit > prevVLimit) {
+                    confirmed = false;
+                    // 保存済みの確定も解除（CJP側の表示・次スナップショットでの再ロックを防ぐ）
+                    setDoc(doc(db, 'results', resId), {
+                        execution: { judges: { [`${panel}_${role}`]: { confirmedAt: null } } }
+                    }, { merge: true }).catch(e => console.warn('確定自動解除の保存に失敗', e));
+                }
             }
             // 通常の書き込み反映時は currentIndex をいじらない
 
@@ -330,6 +562,8 @@
     function refresh() {
         const stepsEl = document.getElementById('steps');
         stepsEl.innerHTML = '';
+        // 得点表示の色を確定状態で切り替え（緑=確定済み / アンバー=未確定）
+        stepsEl.classList.toggle('confirmed', confirmed);
 
         // 常に S1-S10 + L の 11 セルを描画（レイアウト固定）
         for (let i = 0; i <= 10; i++) {
@@ -343,14 +577,14 @@
             const outOfRange = isLanding ? vLimit < 10 : i >= vLimit;
             if (outOfRange) { s.style.visibility = 'hidden'; stepsEl.appendChild(s); continue; }
 
-            if (i === currentIndex) {
+            if (i === currentIndex && !confirmed) {
                 s.classList.add('active');
                 const dispVal = val !== null ? Math.round(val * 10) : '--';
                 s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val">${dispVal}</span>`;
             } else if (val !== null) {
                 s.classList.add('filled');
                 s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val">${Math.round(val * 10)}</span>`;
-                s.onclick = () => jumpTo(i);
+                if (!confirmed) s.onclick = () => jumpTo(i);   // 確定後は選択不可（修正を押すまで）
             } else {
                 s.innerHTML = `<span class="step-lbl">${lbl}</span><span class="step-val"></span>`;
             }
@@ -388,37 +622,48 @@
             keypad.innerHTML = `
                 <div style="grid-column:span 6; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#444; padding:8px 0; text-align:center;">
                     <span style="font-size:2rem;">🔒</span>
-                    <span style="font-weight:bold; color:#555; font-size:0.9rem;">CJPが採点をロック中</span>
-                    <span style="font-size:0.72rem; color:#333;">「修正する」が押されると解除されます</span>
+                    <span style="font-weight:bold; color:#555; font-size:0.9rem;">CJP確定済み</span>
+                    <span style="font-size:0.72rem; color:#333;">CJPが「修正」を押すと再入力できます</span>
                 </div>`;
             return;
         }
 
         const isInterrupted = (vLimit < 10 && currentIndex >= vLimit);
 
+        // 有効演技数分すべて入力し終えたら確定ボタンを下段に出す（UNDOは廃止＝打ち直しはセルタップ）
+        const confirmBtn = allEntered()
+            ? `<button class="key key-confirm${confirmed ? ' confirmed' : ''}" onclick="confirmScore()">${confirmed ? '確定済み ✓（押して修正）' : '確定'}</button>`
+            : '';
+
+        keypad.className = 'keypad';
         if (isInterrupted) {
-            keypad.className = 'keypad';
-            keypad.innerHTML = `<button class="key key-undo" onclick="undo()">UNDO</button>`;
+            // 中断（有効本数<10で全入力済み）: 数字キーは無く確定のみ
+            keypad.innerHTML = confirmBtn;
         } else if (currentIndex < 10) {
-            keypad.className = 'keypad';
-            keypad.innerHTML =
-                [0, 0.1, 0.2, 0.3, 0.4, 0.5].map(v =>
-                    `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v})">${Math.round(v * 10)}</button>`
-                ).join('') +
-                `<button class="key key-undo" onclick="undo()">UNDO</button>`;
+            const keys = [0, 0.1, 0.2, 0.3, 0.4, 0.5].map(v =>
+                `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v})">${Math.round(v * 10)}</button>`
+            ).join('');
+            // 確定ボタンは数字キーの上に配置
+            keypad.innerHTML = confirmBtn + `<div class="key-row${confirmed ? ' locked' : ''}">${keys}</div>`;
         } else {
-            keypad.className = 'keypad';
-            keypad.innerHTML =
-                [0, 1, 2, 3, 5, 10].map(v =>
-                    `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v / 10})">${v}</button>`
-                ).join('') +
-                `<button class="key key-undo" onclick="undo()">UNDO</button>`;
+            const keys = [0, 1, 2, 3, 5, 10].map(v =>
+                `<button class="key${v === 0 ? ' key-zero' : ''}" onclick="tap(${v / 10})">${v}</button>`
+            ).join('');
+            keypad.innerHTML = confirmBtn + `<div class="key-row${confirmed ? ' locked' : ''}">${keys}</div>`;
         }
+    }
+
+    // 有効演技数分（+ vLimit===10 なら着地）をすべて入力済みか
+    function allEntered() {
+        for (let i = 0; i < vLimit; i++) if (deductions[i] == null) return false;
+        if (vLimit === 10 && landing == null) return false;
+        return true;
     }
 
     // ---- ステップ移動（打ち直し） ----
     window.jumpTo = (i) => {
         if (!athleteId || !round) return;
+        if (confirmed) return;   // 確定後は「確定済み（修正）」を押すまで選択不可
         if (i === 10) { if (vLimit < 10) return; }
         else { if (i >= vLimit) return; }
         currentIndex = i;
@@ -428,6 +673,7 @@
     // ---- 採点書き込み ----
     window.tap = async (v) => {
         if (!athleteId || !round) return;
+        if (confirmed) return;   // 確定後は「確定済み（修正）」を押すまで入力不可
         // CJPが有効本数を変更した直後の競合を防ぐ（範囲外への書き込みをブロック）
         if (currentIndex < 10 && currentIndex >= vLimit) return;
 
@@ -439,42 +685,35 @@
             if (!isValidLanding(v)) return;     // 0,1,2,3,5,10以外は無視
             landing = v;
         }
+        confirmed = false; // 入力を変更したら確定は解除（再度「確定」を押す必要がある）
         refresh();
 
-        const sum   = deductions.reduce((a, b) => a + (b ?? 0), 0) + (landing ?? 0);
+        // vLimit（有効本数）を超えた分はCJPが後から中断等で有効本数を減らした場合の残骸になりうるため、
+        // 合計には含めない（着地もvLimit===10の時だけ加算）。範囲外のセルへの書込みは上のtap()冒頭で
+        // 既にブロックしているが、それより前（有効本数が多かった時点）に入力済みの値が
+        // deductions配列に残っている可能性があるため、ここでも明示的に絞り込む。
+        const sum   = deductions.slice(0, vLimit).reduce((a, b) => a + (b ?? 0), 0) + (vLimit === 10 ? (landing ?? 0) : 0);
         const resId = `${eventId}_${athleteId}_${round}`;
         await setDoc(doc(db, 'results', resId), {
             eventId, athleteId, round,
             execution: {
                 judges: {
-                    [`${panel}_${role}`]: { deductions, landing, totalDeduction: sum, updatedAt: serverTimestamp() }
+                    [`${panel}_${role}`]: { deductions, landing, totalDeduction: sum, confirmedAt: null, updatedAt: serverTimestamp() }
                 }
             }
         }, { merge: true });
     };
 
-    window.undo = async () => {
-        if (!athleteId || !round) return;
-
-        const isInterrupted = (vLimit < 10 && currentIndex >= vLimit);
-        if (isInterrupted) {
-            const idx = vLimit - 1;
-            deductions[idx] = null;
-            currentIndex = idx;
-        } else if (currentIndex === 10) {
-            if (landing !== null) { landing = null; }
-            else { deductions[9] = null; currentIndex = 9; }
-        } else if (currentIndex > 0) {
-            deductions[currentIndex - 1] = null;
-            currentIndex = currentIndex - 1;
-        } else {
-            return;
-        }
+    // ---- 確定/確定解除（有効演技数を全入力後に出現。CJP内訳の薄字→通常表示・黄色解除に反映） ----
+    // 未確定→押すと確定。確定済み→押すと解除して修正できる状態に戻す（トグル）。
+    window.confirmScore = async () => {
+        if (!athleteId || !round || isLocked) return;
+        if (!allEntered()) return;
+        confirmed = !confirmed;   // トグル。楽観的に即反映（serverTimestamp 解決前のちらつき防止）
         refresh();
-
         const resId = `${eventId}_${athleteId}_${round}`;
         await setDoc(doc(db, 'results', resId), {
-            execution: { judges: { [`${panel}_${role}`]: { deductions, landing } } }
+            execution: { judges: { [`${panel}_${role}`]: { confirmedAt: confirmed ? serverTimestamp() : null } } }
         }, { merge: true });
     };
 

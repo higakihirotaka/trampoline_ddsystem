@@ -174,10 +174,11 @@
             const newAthleteId = live.athleteId || null;
             const newRound     = live.round     || 'pre1';
 
-            // 選手またはラウンドが切り替わったら入力値・ステータスをリセット
-            if (newAthleteId !== currentAthleteId || newRound !== currentRound) {
-                clearInput();
-            }
+            // 選手またはラウンドが切り替わった時だけ入力値・監視をリセットする。
+            // （このドキュメントは他パネルのliveStateや設定変更でも書き込まれるため、
+            //   無条件にすると無関係な更新のたびに results 監視の張り直し・再取得が走ってしまう）
+            const changed = newAthleteId !== currentAthleteId || newRound !== currentRound;
+            if (changed) clearInput();
 
             currentAthleteId = newAthleteId;
             currentRound     = newRound;
@@ -198,10 +199,12 @@
             const v = parseInt(document.getElementById('val-input').value, 10);
             document.getElementById('btn-send').disabled = !(currentAthleteId && !isNaN(v) && v >= 0);
 
-            // 有効本数のリアルタイム監視を開始（選手切替時はリスナー張り直し）
-            watchResults();
-            // 保存済み値を取得・表示
-            loadSavedVal();
+            if (changed) {
+                // 有効本数のリアルタイム監視を開始（選手切替時はリスナー張り直し）
+                watchResults();
+                // 保存済み値を取得・表示
+                loadSavedVal();
+            }
         });
     }
 

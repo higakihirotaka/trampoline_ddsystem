@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>順位表</title>
+  <title>順位表（詳細版）</title>
   <style>
-    :root { --accent:#1a3a6b; --gold:#b8860b; --print-font-size:10px; --print-name-w:140px; }
+    :root { --accent:#1a3a6b; --gold:#b8860b; --print-font-size:9px; --print-name-w:110px; }
     * { box-sizing:border-box; }
     body { font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin:0; padding:0; background:#fff; color:#111; font-size:13px; }
 
@@ -67,7 +67,7 @@
     /* 最終行：次の選手がいないため通常セルに底線を補完 */
     .score-table tbody tr:last-child td { border-bottom:2px solid #aaa; }
 
-    .rank-num { font-size:1.2rem; font-weight:900; color:var(--accent); }
+    .rank-num { font-size:1.2rem; font-weight:900; color:#111; }
 
     /* 決勝進出・リザーブマーク（右上に絶対配置して数字位置を変えない） */
     .col-rank { position:relative; }
@@ -86,7 +86,7 @@
     .s-val { font-size:13px; }
 
     .score-val { font-weight:700; font-size:14px; }
-    .total-val { font-weight:900; font-size:15px; color:var(--accent); }
+    .total-val { font-weight:900; font-size:15px; color:#111; }
 
     .score-na { color:#bbb; font-size:11px; }
     .dns-badge { background:#7b1fa2; color:#fff; font-size:8px; font-weight:900; padding:1px 5px; border-radius:3px; letter-spacing:0.05em; }
@@ -97,49 +97,113 @@
 
     /* 列幅 */
     .col-rank { width:36px; }
-    .col-name { width:160px; }
-    .col-round { width:42px; }
-    .col-s { width:26px; }
-    .col-land { width:26px; }
-    .col-exe  { width:50px; }
-    .col-diff { width:46px; }
-    .col-tof  { width:50px; }
-    .col-hd   { width:46px; }
-    .col-pen  { width:32px; }
-    .col-score{ width:55px; }
-    .col-total{ width:58px; }
+    .col-name { width:158px; }
+    .col-round { width:34px; }
+    .col-item { width:32px; }
+    .col-s { width:36px; }
+    .col-land { width:30px; }
+    .col-sum  { width:48px; }
+    .col-pen  { width:48px; }
+    .col-score{ width:52px; }
+    .col-total{ width:56px; }
 
-    /* ---- 団体順位表 ---- */
-    .team-table { table-layout:auto; }
-    .team-table td.left { text-align:left; }
-    .team-table .tm-name { font-weight:800; font-size:14px; color:#222; }
-    .team-table tbody tr.tm-first td { border-top:2px solid #aaa; }
-    .team-table .mem-drop { color:#bbb; }
-    .col-tm-name { width:150px; }
-    .col-tm-mem  { width:150px; }
+    /* ---- 詳細版: 1本を D / E / T / HD の4行で表示 ---- */
+    td.col-item {
+      font-weight:900; font-size:11px; background:#f4f6f9;
+      print-color-adjust:exact; -webkit-print-color-adjust:exact;
+    }
+    td.item-d  { color:#111; }
+    td.item-e  { color:#111; }
+    td.item-t  { color:#111; }
+    td.item-hd { color:#111; }
+    .d-skill  { font-size:12px; font-weight:400; color:#111; letter-spacing:-0.3px; }
+    .d-skill.dd-on { font-weight:700; }  /* 難度点が加算される技のみ太字 */
+    .t-val    { font-size:11px; color:#111; }
+    .h-val    { font-size:12px; color:#111; }
+    .sum-val  { font-weight:700; font-size:12px; color:#111; }
+    .sum-diff { font-weight:900; font-size:12px; color:#111; }
+    /* ペナルティ内容（会場表示テキスト）: Pen列で数字の下に表示 */
+    td.col-pen { vertical-align:middle; }
+    .pen-reasons-cell { font-size:8px; font-weight:700; color:#111; line-height:1.1; margin-top:1px; white-space:normal; overflow-wrap:anywhere; letter-spacing:-0.2px; }
+    /* 選手ブロックの上下境界・偶奇背景・ラウンド区切り */
+    tr.detail-first td { border-top:2px solid #999; }
+    tr.detail-last td  { border-bottom:2px solid #999; }
+    tr.round-end td    { border-bottom:1.5px solid #bbb; }
+    tr.blk-alt td            { background:#f7f8fb; }
+    tr.blk-alt td.col-item   { background:#eef1f6; }
+    .table-wrap{ overflow-x:auto; }
+    /* 印刷時: 選手ブロック(=1人ぶんのtbody)をページ内で分割しない */
+    tbody.ath-block{ break-inside:avoid; page-break-inside:avoid; }
 
     @media print {
       .controls { display:none !important; }
-      body { background:#fff; font-size:11px; }
+      body { background:#fff; }
       .print-area { padding:0; }
-      @page { margin:10mm 8mm; size:A4 landscape; }
       /* 全クラス印刷: クラス/性別が変わるブロックの前で改ページ */
       .print-block.page-break { break-before: page; page-break-before: always; }
-      /* 見出しが表と切り離されないように */
       .group-label { break-after: avoid; page-break-after: avoid; }
-      .score-table { font-size:var(--print-font-size); }
-      .score-table th { font-size:calc(var(--print-font-size) * 0.9); padding:3px 2px; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
-      .score-table td { padding:3px 2px; }
-      .ath-name { font-size:var(--print-font-size); }
-      .ath-club { font-size:calc(var(--print-font-size) * 0.85); }
-      .rank-num { font-size:calc(var(--print-font-size) * 1.1); }
-      .score-val { font-size:var(--print-font-size); }
-      .total-val { font-size:calc(var(--print-font-size) * 1.1); }
-      .col-name { width:var(--print-name-w); }
+      /* 選手ブロックはページ内で分割しない */
+      tbody.ath-block { break-inside: avoid; page-break-inside: avoid; }
+      thead { display: table-header-group; } /* 各ページに列見出しを繰り返す */
+      .table-wrap { overflow: visible; }
+      .score-table th { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+      .col-name { width: var(--print-name-w); }
+      .pen-reasons-cell { font-size:calc(var(--print-font-size)*0.72); line-height:1.05; letter-spacing:-0.3px; }
+
+      /* ===== 縦（ポートレート）: 高密度・1枚目8人/2枚目以降9人 ===== */
+      body.mode-portrait .sheet-header { margin-bottom:3px; }
+      body.mode-portrait .event-name { font-size:12px; margin:0 0 2px; line-height:1.15; }
+      body.mode-portrait .sheet-meta { font-size:8.5px; line-height:1.25; }
+      body.mode-portrait .sheet-divider { margin:3px 0; }
+      body.mode-portrait .group-label { margin:0 0 2px; font-size:10px; }
+      body.mode-portrait .score-table { font-size:var(--print-font-size); }
+      body.mode-portrait .score-table th { font-size:calc(var(--print-font-size)*0.9); padding:1px 1px; line-height:1.05; }
+      /* 「Comp.」は縦印刷の26px列に収まらないので、この列だけ縮めて収める */
+      body.mode-portrait .score-table th.col-item { font-size:calc(var(--print-font-size)*0.78); letter-spacing:-0.4px; }
+      body.mode-portrait .score-table td { padding:1px 1px; line-height:1.05; }
+      body.mode-portrait .ath-name { font-size:var(--print-font-size); line-height:1.1; }
+      body.mode-portrait .ath-club { font-size:calc(var(--print-font-size)*0.8); line-height:1.05; }
+      body.mode-portrait .rank-num { font-size:calc(var(--print-font-size)*1.1); }
+      body.mode-portrait .score-val { font-size:var(--print-font-size); }
+      body.mode-portrait .total-val { font-size:calc(var(--print-font-size)*1.1); }
+      body.mode-portrait .d-skill { font-size:calc(var(--print-font-size)*0.86); letter-spacing:-0.4px; }
+      body.mode-portrait .t-val { font-size:calc(var(--print-font-size)*0.9); }
+      body.mode-portrait .h-val { font-size:var(--print-font-size); }
+      body.mode-portrait .s-val { font-size:var(--print-font-size); }
+      body.mode-portrait td.col-item { font-size:calc(var(--print-font-size)*0.9); }
+      body.mode-portrait .sum-val, body.mode-portrait .sum-diff { font-size:var(--print-font-size); }
+      body.mode-portrait .col-rank { width:30px; }
+      body.mode-portrait .col-round { width:24px; }
+      body.mode-portrait .col-item { width:26px; }
+      body.mode-portrait .col-s { width:35px; }
+      body.mode-portrait .col-land { width:24px; }
+      body.mode-portrait .col-sum { width:40px; }
+      body.mode-portrait .col-pen { width:44px; }
+      body.mode-portrait .col-score { width:44px; }
+      body.mode-portrait .col-total { width:46px; }
+
+      /* ===== 横（ランドスケープ）: 従来のゆったりレイアウト ===== */
+      body.mode-landscape .score-table { font-size:var(--print-font-size); }
+      body.mode-landscape .score-table th { font-size:calc(var(--print-font-size)*0.9); padding:3px 2px; }
+      body.mode-landscape .score-table td { padding:3px 2px; }
+      body.mode-landscape .ath-name { font-size:var(--print-font-size); }
+      body.mode-landscape .ath-club { font-size:calc(var(--print-font-size)*0.85); }
+      body.mode-landscape .rank-num { font-size:calc(var(--print-font-size)*1.1); }
+      body.mode-landscape .score-val { font-size:var(--print-font-size); }
+      body.mode-landscape .total-val { font-size:calc(var(--print-font-size)*1.1); }
+      body.mode-landscape .d-skill { font-size:var(--print-font-size); }
+      body.mode-landscape .t-val { font-size:calc(var(--print-font-size)*0.9); }
+      body.mode-landscape .h-val { font-size:var(--print-font-size); }
+      body.mode-landscape .s-val { font-size:var(--print-font-size); }
+      body.mode-landscape td.col-item { font-size:calc(var(--print-font-size)*0.95); }
+      body.mode-landscape .sum-val, body.mode-landscape .sum-diff { font-size:var(--print-font-size); }
+      /* 横は画面既定の広い列幅をそのまま使用（col-s 36px 等） */
     }
   </style>
+  <!-- 用紙の向き（縦/横）は印刷ボタンで切替。JSでこの@pageを差し替える -->
+  <style id="page-size">@page { size: A4 portrait; margin: 8mm 6mm; }</style>
 </head>
-<body>
+<body class="mode-portrait">
 
 <div class="controls" id="controls">
   <label>グループ</label>
@@ -167,22 +231,26 @@
   <select id="sel-print-size" onchange="document.documentElement.style.setProperty('--print-font-size',this.value+'px')">
     <option value="7">7</option>
     <option value="8">8</option>
-    <option value="9">9</option>
-    <option value="10" selected>10</option>
+    <option value="9" selected>9</option>
+    <option value="10">10</option>
     <option value="11">11</option>
     <option value="12">12</option>
   </select>
   <label>名前列幅</label>
   <select id="sel-name-w" onchange="document.documentElement.style.setProperty('--print-name-w',this.value+'px')">
-    <option value="110">110</option>
+    <option value="90">90</option>
+    <option value="100">100</option>
+    <option value="110" selected>110</option>
     <option value="130">130</option>
-    <option value="140" selected>140</option>
+    <option value="140">140</option>
     <option value="160">160</option>
     <option value="180">180</option>
     <option value="200">200</option>
   </select>
-  <button class="btn-print" onclick="printRanking()">🖨 印刷</button>
-  <button class="btn-print" onclick="printAllClasses()" style="background:#1a3a6b;">🖨 全クラス印刷</button>
+  <button class="btn-print" onclick="printRanking('portrait')">🖨 縦で印刷</button>
+  <button class="btn-print" onclick="printRanking('landscape')" style="background:#7a5b1e;">🖨 横で印刷</button>
+  <button class="btn-print" onclick="printAllClasses('portrait')" style="background:#1a3a6b;">🖨 全クラス（縦）</button>
+  <button class="btn-print" onclick="printAllClasses('landscape')" style="background:#3a2a6b;">🖨 全クラス（横）</button>
 </div>
 
 <div class="print-area">
@@ -197,28 +265,33 @@
 
   const params  = new URLSearchParams(location.search);
   const eventId = params.get('event');
-  let athletes = [], tourData = null, teamDocs = [];
+  let athletes = [], tourData = null;
+  // 技コード解決用（officialSkills の ID/シンボル → 技マスター）
+  const skillById = {}, skillBySymbol = {};
 
   async function init() {
     if (!eventId) { document.getElementById('output').innerHTML = '<div class="no-data">URLにeventパラメータがありません</div>'; return; }
-    const [fetchedTour, fetchedAth] = await Promise.all([
+    const [fetchedTour, fetchedAth, smSnap] = await Promise.all([
       getTournament(eventId),
-      getAthletes(eventId)
+      getAthletes(eventId),
+      getDocs(collection(db, 'skillMaster'))
     ]);
     if (!fetchedTour) { document.getElementById('output').innerHTML = '<div class="no-data">大会が見つかりません</div>'; return; }
     tourData = fetchedTour;
     athletes = fetchedAth;
+    // 技マスターを ID / シンボルの両方で引けるようにする
+    smSnap.docs.forEach(d => {
+      const data = d.data();
+      const m = { id: d.id, symbol: data.symbol, displaySymbol: data.displaySymbol || data.symbol, dd: parseFloat(data.dd) || 0 };
+      skillById[String(d.id)] = m;
+      if (m.symbol != null && m.symbol !== '') skillBySymbol[String(m.symbol)] = m;
+    });
     // 決勝試技順はキャッシュ除外なので毎回Firestoreから取得してマージ
     const finalOrders = await getFinalOrders(eventId);
     athletes.forEach(a => {
       const fo = finalOrders[a.id];
       if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
     });
-    // 団体チーム（順位表メニューの「団体」カテゴリー用）
-    try {
-      const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
-      teamDocs = teamSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    } catch { teamDocs = []; }
     buildSelectors();
   }
 
@@ -254,24 +327,6 @@
       });
     });
 
-    // 団体カテゴリー（teams コレクションの class×gender ごとに1件）。クラス定義順に並べる
-    if (teamDocs.length) {
-      const teamClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.individual || []))
-        .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
-      const teamRawClasses = [...new Set(teamDocs.map(t => t.class || ''))];
-      const teamClasses = [...teamClassDefs.filter(c=>teamRawClasses.includes(c)), ...teamRawClasses.filter(c=>!teamClassDefs.includes(c))].filter(Boolean);
-      const tSeen = new Set();
-      teamClasses.forEach(cls => {
-        const genders = [...new Set(teamDocs.filter(t => (t.class||'') === cls).map(t => t.gender || ''))];
-        (genders.length ? genders : ['']).forEach(gender => {
-          const key = `team::${cls}::${gender}`;
-          if (tSeen.has(key)) return;
-          tSeen.add(key);
-          combos.push({ key, label: `団体 ${cls}${gender ? ' ' + gender : ''}` });
-        });
-      });
-    }
-
     const selGroup = document.getElementById('sel-group');
     selGroup.innerHTML = '<option value="">-- 選択 --</option>'
       + combos.map(c => `<option value="${c.key}">${c.label}</option>`).join('');
@@ -297,44 +352,85 @@
   }
 
   // S1-S10: 全審判の各技減点を合計（stored値×10 = タップ単位に戻す）
-  // フォールバック（officialEPerSkill が無い旧データ用）: 生審判データの中間2名合計（点単位）。
-  // ※シンクロの per-skill E は平均/中央値ロジックで CJP と一致させる必要があるため、通常は
-  //   CJP保存値 officialEPerSkill を使う（perSkillE 参照）。ここは旧データ用の近似。
   function calcSkillTotals(result) {
     const judges = Object.values(result.execution?.judges || {});
     if (judges.length === 0) return { skills: Array(10).fill(null), land: null };
 
+    // CJP の middle2 と同じ：中間2名の合計を ×10 して表示
     function mid2sum(vals) {
       const filled = vals.filter(v => v !== null && v !== undefined);
-      if (filled.length < 2) return filled.length === 1 ? filled[0] : null;
+      if (filled.length < 2) return filled.length === 1 ? Math.round(filled[0] * 10) : null;
       filled.sort((a, b) => a - b);
       const mid = Math.floor((filled.length - 2) / 2);
-      return filled[mid] + filled[mid + 1];   // 点単位（表示側で ×10）
+      // 中間2名の合計（×10整数）
+      return Math.round((filled[mid] + filled[mid + 1]) * 10);
     }
 
-    const skills = Array.from({ length: 10 }, (_, i) =>
-      mid2sum(judges.map(j => (j.deductions || [])[i] ?? null)));
+    // 各技の有効減点合計を ×10 して整数表示（CJP の middle2sum と同じ値）
+    const skills = Array.from({ length: 10 }, (_, i) => {
+      const vals = judges.map(j => (j.deductions || [])[i] ?? null);
+      return mid2sum(vals);
+    });
+
     const land = mid2sum(judges.map(j => j.landing ?? null));
+
     return { skills, land };
   }
 
-  // per-skill E の取得元: CJPが確定時に保存した officialEPerSkill / officialELanding を最優先。
-  // これで CJP画面の「Med」行と順位表の S1〜 が完全一致する（シンクロの平均/中央値計算も含めて）。
-  function perSkillE(res) {
-    if (Array.isArray(res.officialEPerSkill) && res.officialEPerSkill.length) {
-      return {
-        skills: Array.from({ length: 10 }, (_, i) => (res.officialEPerSkill[i] ?? null)),
-        land:   (res.officialELanding != null ? res.officialELanding : null)
-      };
+  // 詳細版: 1本ぶんの技別データ（D=技コード / E=減点 / T=ToF / HD）をまとめて返す
+  // rule = そのクラスの classRule（指定難度判定に使用）
+  function getDetailPerSkill(res, rule) {
+    const { skills, land } = calcSkillTotals(res);
+    const officialSkills = res.officialSkills || [];
+    // HDTS 技別: 最も多く採点しているパネルの保存値を採用（display.html と同じ選び方）
+    const hdtsMap = res.hdtsPerSkillByPanel;
+    let hp = null;
+    if (hdtsMap && Object.keys(hdtsMap).length) {
+      const counts = {};
+      Object.keys(res.execution?.judges || {}).forEach(k => { const p = k.split('_')[0]; counts[p] = (counts[p] || 0) + 1; });
+      const active = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      hp = hdtsMap[active] || hdtsMap[Object.keys(hdtsMap)[0]] || null;
     }
-    return calcSkillTotals(res);   // 旧データ用フォールバック
+    const dCodes = Array.from({ length: 10 }, (_, i) => {
+      const off = officialSkills[i];
+      if (off == null || off === '') return null;
+      const m = skillById[String(off)] || skillBySymbol[String(off)];
+      return m ? (m.displaySymbol || m.symbol) : String(off);
+    });
+    const tofs = Array.from({ length: 10 }, (_, i) => (hp?.tof?.[i] != null) ? Number(hp.tof[i]) : null);
+    const hds  = Array.from({ length: 10 }, (_, i) => (hp?.hd?.[i]  != null) ? hp.hd[i] : null);
+    // 各技の難度点が実際に加算されているか（重複=ダブルカウント / 指定難度で無効 は false）
+    const desigRaw = rule?.designatedDDCount ?? -1;
+    const validDesig = desigRaw >= 0 && rule?.qualifyingRoutines === 2 && rule?.scoreMode === 'total' && res.round === 'pre1';
+    const desigCount = validDesig ? desigRaw : -1;
+    const desigIndices = res.officialDesignatedDDIndices || [];
+    const hasManual = !!(res.officialDDValues && res.officialDDValues.length > 0);
+    const vLimit = res.validCount ?? 10;
+    const seen = new Set();
+    const dCounted = Array(10).fill(false);
+    for (let i = 0; i < 10; i++) {
+      if (i >= vLimit) continue;
+      const off = officialSkills[i];
+      const sk = off ? (skillById[String(off)] || skillBySymbol[String(off)]) : null;
+      const repeatKey = sk ? sk.id : String(off);
+      const isRepeat = !!(sk && seen.has(repeatKey));
+      const isDesig = desigCount < 0 || (desigCount > 0 && desigIndices.includes(i));
+      let ddVal = 0;
+      if (hasManual) {
+        if (!isRepeat && off && isDesig) ddVal = Number(res.officialDDValues[i]) || 0;
+        if (sk && !isRepeat) seen.add(repeatKey);
+      } else if (sk && !isRepeat) {
+        seen.add(repeatKey);
+        if (isDesig) ddVal = sk.dd || 0;
+      }
+      dCounted[i] = ddVal > 0;
+    }
+    return { skills, land, dCodes, tofs, hds, dCounted };
   }
 
   const fmt3 = v => v != null ? Number(v).toFixed(3) : null;
   const fmt2 = v => v != null ? Number(v).toFixed(2) : null;
   const fmt1 = v => v != null ? Number(v).toFixed(1) : null;
-  // 四捨五入して小数第2位表示（FP堅牢: 既存の満精度保存値 6.675→6.68 等にも対応）
-  const fmt2r = v => v != null ? (Math.round(Number(v) * 100 + 1e-6) / 100).toFixed(2) : null;
 
   // 印刷/PDF保存時の既定ファイル名にクラス・男女・ラウンド・大会名を反映
   // （ブラウザの「PDFで保存」は document.title を既定ファイル名に使う）
@@ -343,13 +439,26 @@
     const rSel = document.getElementById('sel-round');
     const gLabel = (gSel && gSel.value && gSel.options[gSel.selectedIndex]?.text) || '';
     const rLabel = (rSel && rSel.options[rSel.selectedIndex]?.text) || '';
-    const parts = [gLabel, rLabel].filter(Boolean);
+    const parts = [gLabel, rLabel, '詳細'].filter(Boolean);
     // ファイル名に使えない文字を除去し、各要素をアンダーバーで連結
     const t = parts.join(' ').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
     if (t) document.title = t;
   }
 
-  window.printRanking = function() {
+  // 印刷モード（用紙の向き＋レイアウト）を切り替える
+  function applyPrintMode(mode) {
+    const m = (mode === 'landscape') ? 'landscape' : 'portrait';
+    document.body.classList.remove('mode-portrait', 'mode-landscape');
+    document.body.classList.add('mode-' + m);
+    // @page の向きをJSで差し替え（クラス条件では size を切替できないため）
+    const ps = document.getElementById('page-size');
+    if (ps) ps.textContent = (m === 'landscape')
+      ? '@page { size: A4 landscape; margin: 10mm 8mm; }'
+      : '@page { size: A4 portrait; margin: 8mm 6mm; }';
+  }
+
+  window.printRanking = function(mode) {
+    applyPrintMode(mode);
     setPrintTitle();
     window.print();
   };
@@ -444,20 +553,19 @@
     const showRoundCol = !isFinal;
     const showTotalCol = !isFinal || finalScoreMode === 'combined';
 
-    // thead
+    // thead（詳細版: 単一ヘッダ行。1本を D/E/T/HD の4行で表示）
+    const tLabel = fType === 'synchro' ? 'Syn' : 'ToF';
     const thead = `<thead><tr>
-      <th class="col-rank" rowspan="2">Rank</th>
-      <th class="col-name" rowspan="2">Name</th>
-      ${showRoundCol ? '<th class="col-round" rowspan="2">Round</th>' : ''}
+      <th class="col-rank">Rank</th>
+      <th class="col-name">Name</th>
+      <th class="col-round">R</th>
+      <th class="col-item">Comp.</th>
       <th class="col-s">S1</th><th class="col-s">S2</th><th class="col-s">S3</th>
       <th class="col-s">S4</th><th class="col-s">S5</th><th class="col-s">S6</th>
       <th class="col-s">S7</th><th class="col-s">S8</th><th class="col-s">S9</th>
       <th class="col-s">S10</th>
       <th class="col-land">L</th>
-      <th class="col-exe">Exe</th>
-      <th class="col-diff">Diff</th>
-      <th class="col-tof">${fType === 'synchro' ? 'Syn' : 'ToF'}</th>
-      <th class="col-hd">HD</th>
+      <th class="col-sum">Sum</th>
       <th class="col-pen">Pen</th>
       <th class="col-score">Score</th>
       ${showTotalCol ? `<th class="col-total">${totalLabel}</th>` : ''}
@@ -466,111 +574,152 @@
     // 列幅colgroup
     const colgroup = `<colgroup>
       <col class="col-rank"><col class="col-name">
-      ${showRoundCol ? '<col class="col-round">' : ''}
+      <col class="col-round"><col class="col-item">
       ${Array(10).fill('<col class="col-s">').join('')}
-      <col class="col-land"><col class="col-exe"><col class="col-diff">
-      <col class="col-tof"><col class="col-hd"><col class="col-pen">
-      <col class="col-score">
+      <col class="col-land"><col class="col-sum">
+      <col class="col-pen"><col class="col-score">
       ${showTotalCol ? '<col class="col-total">' : ''}
     </colgroup>`;
 
-    // tbody
+    // tbody（詳細版: 選手ごとに、各ラウンド = D / E / ToF / HD の4行ブロック）
+    const METRICS = 4;
     let tbodyHtml = '';
     rows.forEach((r, idx) => {
       const rank = r.rank;
-      const isLast = idx === rows.length - 1;
       const isQual = nQual > 0 && rank <= nQual;
       const isResv = nResv > 0 && rank > nQual && rank <= nQual + nResv;
       const rankCls = r.isDns ? ' dns-row' : isQual ? ' is-qual' : isResv ? ' is-resv' : '';
+      const altCls  = (idx % 2 === 1) ? ' blk-alt' : '';
       const qmark = r.isDns ? '' : isQual ? '<span class="q-mark">Q</span>' : isResv ? '<span class="r-mark">R</span>' : '';
-      const medal = '';
 
-      // rowspanセルは最終選手かつ複数ラウンド時のみ底線を直接付与（CSSのlast-childでは届かない）
-      const rsStyle = (isLast && showRounds.length > 1) ? ' style="border-bottom:2px solid #aaa"' : '';
-
-      // シンクロ: 両選手が同じ所属なら「A / A」ではなく1つにまとめて表示
-      const synClubText = (r.a.club1 || '').trim() && (r.a.club1 || '').trim() === (r.a.club2 || '').trim()
-        ? r.a.club1.trim()
-        : [r.a.club1, r.a.club2].filter(Boolean).join(' / ');
       const nameHtml = r.a.type === 'synchro'
         ? `<div class="ath-name">${r.a.name1 || '−'} / ${r.a.name2 || '−'}</div>
-           <div class="ath-club">${synClubText}</div>`
+           <div class="ath-club">${[r.a.club1, r.a.club2].filter(Boolean).join(' / ')}</div>`
         : `<div class="ath-name">${r.a.name1 || '−'}</div>
            <div class="ath-club">${r.a.club1 || ''}</div>`;
 
-      const totalCell = isFinal
+      const cell = v => v != null ? v : '<span class="score-na">−</span>';
+
+      // 選手ごとに tbody で包む（印刷時ページ内で分割させない）
+      tbodyHtml += '<tbody class="ath-block">';
+
+      // DNS: 1行にまとめて表示
+      if (r.isDns) {
+        tbodyHtml += `<tr class="detail-first detail-last${rankCls}${altCls}">
+          <td class="col-rank"><span class="dns-badge">DNS</span></td>
+          <td>${nameHtml}</td>
+          <td class="left" colspan="${16 + (showTotalCol ? 1 : 0)}" style="text-align:left;color:#999;padding-left:10px;">棄権 (DNS)</td>
+        </tr></tbody>`;
+        return;
+      }
+
+      // Best/Total（選手単位・全行 rowspan）
+      const bestInner = isFinal
         ? (r.finalScoreMode === 'combined'
-            ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt2(r.qualScore) : '<span class="score-na">−</span>'}</td>`
-            : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.a.finalOrder != null ? `No.${r.a.finalOrder}` : '−'}</td>`)
-        : `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}>${r.qualScore != null ? fmt2(r.qualScore) : '<span class="score-na">−</span>'}</td>`;
+            ? (r.qualScore != null ? fmt2(r.qualScore) : '<span class="score-na">−</span>')
+            : (r.a.finalOrder != null ? `No.${r.a.finalOrder}` : '−'))
+        : (r.qualScore != null ? fmt2(r.qualScore) : '<span class="score-na">−</span>');
+
+      const totalMetricRows = showRounds.length * METRICS;
 
       showRounds.forEach((rnd, ri) => {
         const res = rnd === 'pre1' ? r.pre1r : rnd === 'pre2' ? r.pre2r : r.finr;
-        const rndLabel = rnd === 'pre1' ? '予選1' : rnd === 'pre2' ? '予選2' : '決勝';
-        const isFirst = ri === 0;
-        const rowCls = `ath-row-${ri+1}${rankCls}`;
+        const rndLabel = rnd === 'pre1' ? 'R1' : rnd === 'pre2' ? 'R2' : '決勝';
+        const firstOfAth = ri === 0;
+        const lastOfAth  = ri === showRounds.length - 1;
 
-        // DNS行: 全セルを空にして DNS バッジのみ表示
-        if (r.isDns) {
-          const dnsTotalCell = isFirst && showTotalCol
-            ? `<td class="total-val" rowspan="${showRounds.length}"${rsStyle}><span class="dns-badge">DNS</span></td>`
-            : '';
-          const emptySkills = Array(11).fill('<td></td>').join('');
-          tbodyHtml += `<tr class="${rowCls}">
-            ${isFirst ? `<td class="col-rank" rowspan="${showRounds.length}"${rsStyle}><span class="dns-badge">DNS</span></td>` : ''}
-            ${isFirst ? `<td rowspan="${showRounds.length}"${rsStyle}>${nameHtml}</td>` : ''}
-            ${showRoundCol ? `<td class="round-label">${rndLabel}</td>` : ''}
-            ${emptySkills}
-            <td></td><td></td><td></td><td></td><td></td><td></td>
-            ${dnsTotalCell}
-          </tr>`;
-          return;
-        }
-
-        // S1-S10, L
-        let skillCells = '';
+        // 技別データ抽出
+        let dCodes = Array(10).fill(null), eDeds = Array(10).fill(null),
+            tofs = Array(10).fill(null), hds = Array(10).fill(null), land = null, vLimit = 10,
+            dCounted = Array(10).fill(false);
+        let diff = null, exe = null, tofT = null, hdT = null, pen = null, score = null, penReasons = [];
         if (res) {
-          const { skills, land } = perSkillE(res);   // CJP保存値(officialEPerSkill)優先
-          const vLimit = res.validCount ?? 10;  // 中断時の有効本数
-          const isSyn = fType === 'synchro';
-          // CJP画面「Med」行と同じ書式: シンクロ=(×10).toFixed(2) / 個人=round(×10)
-          const medFmt = v => v == null ? '−' : (isSyn ? (v * 10).toFixed(2) : String(Math.round(v * 10)));
-          for (let i = 0; i < 10; i++) {
-            skillCells += i >= vLimit
-              ? `<td class="score-na"></td>`      // 中断後の技：空欄
-              : `<td class="s-val">${medFmt(skills[i])}</td>`;
-          }
-          // 着地：validCount=10のときのみ表示
-          skillCells += vLimit < 10
-            ? `<td class="score-na"></td>`
-            : `<td class="s-val">${medFmt(land)}</td>`;
-        } else {
-          skillCells = Array(11).fill('<td class="score-na">−</td>').join('');
+          const det = getDetailPerSkill(res, _sectionRule);
+          dCodes = det.dCodes; eDeds = det.skills; tofs = det.tofs; hds = det.hds; land = det.land; dCounted = det.dCounted;
+          vLimit = res.validCount ?? 10;
+          diff  = res.officialD     != null ? fmt1(res.officialD)     : null;
+          exe   = res.officialE     != null ? fmt1(res.officialE)     : null;
+          tofT  = res.tof           != null ? fmt2(res.tof)           : null;  // 合計は小数第2位
+          hdT   = res.hd?.total     != null ? fmt2(res.hd.total)      : null;
+          pen   = (res.penalty != null && res.penalty !== 0) ? fmt1(res.penalty) : null;
+          score = res.officialTotal != null ? fmt2(res.officialTotal) : null;
+          // ペナルティ内容（会場表示テキスト＝display を優先）
+          penReasons = (Array.isArray(res.penaltyItems) ? res.penaltyItems : [])
+            .map(it => (it.display || it.en || it.ja || '')).filter(Boolean);
         }
 
-        const exe  = res?.officialE    != null ? (fType === 'synchro' ? fmt2r(res.officialE) : fmt1(res.officialE)) : null;
-        const diff = res?.officialD    != null ? fmt1(res.officialD)    : null;
-        const tof  = res?.tof          != null ? fmt2(res.tof)          : null;
-        const hd   = res?.hd?.total    != null ? fmt2(res.hd.total)     : null;
-        const pen  = (res?.penalty != null && res.penalty !== 0) ? fmt1(res.penalty) : null;
-        const sc   = res?.officialTotal!= null ? fmt2(res.officialTotal): null;
+        // 技別セル生成（有効本数超は空欄）
+        const sCells = (arr, cls, fmtFn) => {
+          let h = '';
+          for (let i = 0; i < 10; i++) {
+            if (i >= vLimit) { h += `<td class="score-na"></td>`; continue; }
+            const v = arr[i];
+            h += `<td class="${cls}">${v != null ? fmtFn(v) : '<span class="score-na">−</span>'}</td>`;
+          }
+          return h;
+        };
+        // D技コード: 難度点が加算されている技のみ太字（dd-on）。無効/重複は標準太さ
+        let dRowCells = '';
+        for (let i = 0; i < 10; i++) {
+          if (i >= vLimit) { dRowCells += `<td class="score-na"></td>`; continue; }
+          const v = dCodes[i];
+          dRowCells += `<td class="d-skill${dCounted[i] ? ' dd-on' : ''}">${v != null ? v : '<span class="score-na">−</span>'}</td>`;
+        }
+        const eRowCells = sCells(eDeds, 's-val',  v => (Number.isInteger(v) ? v : Number(v).toFixed(1)));
+        const tRowCells = sCells(tofs,  't-val',  v => Number(v).toFixed(3));  // 1本ごとは小数第3位
+        const hRowCells = sCells(hds,   'h-val',  v => v);
 
-        const cell = v => v != null ? v : '<span class="score-na">−</span>';
+        // L（着地）: E行のみ表示
+        const landCell = (vLimit >= 10 && land != null)
+          ? `<td class="s-val">${Number.isInteger(land) ? land : Number(land).toFixed(1)}</td>`
+          : `<td class="score-na"></td>`;
 
-        tbodyHtml += `<tr class="${rowCls}">
-          ${isFirst ? `<td class="col-rank" rowspan="${showRounds.length}"${rsStyle}><span class="rank-num">${rank}</span>${qmark}</td>` : ''}
-          ${isFirst ? `<td rowspan="${showRounds.length}"${rsStyle}>${nameHtml}</td>` : ''}
-          ${showRoundCol ? `<td class="round-label">${rndLabel}</td>` : ''}
-          ${skillCells}
-          <td class="score-val">${cell(exe)}</td>
-          <td class="score-val">${cell(diff)}</td>
-          <td class="score-val">${cell(tof)}</td>
-          <td class="score-val">${cell(hd)}</td>
-          <td>${cell(pen)}</td>
-          <td class="score-val">${cell(sc)}</td>
-          ${isFirst && showTotalCol ? totalCell : ''}
+        // ブロック境界（rowspanセルは inline 底線、非rowspanセルは class 底線）
+        const blkBottom = 'border-bottom:2px solid #999';
+        const roundSep  = lastOfAth ? blkBottom : 'border-bottom:1.5px solid #bbb';
+        const hdRowCls  = lastOfAth ? ' detail-last' : ' round-end';
+        const topCls    = firstOfAth ? ' detail-first' : '';
+
+        const rankCell  = firstOfAth ? `<td class="col-rank" rowspan="${totalMetricRows}" style="${blkBottom}"><span class="rank-num">${rank}</span>${qmark}</td>` : '';
+        const nameCell  = firstOfAth ? `<td rowspan="${totalMetricRows}" style="${blkBottom}">${nameHtml}</td>` : '';
+        const bestCell  = (firstOfAth && showTotalCol) ? `<td class="total-val" rowspan="${totalMetricRows}" style="${blkBottom}">${bestInner}</td>` : '';
+        const roundCell = `<td class="round-label" rowspan="${METRICS}" style="${roundSep}">${rndLabel}</td>`;
+        const penReasonsHtml = penReasons.length ? `<div class="pen-reasons-cell">${penReasons.join('<br>')}</div>` : '';
+        const penCell   = `<td class="col-pen" rowspan="${METRICS}" style="${roundSep}">${cell(pen)}${penReasonsHtml}</td>`;
+        const scoreCell = `<td class="score-val" rowspan="${METRICS}" style="${roundSep}">${cell(score)}</td>`;
+
+        // E行（先頭行: Rank/Name/Round/Pen/Score/Best のアンカーを含む）
+        tbodyHtml += `<tr class="${rankCls}${altCls}${topCls}">
+          ${rankCell}${nameCell}${roundCell}
+          <td class="col-item item-e">E</td>
+          ${eRowCells}
+          ${landCell}
+          <td class="sum-val">${cell(exe)}</td>
+          ${penCell}${scoreCell}${bestCell}
+        </tr>`;
+        // D行（Lは無いので「−」）
+        tbodyHtml += `<tr class="${rankCls}${altCls}">
+          <td class="col-item item-d">D</td>
+          ${dRowCells}
+          <td class="score-na">−</td>
+          <td class="sum-diff">${cell(diff)}</td>
+        </tr>`;
+        // ToF行（Lは無いので「−」）
+        tbodyHtml += `<tr class="${rankCls}${altCls}">
+          <td class="col-item item-t">${tLabel}</td>
+          ${tRowCells}
+          <td class="score-na">−</td>
+          <td class="sum-val">${cell(tofT)}</td>
+        </tr>`;
+        // HD行（Lは無いので「−」）
+        tbodyHtml += `<tr class="${rankCls}${altCls}${hdRowCls}">
+          <td class="col-item item-hd">HD</td>
+          ${hRowCells}
+          <td class="score-na">−</td>
+          <td class="sum-val">${cell(hdT)}</td>
         </tr>`;
       });
+      tbodyHtml += '</tbody>';
     });
 
     const groupParts = [];
@@ -581,127 +730,8 @@
     const groupText = groupParts.join(' / ');
 
     return `<div class="group-label">${groupText}</div>
-      <div style="overflow-x:auto">
-        <table class="score-table">${colgroup}${thead}<tbody>${tbodyHtml}</tbody></table>
-      </div>`;
-  }
-
-  // 団体順位表：teams + 予選(pre1/pre2)結果から都度集計（display.html と同じロジック）
-  function buildTeamSectionHtml(classVal, genderVal, byAth, classRules) {
-    const myTeams = teamDocs.filter(t => (t.class||'') === classVal && (t.gender||'') === genderVal);
-    if (!myTeams.length) return '';
-
-    const rule = (classRules['individual'] || {})[classVal] || {};
-    const scoreMode = rule.scoreMode || 'best';
-    const numPre    = rule.qualifyingRoutines ?? tourData.qualifyingRoutines ?? 1;
-
-    const athMap = {}; athletes.forEach(a => athMap[a.id] = a);
-    const ZERO = { total:0, T:0, H:0, D:0 };
-    // 棄権(dns)・未実施は0扱い
-    const comp = r => (r?.dns === true)
-      ? { total:0, T:0, H:0, D:0 }
-      : { total: r?.officialTotal ?? 0, T: r?.tof ?? 0, H: r?.hd?.total ?? 0, D: r?.officialD ?? 0 };
-    const top3 = arr => [...arr].sort((a,b)=>b-a).slice(0,3).reduce((s,v)=>s+v,0);
-
-    const teams = myTeams.map(t => {
-      const members = (t.memberIds || []).map(id => {
-        const ath  = athMap[id];
-        const name = ath ? (ath.name1 || id) : id;
-        const club = ath ? (ath.club1 || '') : '';
-        const p1raw = byAth[id]?.pre1, p2raw = byAth[id]?.pre2;
-        const p1 = p1raw ? comp(p1raw) : ZERO, p2 = p2raw ? comp(p2raw) : ZERO;
-        const p1has = p1raw != null, p2has = p2raw != null;   // その本の結果が存在＝演技済み
-        if (scoreMode === 'best') {
-          const useP2 = p2.total > p1.total;
-          const adopt = useP2 ? p2 : p1;
-          return { id, name, club, p1, p2, p1has, p2has, score: adopt.total, T:adopt.T, H:adopt.H, D:adopt.D, adoptRoutine: useP2 ? 2 : 1 };
-        }
-        return { id, name, club, p1, p2, p1has, p2has };
-      });
-      let score, tbT, tbH, tbD;
-      if (scoreMode === 'best') {
-        score = top3(members.map(m=>m.score));
-        tbT   = top3(members.map(m=>m.T));
-        tbH   = top3(members.map(m=>m.H));
-        tbD   = top3(members.map(m=>m.D));
-        members.sort((a,b)=>b.score-a.score);
-        members.forEach((m,i)=> m._count = i < 3);   // 上位3名を採用
-      } else {
-        score = top3(members.map(m=>m.p1.total)) + top3(members.map(m=>m.p2.total));
-        tbT   = top3(members.map(m=>m.p1.T)) + top3(members.map(m=>m.p2.T));
-        tbH   = top3(members.map(m=>m.p1.H)) + top3(members.map(m=>m.p2.H));
-        tbD   = top3(members.map(m=>m.p1.D)) + top3(members.map(m=>m.p2.D));
-        // 各本ごとに上位3名を採用マーク
-        const p1ids = [...members].sort((a,b)=>b.p1.total-a.p1.total).slice(0,3).map(m=>m.id);
-        const p2ids = [...members].sort((a,b)=>b.p2.total-a.p2.total).slice(0,3).map(m=>m.id);
-        members.forEach(m => { m._p1count = p1ids.includes(m.id); m._p2count = p2ids.includes(m.id); });
-        members.sort((a,b)=>(b.p1.total+b.p2.total)-(a.p1.total+a.p2.total));
-      }
-      return { teamName: t.teamName || '—', members, score, tbT, tbH, tbD };
-    });
-    // 団体得点 → T → H → D の降順
-    teams.sort((a,b)=> b.score-a.score || b.tbT-a.tbT || b.tbH-a.tbH || b.tbD-a.tbD);
-    // 同点(得点・T・H・D 完全一致)は同順位
-    let rank = 0, prevKey = null;
-    teams.forEach((t,i) => {
-      const k = `${t.score}|${t.tbT}|${t.tbH}|${t.tbD}`;
-      if (k !== prevKey) { rank = i + 1; prevKey = k; }
-      t.rank = rank;
-    });
-
-    const twoRtn = numPre >= 2;
-    const f = v => fmt2(v);
-
-    const thead = `<thead><tr>
-      <th class="col-rank">Rank</th>
-      <th class="col-tm-name">Team</th>
-      <th class="col-tm-mem">選手</th>
-      ${twoRtn ? '<th class="col-score">Rtn1</th><th class="col-score">Rtn2</th>'
-               : '<th class="col-score">Score</th>'}
-      <th class="col-total">Total</th>
-    </tr></thead>`;
-
-    let tbody = '';
-    teams.forEach(t => {
-      const mems = t.members.length ? t.members : [{ name:'—', club:'', p1:ZERO, p2:ZERO, p1has:false, p2has:false, score:0 }];
-      const span = mems.length;
-      mems.forEach((m, mi) => {
-        const first = mi === 0;
-
-        // チーム得点に加算される本＝通常色、加算されない本＝淡色（取り消し線なし・色のみで表現）
-        let rtnCells = '';
-        if (twoRtn) {
-          if (scoreMode === 'best') {
-            const c1 = (m._count && m.adoptRoutine === 1) ? '' : 'mem-drop';
-            const c2 = (m._count && m.adoptRoutine === 2) ? '' : 'mem-drop';
-            rtnCells = `<td class="score-val ${c1}">${m.p1has ? f(m.p1.total) : ''}</td>`
-                     + `<td class="score-val ${c2}">${m.p2has ? f(m.p2.total) : ''}</td>`;
-          } else {
-            rtnCells = `<td class="score-val ${m._p1count ? '' : 'mem-drop'}">${m.p1has ? f(m.p1.total) : ''}</td>`
-                     + `<td class="score-val ${m._p2count ? '' : 'mem-drop'}">${m.p2has ? f(m.p2.total) : ''}</td>`;
-          }
-        } else {
-          const counted = scoreMode === 'best' ? m._count : m._p1count;
-          const val     = scoreMode === 'best' ? m.score : m.p1.total;
-          rtnCells = `<td class="score-val ${counted ? '' : 'mem-drop'}">${m.p1has ? f(val) : ''}</td>`;
-        }
-
-        // 選手名はセンタリング・常に通常色、所属(チーム名)は非表示
-        const nameHtml = `<div class="ath-name">${m.name}</div>`;
-        tbody += `<tr class="${first ? 'tm-first' : ''}">
-          ${first ? `<td class="col-rank" rowspan="${span}"><span class="rank-num">${t.rank}</span></td>` : ''}
-          ${first ? `<td class="left tm-name" rowspan="${span}">${t.teamName}</td>` : ''}
-          <td>${nameHtml}</td>
-          ${rtnCells}
-          ${first ? `<td class="total-val" rowspan="${span}">${f(t.score)}</td>` : ''}
-        </tr>`;
-      });
-    });
-
-    const groupText = `団体 / ${classVal}${genderVal ? ' / ' + genderVal : ''} / 予選`;
-    return `<div class="group-label">${groupText}</div>
-      <div style="overflow-x:auto">
-        <table class="score-table team-table">${thead}<tbody>${tbody}</tbody></table>
+      <div class="table-wrap">
+        <table class="score-table">${colgroup}${thead}${tbodyHtml}</table>
       </div>`;
   }
 
@@ -748,15 +778,6 @@
     output.innerHTML = '<div class="loading">読み込み中...</div>';
     const classRules = normalizeClassRules(tourData.classRules);
     const byAth = await fetchResultsByAth();
-
-    // 団体カテゴリー（予選集計・ラウンド/決勝進出/リザーブ設定は不使用）
-    if (fType === 'team') {
-      const section = buildTeamSectionHtml(fClass, fGender, byAth, classRules);
-      if (!section) { output.innerHTML = '<div class="no-data">該当するチームがいません</div>'; return; }
-      output.innerHTML = buildSheetHeaderHtml() + section;
-      return;
-    }
-
     const nQual = parseInt(document.getElementById('sel-qual').value) || 0;
     const nResv = parseInt(document.getElementById('sel-resv').value) || 0;
     const section = buildGroupSectionHtml(fType, fClass, fGender, fRound, byAth, classRules, nQual, nResv);
@@ -765,7 +786,8 @@
   };
 
   // 全クラス印刷（クラス設定順／男子→女子／予選→決勝、クラス・性別が変わるとページ送り）
-  window.printAllClasses = async function() {
+  window.printAllClasses = async function(mode) {
+    applyPrintMode(mode);
     const output = document.getElementById('output');
     output.innerHTML = '<div class="loading">全クラスを読み込み中...</div>';
     const classRules = normalizeClassRules(tourData.classRules);
@@ -798,7 +820,7 @@
     });
     if (!html) { output.innerHTML = '<div class="no-data">印刷できるデータがありません</div>'; return; }
     output.innerHTML = html;
-    document.title = '全クラス';
+    document.title = '全クラス_詳細';
     const restore = () => { window.removeEventListener('afterprint', restore); loadRanking(); };
     window.addEventListener('afterprint', restore);
     setTimeout(() => window.print(), 60);
