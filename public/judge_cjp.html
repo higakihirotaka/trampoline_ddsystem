@@ -25,7 +25,7 @@
         </div>
         <div></div>
         <button onclick="fillDummyData()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
-        <button id="btn-kb-shortcut" onclick="toggleKbShortcuts()" style="padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;" title="入力欄にフォーカスしていない時、Hキー=HDTS取得／Nキー=次の選手へ を有効にします（このブラウザだけの設定）">⌨️ H/N ショートカット: OFF</button>
+        <button id="btn-kb-shortcut" onclick="toggleKbShortcuts()" style="padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;" title="入力欄にフォーカスしていない時、Hキー=HDTS取得／Nキー=次の選手へ／Sキー=内訳が緑かつ未確定の時だけ確定&amp;表示 を有効にします（このブラウザだけの設定）">⌨️ H/N/S ショートカット: OFF</button>
         <button id="btn-dns" onclick="declareDNS()" style="background:rgba(156,39,176,0.25);border:1px solid rgba(156,39,176,0.6);color:#ce93d8;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🚫 棄権</button>
         <button id="btn-delete-result" onclick="deleteResult()" style="background:rgba(211,47,47,0.25);border:1px solid rgba(211,47,47,0.6);color:#ef9a9a;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🗑 得点削除</button>
         <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
@@ -2402,7 +2402,7 @@
         return null;
     }
 
-    // ==== キーボードショートカット（Hキー=HDTS取得／Nキー=次の選手へ） ====
+    // ==== キーボードショートカット（Hキー=HDTS取得／Nキー=次の選手へ／Sキー=内訳が緑かつ未確定の時だけ確定&表示） ====
     // ブラウザごとの設定（localStorage）。既定はOFF — 誤操作防止のため明示的にONにした端末だけで有効。
     const KB_SHORTCUT_KEY = 'cjp_kbShortcutsEnabled';
     function isKbShortcutsEnabled() {
@@ -2412,7 +2412,7 @@
         const btn = document.getElementById('btn-kb-shortcut');
         if (!btn) return;
         const on = isKbShortcutsEnabled();
-        btn.textContent = on ? '⌨️ H/N ショートカット: ON' : '⌨️ H/N ショートカット: OFF';
+        btn.textContent = on ? '⌨️ H/N/S ショートカット: ON' : '⌨️ H/N/S ショートカット: OFF';
         btn.style.background = on ? 'rgba(76,175,80,0.3)'  : 'rgba(255,255,255,0.12)';
         btn.style.border     = on ? '1px solid rgba(76,175,80,0.7)' : '1px solid rgba(255,255,255,0.3)';
         btn.style.color      = on ? '#a5d6a7' : 'rgba(255,255,255,0.7)';
@@ -2495,6 +2495,14 @@
         } else if (e.key === 'n' || e.key === 'N') {
             e.preventDefault();
             goNextAthlete();
+        } else if (e.key === 's' || e.key === 'S') {
+            // 内訳が緑（全て完了）かつ未確定の時だけ、確定&表示ボタンと同じ動作をする
+            if (isLocked) return;
+            if (_lastSummaryBorderColor !== _BD_GREEN) return;
+            const btn = document.getElementById('btn-confirm');
+            if (!btn || btn.disabled) return;
+            e.preventDefault();
+            publish();
         }
     });
 
