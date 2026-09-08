@@ -167,10 +167,13 @@
     <input type="hidden" id="ath-gender">
     <div class="table-wrap">
     <table id="skill-table">
-        <thead><tr><th style="width:40px;">#</th><th style="width:22%;">系統</th><th style="width:22%;">宙系</th><th>技名</th><th style="width:65px;">DD</th><th id="check-th" style="display:none;width:36px;">指定</th></tr></thead>
+        <thead><tr><th style="width:40px;">#</th><th style="width:22%;">系統</th><th style="width:22%;">宙系</th><th>技名</th><th id="skill-text-th" style="display:none;">技名（直接入力）</th><th style="width:65px;">DD</th><th id="check-th" style="display:none;width:36px;">指定</th></tr></thead>
         <tbody id="skill-rows"></tbody>
     </table>
     </div>
+    <!-- 技名予測変換用（管理者入力のみ。D計算用ページ(d_calc.html)と同じ仕組み） -->
+    <datalist id="skill-datalist"></datalist>
+    <p id="skill-text-hint" style="display:none;font-size:0.78em;color:#80868b;margin:6px 2px 0;">💡 「技名（直接入力）」欄に技名を打つと候補が出ます。選ぶと系統・宙系・技名が自動で埋まります。</p>
     <div class="total-display">
         <div class="total-display-sub">
             基礎点：<span id="dd-base">0.0</span><br>
@@ -205,6 +208,7 @@
     const backListUrl = isAdmin ? `admin_card_edit.html?event=${eventId}` : `event.html?event=${eventId}`;
 
     let skillMaster = [];
+    const LABEL_TO_ID = new Map();   // 技名ラベル→技ID（管理者入力欄の予測変換の逆引き。d_calc.htmlと同一）
     let currentAthlete = null;
     let tourData = {};
     // シンクロペアの所属(club1/club2)が異なるかを選手データから自動判定する
@@ -278,6 +282,23 @@
         if (skillMaster.length === 0) {
             document.getElementById('skill-load-error-banner').style.display = 'flex';
             return; // 技リストが無いまま描画すると提出済みの技が「未入力」に見えてしまうため、ここで止める
+        }
+
+        // 管理者入力（admin=1）のみ、D計算用ページ(d_calc.html)と同じ技名直接入力欄を有効化する。
+        // 選手自身の入力画面では見た目・挙動とも一切変更しない。
+        if (isAdmin) {
+            document.getElementById('skill-text-th').style.display = '';
+            document.getElementById('skill-text-hint').style.display = '';
+            const seen = new Set(), opts = [];
+            skillMaster.forEach(s => {
+                const lbl = s.note ? `${s.symbol}（${s.note}）` : s.symbol;
+                if (!LABEL_TO_ID.has(lbl)) LABEL_TO_ID.set(lbl, s.id);
+                if (!seen.has(lbl)) {
+                    seen.add(lbl);
+                    opts.push(`<option value="${String(lbl).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}"></option>`);
+                }
+            });
+            document.getElementById('skill-datalist').innerHTML = opts.join('');
         }
 
         tourData = tourDoc.exists() ? tourDoc.data() : {};
@@ -389,13 +410,17 @@
             const skill = skillMaster.find(s => s.id === skillId) || {};
             // 2段目セレクタ（宙系 or 基礎技の開始姿勢）は updateOptions() が系統に応じて動的構築する
             const checkStyle = designatedDDCount > 0 ? 'text-align:center' : 'display:none';
+            const skillTextCell = isAdmin
+                ? `<td><input type="text" id="skill-text-${i}" list="skill-datalist" oninput="onSkillText(${i})" onchange="onSkillText(${i})" placeholder="技名で検索" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #a8c7e8;background:#f5faff;font-size:0.92em;"></td>`
+                : '';
             rows += `<tr id="row-${i}"><td>${i}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
                     <option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方系</option>
                     <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方系</option>
                     <option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎技</option></select></td>
                 <td><select id="soma-${i}" onchange="updateOptions(${i})"></select></td>
-                <td><select id="skill-${i}" onchange="calcTotal()"></select></td>
+                <td><select id="skill-${i}" onchange="onSkillSelect(${i})"></select></td>
+                ${skillTextCell}
                 <td><span id="dd-${i}">0.0</span></td>
                 <td class="check-cell" style="${checkStyle}"><input type="checkbox" id="chk-${i}" onchange="onCheckChange(${i})"></td></tr>`;
         }
@@ -480,7 +505,7 @@
         aerial: [['','--'], ['1回宙','1回宙系'], ['2回宙（1.5以下）','2回宙系（1.5以下）'], ['2回宙（1.6以上）','2回宙系（1.6以上）'], ['3回宙','3回宙系'], ['4回宙','4回宙系']]
     };
 
-    window.updateOptions = (idx, selectedId = "", doCalc = true) => {
+    window.updateOptions = (idx, selectedId = "", doCalc = true, syncTextBack = true) => {
         const dir    = document.getElementById(`dir-${idx}`).value;
         const somaEl = document.getElementById(`soma-${idx}`);
         const sel    = document.getElementById(`skill-${idx}`);
@@ -531,7 +556,40 @@
             });
         }
         if (!selectedId && currentVal) sel.value = currentVal;
+        // 管理者入力欄（技名直接入力）を現在の選択に同期する（入力途中は呼ばずカーソル移動を防ぐ）
+        if (isAdmin && syncTextBack) syncText(idx);
         if (doCalc) calcTotal();
+    };
+
+    // 技名ドロップダウンを直接変更したとき（管理者入力欄のみ。D計算用ページ(d_calc.html)と同一）
+    window.onSkillSelect = (idx) => { if (isAdmin) syncText(idx); calcTotal(); };
+
+    // 管理者入力欄に入力/候補選択したとき → ラベルから技IDを逆引きして系統・宙系・技名を自動入力する。
+    // 完全一致したときだけ反映し、打ちかけの途中では何もしない（d_calc.htmlと同一ロジック）。
+    window.onSkillText = (idx) => {
+        const el = document.getElementById(`skill-text-${idx}`);
+        if (!el) return;
+        const v = el.value.trim();
+        if (!v) return;                   // 空欄は現状維持（クリアはドロップダウンで）
+        const id = LABEL_TO_ID.get(v);
+        if (id) fillRow(idx, id, false);  // テキストは上書きしない（入力途中のカーソル移動を防ぐ）
+    };
+
+    // 技IDから系統・宙系・技名ドロップダウンを埋める（管理者入力欄のみ）
+    window.fillRow = (idx, skillId, syncTextBack = true) => {
+        const skill = skillMaster.find(s => s.id === skillId);
+        if (!skill) return;
+        document.getElementById(`dir-${idx}`).value = skill.direction || '';
+        updateOptions(idx, skillId, true, syncTextBack);
+    };
+
+    // 管理者入力欄を「現在ドロップダウンで選択中の技名ラベル」に合わせる
+    window.syncText = (idx) => {
+        const el = document.getElementById(`skill-text-${idx}`);
+        if (!el) return;
+        const id = document.getElementById(`skill-${idx}`).value;
+        const skill = skillMaster.find(s => s.id === id);
+        el.value = skill ? (skill.note ? `${skill.symbol}（${skill.note}）` : skill.symbol) : '';
     };
 
     window.calcTotal = () => {
