@@ -411,7 +411,7 @@
             // 2段目セレクタ（宙系 or 基礎技の開始姿勢）は updateOptions() が系統に応じて動的構築する
             const checkStyle = designatedDDCount > 0 ? 'text-align:center' : 'display:none';
             const skillTextCell = isAdmin
-                ? `<td><input type="text" id="skill-text-${i}" list="skill-datalist" oninput="onSkillText(${i})" onchange="onSkillText(${i})" placeholder="技名で検索" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #a8c7e8;background:#f5faff;font-size:0.92em;"></td>`
+                ? `<td><input type="text" id="skill-text-${i}" list="skill-datalist" oninput="onSkillText(${i})" onchange="onSkillText(${i})" onkeydown="onSkillTextKeydown(event, ${i})" placeholder="技名で検索" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #a8c7e8;background:#f5faff;font-size:0.92em;"></td>`
                 : '';
             rows += `<tr id="row-${i}"><td>${i}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
@@ -573,6 +573,19 @@
         if (!v) return;                   // 空欄は現状維持（クリアはドロップダウンで）
         const id = LABEL_TO_ID.get(v);
         if (id) fillRow(idx, id, false);  // テキストは上書きしない（入力途中のカーソル移動を防ぐ）
+    };
+
+    // 管理者入力欄でTabキーを押したとき、次（Shift+Tabなら前）の技名直接入力欄へ直接移動する。
+    // 何もしなければ系統/宙系/技名の各セレクタを一つずつ経由してしまい入力が遅くなるため。
+    // 隣接する行に入力欄が無い（1行目の前、10行目の次）場合は通常のTab移動に任せる。
+    window.onSkillTextKeydown = (e, idx) => {
+        if (e.key !== 'Tab') return;
+        const nextIdx = e.shiftKey ? idx - 1 : idx + 1;
+        const nextEl = document.getElementById(`skill-text-${nextIdx}`);
+        if (!nextEl) return;
+        e.preventDefault();
+        nextEl.focus();
+        nextEl.select();
     };
 
     // 技IDから系統・宙系・技名ドロップダウンを埋める（管理者入力欄のみ）
