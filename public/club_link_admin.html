@@ -36,7 +36,8 @@
         th { color:var(--text-sub); font-size:0.72em; text-transform:uppercase; }
         .col-count { width:70px; text-align:center; }
         .col-btns { width:190px; white-space:nowrap; }
-        .url-box { font-family:monospace; font-size:0.78em; color:#546e7a; word-break:break-all; background:#f1f3f4; padding:6px 10px; border-radius:6px; display:inline-block; max-width:100%; }
+        .url-box { font-family:monospace; font-size:0.78em; color:#546e7a; word-break:break-all; background:#f1f3f4; padding:6px 10px; border-radius:6px; display:inline-block; max-width:100%; text-decoration:none; }
+        .url-box:hover { background:#e3f2fd; color:var(--accent); }
         .btn-mini { padding:6px 12px; border-radius:7px; border:1.5px solid var(--accent); background:#fff; color:var(--accent); font-size:0.78rem; font-weight:700; cursor:pointer; margin-right:4px; }
         .btn-mini:hover { background:#e3f2fd; }
         .btn-mini.danger { border-color:#e0e0e0; color:#b0bec5; }
@@ -181,7 +182,7 @@
                     rows += `<tr>
                         <td>${name}</td>
                         <td class="col-count">${count}名</td>
-                        <td><span class="url-box" id="url-${link.id}">${linkUrl(link.id)}</span></td>
+                        <td><a class="url-box" id="url-${link.id}" href="${linkUrl(link.id)}" target="_blank" rel="noopener">${linkUrl(link.id)}</a></td>
                         <td class="col-btns">
                             <button class="btn-mini" onclick="copyUrl('${link.id}')">📋 コピー</button>
                             <button class="btn-mini danger" onclick="removeLink('${link.id}')">🗑</button>
