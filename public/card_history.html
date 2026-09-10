@@ -31,6 +31,13 @@
         .dt { font-variant-numeric:tabular-nums; color:#37474f; font-weight:600; }
         .nm { font-weight:700; }
         .club { font-size:0.74rem; color:var(--sub); }
+        /* 氏名・カテゴリ列は所属名が長い選手（シンクロのダブル所属同士など）がいると
+           nowrapのまま table-layout:auto だと、その1行だけの都合で列全体・表全体が
+           非常に横長になってしまう（PC画面でも横スクロールが必要になる原因）。
+           table-layout:fixed + 列幅指定で、この2列だけ折り返し可にして幅を固定する。 */
+        #history-table { table-layout: fixed; }
+        #history-table td:nth-child(3), #history-table td:nth-child(4) { white-space: normal; }
+        #history-table .nm, #history-table .club { overflow-wrap: anywhere; }
         .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:0.72rem; font-weight:bold; }
         .b-new { background:#e8f0fe; color:var(--accent); }
         .b-rev { background:#fff3e0; color:var(--amber); }
@@ -87,7 +94,11 @@
     </div>
 
     <div class="table-wrap">
-        <table>
+        <table id="history-table">
+            <colgroup>
+                <col style="width:36px;"><col style="width:150px;"><col><col style="width:190px;">
+                <col style="width:70px;"><col style="width:100px;"><col style="width:80px;">
+            </colgroup>
             <thead><tr><th>#</th><th>提出/修正日時</th><th>氏名</th><th>カテゴリ</th><th>ラウンド</th><th>種別</th><th>状態</th></tr></thead>
             <tbody id="rows"><tr><td colspan="7" class="msg" id="loading">読み込み中...</td></tr></tbody>
         </table>
