@@ -118,7 +118,6 @@
     let tourData    = {};
     let allAthletes = [];
     let resultsMap  = {}; // resId -> { dns, officialTotal }
-    const roundLabel = { pre1: '予選1', pre2: '予選2', final: '決勝' };
 
     // ── フィルタ状態（クラス・性別・チーム名）── event.htmlと同一ロジック ──
     let filterState = { cls: '', gender: '', team: '' };
@@ -310,20 +309,17 @@
         const r = resultsMap[resId];
         const isDns = r?.dns === true;
         const hasScore = r?.officialTotal != null;
-        const athName = ath.type === 'synchro' ? `${ath.name1 || ''} / ${ath.name2 || ''}` : (ath.name1 || '');
-        const label = roundLabel[round] || round;
 
         if (!isDns) {
-            let msg = `No.${ath.order ?? '-'} ${athName}（${label}）を棄権に設定しますか？`;
-            if (hasScore) msg += `\n\n⚠ この試技は既に得点が確定しています。棄権にすると順位表では0点・最下位扱いになります（確定済みのスコア自体は解除すれば復元できます）。`;
-            if (!confirm(msg)) return;
             try {
                 await setDoc(doc(db, 'results', resId), {
                     eventId, athleteId, round, dns: true, published: true, dnsAt: serverTimestamp()
                 }, { merge: true });
                 resultsMap[resId] = { ...(resultsMap[resId] || {}), dns: true, published: true };
                 rerenderCell(athleteId, round);
-                showToast('棄権に設定しました');
+                // 既に得点が確定していた試技の場合は、その旨をトーストで併記する
+                // （データは消えず、解除すれば元のスコアに復元される）
+                showToast(hasScore ? '棄権に設定しました（確定済みスコアあり。解除すると復元されます）' : '棄権に設定しました');
             } catch (e) {
                 alert('設定に失敗しました: ' + e.message);
             }
