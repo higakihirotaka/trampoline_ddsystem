@@ -38,6 +38,15 @@
         #history-table { table-layout: fixed; }
         #history-table td:nth-child(3), #history-table td:nth-child(4) { white-space: normal; }
         #history-table .nm, #history-table .club { overflow-wrap: anywhere; }
+        /* スマホ幅では折り返しで行が縦に伸びるより、元通り横スクロール（.table-wrapに
+           既存のoverflow-x:auto）で1行に収めた方が見やすいため、PC用の固定レイアウトを
+           解除して table-layout:auto + nowrap に戻す（col幅はインラインstyle指定のため
+           !importantで打ち消す）。 */
+        @media (max-width: 600px) {
+            #history-table { table-layout: auto; }
+            #history-table col { width: auto !important; }
+            #history-table td:nth-child(3), #history-table td:nth-child(4) { white-space: nowrap; }
+        }
         .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:0.72rem; font-weight:bold; }
         .b-new { background:#e8f0fe; color:var(--accent); }
         .b-rev { background:#fff3e0; color:var(--amber); }
