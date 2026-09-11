@@ -248,7 +248,6 @@ export function judgeRosterLeafKey(className, gender, round) {
  * @returns {Array<{sections:Array, data:object, ROLES:Array, leafKeys:string[]}>}  クラス定義順（自然順）
  */
 export function buildJudgeRosterGroups(list, type, judgeConfig, classRules) {
-  const GENDERS = ['男子', '女子'];
   const ROUNDS  = ['予選', '決勝'];
   const groupMap = new Map();
 
@@ -266,7 +265,13 @@ export function buildJudgeRosterGroups(list, type, judgeConfig, classRules) {
       if (!groupMap.has(fp)) groupMap.set(fp, { sections: [], data: classData, ROLES });
       groupMap.get(fp).sections.push({ className: name, gender: '', round: '' });
     } else {
-      for (const g of GENDERS) {
+      // 新形式のトップレベルキーは実際に登録されている性別（"男子"/"女子"に限らず
+      // "混合"等も含む）。judge_config.htmlのbuildClassCard()も選手データから実際の
+      // 性別を集計してカードを作っているため、ここを"男子"/"女子"に決め打ちすると、
+      // 混合クラス（シンクロ等）の審判構成データが存在していても一切拾えず、
+      // judge_roster.html/admin_roster_order.htmlから丸ごと消えてしまっていた。
+      const genders = Object.keys(classData);
+      for (const g of genders) {
         for (const r of ROUNDS) {
           const sec = classData[g]?.[r];
           if (!sec) continue;
