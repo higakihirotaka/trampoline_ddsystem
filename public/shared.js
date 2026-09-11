@@ -197,11 +197,29 @@ export function calcBonus(gender, tripleCount) {
 // ============================================================
 
 /**
- * クラス別のロール配列を返す（E審判人数・H5H6の有無を反映）
+ * eJudgeCount の新旧フォーマットを吸収して、指定ラウンドのE審判人数を返す。
+ *   旧形式: 数値そのもの（予選・決勝で共通）
+ *   新形式: { pre: 予選の人数, final: 決勝の人数 }（予選・決勝を個別に設定した場合）
+ * 該当ラウンドの値が読み取れない場合は null を返す（呼び出し側でデフォルト値にフォールバックすること）。
+ * @param {*} raw     rule.eJudgeCount の生値
+ * @param {'予選'|'決勝'|'pre1'|'pre2'|'final'} round
+ * @returns {number|null}
  */
-export function getJudgeRoles(name, type, classRules) {
+export function resolveEJudgeCount(raw, round) {
+  const bucket = (round === '決勝' || round === 'final') ? 'final' : 'pre';
+  const pick = (raw && typeof raw === 'object') ? raw[bucket] : raw;
+  const n = parseInt(pick);
+  return (!isNaN(n) && n > 0) ? n : null;
+}
+
+/**
+ * クラス別のロール配列を返す（E審判人数・H5H6の有無を反映）。
+ * round を渡すと、予選・決勝で個別にE審判人数を設定している場合にそのラウンドの人数を使う
+ * （省略時・旧形式データは予選・決勝で共通の値として扱う）。
+ */
+export function getJudgeRoles(name, type, classRules, round) {
   const rule   = classRules[type]?.[name] || {};
-  const numE   = parseInt(rule.eJudgeCount) || 4;
+  const numE   = resolveEJudgeCount(rule.eJudgeCount, round) || 4;
   const hasH56 = rule.hasH5H6 === true;
   const roles  = [['cjp', 'CJP']];
   for (let i = 1; i <= numE; i++) roles.push([`e${i}`, `E${i}`]);
@@ -236,11 +254,12 @@ export function buildJudgeRosterGroups(list, type, judgeConfig, classRules) {
 
   list.forEach(({ name }) => {
     const classData = judgeConfig[type]?.[name] || judgeConfig[name] || {};
-    const ROLES     = getJudgeRoles(name, type, classRules);
-    // 旧形式検出（トップレベルキーに cjp/e1 等が含まれる）
+    // 旧形式検出（トップレベルキーに cjp/e1 等が含まれる）。旧形式は予選/決勝の区別が無いデータなので
+    // ラウンド不問の1系統として扱い、ROLESもラウンド指定なし（＝予選扱い）で計算する。
     const isOldFormat = Object.keys(classData).some(k => ['cjp', 'e1', 'e2', 'e3', 'e4', 'd7', 'd8'].includes(k));
 
     if (isOldFormat) {
+      const ROLES = getJudgeRoles(name, type, classRules);
       const hasAny = ROLES.some(([k]) => classData[k]);
       if (!hasAny) return;
       const fp = JSON.stringify(ROLES.map(([k]) => [k, classData[k] || '', classData[k + '_kind'] || '']));
@@ -251,6 +270,10 @@ export function buildJudgeRosterGroups(list, type, judgeConfig, classRules) {
         for (const r of ROUNDS) {
           const sec = classData[g]?.[r];
           if (!sec) continue;
+          // 予選・決勝でE審判人数が異なりうるため、ROLESはラウンドごとに計算する
+          // （ここをクラス単位で1回だけ計算すると、予選と決勝で本来別々のはずの
+          //   役割数・fingerprintが同じになり、誤って同一ブロックに統合されてしまう）
+          const ROLES = getJudgeRoles(name, type, classRules, r);
           const hasAny = ROLES.some(([k]) => sec[k]);
           if (!hasAny) continue;
           const fp = JSON.stringify(ROLES.map(([k]) => [k, sec[k] || '', sec[k + '_kind'] || '']));

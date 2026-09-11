@@ -130,7 +130,7 @@
     import { db } from "./firebase-config.js";
     import { doc, onSnapshot, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
-    import { round1 } from "./shared.js";
+    import { round1, resolveEJudgeCount } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -460,12 +460,13 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         document.getElementById('res-d').textContent = totalDD.toFixed(1);
 
         // ---- E審判テーブル ----
-        // クラスルール優先、なければ大会設定、なければ 6（judge_cjp の getNumE() と同ロジック）
+        // クラスルール優先（予選・決勝で個別設定されている場合はそのラウンドの値）、
+        // なければ大会設定、なければ 6（judge_cjp の getNumE() と同ロジック）
         const _ath  = athletes[athleteId];
         const _type = _ath?.type || 'individual';
         const _cls  = _ath?.class || _ath?.category || '';
-        const _n    = parseInt(currentTour?.classRules?.[_type]?.[_cls]?.eJudgeCount);
-        const numE  = (!isNaN(_n) && _n > 0) ? _n : (currentTour?.numExecJudges || 6);
+        const _n    = resolveEJudgeCount(currentTour?.classRules?.[_type]?.[_cls]?.eJudgeCount, data.round || round);
+        const numE  = _n || (currentTour?.numExecJudges || 6);
         const jKeys = Array.from({length: numE}, (_, i) => `E${i+1}`);
         const allJudges   = data.execution?.judges || {};
         const activePanel = detectPanel(data);

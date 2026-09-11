@@ -208,6 +208,7 @@
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
     import { getTournament, getAthletes, invalidateCache } from "./cache.js";
+    import { resolveEJudgeCount } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -296,7 +297,9 @@
         const mkStruct = (names, type) => names.map(name => {
             const cr = classRules[type]?.[name] || {};
             const genders = sortGenders(classGenders.get(`${type}:${name}`) || new Set(['男子','女子']));
-            return { name, numE: parseInt(cr.eJudgeCount) || 4, hasH5H6: cr.hasH5H6 === true, hasFinal: ruleHasFinal(cr), finalOnly: cr.finalOnly === true, genders };
+            // numE は生値のまま保持する（数値=予選・決勝で共通、{pre,final}=個別設定）。
+            // ラウンドごとの実際の人数は rolesFor 呼び出し側で resolveEJudgeCount により解決する。
+            return { name, numE: cr.eJudgeCount, hasH5H6: cr.hasH5H6 === true, hasFinal: ruleHasFinal(cr), finalOnly: cr.finalOnly === true, genders };
         });
         _struct = { individual: mkStruct(individual, 'individual'), synchro: mkStruct(synchro, 'synchro') };
 
@@ -354,7 +357,9 @@
     }
 
     // ---- カード生成（性別×ラウンド グリッド。決勝なしクラスは予選のみ） ----
-    function buildClassCard(className, type, numE = 4, hasH5H6 = false, hasFinal = false, finalOnly = false, genders = ['男子','女子']) {
+    // eJudgeRaw: 数値（予選・決勝で共通）または {pre,final}（個別設定）。ラウンドごとの
+    // 実際の人数は resolveEJudgeCount で解決するため、ここではまだ数値に変換しない。
+    function buildClassCard(className, type, eJudgeRaw = 4, hasH5H6 = false, hasFinal = false, finalOnly = false, genders = ['男子','女子']) {
         // 新形式: classes[type][className]、旧形式: classes[className]（後方互換）
         const rawData = judgeConfig.classes?.[type]?.[className]
                      || judgeConfig.classes?.[className]
@@ -362,8 +367,6 @@
         const isSynchro = type === 'synchro';
         const isOldFormat = Object.keys(rawData).some(k => ['cjp','e1','e2','e3','e4','d7','d8'].includes(k));
         function getSectionData(g, r) { return isOldFormat ? rawData : (rawData[g]?.[r] || {}); }
-
-        const roles = rolesFor(numE, hasH5H6);
 
         const card = document.createElement('div');
         card.className = 'card';
@@ -381,6 +384,8 @@
         const rounds  = finalOnly ? ['決勝'] : (hasFinal ? ['予選','決勝'] : ['予選']);   // 決勝のみは決勝だけ
         for (const gender of genders) {
             for (const round of rounds) {
+                // 予選・決勝でE審判人数が異なりうるため、rolesはラウンドごとに計算する
+                const roles = rolesFor(resolveEJudgeCount(eJudgeRaw, round) || 4, hasH5H6);
                 secGrid.appendChild(buildSecPanel(gender, round, getSectionData(gender, round), roles));
             }
         }
@@ -620,10 +625,11 @@
             _struct[type].forEach(c => {
                 const card = cardByKey[`${type}|${c.name}`];
                 const allData = card ? readClassCard(card) : {};
-                const roles  = rolesFor(c.numE, c.hasH5H6);
                 const rounds = c.finalOnly ? ['決勝'] : (c.hasFinal ? ['予選','決勝'] : ['予選']);
                 for (const gender of c.genders || ['男子','女子']) {
                     for (const round of rounds) {
+                        // 予選・決勝でE審判人数が異なりうるため、rolesはラウンドごとに計算する
+                        const roles = rolesFor(resolveEJudgeCount(c.numE, round) || 4, c.hasH5H6);
                         const sec = (allData[gender] && allData[gender][round]) || {};
                         roles.forEach(([key, roleLabel]) => {
                             rows.push([tLabel, c.name, gender, round, roleLabel, sec[key] || '', sec[key+'_kind'] || '']);

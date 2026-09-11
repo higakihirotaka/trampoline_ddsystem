@@ -183,7 +183,7 @@
     import { doc, onSnapshot, getDocs, getDocFromServer, collection, query, where, setDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin } from "./auth.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
-    import { round1 } from "./shared.js";
+    import { round1, resolveEJudgeCount } from "./shared.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
@@ -254,14 +254,14 @@
         window.open(`${base}&class=${cls}&gender=${gender}&type=${type}&round=${rkRound}`, '_blank');
     };
 
-    // 現在の選手クラスに応じた E審判人数を返す
+    // 現在の選手クラス・ラウンドに応じた E審判人数を返す（予選・決勝で個別設定されている場合に対応）
     function getNumE() {
         const ath = athletes.find(a => a.id === athleteId);
         if (ath) {
             const type = ath.type || 'individual';
             const cls  = ath.class || ath.category || '';
-            const n = parseInt(currentTour?.classRules?.[type]?.[cls]?.eJudgeCount);
-            if (!isNaN(n) && n > 0) return n;
+            const n = resolveEJudgeCount(currentTour?.classRules?.[type]?.[cls]?.eJudgeCount, round);
+            if (n) return n;
         }
         return currentTour?.numExecJudges || 6;
     }

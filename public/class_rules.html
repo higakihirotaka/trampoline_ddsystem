@@ -84,7 +84,7 @@
     import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
-    import { normalizeClassRules } from './shared.js';
+    import { normalizeClassRules, resolveEJudgeCount } from './shared.js';
     import { invalidateCache } from './cache.js';
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -190,7 +190,12 @@
         const finalOnly  = (rule.finalOnly === true || rule.finalOnly === 'true' || Number(rule.finalOnly) === 1);
         // 決勝設定モード: none(なし) / final(あり) / finalOnly(決勝のみ)
         const finalMode  = finalOnly ? 'finalOnly' : (hasFinal ? 'final' : 'none');
-        const eJudge     = isNaN(parseInt(rule.eJudgeCount)) ? 4 : Math.max(1, parseInt(rule.eJudgeCount));
+        // E審判人数: 予選・決勝で共通(数値)か個別({pre,final})かで保存形式が変わる
+        const eJudgeRaw   = rule.eJudgeCount;
+        const eJudgeSplit = !!(eJudgeRaw && typeof eJudgeRaw === 'object');
+        const eJudgeSame  = eJudgeSplit ? 4 : (isNaN(parseInt(eJudgeRaw)) ? 4 : Math.max(1, parseInt(eJudgeRaw)));
+        const eJudgePre   = resolveEJudgeCount(eJudgeRaw, '予選') || 4;
+        const eJudgeFinal = resolveEJudgeCount(eJudgeRaw, '決勝') || 4;
         const tofMode    = (rule.tofDefaultMode === 'manual') ? 'manual' : 'auto';
         const hdMode     = (rule.hdDefaultMode  === 'manual') ? 'manual' : 'auto';
         // -1 = 設定なし、0 = 0本指定（全DD無効）、1-9 = N本指定
@@ -279,9 +284,31 @@
             <div class="rule-row">
                 <div class="rule-label">E審判人数</div>
                 <div class="rule-controls">
-                    <div class="num-input-wrap">
-                        <input type="number" id="e-judge-${key}" value="${eJudge}" min="1" max="10">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="ejudge-mode-${key}" value="same" ${eJudgeSplit ? '' : 'checked'}>
+                            <span>予選・決勝で共通</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="ejudge-mode-${key}" value="split" ${eJudgeSplit ? 'checked' : ''}>
+                            <span>予選・決勝で個別に設定</span>
+                        </label>
+                    </div>
+                    <div class="num-input-wrap conditional ${eJudgeSplit ? 'hidden' : ''}" id="ejudge-same-wrap-${key}" style="margin-top:8px;">
+                        <input type="number" id="e-judge-${key}" value="${eJudgeSame}" min="1" max="10">
                         <span class="num-unit">名</span>
+                    </div>
+                    <div class="conditional ${eJudgeSplit ? '' : 'hidden'}" id="ejudge-split-wrap-${key}" style="margin-top:8px;display:flex;gap:20px;flex-wrap:wrap;">
+                        <div class="num-input-wrap">
+                            <span class="num-unit" style="margin-right:2px;">予選</span>
+                            <input type="number" id="e-judge-pre-${key}" value="${eJudgePre}" min="1" max="10">
+                            <span class="num-unit">名</span>
+                        </div>
+                        <div class="num-input-wrap">
+                            <span class="num-unit" style="margin-right:2px;">決勝</span>
+                            <input type="number" id="e-judge-final-${key}" value="${eJudgeFinal}" min="1" max="10">
+                            <span class="num-unit">名</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -478,6 +505,14 @@
                 }));
         });
 
+        // E審判人数 共通/個別 → 表示欄の切替
+        card.querySelectorAll(`input[name="ejudge-mode-${key}"]`).forEach(radio =>
+            radio.addEventListener('change', () => {
+                const split = card.querySelector(`input[name="ejudge-mode-${key}"]:checked`)?.value === 'split';
+                document.getElementById(`ejudge-same-wrap-${key}`)?.classList.toggle('hidden', split);
+                document.getElementById(`ejudge-split-wrap-${key}`)?.classList.toggle('hidden', !split);
+            }));
+
         return card;
     }
 
@@ -499,7 +534,14 @@
                 const finalVal   = card.querySelector(`input[name="final-${key}"]:checked`)?.value;
                 const finalOnly  = finalVal === 'finalOnly';
                 const hasFinal   = finalVal === 'true' || finalOnly;   // 決勝のみも「決勝あり」扱い
-                const eJudge         = parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
+                // E審判人数: 「個別」選択時は{pre,final}オブジェクト、「共通」選択時は今まで通り数値で保存
+                const eJudgeMode = card.querySelector(`input[name="ejudge-mode-${key}"]:checked`)?.value || 'same';
+                const eJudge = eJudgeMode === 'split'
+                    ? {
+                        pre:   parseInt(card.querySelector(`#e-judge-pre-${key}`)?.value)   || 1,
+                        final: parseInt(card.querySelector(`#e-judge-final-${key}`)?.value) || 1
+                      }
+                    : parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
                 const tofDefaultMode  = card.querySelector(`input[name="tof-mode-${key}"]:checked`)?.value || 'auto';
                 const hdDefaultMode   = card.querySelector(`input[name="hd-mode-${key}"]:checked`)?.value  || 'auto';
                 // -1=設定なし、0=0本指定、1-9=N本指定
