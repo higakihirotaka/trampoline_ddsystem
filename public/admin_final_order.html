@@ -216,7 +216,7 @@
   import { doc, getDocs, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { ensureAdmin, logout } from "./auth.js";
   import { getTournament, getAthletes, getFinalOrders, invalidateCache } from "./cache.js";
-  import { normalizeClassRules, calcQualifyingScore, calcQualifyingTb, compareRankEntries } from "./shared.js";
+  import { normalizeClassRules, calcQualifyingScore, calcQualifyingTb, compareRankEntries, assignRanks } from "./shared.js";
 
   const params  = new URLSearchParams(location.search);
   const eventId = params.get('event');
@@ -408,17 +408,25 @@
       const pre2r = rMap['pre2'] || null;
       const pre1  = pre1r?.officialTotal ?? null;
       const pre2  = pre2r?.officialTotal ?? null;
-      const qualScore       = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
+      let qualScore         = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
       const { tbSum, tb }   = calcQualifyingTb(pre1, pre2, pre1r, pre2r, numPre, scoreMode);
-      return { a, pre1, pre2, qualScore, tbSum, tb };
+      // DNS（棄権）チェック: 棄権登録は既存の確定スコアをmergeで残したまま行われるため、
+      // officialTotalの有無だけでは判定できない。ranking.htmlと同じくdns:trueなら
+      // qualScoreをnullにして最下位・決勝進出対象外にする（そうしないと棄権した選手が
+      // 決勝進出者に選ばれてしまう）。
+      const isDns = pre1r?.dns === true || pre2r?.dns === true;
+      if (isDns) qualScore = null;
+      return { a, pre1, pre2, qualScore, tbSum, tb, isDns };
     }).sort(compareRankEntries);
 
     const actual = Math.min(finalCount, sorted.filter(r => r.qualScore != null).length);
 
-    // 予選順位を付与
+    // 予選順位を付与（同点はranking.htmlと同じくassignRanksで同順位にする。
+    // 単純なidx+1だと、同点でもここだけ連番になりranking.html側の表示と食い違っていた）
+    assignRanks(sorted);
     const withRanks = sorted.map((entry, idx) => ({
       ...entry,
-      qualRank: idx + 1,
+      qualRank: entry.rank,
       inFinal:  idx < actual && entry.qualScore != null
     }));
 

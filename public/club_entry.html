@@ -202,7 +202,10 @@
         }
     }
 
+    let _timerIds = []; // 起動中のインターバルIDを管理（tick()がconst宣言前のtimerIdを参照してしまうTDZエラーを防ぐため、event.htmlと同じ配列方式にする）
     function startGlobalTimers(tour) {
+        _timerIds.forEach(id => clearInterval(id));
+        _timerIds = [];
         const area = document.getElementById('countdown-area');
         // 修正締切が提出締切と同じ値の場合は重複するので表示しない（event.htmlと同一ロジック）
         const revSameAsSub = tour.revisionDeadline && tour.revisionDeadline === tour.submissionDeadline;
@@ -238,10 +241,10 @@
                     el.textContent = '終了';
                 }
             });
-            if (allDone) clearInterval(timerId);
+            if (allDone) { _timerIds.forEach(id => clearInterval(id)); _timerIds = []; }
         };
         tick();
-        const timerId = setInterval(tick, 1000);
+        _timerIds.push(setInterval(tick, 1000));
     }
 
     // club1/club2は "Pureトランポリンクラブ/東京農業大学第二高等学校" のように「/」区切りの

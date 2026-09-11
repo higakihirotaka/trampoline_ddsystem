@@ -308,7 +308,12 @@
         const resId = `${eventId}_${athleteId}_${round}`;
         const r = resultsMap[resId];
         const isDns = r?.dns === true;
-        const hasScore = r?.officialTotal != null;
+        // 「得点あり」判定はofficialTotal（CJP確定後）だけでなく、E/D審判が入力途中の
+        // データ（execution.judges・officialSkills等）が既にある場合も含める。
+        // officialTotalだけで判定すると、CJP確定前に棄権→解除しただけで入力途中の
+        // 採点データがまるごと削除されてしまう（deleteDocされる）ため。
+        const DNS_BOOKKEEPING_KEYS = new Set(['eventId', 'athleteId', 'round', 'dns', 'dnsAt', 'published']);
+        const hasScore = !!r && Object.keys(r).some(k => !DNS_BOOKKEEPING_KEYS.has(k));
 
         if (!isDns) {
             try {
@@ -317,20 +322,20 @@
                 }, { merge: true });
                 resultsMap[resId] = { ...(resultsMap[resId] || {}), dns: true, published: true };
                 rerenderCell(athleteId, round);
-                // 既に得点が確定していた試技の場合は、その旨をトーストで併記する
-                // （データは消えず、解除すれば元のスコアに復元される）
-                showToast(hasScore ? '棄権に設定しました（確定済みスコアあり。解除すると復元されます）' : '棄権に設定しました');
+                // 既に採点データ（確定済み、または入力途中）がある試技の場合は、その旨をトーストで併記する
+                // （データは消えず、解除すれば元の状態に復元される）
+                showToast(hasScore ? '棄権に設定しました（採点データあり。解除すると復元されます）' : '棄権に設定しました');
             } catch (e) {
                 alert('設定に失敗しました: ' + e.message);
             }
         } else {
             const restoreMsg = hasScore
-                ? '棄権を取り消しますか？\n確定済みのスコアは復元されます。'
+                ? '棄権を取り消しますか？\n入力済みの採点データ（確定済み・入力途中を含む）は復元されます。'
                 : '棄権を取り消しますか？\nこの試技はまだ得点が無いため「未実施」の状態に戻ります。';
             if (!confirm(restoreMsg)) return;
             try {
                 if (hasScore) {
-                    // 確定済みスコアが残っている場合は、dns関連フィールドだけ取り除いて元の得点を復元する
+                    // 採点データが残っている場合は、dns関連フィールドだけ取り除いて元のデータを復元する
                     await updateDoc(doc(db, 'results', resId), { dns: deleteField(), dnsAt: deleteField() });
                     const { dns, dnsAt, ...rest } = resultsMap[resId] || {};
                     resultsMap[resId] = rest;
