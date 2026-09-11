@@ -120,7 +120,9 @@
         const isDone = ath.submissions?.[round] !== undefined;
         const cls   = isDns ? 'status-dns' : (isDone ? 'status-done' : 'status-none');
         const label = isDns ? 'DNS' : (isDone ? '提出済' : '入力');
-        return `<a href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}" class="status-link ${cls}">${label}</a>`;
+        // club を引き継いでおくことで、entry.html側の「一覧に戻る」・提出後の遷移先が
+        // 全選手一覧(event.html)ではなくこの所属専用一覧に戻るようにする
+        return `<a href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}&club=${clubId}" class="status-link ${cls}">${label}</a>`;
     }
 
     function buildTablesHtml(athletes, rulesByType, type, fallbackRules, classOrder, showGroup, dnsSet) {

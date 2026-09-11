@@ -1143,7 +1143,7 @@
 <script type="module">
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, round1, buildIntroSteps, resolveEJudgeCount } from "./shared.js";
+  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, round1, buildIntroSteps, resolveEJudgeCount } from "./shared.js";
   import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
@@ -1880,7 +1880,7 @@
         );
       }
 
-      return entries
+      const rankedEntries = entries
         .map(([id, s]) => {
           // 予選スコア計算（shared.js 共通関数）
           const qualPre = calcQualifyingScore(s.pre1, s.pre2, numPre, scoreMode);
@@ -1898,6 +1898,10 @@
           return { id, ...s, qualScore: total, total, tbSum, tb, _isFinal: isFinal };
         })
         .sort(compareRankEntries);
+      // ranking.htmlと同じ基準で同点を同順位にする（各エントリに.rankを付与）。
+      // これをしないと会場ディスプレイの順位だけ単純な連番になり、印刷用順位表と数字が食い違う。
+      assignRanks(rankedEntries);
+      return rankedEntries;
     } catch(e) { console.error(e); return []; }
   }
 
@@ -1963,6 +1967,14 @@
     });
     // 団体得点 → T → H → D の降順
     teams.sort((a, b) => b.score - a.score || b.tbT - a.tbT || b.tbH - a.tbH || b.tbD - a.tbD);
+    // 同点（得点・T・H・D が完全一致）は同順位にする（ranking.htmlのbuildTeamSectionHtmlと同一ロジック）。
+    // これが無いと会場ディスプレイの団体順位だけ単純な連番になり、印刷用順位表と数字が食い違う。
+    let _trRank = 0, _trPrevKey = null;
+    teams.forEach((t, i) => {
+      const k = `${t.score}|${t.tbT}|${t.tbH}|${t.tbD}`;
+      if (k !== _trPrevKey) { _trRank = i + 1; _trPrevKey = k; }
+      t.rank = _trRank;
+    });
     return { teams, scoreMode, numPre };
   }
 
@@ -1997,7 +2009,8 @@
     const pageTeams = _trTeams.slice(page * TR_PER_PAGE, page * TR_PER_PAGE + TR_PER_PAGE);
     const topScore = _trTeams[0]?.score ?? 0;   // 1位（全体の先頭）のスコア = GAP の基準
     const listHtml = pageTeams.map((t, i) => {
-      const rank = page * TR_PER_PAGE + i + 1;
+      // t.rank は computeTeamRanking() で同点を同順位として付与済み
+      const rank = t.rank ?? (page * TR_PER_PAGE + i + 1);
       const rcls = rank <= 3 ? ` r${rank}` : '';
       const twoRtn = _trNumPre === 2;   // 予選2本ならRtn1/Rtn2で両本表示（採点方式に関係なく）
       const isBest = _trScoreMode === 'best';
@@ -2166,7 +2179,9 @@
 
     const rowsHTML = entries.map((e, i) => {
       if (!e) return `<div class="rk-row" style="visibility:hidden;"></div>`;
-      const rank   = startOffset + i + 1;
+      // e.rank は fetchRankingEntriesFor() で assignRanks() により付与済み（同点は同順位）。
+      // 万一未設定のエントリが来た場合のみ、従来通りの連番にフォールバックする。
+      const rank   = e.rank ?? (startOffset + i + 1);
       const cur    = e.id === curAthId;
       const hasAny = isFinal ? (e.final !== null || e.pre1 !== null) : (e.pre1 !== null || e.pre2 !== null);
       // CJPがDNS（棄権）で確定 → スコアの代わりに DNS 表示

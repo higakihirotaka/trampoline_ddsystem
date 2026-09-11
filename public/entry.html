@@ -203,9 +203,14 @@
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round');
     const isAdmin = params.get('admin') === '1';
+    const clubParam = params.get('club')?.trim();
     // 管理者（admin_card_edit.html経由）は「一覧に戻る」・提出後の遷移先を選手用一覧(event.html)
-    // ではなく管理者用一覧(admin_card_edit.html)にする（元いた画面に戻れるようにするため）
-    const backListUrl = isAdmin ? `admin_card_edit.html?event=${eventId}` : `event.html?event=${eventId}`;
+    // ではなく管理者用一覧(admin_card_edit.html)にする（元いた画面に戻れるようにするため）。
+    // 所属別入力リンク（club_entry.html）経由の場合は、全選手が見えるevent.htmlに戻すと
+    // 所属を限定して見せているプライバシー上の意味が無くなるため、同じ所属専用一覧に戻す。
+    const backListUrl = isAdmin ? `admin_card_edit.html?event=${eventId}`
+                       : clubParam ? `club_entry.html?event=${eventId}&club=${clubParam}`
+                       : `event.html?event=${eventId}`;
 
     let skillMaster = [];
     const LABEL_TO_ID = new Map();   // 技名ラベル→技ID（管理者入力欄の予測変換の逆引き。d_calc.htmlと同一）
