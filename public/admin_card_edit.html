@@ -266,6 +266,9 @@
         for (const className of sortedClasses) {
             const classAthletes = athletesByClass[className];
             const rules = (rulesByType || {})[className] || fallbackRules[className] || { qualifyingRoutines: 2, hasFinal: false };
+            // 決勝のみクラスは予選を実施しないため、予選列は0本にする
+            // （event.html/admin_dns.html/club_entry.html等と同じ判定方法）
+            const numPre = rules.finalOnly === true ? 0 : rules.qualifyingRoutines;
 
             classAthletes.sort((a, b) =>
                 `${a.gender || ''}-${String(a.flightGroup || '').padStart(3,'0')}-${String(a.order || '').padStart(3,'0')}`
@@ -280,9 +283,9 @@
                     if (currentGender !== "") finalHtml += '</tbody></table>';
                     currentGender = ath.gender;
 
-                    const routineHeaders = Array.from({ length: rules.qualifyingRoutines }, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
+                    const routineHeaders = Array.from({ length: numPre }, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
                     const finalHeader = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
-                    const totalCols = 3 + rules.qualifyingRoutines + (rules.hasFinal ? 1 : 0);
+                    const totalCols = 3 + numPre + (rules.hasFinal ? 1 : 0);
 
                     finalHtml += `
                         <table>
@@ -306,7 +309,7 @@
 
                 finalHtml += `<tr class="${ath.isWithdrawn ? 'withdrawn-row' : ''}"><td class="col-num">${ath.flightGroup || '-'}</td><td class="col-num">${ath.order || '-'}</td><td class="col-name">${playerHtml}</td>`;
 
-                for (let i = 1; i <= rules.qualifyingRoutines; i++) {
+                for (let i = 1; i <= numPre; i++) {
                     finalHtml += `<td>${getStatusButton(ath, `pre${i}`, subDataMap, resDataMap)}</td>`;
                 }
                 if (rules.hasFinal) {
