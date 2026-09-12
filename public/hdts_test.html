@@ -52,9 +52,53 @@
 
 <h1>📡 QIRA 接続テスト</h1>
 
-<!-- 接続設定 -->
+<!-- 環境警告 -->
+<div id="env-banner" class="card" style="display:none; border-color:#d29922; background:#231a08;">
+  <div style="color:#f0b429; font-weight:700; font-size:0.9rem;">⚠️ 接続環境の注意</div>
+  <div id="env-msg" style="font-size:0.84rem; margin-top:8px; line-height:1.6;"></div>
+</div>
+
+<!-- CJPと同じ経路で取得（推奨） -->
+<div class="card" style="border-color:#238636;">
+  <div class="card-title" style="color:#3fb950;">🔄 CJPと同じ経路で取得（推奨）— 生データを表示</div>
+  <div class="row">
+    <button class="btn-primary" id="btn-auto" onclick="autoFetch()">📥 QIRAから取得（CJPと同じ）</button>
+    <span id="auto-status" style="font-size:0.82rem;margin-left:8px;"></span>
+  </div>
+  <div class="endpoint-label" id="auto-url" style="margin-top:8px;">—</div>
+  <div class="card-title" style="margin-top:12px; display:flex; align-items:center; gap:10px;">生レスポンス（RAW）
+    <button class="btn-secondary" style="padding:3px 12px; font-size:0.72rem;" onclick="copyText('auto-raw', this)">📋 コピー</button>
+  </div>
+  <pre id="auto-raw">（未取得）ボタンを押すとQIRAから届いた生の内容をそのまま表示します。</pre>
+  <div class="ts" id="auto-ts"></div>
+</div>
+
+<!-- CJP連携設定 -->
+<div class="card" style="border-color:#0d9488;">
+  <div class="card-title" style="color:#0d9488;">⚙️ CJP連携設定（CJP画面のHDTSボタンに反映）</div>
+  <div class="row">
+    <label>QIRAの場所</label>
+    <select id="cjp-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:5px 8px;border-radius:4px;font-size:0.82rem;">
+      <option value="local">同一PC（localhost:8080）</option>
+      <option value="remote">別PC（LAN接続）</option>
+    </select>
+  </div>
+  <div class="row" id="cjp-ip-row" style="display:none;">
+    <label>QIRA PC の IP</label>
+    <input type="text" id="cjp-ip" value="192.168.100.2" style="width:160px;">
+    <label style="margin-left:8px;">Port</label>
+    <input type="number" id="cjp-port" value="8080" style="width:70px;">
+  </div>
+  <div class="row" style="margin-top:8px;align-items:center;">
+    <button class="btn-primary" onclick="saveCjpConfig()">💾 CJP画面に設定を保存</button>
+    <span id="cjp-save-status" style="font-size:0.8rem;margin-left:12px;"></span>
+  </div>
+  <div id="cjp-current" style="font-size:0.75rem;color:#484f58;margin-top:8px;font-family:monospace;"></div>
+</div>
+
+<!-- 接続設定（テスト用） -->
 <div class="card">
-  <div class="card-title">接続設定</div>
+  <div class="card-title">接続設定（このページのテスト用）</div>
   <div class="row">
     <label>プロキシ経由</label>
     <input type="text" id="base-url" value="/api/qira" style="width:200px">
@@ -113,6 +157,7 @@
   <div class="endpoint-label" id="ep-result">—</div>
   <div class="row">
     <button class="btn-primary" id="btn-result" onclick="fetchEndpoint('result')">📥 取得</button>
+    <button class="btn-secondary" style="padding:5px 14px;" onclick="copyText('out-result', this)">📋 コピー</button>
     <span id="status-result" style="font-size:0.8rem;margin-left:8px;"></span>
   </div>
   <pre id="out-result">（未取得）</pre>
@@ -158,6 +203,67 @@
   document.getElementById('base-url').addEventListener('input', updateEpLabels);
   document.getElementById('direct-url').addEventListener('input', updateEpLabels);
   updateEpLabels();
+
+  // ---- CJP連携設定 ----
+  const QIRA_KEY = 'qiraBaseUrl';
+
+  function loadCjpConfig() {
+    const saved = localStorage.getItem(QIRA_KEY);
+    const curEl = document.getElementById('cjp-current');
+    if (saved) {
+      curEl.textContent = '保存済み: ' + saved;
+      const isRemote = !saved.includes('localhost') && !saved.includes('127.0.0.1');
+      document.getElementById('cjp-mode').value = isRemote ? 'remote' : 'local';
+      if (isRemote) {
+        const m = saved.match(/http:\/\/([^:]+):(\d+)/);
+        if (m) { document.getElementById('cjp-ip').value = m[1]; document.getElementById('cjp-port').value = m[2]; }
+        document.getElementById('cjp-ip-row').style.display = '';
+        // テスト用直接接続URLにも反映
+        document.getElementById('direct-url').value = saved;
+        updateEpLabels();
+      }
+    } else {
+      curEl.textContent = '未設定（CJP画面はlocalhost:8080を使用）';
+    }
+  }
+
+  async function saveCjpConfig() {
+    const mode = document.getElementById('cjp-mode').value;
+    const ip   = mode === 'remote' ? document.getElementById('cjp-ip').value.trim()   : 'localhost';
+    const port = mode === 'remote' ? document.getElementById('cjp-port').value.trim() : '8080';
+    const baseUrl = 'http://' + ip + ':' + port;
+
+    // localStorage に保存（CJP画面の直接接続用）
+    localStorage.setItem(QIRA_KEY, baseUrl);
+    document.getElementById('direct-url').value = baseUrl;
+    updateEpLabels();
+
+    const st  = document.getElementById('cjp-save-status');
+    const cur = document.getElementById('cjp-current');
+    cur.textContent = '保存済み: ' + baseUrl;
+
+    // ローカルサーバー（node server.js）が起動中なら /api/config にも送信
+    let serverMsg = '';
+    try {
+      const r = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host: ip, port: parseInt(port) }),
+        signal: AbortSignal.timeout(1000)
+      });
+      if (r.ok) serverMsg = ' ＋ サーバー設定も更新';
+    } catch { /* サーバー未起動の場合は無視 */ }
+
+    st.style.color = '#3fb950';
+    st.textContent = '✅ 保存しました' + serverMsg;
+    setTimeout(() => { st.textContent = ''; }, 4000);
+  }
+
+  document.getElementById('cjp-mode').addEventListener('change', e => {
+    document.getElementById('cjp-ip-row').style.display = e.target.value === 'remote' ? '' : 'none';
+  });
+
+  loadCjpConfig();
 
   function ts() { return new Date().toLocaleTimeString('ja-JP', {hour12:false}); }
 
@@ -260,6 +366,112 @@
 
   async function checkAll() {
     await Promise.all(['health','state','result'].map(k => fetchEndpoint(k)));
+  }
+
+  // ---- 環境検知（HTTPS配信版では localhost の QIRA に届かない） ----
+  (function checkEnv() {
+    const isLocal = ['localhost','127.0.0.1'].includes(location.hostname);
+    const banner = document.getElementById('env-banner');
+    const msg = document.getElementById('env-msg');
+    if (isLocal) return;
+    banner.style.display = '';
+    msg.innerHTML =
+      `このページは <b style="color:#f85149">${location.origin}</b> で開かれています（${location.protocol}）。<br>` +
+      `QIRA は通常 <b>http://localhost:8080</b> で動作していますが、<b>HTTPSページからは「混在コンテンツ」制限で http://localhost に接続できません</b>。` +
+      `また <code>/api/qira/*</code> プロキシは <b>ローカルサーバー(node server.js)</b> にしか無く、配信版(Firebase)には存在しません。<br><br>` +
+      `<b style="color:#3fb950">➡ CJPと同じく、ローカルサーバー経由でこのページを開いてください</b>（例: <code>http://localhost:3000/hdts_test.html</code> ／ CJPを開いているのと同じ <code>http://localhost:ポート</code>）。`;
+  })();
+
+  function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c])); }
+
+  // 生データをクリップボードにコピー（表示テキストをそのまま）
+  window.copyText = function(id, btn) {
+    const el = document.getElementById(id);
+    const text = el ? el.textContent : '';
+    const done = () => { const o = btn.textContent; btn.textContent = '✅ コピー済み'; setTimeout(() => { btn.textContent = o; }, 1500); };
+    if (!text) { const o = btn.textContent; btn.textContent = '（空です）'; setTimeout(() => { btn.textContent = o; }, 1500); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  };
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { alert('コピーに失敗しました。手動で選択してください。'); }
+    document.body.removeChild(ta);
+  }
+
+  function diagnose(e, url) {
+    if (location.protocol === 'https:' && url.startsWith('http://'))
+      return '→ 原因: 混在コンテンツ（HTTPSページから http:// は取得不可）。localhost経由でこのページを開いてください。';
+    if (e.name === 'TimeoutError' || /timeout|aborted/i.test(e.message))
+      return '→ 原因: 応答なし（QIRA未起動 / IP・Port違い / ファイアウォール）。';
+    if (e.name === 'TypeError')
+      return '→ 原因: 接続不可（QIRA未起動 / CORS / 混在コンテンツのいずれか）。';
+    return '';
+  }
+
+  // CJP画面の tryFetchQira と同じ優先順位で候補URLを組み立てる
+  function autoAttempts() {
+    const list = [];
+    if (['localhost','127.0.0.1'].includes(location.hostname))
+      list.push({ url: '/api/qira/result', note: 'プロキシ /api/qira/result（ローカルサーバー経由）' });
+    const savedBase = localStorage.getItem(QIRA_KEY);
+    const isRemote = savedBase && !savedBase.includes('localhost') && !savedBase.includes('127.0.0.1');
+    if (isRemote) list.push({ url: savedBase.replace(/\/$/, '') + '/routineresult', note: '保存済みリモート ' + savedBase });
+    list.push({ url: 'http://localhost:8080/routineresult', note: '直接 http://localhost:8080' });
+    return list;
+  }
+
+  async function autoFetch() {
+    const rawEl = document.getElementById('auto-raw');
+    const stEl  = document.getElementById('auto-status');
+    const urlEl = document.getElementById('auto-url');
+    const tsEl  = document.getElementById('auto-ts');
+    const btn   = document.getElementById('btn-auto');
+    btn.disabled = true;
+    stEl.innerHTML = '<span class="tag-warn">取得中...</span>';
+    rawEl.textContent = '取得中...';
+    const log = [];
+    try {
+      for (const a of autoAttempts()) {
+        urlEl.textContent = 'URL: ' + a.url + '  （' + a.note + '）';
+        try {
+          const t0 = performance.now();
+          const res = await fetch(a.url, { signal: AbortSignal.timeout(4000) });
+          const ms  = Math.round(performance.now() - t0);
+          const ct  = res.headers.get('content-type') || '(なし)';
+          const raw = await res.text();
+          log.push(`[試行] ${a.note}\n  URL : ${a.url}\n  HTTP: ${res.status} ${res.statusText} (${ms}ms)\n  Content-Type: ${ct}`);
+          // HTMLが返る = QIRAプロキシ未経由（Firebase等のフォールバック）
+          if (ct.includes('html') || raw.trim().startsWith('<')) {
+            log.push('  ⚠️ HTMLが返っています＝QIRAに届いていません（配信版/プロキシ未経由）。localhostのローカルサーバー経由で開いてください。\n');
+            continue;
+          }
+          // 成功: 生データ表示
+          let pretty = raw;
+          try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch { log.push('  ⚠️ JSONとして解釈できませんでした（生データをそのまま表示）。'); }
+          rawEl.innerHTML = `<span class="tag-ok">✅ 取得成功: ${a.note}</span>\n` +
+                            `<span style="color:#484f58">HTTP ${res.status} ${res.statusText} / ${ct} / ${ms}ms</span>\n\n` +
+                            escapeHtml(pretty);
+          stEl.innerHTML = `<span class="tag-ok">✅ ${res.status}</span>`;
+          tsEl.textContent = '取得時刻: ' + ts();
+          try { parsedResult(JSON.parse(raw)); } catch {}
+          return;
+        } catch (e) {
+          log.push(`[試行] ${a.note}\n  URL : ${a.url}\n  ❌ ${e.name}: ${e.message}\n  ${diagnose(e, a.url)}\n`);
+        }
+      }
+      // 全滅
+      stEl.innerHTML = '<span class="tag-err">❌ すべての経路で失敗</span>';
+      rawEl.innerHTML = '<span class="tag-err">取得できませんでした。試行ログ：</span>\n\n' + escapeHtml(log.join('\n'));
+      tsEl.textContent = '取得時刻: ' + ts();
+    } finally {
+      btn.disabled = false;
+    }
   }
 </script>
 </body>

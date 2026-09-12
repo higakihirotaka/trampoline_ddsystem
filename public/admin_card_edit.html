@@ -32,8 +32,24 @@
         .status-done    { background: #e3f2fd; color: #0277bd; }
         .status-warning { background: #fff3e0; color: #e65100; }
         .status-ok      { background: #e8f5e9; color: #2e7d32; }
+        .status-dns     { background: #fdecee; color: #d32f2f; border-color: #f3c2c2; }
         .withdrawn-row { background-color: #f5f5f5; color: #999; }
         .withdrawn-row td { text-decoration: line-through; }
+
+        .filter-bar { display: none; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;
+            margin-bottom: 24px; padding: 12px 16px; background: var(--bg-gray); border-radius: 12px; }
+        .filter-bar label { display: flex; flex-direction: column; gap: 3px; font-size: 0.72em; color: var(--text-gray); font-weight: bold; }
+        .filter-bar select { padding: 7px 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; font-size: 0.9em; min-width: 140px; }
+        .filter-bar select:focus { outline: 2px solid var(--primary-blue); }
+        .filter-bar .filter-clear { align-self: flex-end; padding: 7px 14px; border-radius: 8px; border: 1px solid #ccc;
+            background: #fff; color: var(--text-gray); font-size: 0.82em; cursor: pointer; }
+        .filter-bar .filter-clear:hover { background: #f0f2f5; }
+        .filter-highlight { outline: 3px solid var(--primary-blue); outline-offset: 2px; }
+
+        @media (max-width: 600px) {
+            .filter-bar { gap: 8px; padding: 10px; margin-bottom: 16px; }
+            .filter-bar select { min-width: 100px; font-size: 0.82em; }
+        }
     </style>
 </head>
 <body>
@@ -45,6 +61,12 @@
         </div>
         <a id="menu-back" href="admin_menu.html" class="back-link">← 管理メニューに戻る</a>
     </div>
+    <div id="filter-bar" class="filter-bar">
+        <label>クラス<select id="filter-class"><option value="">すべて</option></select></label>
+        <label>性別<select id="filter-gender"><option value="">すべて</option></select></label>
+        <label>チーム名<select id="filter-team"><option value="">すべて</option></select></label>
+        <button type="button" id="filter-clear" class="filter-clear">条件をクリア</button>
+    </div>
     <div id="indiv-list"></div>
     <div id="sync-list"></div>
 </div>
@@ -55,6 +77,142 @@
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
+
+    // ── フィルタ状態（クラス・性別・チーム名）── event.html/admin_dns.htmlと同一ロジック ──
+    const FILTER_KEY = `ace_filter_${eventId}`;
+    const LAST_ATH_KEY = `ace_lastath_${eventId}`;
+    function loadFilterState() {
+        try { return JSON.parse(sessionStorage.getItem(FILTER_KEY) || 'null') || { cls:'', gender:'', team:'' }; }
+        catch { return { cls:'', gender:'', team:'' }; }
+    }
+    function saveFilterState() {
+        try { sessionStorage.setItem(FILTER_KEY, JSON.stringify(filterState)); } catch {}
+    }
+    let filterState = loadFilterState();
+    // entry.htmlで入力して一覧に戻ってきた時にスクロール位置を復元するため、
+    // 直前に開いた選手IDを一度だけ消費する
+    let pendingScrollAthleteId = (() => {
+        try { return sessionStorage.getItem(LAST_ATH_KEY) || null; } catch { return null; }
+    })();
+
+    let allAthletes = [], classRules = { individual:{}, synchro:{} }, rawClassRules = {};
+    let subDataMap = new Map(), resDataMap = new Map();
+    let indivClassOrder = [], syncClassOrder = [];
+
+    function collectTeamNames(athletes) {
+        const set = new Set();
+        athletes.forEach(a => {
+            [a.club1, a.club2].forEach(c => {
+                (c || '').split('/').map(s => s.trim()).filter(Boolean).forEach(name => set.add(name));
+            });
+        });
+        return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
+    }
+
+    function collectClassOptions(athletes) {
+        const seen = new Set();
+        const opts = [];
+        athletes.forEach(a => {
+            if (!a.class) return;
+            const type = a.type === 'synchro' ? 'synchro' : 'individual';
+            const key = `${type}::${a.class}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            const label = `${a.class}（${type === 'synchro' ? 'シンクロ' : '個人'}）`;
+            opts.push({ value: key, label });
+        });
+        opts.sort((x, y) => x.label.localeCompare(y.label, 'ja'));
+        return opts;
+    }
+
+    function buildFilterOptions(athletes) {
+        if (!athletes.length) return;
+        const bar = document.getElementById('filter-bar');
+        bar.style.display = 'flex';
+
+        const classOpts = collectClassOptions(athletes);
+        const genderOrder = g => g === '女子' ? 0 : g === '男子' ? 1 : 2;
+        const genders = [...new Set(athletes.map(a => a.gender).filter(Boolean))].sort((a,b)=>genderOrder(a)-genderOrder(b));
+        const teams = collectTeamNames(athletes);
+
+        const fillSelect = (id, values, current) => {
+            const sel = document.getElementById(id);
+            const prev = sel.value;
+            const items = values.map(v => typeof v === 'string' ? { value: v, label: v } : v);
+            sel.innerHTML = '<option value="">すべて</option>' +
+                items.map(it => `<option value="${it.value}">${it.label}</option>`).join('');
+            const want = current !== undefined ? current : prev;
+            if (want && items.some(it => it.value === want)) sel.value = want;
+        };
+        fillSelect('filter-class',  classOpts, filterState.cls);
+        fillSelect('filter-gender', genders,   filterState.gender);
+        fillSelect('filter-team',   teams,     filterState.team);
+    }
+
+    function applyFilters(athletes) {
+        if (!filterState.cls && !filterState.gender && !filterState.team) return athletes;
+        const [wantType, wantClass] = filterState.cls ? filterState.cls.split('::') : [null, null];
+        return athletes.filter(a => {
+            if (filterState.cls) {
+                const type = a.type === 'synchro' ? 'synchro' : 'individual';
+                if (type !== wantType || a.class !== wantClass) return false;
+            }
+            if (filterState.gender && a.gender !== filterState.gender) return false;
+            if (filterState.team) {
+                const inClub = (c) => (c || '').includes(filterState.team);
+                if (!inClub(a.club1) && !inClub(a.club2)) return false;
+            }
+            return true;
+        });
+    }
+
+    // 選手の「入力」リンクを押した瞬間に選手IDを覚えておく（entry.htmlから戻った時のスクロール復元用）
+    document.addEventListener('click', e => {
+        const link = e.target.closest('.status-link');
+        if (!link || !link.id) return;
+        const m = link.id.match(/^status-(.+)-(pre\d+|final)$/);
+        if (!m) return;
+        try { sessionStorage.setItem(LAST_ATH_KEY, m[1]); } catch {}
+    });
+
+    function restoreScrollPosition() {
+        if (!pendingScrollAthleteId) return;
+        const row = document.querySelector(`[id^="status-${pendingScrollAthleteId}-"]`)?.closest('tr');
+        if (!row) return;
+        row.scrollIntoView({ block: 'center' });
+        row.classList.add('filter-highlight');
+        setTimeout(() => row.classList.remove('filter-highlight'), 2000);
+        pendingScrollAthleteId = null; // 一度だけ復元する
+        try { sessionStorage.removeItem(LAST_ATH_KEY); } catch {}
+    }
+
+    function renderList() {
+        const filtered = applyFilters(allAthletes);
+        const indivAthletes = filtered.filter(a => a.type !== 'synchro');
+        const syncAthletes  = filtered.filter(a => a.type === 'synchro');
+
+        const indivContainer = document.getElementById('indiv-list');
+        indivContainer.innerHTML = indivAthletes.length > 0
+            ? '<h2 class="section-header indiv-header">個人競技</h2>' +
+                renderAthleteTables(indivAthletes, classRules.individual, subDataMap, resDataMap, 'individual', rawClassRules, indivClassOrder)
+            : '';
+        const syncContainer = document.getElementById('sync-list');
+        syncContainer.innerHTML = syncAthletes.length > 0
+            ? '<h2 class="section-header sync-header">シンクロ競技</h2>' +
+                renderAthleteTables(syncAthletes, classRules.synchro, subDataMap, resDataMap, 'synchro', rawClassRules, syncClassOrder)
+            : '';
+        restoreScrollPosition();
+    }
+
+    document.getElementById('filter-class').addEventListener('change', e => { filterState.cls = e.target.value; saveFilterState(); renderList(); });
+    document.getElementById('filter-gender').addEventListener('change', e => { filterState.gender = e.target.value; saveFilterState(); renderList(); });
+    document.getElementById('filter-team').addEventListener('change', e => { filterState.team = e.target.value; saveFilterState(); renderList(); });
+    document.getElementById('filter-clear').addEventListener('click', () => {
+        filterState = { cls:'', gender:'', team:'' };
+        saveFilterState();
+        buildFilterOptions(allAthletes);
+        renderList();
+    });
 
     async function init() {
         if (!eventId) { document.body.innerHTML = '<h1>エラー: 大会IDが見つかりません。</h1><a href="admin_index.html">大会選択に戻る</a>'; return; }
@@ -70,21 +228,17 @@
         const tour = tourSnap.data();
         document.getElementById('event-name').innerText = tour.name;
 
-        const subDataMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
-        const resDataMap = new Map(resSnap.docs.map(d => [d.id, d.data()]));
-        const allAthletes = athSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+        subDataMap = new Map(subSnap.docs.map(d => [d.id, d.data()]));
+        resDataMap = new Map(resSnap.docs.map(d => [d.id, d.data()]));
+        allAthletes = athSnap.docs.map(d => ({ ...d.data(), id: d.id }));
 
-        const indivAthletes = allAthletes.filter(a => a.type !== 'synchro');
-        const syncAthletes  = allAthletes.filter(a => a.type === 'synchro');
-
-        const rawClassRules = tour.classRules || {};
+        rawClassRules = tour.classRules || {};
         const hasNewFormat = 'individual' in rawClassRules || 'synchro' in rawClassRules;
-        const classRules = hasNewFormat ? rawClassRules :
-                           Object.keys(rawClassRules).length > 0 ? { individual: rawClassRules, synchro: {} } :
-                           { individual: {}, synchro: {} };
+        classRules = hasNewFormat ? rawClassRules :
+                     Object.keys(rawClassRules).length > 0 ? { individual: rawClassRules, synchro: {} } :
+                     { individual: {}, synchro: {} };
 
         const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-        let indivClassOrder = [], syncClassOrder = [];
         if (tour.classes && !Array.isArray(tour.classes)) {
             indivClassOrder = sortByOrder(tour.classes.individual).map(c => c.name);
             syncClassOrder  = sortByOrder(tour.classes.synchro).map(c => c.name);
@@ -92,16 +246,8 @@
             indivClassOrder = sortByOrder(tour.classes).map(c => c.name);
         }
 
-        if (indivAthletes.length > 0) {
-            document.getElementById('indiv-list').innerHTML =
-                '<h2 class="section-header indiv-header">個人競技</h2>' +
-                renderAthleteTables(indivAthletes, classRules.individual, subDataMap, resDataMap, 'individual', rawClassRules, indivClassOrder);
-        }
-        if (syncAthletes.length > 0) {
-            document.getElementById('sync-list').innerHTML =
-                '<h2 class="section-header sync-header">シンクロ競技</h2>' +
-                renderAthleteTables(syncAthletes, classRules.synchro, subDataMap, resDataMap, 'synchro', rawClassRules, syncClassOrder);
-        }
+        buildFilterOptions(allAthletes);
+        renderList();
     }
 
     function renderAthleteTables(athletes, rulesByType, subDataMap, resDataMap, type, fallbackRules = {}, classOrder = []) {
@@ -120,6 +266,9 @@
         for (const className of sortedClasses) {
             const classAthletes = athletesByClass[className];
             const rules = (rulesByType || {})[className] || fallbackRules[className] || { qualifyingRoutines: 2, hasFinal: false };
+            // 決勝のみクラスは予選を実施しないため、予選列は0本にする
+            // （event.html/admin_dns.html/club_entry.html等と同じ判定方法）
+            const numPre = rules.finalOnly === true ? 0 : rules.qualifyingRoutines;
 
             classAthletes.sort((a, b) =>
                 `${a.gender || ''}-${String(a.flightGroup || '').padStart(3,'0')}-${String(a.order || '').padStart(3,'0')}`
@@ -134,9 +283,9 @@
                     if (currentGender !== "") finalHtml += '</tbody></table>';
                     currentGender = ath.gender;
 
-                    const routineHeaders = Array.from({ length: rules.qualifyingRoutines }, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
+                    const routineHeaders = Array.from({ length: numPre }, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
                     const finalHeader = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
-                    const totalCols = 3 + rules.qualifyingRoutines + (rules.hasFinal ? 1 : 0);
+                    const totalCols = 3 + numPre + (rules.hasFinal ? 1 : 0);
 
                     finalHtml += `
                         <table>
@@ -160,7 +309,7 @@
 
                 finalHtml += `<tr class="${ath.isWithdrawn ? 'withdrawn-row' : ''}"><td class="col-num">${ath.flightGroup || '-'}</td><td class="col-num">${ath.order || '-'}</td><td class="col-name">${playerHtml}</td>`;
 
-                for (let i = 1; i <= rules.qualifyingRoutines; i++) {
+                for (let i = 1; i <= numPre; i++) {
                     finalHtml += `<td>${getStatusButton(ath, `pre${i}`, subDataMap, resDataMap)}</td>`;
                 }
                 if (rules.hasFinal) {
@@ -178,12 +327,16 @@
         if (ath.isWithdrawn) return "<span style='font-size:0.8em; color:#d32f2f;'>棄権</span>";
         const subId = `${eventId}_${ath.id}_${round}`;
         const editUrl = `entry.html?event=${eventId}&athlete=${ath.id}&round=${round}&admin=1`;
+        const linkId = `status-${ath.id}-${round}`;
+        // CJPがDNS（棄権）で確定したラウンド（results.dns===true）。event.html/admin_card_check.htmlと同じ判定方法。
+        // 確認状況より優先して赤バッジで表示する。
+        if (resDataMap.get(subId)?.dns === true) return `<a id="${linkId}" href="${editUrl}" class="status-link status-dns">DNS</a>`;
         const sub = subDataMap.get(subId);
-        if (!sub) return `<a href="${editUrl}" class="status-link status-none">未提出</a>`;
+        if (!sub) return `<a id="${linkId}" href="${editUrl}" class="status-link status-none">未提出</a>`;
         const cs = sub.checkStatus ?? 0;
-        if (cs === 2) return `<a href="${editUrl}" class="status-link status-ok">確認済</a>`;
-        if (cs === 1) return `<a href="${editUrl}" class="status-link status-warning">要確認</a>`;
-        return `<a href="${editUrl}" class="status-link status-done">提出済</a>`;
+        if (cs === 2) return `<a id="${linkId}" href="${editUrl}" class="status-link status-ok">確認済</a>`;
+        if (cs === 1) return `<a id="${linkId}" href="${editUrl}" class="status-link status-warning">要確認</a>`;
+        return `<a id="${linkId}" href="${editUrl}" class="status-link status-done">提出済</a>`;
     }
 
     init();

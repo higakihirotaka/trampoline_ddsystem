@@ -24,6 +24,16 @@
         .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
         .tab-btn:hover:not(.active) { color: var(--primary); background: #f5f7f9; }
 
+        /* Filter bar */
+        .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap;
+            background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+        .filter-bar label { display: flex; flex-direction: column; gap: 3px; font-size: 0.72rem; color: var(--text-sub); font-weight: bold; }
+        .filter-bar select { padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border); background: #fff; font-size: 0.85rem; min-width: 130px; }
+        .filter-bar select:focus { outline: 2px solid var(--accent); }
+        .filter-clear { align-self: flex-end; padding: 6px 14px; border-radius: 7px; border: 1px solid var(--border);
+            background: #fff; color: var(--text-sub); font-size: 0.8rem; cursor: pointer; }
+        .filter-clear:hover { background: #f5f7f9; }
+
         /* Action bar */
         .action-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
         .btn { padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: bold; cursor: pointer; border: none; transition: background 0.15s; white-space: nowrap; }
@@ -122,10 +132,18 @@
         <button class="tab-btn" id="tab-synchro" onclick="switchTab('synchro')">シンクロ</button>
     </div>
 
+    <div class="filter-bar">
+        <label>クラス<select id="filter-class" onchange="applyFilterState()"><option value="">すべて</option></select></label>
+        <label>性別<select id="filter-gender" onchange="applyFilterState()"><option value="">すべて</option></select></label>
+        <label>所属<select id="filter-team" onchange="applyFilterState()"><option value="">すべて</option></select></label>
+        <button type="button" class="filter-clear" onclick="clearFilterState()">条件をクリア</button>
+    </div>
+
     <div class="action-bar">
         <button class="btn btn-primary" onclick="addRow()">＋ 選手を追加</button>
         <button class="btn btn-outline" onclick="document.getElementById('csv-file-input').click()">↑ CSVインポート</button>
         <button class="btn btn-ghost" onclick="downloadTemplate()">↓ CSVテンプレート</button>
+        <button class="btn btn-ghost" onclick="convertKanaToHira()" title="氏名・所属のふりがな（カタカナ）をひらがなに変換します（保存は別途必要）">ふりがなをひらがなに変換</button>
         <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" onchange="handleCSV(this)">
         <div class="spacer"></div>
         <span class="athlete-count" id="athlete-count"></span>
@@ -169,6 +187,7 @@
     import { doc, getDoc, getDocs, collection, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
+    import { invalidateCache } from "./cache.js";
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
@@ -180,8 +199,62 @@
     let synchroClasses     = [];
     let _keySeq            = 0;
     let pendingCsvRows     = [];
+    let filterState        = { cls: '', gender: '', team: '' }; // 表示上の絞り込みのみ。保存対象データには影響しない
 
     const newKey = () => String(++_keySeq);
+
+    // 所属名フィルタの選択肢: club1/club2が「A/B」のようにダブル所属を「/」区切りで
+    // 1フィールドにまとめて登録されていることがあるため、選択肢は分割した個々の名前にし、
+    // フィルタ適用時は選んだ名前を「含む」選手を対象にする（ダブル所属もヒットする）。
+    function collectTeamNames(list) {
+        const set = new Set();
+        list.forEach(a => {
+            [a.club1, a.club2].forEach(c => {
+                (c || '').split('/').map(s => s.trim()).filter(Boolean).forEach(name => set.add(name));
+            });
+        });
+        return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
+    }
+
+    function buildFilterOptions(list) {
+        const genderOrder = g => g === '女子' ? 0 : g === '男子' ? 1 : 2;
+        const classes = [...new Set(list.map(a => a.class).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+        const genders = [...new Set(list.map(a => a.gender).filter(Boolean))].sort((a, b) => genderOrder(a) - genderOrder(b));
+        const teams   = collectTeamNames(list);
+
+        const fillSelect = (id, values, current) => {
+            const sel = document.getElementById(id);
+            sel.innerHTML = '<option value="">すべて</option>' + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+            if (current && values.includes(current)) sel.value = current;
+        };
+        fillSelect('filter-class',  classes, filterState.cls);
+        fillSelect('filter-gender', genders, filterState.gender);
+        fillSelect('filter-team',   teams,   filterState.team);
+    }
+
+    function applyFilter(list) {
+        if (!filterState.cls && !filterState.gender && !filterState.team) return list;
+        return list.filter(a => {
+            if (filterState.cls && a.class !== filterState.cls) return false;
+            if (filterState.gender && a.gender !== filterState.gender) return false;
+            if (filterState.team) {
+                const inClub = c => (c || '').includes(filterState.team);
+                if (!inClub(a.club1) && !inClub(a.club2)) return false;
+            }
+            return true;
+        });
+    }
+
+    window.applyFilterState = () => {
+        filterState.cls    = document.getElementById('filter-class').value;
+        filterState.gender = document.getElementById('filter-gender').value;
+        filterState.team   = document.getElementById('filter-team').value;
+        renderTable();
+    };
+    window.clearFilterState = () => {
+        filterState = { cls: '', gender: '', team: '' };
+        renderTable();
+    };
 
     ensureAdmin(user => {
         document.getElementById('auth-info').style.display = 'flex';
@@ -250,7 +323,7 @@
     function renderTable() {
         const classes = currentClasses();
         const isIndiv = currentTab === 'individual';
-        const cols    = isIndiv ? 9 : 13; // 個人9列 / シンクロ13列
+        const cols    = isIndiv ? 10 : 14; // 個人10列 / シンクロ14列（決勝試技順を含む）
 
         // クラス設定の display_order 順 → 男女順 → グループ → 試技順 でソートして表示
         const classIdx  = name => { const i = classes.indexOf(name ?? ''); return i === -1 ? 9999 : i; };
@@ -273,6 +346,7 @@
                 <th style="width:76px">性別</th>
                 <th style="width:65px">グループ</th>
                 <th class="col-order">試技順</th>
+                <th class="col-order" title="手動入力のみ。CSVインポート・エクスポート対象外">決勝試技順</th>
                 <th style="min-width:100px">氏名</th>
                 <th style="min-width:100px">氏名ふりがな</th>
                 <th style="min-width:100px">所属</th>
@@ -285,6 +359,7 @@
                 <th style="width:76px">性別</th>
                 <th style="width:65px">グループ</th>
                 <th class="col-order">試技順</th>
+                <th class="col-order" title="手動入力のみ。CSVインポート・エクスポート対象外">決勝試技順</th>
                 <th style="min-width:100px">選手1</th>
                 <th style="min-width:100px">選手1ふりがな</th>
                 <th style="min-width:100px">所属1</th>
@@ -297,16 +372,26 @@
             </tr>`;
         }
 
+        // フィルタの選択肢は絞り込み前の全件から作る（表示上の絞り込みのみで、保存データには影響しない）
+        buildFilterOptions(list);
+        const filteredList = applyFilter(list);
+
         // ボディ
         const body = document.getElementById('table-body');
-        if (list.length === 0) {
-            body.innerHTML = `<tr class="empty-row"><td colspan="${cols}">選手が登録されていません。「＋ 選手を追加」またはCSVインポートで追加してください。</td></tr>`;
+        if (filteredList.length === 0) {
+            body.innerHTML = `<tr class="empty-row"><td colspan="${cols}">${
+                list.length === 0
+                    ? '選手が登録されていません。「＋ 選手を追加」またはCSVインポートで追加してください。'
+                    : '絞り込み条件に一致する選手がいません。'
+            }</td></tr>`;
         } else {
-            body.innerHTML = list.map(a => buildRow(a, classes, isIndiv)).join('');
+            body.innerHTML = filteredList.map(a => buildRow(a, classes, isIndiv)).join('');
         }
 
-        // カウント表示
-        document.getElementById('athlete-count').textContent = `${list.length}名`;
+        // カウント表示（絞り込み中は 表示件数/全体件数 で出す）
+        document.getElementById('athlete-count').textContent = filteredList.length !== list.length
+            ? `${filteredList.length}名 / 全${list.length}名`
+            : `${list.length}名`;
 
         // タブのアクティブ切替
         document.getElementById('tab-individual').classList.toggle('active', currentTab === 'individual');
@@ -337,6 +422,7 @@
                 <td><select onchange="${ev}'gender',this.value)">${genderOpts}</select></td>
                 ${num('flightGroup', ath.flightGroup, 'G')}
                 ${num('order', ath.order, '#')}
+                ${num('finalOrder', ath.finalOrder, '#')}
                 ${inp('name1',    ath.name1,    '氏名')}
                 ${inp('kana1',    ath.kana1,    'ふりがな')}
                 ${inp('club1',    ath.club1,    '所属')}
@@ -351,6 +437,7 @@
                 <td><select onchange="${ev}'gender',this.value)">${genderOpts}</select></td>
                 ${num('flightGroup', ath.flightGroup, 'G')}
                 ${num('order', ath.order, '#')}
+                ${num('finalOrder', ath.finalOrder, '#')}
                 ${inp('name1',     ath.name1,     '選手1')}
                 ${inp('kana1',     ath.kana1,     '選手1ふりがな')}
                 ${inp('club1',     ath.club1,     '所属1')}
@@ -368,6 +455,15 @@
     window._set = (key, field, value) => {
         const ath = currentList().find(a => a._key === key);
         if (!ath) return;
+        if (field === 'finalOrder') {
+            // 空欄にしたら「決勝進出」フラグも一緒に外す（決勝スタートリスト等はisInFinalも見るため）。
+            // 数値を入れたら決勝進出扱いにする。既存の決勝処理（admin_final_order.html）で
+            // 割り当てられた値もここで直接編集・上書きできる。
+            const num = isNaN(value) ? null : value;
+            ath.finalOrder = num;
+            ath.isInFinal  = num != null;
+            return;
+        }
         ath[field] = (field === 'order' || field === 'flightGroup')
             ? (isNaN(value) ? undefined : value)
             : value;
@@ -402,6 +498,27 @@
             const last = rows[rows.length - 1];
             (last.querySelector('input, select') || {}).focus?.();
         }
+    };
+
+    // 氏名ふりがなのカタカナをひらがなに変換（現在のタブ。個人=kana1 / シンクロ=kana1・kana2）
+    window.convertKanaToHira = () => {
+        const KATA = /[ァ-ヶ]/;                         // ァ〜ヶ
+        const toHira = s => (s || '').replace(/[ァ-ヶ]/g,
+            c => String.fromCharCode(c.charCodeAt(0) - 0x60));  // カタカナ→ひらがな（長音符ーは対象外で保持）
+        const fields = currentTab === 'individual'
+            ? ['kana1', 'clubKana1']
+            : ['kana1', 'kana2', 'clubKana1', 'clubKana2'];
+        let count = 0;
+        currentList().forEach(a => fields.forEach(f => {
+            if (a[f] && KATA.test(a[f])) {
+                const conv = toHira(a[f]);
+                if (conv !== a[f]) { a[f] = conv; count++; }
+            }
+        }));
+        renderTable();
+        showToast(count > 0
+            ? `${count}件のふりがな（氏名・所属）をひらがなに変換しました（保存してください）`
+            : 'カタカナのふりがなはありませんでした');
     };
 
     // ---- CSV ----
@@ -506,10 +623,14 @@
         const header  = isIndiv
             ? 'クラス,性別,グループ,試技順,氏名,氏名ふりがな,所属,所属よみ'
             : 'クラス,性別,グループ,試技順,選手1,選手1ふりがな,所属1,所属1よみ,選手2,選手2ふりがな,所属2,所属2よみ';
-        const example = isIndiv
-            ? 'Aクラス,男子,1,1,山田太郎,やまだたろう,○○体育館,まるまるたいいくかん'
-            : 'シンクロAクラス,男子,1,1,山田太郎,やまだたろう,○○体育館,まるまるたいいくかん,鈴木花子,すずきはなこ,△△スポーツ,さんかくさんかくすぽーつ';
-        const blob = new Blob(['\uFEFF' + header + '\n' + example], { type: 'text/csv;charset=utf-8;' });
+        // 大会設定されているクラスをすべて1行ずつのサンプルにする（未設定ならAクラスのみの例）。
+        // 所属（チーム名）のふりがな欄は任意項目のため空欄のままにする。
+        const classes = currentClasses().length ? currentClasses() : [isIndiv ? 'Aクラス' : 'シンクロAクラス'];
+        const rows = classes.map(cls => isIndiv
+            ? `${cls},男子,1,1,山田太郎,やまだたろう,慶応義塾大学,`
+            : `${cls},男子,1,1,山田太郎,やまだたろう,慶応義塾大学,,鈴木花子,すずきはなこ,△△スポーツ,`
+        );
+        const blob = new Blob(['\uFEFF' + header + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
@@ -654,6 +775,10 @@
                 await batch.commit();
             }
             idsToDelete.clear();
+            // cache.js の選手リストキャッシュ（sessionStorage, 10分TTL）はフルリロードでも消えないため、
+            // ここで無効化しないと judge_cjp.html 等の他画面で最大10分間、選手名などの変更が反映されない
+            // （このタブ内でその画面に遷移・再読み込みした場合に限る。別タブ/別端末は別途キャッシュを持つ）
+            invalidateCache(eventId);
             showToast('保存しました');
         } catch (e) {
             console.error(e);

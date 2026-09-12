@@ -81,6 +81,17 @@
             <button class="btn btn-copy-qr" onclick="copyQR('qr-entry')">🖼 QR画像をコピー</button>
         </div>
     </div>
+
+    <div class="url-card public">
+        <div class="card-title">👥 観客用順位表（公開）</div>
+        <div class="qr-area"><canvas id="qr-public"></canvas></div>
+        <div class="event-label" style="margin-bottom:8px;">Public Ranking URL</div>
+        <div id="url-public" class="url-box">生成中...</div>
+        <div class="btn-group">
+            <button class="btn btn-copy" onclick="copy('url-public')">URLをコピー</button>
+            <button class="btn btn-copy-qr" onclick="copyQR('qr-public')">🖼 QR画像をコピー</button>
+        </div>
+    </div>
 </div>
 
 <div class="footer">
@@ -109,6 +120,7 @@
         setupLink('qr-judge-menu', 'url-judge-menu', `${base}/judge_menu.html?event=${eventId}`);
         setupLink('qr-venue',      'url-venue',      `${base}/display.html?event=${eventId}`);
         setupLink('qr-entry',      'url-entry',      `${base}/event.html?event=${eventId}`);
+        setupLink('qr-public',     'url-public',     `${base}/public_ranking.html?event=${eventId}`);
     }
 
     function setupLink(canvasId, boxId, url) {
