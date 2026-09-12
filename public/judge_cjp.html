@@ -602,6 +602,16 @@
         athleteId = aid;
         round = rid;
 
+        // 内訳欄を即座に空状態へリセットする（init()と同じ呼び出し方）。
+        // watchScores()が新しい選手のデータを受け取ってrenderScores()が呼ばれるまでの間、
+        // athleteId/roundは新しい選手を指しているのに内訳表示（_preciseE・
+        // _lastSummaryBorderColor・#res-d等）が前の選手の値のまま残る瞬間があり、
+        // その間に確定操作（S ショートカット・確定ボタン）をすると前の選手の点数が
+        // 新しい選手のIDで保存されてしまう。ここで先に空状態にしておくことで、
+        // 万一その瞬間に確定されても保存されるのは空のスコアであり、前の選手の点数が
+        // 誤って別選手のものとして保存されることはなくなる。
+        renderScores({});
+
         // 指定難度リセット
         designatedDDCount = -1; designatedDDIndices = []; designatedDDManualChanged = false;
         renderDesignatedRow();
