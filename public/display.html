@@ -902,7 +902,7 @@
     color:#fff; font-weight:700; line-height:1.5;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .intro-roster-item .rno{ color:var(--text-muted); font-weight:800; min-width:3em; text-align:right; flex-shrink:0; }
+  .intro-roster-item .rno{ color:var(--text-muted); font-weight:800; min-width:5.5em; text-align:right; flex-shrink:0; }
   .intro-roster-item .rclub{ color:rgba(255,255,255,0.45); font-size:0.6em; font-weight:600; overflow:hidden; text-overflow:ellipsis; }
   .intro-card{
     display:flex; flex-direction:column;
@@ -1365,7 +1365,7 @@
     if (resData.dns === true) {
       resetForNewFocusContent();
       const classGenderDns = [ath.class || ath.category, ath.gender].filter(Boolean).join(' ');
-      const orderLabelDns  = `No.${ath.order || '?'}`;
+      const orderLabelDns  = `試技順${ath.order || '?'}番`;
       const nameDns = ath.type === 'synchro' && ath.name2
         ? `${ath.name1 || '---'} / ${ath.name2}`
         : (ath.name1 || '---');
@@ -1638,8 +1638,8 @@
     const sessionLine2 = [groupStr, dateStr].filter(Boolean).join(' | ');
     const classGender  = [ath.class, ath.gender].filter(Boolean).join(' ');
     const orderLabel   = (resData.round === 'final' && ath.finalOrder != null)
-      ? `No.${ath.finalOrder}`
-      : `No.${ath.order || '?'}`;
+      ? `試技順${ath.finalOrder}番`
+      : `試技順${ath.order || '?'}番`;
     // シンクロは選手1・選手2の所属が異なりうるので両方併記する（同じ場合は1つだけ）
     const clubLabel = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
       ? `${ath.club1 || ''} / ${ath.club2 || ''}` : (ath.club1 || '---');
@@ -2491,7 +2491,7 @@
       const calcEl = document.getElementById('vs-calculating');
       const ath = athleteMap[tourData.calculatingAthleteId || ''] || {};
       const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
-      const orderPart   = ath.order ? ` / No.${ath.order}` : '';
+      const orderPart   = ath.order ? ` / 試技順${ath.order}番` : '';
       const roundLbl    = tourData.calculatingRound ? getRoundLabel(tourData.calculatingRound) : '';
       const nameHtml = ath.type === 'synchro' && ath.name2
         ? `<div class="calc-name" style="font-size:4.8cqw">${ath.name1||'---'} <span style="opacity:0.45;font-weight:400">/</span> ${ath.name2}</div>`
@@ -2532,7 +2532,7 @@
       const inqEl = document.getElementById('vs-inquiry');
       const ath = athleteMap[tourData.inquiryAthleteId || ''] || {};
       const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
-      const orderPart   = ath.order ? ` / No.${ath.order}` : '';
+      const orderPart   = ath.order ? ` / 試技順${ath.order}番` : '';
       const roundLbl    = tourData.inquiryRound ? getRoundLabel(tourData.inquiryRound) : '';
       const nameHtml = ath.type === 'synchro' && ath.name2
         ? `<div class="calc-name" style="font-size:4.8cqw">${ath.name1||'---'} <span style="opacity:0.45;font-weight:400">/</span> ${ath.name2}</div>`
@@ -2719,7 +2719,7 @@
     const classGender = [introTypeLabel, ath.class, ath.gender, introRoundLabel].filter(Boolean).join('　');
     // 決勝試技順(finalOrder)が割り当て済みならそちらを優先して表示する（予選順(order)ではなく）
     const introOrderNum = ath.finalOrder ?? ath.order;
-    const orderStr    = introOrderNum ? `No. ${introOrderNum}` : '';
+    const orderStr    = introOrderNum ? `試技順${introOrderNum}番` : '';
     const name  = ath.type === 'synchro' && ath.name2
                   ? `${ath.name1} / ${ath.name2}` : (ath.name1 || '');
     const club  = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
@@ -2789,7 +2789,7 @@
                    ? `${a.club1 || ''} / ${a.club2 || ''}` : (a.club1 || '');
       // 決勝試技順(finalOrder)が割り当て済みならそちらを優先（applyIntroSlideの選手カードと同じ）
       const orderNum = a.finalOrder ?? a.order;
-      html += `<div class="intro-roster-item"><span class="rno num">${orderNum ? 'No.' + orderNum : ''}</span><span>${name}</span><span class="rclub">${club}</span></div>`;
+      html += `<div class="intro-roster-item"><span class="rno num">${orderNum ? '試技順' + orderNum + '番' : ''}</span><span>${name}</span><span class="rclub">${club}</span></div>`;
     });
     grid.innerHTML = html;
   }
