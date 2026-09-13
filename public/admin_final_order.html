@@ -127,15 +127,14 @@
 
     /* ===== アナウンス原稿（シンクロのみ・読み上げ用） ===== */
     .an-print-title { display:none; }
-    .an-group { margin-bottom:18pt; page-break-inside:avoid; }
-    .an-group-title { font-weight:900; font-size:13pt; border-bottom:2px solid #263238; padding-bottom:4pt; margin-bottom:8pt; }
-    .an-entry { display:flex; gap:14pt; align-items:flex-start; padding:8pt 0; border-bottom:1px dashed #ccc; page-break-inside:avoid; }
+    .an-group { margin-bottom:18pt; break-inside:avoid; page-break-inside:avoid; }
+    .an-group-title { font-weight:900; font-size:13pt; border-bottom:2px solid #263238; padding-bottom:4pt; margin-bottom:8pt; break-after:avoid; page-break-after:avoid; }
+    .an-entry { display:flex; gap:14pt; align-items:flex-start; padding:8pt 0; border-bottom:1px dashed #ccc; break-inside:avoid; page-break-inside:avoid; }
     .an-no { flex:0 0 auto; min-width:40pt; text-align:center; font-weight:900; font-size:20pt; color:var(--gold); }
     .an-body { flex:1; min-width:0; }
     .an-line { font-size:12pt; line-height:1.6; }
-    .an-tag { display:inline-block; min-width:52pt; font-weight:700; color:var(--text-sub); font-size:10pt; }
     .an-name { font-weight:700; }
-    .an-kana { font-size:9pt; color:var(--text-sub); margin-left:4pt; }
+    .an-kana { font-size:9pt; font-weight:400; color:var(--text-sub); margin-left:4pt; }
     .an-club-line { color:var(--text-sub); margin-bottom:4pt; }
     @media print {
       body.printing-announce { background:#fff; }
@@ -726,14 +725,14 @@
       const title = [g.cls, g.gender, 'シンクロ'].filter(Boolean).join(' ');
 
       const entries = g.athletes.map(a => {
-        const nameLine = (name, kana) => `<span class="an-name">${name || '---'}</span>${kana ? `<span class="an-kana">（${kana}）</span>` : ''}`;
+        const withKana = (text, kana) => `${text || '---'}${kana ? `<span class="an-kana">（${kana}）</span>` : ''}`;
         return `<div class="an-entry">
           <div class="an-no">${a.finalOrder}</div>
           <div class="an-body">
-            <div class="an-line">選手A：${nameLine(a.name1, a.kana1)}</div>
-            <div class="an-line an-club-line">所属：${a.club1 || '---'}</div>
-            <div class="an-line">選手B：${nameLine(a.name2, a.kana2)}</div>
-            <div class="an-line an-club-line">所属：${a.club2 || '---'}</div>
+            <div class="an-line"><span class="an-name">${withKana(a.name1, a.kana1)}</span></div>
+            <div class="an-line an-club-line">${withKana(a.club1, a.clubKana1)}</div>
+            <div class="an-line"><span class="an-name">${withKana(a.name2, a.kana2)}</span></div>
+            <div class="an-line an-club-line">${withKana(a.club2, a.clubKana2)}</div>
           </div>
         </div>`;
       }).join('');
