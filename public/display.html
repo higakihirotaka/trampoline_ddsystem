@@ -945,7 +945,7 @@
     to  { opacity:1; transform:translateY(0); }
   }
   .intro-class-lbl{
-    font-size:2.8cqw; font-weight:800; letter-spacing:0.4em;
+    font-size:3.6cqw; font-weight:800; letter-spacing:0.25em;
     color:var(--accent-gold); text-transform:uppercase; line-height:1;
   }
   .intro-order-lbl{
@@ -2710,7 +2710,13 @@
 
     const ath = step.athlete;
 
-    const classGender = [ath.class, ath.gender].filter(Boolean).join(' ');
+    // クラスラベル: 種目（個人/シンクロ）・クラス名・ラウンドの3点表示に変更。
+    // ラウンドは大会全体で「今どのラウンドか」を持つ設定が無いため、決勝試技順
+    // (finalOrder)が割り当て済みかどうかで判定する（決勝の選手紹介はfinalOrder確定後に
+    // 行う運用のため、finalOrderがあれば決勝、無ければ予選とみなす）。
+    const introTypeLabel  = ath.type === 'synchro' ? 'シンクロ' : '個人';
+    const introRoundLabel = ath.finalOrder != null ? '決勝' : '予選';
+    const classGender = [introTypeLabel, ath.class, introRoundLabel].filter(Boolean).join('　');
     // 決勝試技順(finalOrder)が割り当て済みならそちらを優先して表示する（予選順(order)ではなく）
     const introOrderNum = ath.finalOrder ?? ath.order;
     const orderStr    = introOrderNum ? `No. ${introOrderNum}` : '';
