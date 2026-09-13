@@ -726,14 +726,16 @@
 
       const entries = g.athletes.map(a => {
         const withKana = (text, kana) => `${text || '---'}${kana ? `<span class="an-kana">（${kana}）</span>` : ''}`;
+        const nameLine = (name, kana) => `<div class="an-line"><span class="an-name">${withKana(name, kana)}</span></div>`;
+        const clubLine = (club, kana) => `<div class="an-line an-club-line">${withKana(club, kana)}</div>`;
+        // 所属が同じ（両者未入力を除く）場合は二重に読み上げず、選手A→選手B→所属1回にまとめる
+        const sameClub = a.club1 && a.club1 === a.club2;
+        const bodyHtml = sameClub
+            ? nameLine(a.name1, a.kana1) + nameLine(a.name2, a.kana2) + clubLine(a.club1, a.clubKana1)
+            : nameLine(a.name1, a.kana1) + clubLine(a.club1, a.clubKana1) + nameLine(a.name2, a.kana2) + clubLine(a.club2, a.clubKana2);
         return `<div class="an-entry">
           <div class="an-no">${a.finalOrder}</div>
-          <div class="an-body">
-            <div class="an-line"><span class="an-name">${withKana(a.name1, a.kana1)}</span></div>
-            <div class="an-line an-club-line">${withKana(a.club1, a.clubKana1)}</div>
-            <div class="an-line"><span class="an-name">${withKana(a.name2, a.kana2)}</span></div>
-            <div class="an-line an-club-line">${withKana(a.club2, a.clubKana2)}</div>
-          </div>
+          <div class="an-body">${bodyHtml}</div>
         </div>`;
       }).join('');
 
