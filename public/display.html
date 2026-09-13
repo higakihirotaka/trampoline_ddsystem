@@ -2716,7 +2716,7 @@
     // 行う運用のため、finalOrderがあれば決勝、無ければ予選とみなす）。
     const introTypeLabel  = ath.type === 'synchro' ? 'シンクロ' : '個人';
     const introRoundLabel = ath.finalOrder != null ? '決勝' : '予選';
-    const classGender = [introTypeLabel, ath.class, introRoundLabel].filter(Boolean).join('　');
+    const classGender = [introTypeLabel, ath.class, ath.gender, introRoundLabel].filter(Boolean).join('　');
     // 決勝試技順(finalOrder)が割り当て済みならそちらを優先して表示する（予選順(order)ではなく）
     const introOrderNum = ath.finalOrder ?? ath.order;
     const orderStr    = introOrderNum ? `No. ${introOrderNum}` : '';
@@ -2734,6 +2734,22 @@
     const nameLen = name.length;
     const nameFsCqw = nameLen <= 6 ? 12 : nameLen <= 9 ? 9 : nameLen <= 12 ? 7 : nameLen <= 16 ? 5.6 : nameLen <= 20 ? 4.6 : 3.8;
     nameLblEl.style.fontSize = nameFsCqw + 'cqw';
+    // シンクロは2名分で文字数が多くなる分、上の式で個人より小さめに縮小される。
+    // 視認性のため、シンクロの場合はその縮小後のサイズをさらに1.5倍にしたいが、
+    // 単純に1.5倍すると長い名前の組み合わせでは画面幅からはみ出す
+    // （white-space:nowrapで折り返さないため。計測したところ元のサイズの時点で
+    //   既にコンテナ幅の9割近くを使っている長さの名前もあり、1.5倍の余地が無い）。
+    // そのため1.5倍を上限としつつ、実際にはみ出す場合だけ収まるまで縮め、
+    // 元のサイズ未満にはしない（最低でも個人と同じ縮小ロジックの結果は保証する）。
+    if (ath.type === 'synchro') {
+      let cur = nameFsCqw * 1.5;
+      nameLblEl.style.fontSize = cur + 'cqw';
+      const introLayoutEl = document.getElementById('intro-layout');
+      while (cur > nameFsCqw + 0.05 && nameLblEl.scrollWidth > introLayoutEl.clientWidth * 0.94) {
+        cur -= 0.2;
+        nameLblEl.style.fontSize = cur + 'cqw';
+      }
+    }
     document.getElementById('intro-club-lbl').textContent  = club;
 
     // カードアニメーション（フラッシュ＋子要素個別アニメ）
