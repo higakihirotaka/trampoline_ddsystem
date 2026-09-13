@@ -306,8 +306,11 @@
             ? '📋 記録主任'
             : `PANEL ${panel} | ROLE ${role}`;
         if (isRecorder) {
-            // 会場ディスプレイを直接操作するボタンは記録主任モードでは使わない（大会進行に影響させないため）
-            ['btn-republish', 'btn-calculating', 'btn-inquiry'].forEach(id => {
+            // 会場ディスプレイの得点表示そのものを切り替えるボタンは記録主任モードでは使わない
+            // （大会進行中のスコア表示に影響させないため）。
+            // インクワイアリは得点表示を切り替えるものではなく、確定済みの記録を後から見直した際に
+            // 「問い合わせ確認中」を会場に告知するための機能なので、記録主任モードでも使えるようにする。
+            ['btn-republish', 'btn-calculating'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.style.display = 'none';
             });
         }
