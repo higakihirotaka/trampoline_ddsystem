@@ -2,10 +2,16 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>審判入力 (2画面比較) - Trampoline Scoring System</title>
     <style>
         :root { --primary: #37474f; --accent: #1a73e8; --bg: #eceff1; --card: #ffffff; --ok-green: #2e7d32; --warn-orange: #f57c00; --gray: #78909c; --danger: #d32f2f; }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        /* タブレット等でアドレスバーの表示/非表示に応じて実際に見える高さが変わるため、
+           100vh（＝アドレスバーが隠れた時の最大高さ）だと実際の表示領域より本文が
+           高くなり、左の選手一覧(.sidebar-list)が一番下までスクロールできなくなる
+           ことがあった。対応ブラウザでは実際の可視領域に追従する100dvhを使う
+           （非対応ブラウザは無効な値として無視され、直前の100vhのまま動作する）。 */
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
         
         .sidebar { width: 350px; background: #fff; border-right: 1px solid #cfd8dc; display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { padding: 25px; background: var(--primary); color: white; }
