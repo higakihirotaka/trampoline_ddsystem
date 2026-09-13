@@ -502,6 +502,10 @@
                     }
                     const ga = a.gender || '', gb = b.gender || '';
                     if (ga !== gb) return ga.localeCompare(gb);
+                    // 同じクラス×性別内はグループ番号（選手管理のグループ）→試技順の順に並べる。
+                    // Nキーのグループ単位ナビゲーションが、この並びでグループが連続していることに依存する。
+                    const fa = a.flightGroup ?? 999, fb = b.flightGroup ?? 999;
+                    if (fa !== fb) return fa - fb;
                     return (a.order ?? 999) - (b.order ?? 999);
                 });
         }
@@ -2447,11 +2451,20 @@
     }
 
     // ---- Nキー: 次の選手へ ----
-    // 予選2: フィルタ表示順で次の選手の予選2へ（棄権(DNS)はスキップ）。
-    // 予選1: 同じクラス×性別グループ内で次の選手の予選1へ（棄権はスキップ）。
+    // 「グループ」= クラス×性別×グループ番号（選手管理のグループ番号=flightGroup。
+    //   未設定の選手はグループ番号なし同士でひとつのグループとして扱われるため、
+    //   グループ番号を使っていない大会では従来どおりクラス×性別だけの単位になる）。
+    // 予選1: 同じグループ内で次の選手の予選1へ（棄権(DNS)はスキップ）。
     //        グループの最後（または残り全員が棄権）に達したら、そのグループの予選2・先頭の
     //        選手へ切り替える（そのクラスに予選2が無ければ何もしない）。
-    // 決勝は対象外（試技順の並びが予選と異なり、要件にも含まれていないため）。
+    // 予選2: 同じグループ内で次の選手の予選2へ（棄権はスキップ）。
+    //        グループの最後（または残り全員が棄権）に達したら、同じクラス内の次のグループ
+    //        （性別違い・グループ番号違いを含む）の予選1・先頭の選手へ切り替える
+    //        （そのグループも全員棄権なら、同じクラス内でさらに次のグループを探す）。
+    //        クラスの最後のグループまで進んでいた場合は何もしない。
+    // 決勝: 決勝試技順（finalOrder）が割り当てられている同じグループ内で、決勝試技順の
+    //       次の選手へ切り替える（棄権はスキップ）。今いる選手に決勝試技順が割り当てられて
+    //       いない場合や、グループ内で最後の決勝試技順の選手の場合は何もしない。
     function isDnsFor(aid, rid) {
         return results[`${eventId}_${aid}_${rid}`]?.dns === true;
     }
@@ -2462,26 +2475,50 @@
         if (rule.finalOnly === true) return 0;
         return rule.qualifyingRoutines ?? currentTour?.qualifyingRoutines ?? 1;
     }
+    function classOf(ath)  { return ath.class || ath.category || ''; }
+    function groupKeyOf(ath) { return `${classOf(ath)}|${ath.gender || ''}|${ath.flightGroup ?? ''}`; }
     function groupBounds(list, idx) {
-        const cls = list[idx].class || list[idx].category || '';
-        const gen = list[idx].gender || '';
-        const inGroup = a => (a.class || a.category || '') === cls && (a.gender || '') === gen;
+        const key = groupKeyOf(list[idx]);
         let start = idx, end = idx;
-        while (start > 0 && inGroup(list[start - 1])) start--;
-        while (end < list.length - 1 && inGroup(list[end + 1])) end++;
+        while (start > 0 && groupKeyOf(list[start - 1]) === key) start--;
+        while (end < list.length - 1 && groupKeyOf(list[end + 1]) === key) end++;
         return { start, end };
     }
     window.goNextAthlete = function() {
-        if (!athleteId || !round || fFinalOnly || round === 'final') return;
+        if (!athleteId || !round) return;
         const list = sidebarFilteredAthletes;
         const idx  = list.findIndex(a => a.id === athleteId);
         if (idx < 0) return;
 
-        if (round === 'pre2') {
-            for (let i = idx + 1; i < list.length; i++) {
-                if (!isDnsFor(list[i].id, 'pre2')) { switchAthlete(list[i].id, 'pre2'); return; }
+        if (round === 'final') {
+            const cls = classOf(list[idx]), gen = list[idx].gender || '';
+            const finalGroup = list
+                .filter(a => classOf(a) === cls && (a.gender || '') === gen && a.finalOrder != null)
+                .sort((a, b) => a.finalOrder - b.finalOrder);
+            const fi = finalGroup.findIndex(a => a.id === athleteId);
+            if (fi < 0) return; // このグループでは決勝試技順が割り当てられていない
+            for (let i = fi + 1; i < finalGroup.length; i++) {
+                if (!isDnsFor(finalGroup[i].id, 'final')) { switchAthlete(finalGroup[i].id, 'final'); return; }
             }
             return;
+        }
+
+        if (round === 'pre2') {
+            const { end } = groupBounds(list, idx);
+            for (let i = idx + 1; i <= end; i++) {
+                if (!isDnsFor(list[i].id, 'pre2')) { switchAthlete(list[i].id, 'pre2'); return; }
+            }
+            // 同グループの予選2を使い切った → 同じクラス内の次のグループの予選1・先頭へ
+            const curClass = classOf(list[idx]);
+            let cursor = end + 1;
+            while (cursor < list.length && classOf(list[cursor]) === curClass) {
+                const nb = groupBounds(list, cursor);
+                for (let i = nb.start; i <= nb.end; i++) {
+                    if (!isDnsFor(list[i].id, 'pre1')) { switchAthlete(list[i].id, 'pre1'); return; }
+                }
+                cursor = nb.end + 1; // このグループも全員棄権 → さらに次のグループへ
+            }
+            return; // 次グループが無い/別クラス/見つからない場合は何もしない
         }
 
         // round === 'pre1'
