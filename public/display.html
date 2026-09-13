@@ -611,7 +611,12 @@
     font-size:2.2cqw; font-weight:700;
     color:rgba(255,255,255,0.65);
     margin-top:1.8cqh; letter-spacing:0.1cqw;
-    white-space:nowrap;
+    /* シンクロで両選手の所属を併記すると長くなるため、nowrapで画面外に
+       はみ出させず折り返す（.calc-name-blockがalign-items:flex-startで
+       左寄せなので、それに合わせてtext-alignは指定しない＝既定のleft）。
+       max-widthは親.calc-layoutの左右padding(6cqw×2)を差し引いた実質幅
+       (88cqw)に収まるよう余裕を持たせた値にしている。 */
+    white-space:normal; overflow-wrap:anywhere; max-width:86cqw;
   }
   /* 得点集計中 */
   .calc-status{
@@ -2496,6 +2501,9 @@
       const nameHtml = ath.type === 'synchro' && ath.name2
         ? `<div class="calc-name" style="font-size:4.8cqw">${ath.name1||'---'} <span style="opacity:0.45;font-weight:400">/</span> ${ath.name2}</div>`
         : `<div class="calc-name">${ath.name1||'---'}</div>`;
+      // シンクロで所属が選手ごとに異なる場合は両方併記する（同じ場合は1つだけ）
+      const teamLabel = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+        ? `${ath.club1||''} / ${ath.club2||''}` : (ath.club1||'');
       calcEl.innerHTML = `
         <div class="calc-layout">
           <div class="calc-conv">${tournamentName}</div>
@@ -2505,7 +2513,7 @@
           </div>
           <div class="calc-name-block">
             ${nameHtml}
-            <div class="calc-team">${ath.club1||''}</div>
+            <div class="calc-team">${teamLabel}</div>
           </div>
           <div class="calc-status">得点集計中</div>
           <div class="calc-credit">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>
@@ -2537,6 +2545,9 @@
       const nameHtml = ath.type === 'synchro' && ath.name2
         ? `<div class="calc-name" style="font-size:4.8cqw">${ath.name1||'---'} <span style="opacity:0.45;font-weight:400">/</span> ${ath.name2}</div>`
         : `<div class="calc-name">${ath.name1||'---'}</div>`;
+      // シンクロで所属が選手ごとに異なる場合は両方併記する（同じ場合は1つだけ）
+      const teamLabel = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+        ? `${ath.club1||''} / ${ath.club2||''}` : (ath.club1||'');
       inqEl.innerHTML = `
         <div class="calc-layout">
           <div class="calc-conv">${tournamentName}</div>
@@ -2546,7 +2557,7 @@
           </div>
           <div class="calc-name-block">
             ${nameHtml}
-            <div class="calc-team">${ath.club1||''}</div>
+            <div class="calc-team">${teamLabel}</div>
           </div>
           <div class="inquiry-status-block">
             <div class="inquiry-line-en">Inquiry Under Review</div>
