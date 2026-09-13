@@ -104,6 +104,15 @@
             letter-spacing: 0.08em; text-transform: uppercase;
             color: #94a3b8; background: #f8fafc;
         }
+        /* 選手管理のグループ番号（flightGroup）の境界。Nキーの送り先グループと対応する。
+           グループ番号を使っていない大会では選手全員が未設定になり一切表示されない。 */
+        .flight-group {
+            padding: 3px 16px 3px 22px;
+            font-size: 0.58rem; font-weight: 700;
+            letter-spacing: 0.06em;
+            color: #6366f1; background: #eef2ff;
+            border-top: 1px dashed #c7d2fe;
+        }
         .athlete-row {
             padding: 7px 14px 7px 12px;
             border-bottom: 1px solid #f1f5f9;

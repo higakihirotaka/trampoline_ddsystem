@@ -514,17 +514,23 @@
 
         const listEl = document.getElementById('sidebar-list');
         const parts = [];
-        let lastCat = "", lastGender = "";
+        let lastCat = "", lastGender = "", lastFlightGroup = undefined;
 
         filtered.forEach(ath => {
             const cls = ath.class || ath.category || '';
             if (cls !== lastCat) {
                 parts.push(`<div class="cat-group">${cls}</div>`);
-                lastCat = cls; lastGender = "";
+                lastCat = cls; lastGender = ""; lastFlightGroup = undefined;
             }
             if (!fFinalOnly && (ath.gender || '') !== lastGender) {
                 parts.push(`<div class="gender-group">${ath.gender || ''}</div>`);
-                lastGender = ath.gender || '';
+                lastGender = ath.gender || ''; lastFlightGroup = undefined;
+            }
+            // 選手管理のグループ番号（flightGroup）の境界。Nキーが送る単位と一致させる。
+            // グループ番号が設定されている選手がいる場合だけ表示し、使っていない大会では出さない。
+            if (!fFinalOnly && ath.flightGroup != null && ath.flightGroup !== lastFlightGroup) {
+                parts.push(`<div class="flight-group">グループ ${ath.flightGroup}</div>`);
+                lastFlightGroup = ath.flightGroup;
             }
 
             // クラスごとの予選本数を classRules から取得（なければトップレベル値にフォールバック）

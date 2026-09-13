@@ -24,6 +24,8 @@
 
         .cat-group { background: #cfd8dc; padding: 10px 15px; font-size: 0.85em; font-weight: bold; color: #37474f; border-bottom: 1px solid #b0bec5; }
         .gender-group { background: #f1f3f4; padding: 6px 20px; font-size: 0.75em; font-weight: bold; color: #78909c; border-bottom: 1px solid #eee; }
+        /* 選手管理のグループ番号（flightGroup）の境界。グループ番号を使っていない大会では表示されない。 */
+        .flight-group { background: #eef2ff; padding: 4px 26px; font-size: 0.68em; font-weight: bold; color: #5c6bc0; border-bottom: 1px dashed #c5cae9; }
 
         .athlete-row { padding: 8px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .athlete-row.active-athlete { background: #f0f7ff; }
@@ -347,23 +349,31 @@
                     if (ca !== cb) return ca.localeCompare(cb);
                     const ga = a.gender || '', gb = b.gender || '';
                     if (ga !== gb) return ga.localeCompare(gb);
+                    // 同じクラス×性別内は選手管理のグループ番号→試技順の順に並べる（グループ境界表示のため）
+                    const fa = a.flightGroup ?? 999, fb = b.flightGroup ?? 999;
+                    if (fa !== fb) return fa - fb;
                     return (a.order ?? 999) - (b.order ?? 999);
                 });
         }
 
         const listEl = document.getElementById('sidebar-list');
         let html = "";
-        let lastCat = "", lastGender = "";
+        let lastCat = "", lastGender = "", lastFlightGroup = undefined;
 
         filtered.forEach(ath => {
             const cls = ath.class || ath.category || '';
             if (cls !== lastCat) {
                 html +=`<div class="cat-group">${cls}</div>`;
-                lastCat = cls; lastGender = "";
+                lastCat = cls; lastGender = ""; lastFlightGroup = undefined;
             }
             if (!fFinalOnly && (ath.gender || '') !== lastGender) {
                 html +=`<div class="gender-group">${ath.gender || ''}</div>`;
-                lastGender = ath.gender || '';
+                lastGender = ath.gender || ''; lastFlightGroup = undefined;
+            }
+            // 選手管理のグループ番号（flightGroup）の境界。使っていない大会では表示されない。
+            if (!fFinalOnly && ath.flightGroup != null && ath.flightGroup !== lastFlightGroup) {
+                html += `<div class="flight-group">グループ ${ath.flightGroup}</div>`;
+                lastFlightGroup = ath.flightGroup;
             }
 
             // クラスごとの予選本数を classRules から取得
