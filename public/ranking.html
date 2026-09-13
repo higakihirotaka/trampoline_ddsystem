@@ -83,7 +83,7 @@
 
     .round-label { font-size:11px; color:#555; font-weight:600; white-space:nowrap; }
 
-    .s-val { font-size:13px; }
+    .s-val { font-size:11px; }
 
     .score-val { font-weight:700; font-size:14px; }
     .total-val { font-weight:900; font-size:15px; color:var(--accent); }
@@ -100,7 +100,7 @@
     .col-name { width:160px; }
     .col-round { width:42px; }
     .col-s { width:26px; }
-    .col-land { width:26px; }
+    .col-land { width:32px; }
     .col-exe  { width:50px; }
     .col-diff { width:46px; }
     .col-tof  { width:50px; }
@@ -135,6 +135,11 @@
       .rank-num { font-size:calc(var(--print-font-size) * 1.1); }
       .score-val { font-size:var(--print-font-size); }
       .total-val { font-size:calc(var(--print-font-size) * 1.1); }
+      /* .s-val（S1-S10・L列の個別減点）は他のクラスと違って印刷時のサイズ指定が
+         抜けており、画面用の固定フォントサイズ(旧13px)のまま印刷されていた。
+         シンクロは(値×10).toFixed(2)で"10.00"のような5文字になることがあり、
+         狭いS1-S10/L列でこの値が印刷時に見切れる原因になっていた。 */
+      .s-val { font-size:var(--print-font-size); }
       .col-name { width:var(--print-name-w); }
     }
   </style>
