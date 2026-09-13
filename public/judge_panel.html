@@ -802,7 +802,7 @@
         // （登録自体は禁止しない。「修正する」ボタン＝dSaved時の未編集状態には適用しない）
         const saveBtn = document.getElementById('btn-save');
         if (saveBtn && saveBtn.dataset.origLabel) {
-            const belowMin = minRoutineDD != null && validLimit === 10 && totalDD < minRoutineDD;
+            const belowMin = minRoutineDD != null && validLimit === 10 && round1(totalDD) < minRoutineDD;
             saveBtn.textContent = belowMin ? '⚠ 難度下限未満' : saveBtn.dataset.origLabel;
             saveBtn.classList.toggle('btn-below-min', belowMin);
         }
