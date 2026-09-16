@@ -216,6 +216,9 @@
         card.className = 'class-card';
         card.dataset.class = className;
         card.dataset.type = type;
+        // このフォームが管理していないフィールド（finalCount/reserveCountなど、他画面で
+        // 保存される値）を保存時に消してしまわないよう、元データを保持しておく。
+        card._origRule = rule;
         // ラジオ name・ID はタイプ付きにして個人/シンクロ同名クラスの競合を防ぐ
         const key = `${type}-${className}`;
         card.innerHTML = `
@@ -564,6 +567,7 @@
                 const minRoutineDD = (minDDOn && !isNaN(_mddRaw)) ? _mddRaw : null;
 
                 const ruleObj = {
+                    ...(card._origRule || {}), // finalCount/reserveCount等、このフォーム外で保存された値を維持
                     qualifyingRoutines: qualRoutes,
                     scoreMode,
                     eJudgeCount: eJudge,

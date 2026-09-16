@@ -20,8 +20,28 @@
       padding:4px 8px; border:1px solid #bbb; border-radius:5px;
       font-size:.8rem; background:#fff; cursor:pointer;
     }
-    .btn-load { padding:5px 16px; background:var(--accent); color:#fff; border:none; border-radius:5px; font-weight:700; font-size:.8rem; cursor:pointer; }
     .btn-print { padding:5px 16px; background:#666; color:#fff; border:none; border-radius:5px; font-weight:700; font-size:.8rem; cursor:pointer; }
+
+    /* ---- クラス一覧メニュー（ランディング画面） ---- */
+    .menu-wrap { max-width:900px; margin:0 auto; padding:20px 16px 60px; }
+    .menu-title { font-size:1.3rem; font-weight:900; color:var(--accent); text-align:center; margin:0 0 24px; }
+    .menu-type-heading { font-size:1rem; font-weight:900; color:#fff; background:var(--accent); padding:6px 14px; border-radius:6px; margin:24px 0 10px; }
+    .menu-class-card { border:1px solid #ddd; border-radius:8px; margin-bottom:12px; overflow:hidden; }
+    .menu-class-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px; background:#f0f2f5; padding:8px 14px; border-bottom:1px solid #ddd; }
+    .menu-class-name { font-weight:900; font-size:.95rem; color:#222; margin-right:auto; }
+    .menu-count-field { display:flex; align-items:center; gap:5px; font-size:.78rem; color:#555; font-weight:700; }
+    .menu-count-field input { width:52px; padding:3px 6px; border:1px solid #bbb; border-radius:4px; font-size:.85rem; text-align:center; }
+    .btn-save-count { padding:4px 12px; background:var(--accent); color:#fff; border:none; border-radius:5px; font-weight:700; font-size:.75rem; cursor:pointer; }
+    .btn-save-count:disabled { background:#aaa; cursor:default; }
+    .menu-rows { display:flex; flex-wrap:wrap; gap:0; }
+    .menu-row { flex:1 1 220px; display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid #f0f0f0; }
+    .menu-row:last-child, .menu-rows > .menu-row:nth-last-child(-n+2) { border-bottom:none; }
+    .menu-gender { font-size:.78rem; color:#777; font-weight:700; min-width:2.4em; }
+    .menu-link { color:var(--accent); font-weight:700; font-size:.88rem; text-decoration:none; padding:3px 10px; border:1px solid var(--accent); border-radius:14px; }
+    .menu-link:hover { background:var(--accent); color:#fff; }
+    .menu-team-row .menu-link { border-color:#666; color:#666; }
+    .menu-team-row .menu-link:hover { background:#666; color:#fff; }
+    .menu-empty { text-align:center; color:#aaa; padding:40px 0; }
 
     /* ---- 本体 ---- */
     .print-area { padding:10px 12px; }
@@ -146,28 +166,7 @@
 </head>
 <body>
 
-<div class="controls" id="controls">
-  <label>グループ</label>
-  <select id="sel-group"><option value="">-- 選択 --</option></select>
-  <label>ラウンド</label>
-  <select id="sel-round">
-    <option value="qualifying">予選</option>
-    <option value="final">決勝</option>
-  </select>
-  <label>決勝進出</label>
-  <select id="sel-qual">
-    <option value="0">なし</option>
-    <option value="1">1人</option><option value="2">2人</option><option value="3">3人</option>
-    <option value="4">4人</option><option value="5">5人</option><option value="6">6人</option>
-    <option value="7">7人</option><option value="8">8人</option><option value="9">9人</option>
-    <option value="10">10人</option>
-  </select>
-  <label>リザーブ</label>
-  <select id="sel-resv">
-    <option value="0">なし</option>
-    <option value="1">1人</option><option value="2">2人</option>
-  </select>
-  <button class="btn-load" onclick="loadRanking()">表示</button>
+<div class="controls" id="controls" style="display:none">
   <label>印刷文字</label>
   <select id="sel-print-size" onchange="document.documentElement.style.setProperty('--print-font-size',this.value+'px')">
     <option value="7">7</option>
@@ -191,18 +190,24 @@
 </div>
 
 <div class="print-area">
-  <div id="output"><div class="loading">クラスを選んで「表示」を押してください</div></div>
+  <div id="output"><div class="loading">読み込み中...</div></div>
 </div>
 
 <script type="module">
-  import { getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getDocs, getDoc, doc, updateDoc, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { db } from "./firebase-config.js";
   import { normalizeClassRules, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks } from "./shared.js";
-  import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
+  import { getTournament, getAthletes, getFinalOrders, invalidateCache } from "./cache.js";
 
   const params  = new URLSearchParams(location.search);
   const eventId = params.get('event');
   let athletes = [], tourData = null, teamDocs = [];
+  let isAdminUser = false;
+
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // onclick="...('${jsStr(x)}')" のようにインラインJSの単引用符文字列へ埋め込む時のエスケープ
+  const jsStr = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const genderRank = g => g === '男子' ? 0 : g === '女子' ? 1 : 2;
 
   async function init() {
     if (!eventId) { document.getElementById('output').innerHTML = '<div class="no-data">URLにeventパラメータがありません</div>'; return; }
@@ -224,19 +229,35 @@
       const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
       teamDocs = teamSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch { teamDocs = []; }
-    buildSelectors();
+
+    const urlType = params.get('type');
+    const urlClass = params.get('class');
+    const urlGender = params.get('gender');
+    if (urlType || urlClass || urlGender) {
+      // 個別シート表示モード（クラス一覧メニューからのリンク、または旧URLからの直接アクセス）
+      document.getElementById('controls').style.display = '';
+      const fRound = params.get('round') || 'qualifying';
+      const nQual  = parseInt(params.get('qual')) || 0;
+      const nResv  = parseInt(params.get('resv')) || 0;
+      loadRanking(urlType || 'individual', urlClass || '', urlGender || '', fRound, nQual, nResv);
+    } else {
+      // クラス一覧メニュー（ランディング画面）
+      document.getElementById('controls').style.display = 'none';
+      renderMenu();
+      // ?from=admin で管理者ログイン中の場合だけ、決勝進出人数/リザーブの編集欄を出す
+      // （event.html等と同じ方針：通常の閲覧者には認証チェック自体を行わない）
+      if (params.get('from') === 'admin') {
+        import('./auth.js')
+          .then(({ checkIfAdmin }) => checkIfAdmin(v => { isAdminUser = v; if (v) renderMenu(); }))
+          .catch(e => console.warn('管理者確認用スクリプトの読み込みに失敗しました:', e.message));
+      }
+    }
   }
 
-  function buildSelectors() {
-    const urlType   = params.get('type');
-    const urlGender = params.get('gender');
-    const urlClass  = params.get('class');
-    const urlRound  = params.get('round');
-
-    // 選手登録のある (type, class, gender) 組み合わせを列挙
-    const hasBothTypes = athletes.some(a => (a.type || 'individual') === 'synchro');
-    const combos = [];
-    const seen = new Set();
+  // 選手登録のある (type, class) ごとに、性別一覧とクラスルールをまとめて返す。
+  // 「団体」は別枠（ラウンド・決勝進出人数の概念がないため）。
+  function buildClassGroups() {
+    const groups = [];
     ['individual','synchro'].forEach(type => {
       const tourClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.[type] || []))
         .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
@@ -246,59 +267,156 @@
       classes.forEach(cls => {
         const genders = [...new Set(
           byType.filter(a => (a.class || a.category || '') === cls).map(a => a.gender || '').filter(Boolean)
-        )];
-        // 性別が登録されていない場合は空文字で1件
-        (genders.length ? genders : ['']).forEach(gender => {
-          const key = `${type}::${cls}::${gender}`;
-          if (seen.has(key)) return;
-          seen.add(key);
-          let label = `${cls}${gender ? ' ' + gender : ''}`;
-          if (hasBothTypes) label = (type === 'synchro' ? 'シンクロ ' : '個人 ') + label;
-          combos.push({ key, label });
-        });
+        )].sort((a,b) => genderRank(a) - genderRank(b));
+        if (!genders.length) return; // 選手が1人もいなければ出さない
+        groups.push({ type, cls, genders });
+      });
+    });
+    return groups;
+  }
+
+  // 団体カテゴリー（teams コレクションの class×gender ごとに1件）。クラス定義順に並べる
+  function buildTeamGroups() {
+    if (!teamDocs.length) return [];
+    const teamClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.individual || []))
+      .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+    const teamRawClasses = [...new Set(teamDocs.map(t => t.class || ''))];
+    const teamClasses = [...teamClassDefs.filter(c=>teamRawClasses.includes(c)), ...teamRawClasses.filter(c=>!teamClassDefs.includes(c))].filter(Boolean);
+    return teamClasses.map(cls => ({
+      cls,
+      genders: [...new Set(teamDocs.filter(t => (t.class||'') === cls).map(t => t.gender || ''))].sort((a,b) => genderRank(a) - genderRank(b))
+    }));
+  }
+
+  function sheetUrl(type, cls, gender, round, qual, resv) {
+    const p = new URLSearchParams({ event: eventId, type, class: cls, gender: gender || '', round });
+    if (qual) p.set('qual', qual);
+    if (resv) p.set('resv', resv);
+    return `ranking.html?${p.toString()}`;
+  }
+
+  // 予選リンクは、その場で入力されている（保存前の）決勝進出人数・リザーブも
+  // プレビューできるよう、クリック時に入力欄の現在値を読んでURLを組み立てる
+  // （クラス内の男女で同じ決勝進出人数を使う）。
+  window.openQualifyingSheetGender = function(type, cls, gender) {
+    const qualEl = document.getElementById(`qual-${type}-${cls}`);
+    const resvEl = document.getElementById(`resv-${type}-${cls}`);
+    const nQual = parseInt(qualEl?.value) || 0;
+    const nResv = parseInt(resvEl?.value) || 0;
+    window.open(sheetUrl(type, cls, gender, 'qualifying', nQual, nResv), '_blank');
+  };
+
+  window.saveCounts = async function(btn, type, cls) {
+    const qualEl = document.getElementById(`qual-${type}-${cls}`);
+    const resvEl = document.getElementById(`resv-${type}-${cls}`);
+    const nQual = parseInt(qualEl?.value) || 0;
+    const nResv = parseInt(resvEl?.value) || 0;
+    const origLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = '保存中…';
+    try {
+      // 他画面（大会設定・決勝試技順処理）との競合を避けるため直前に最新値を取得してから更新する
+      const fresh = await getDoc(doc(db, 'tournaments', eventId));
+      const freshRules = normalizeClassRules(fresh.data()?.classRules);
+      if (!freshRules[type]) freshRules[type] = {};
+      freshRules[type][cls] = { ...(freshRules[type][cls] || {}), finalCount: nQual, reserveCount: nResv };
+      await updateDoc(doc(db, 'tournaments', eventId), { classRules: freshRules });
+      invalidateCache(eventId);
+      tourData.classRules = freshRules;
+      btn.textContent = '✓ 保存しました';
+      setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 1200);
+    } catch (e) {
+      alert('保存に失敗しました: ' + e.message);
+      btn.textContent = origLabel; btn.disabled = false;
+    }
+  };
+
+  function renderMenu() {
+    const classRules = normalizeClassRules(tourData.classRules);
+    const groups = buildClassGroups();
+    const teamGroups = buildTeamGroups();
+    const hasBothTypes = groups.some(g => g.type === 'individual') && groups.some(g => g.type === 'synchro');
+
+    if (!groups.length && !teamGroups.length) {
+      document.getElementById('output').innerHTML = '<div class="menu-empty">選手が登録されていません</div>';
+      return;
+    }
+
+    let html = `<div class="menu-wrap"><h1 class="menu-title">${esc(tourData?.name || '')}　順位表</h1>`;
+
+    ['individual','synchro'].forEach(type => {
+      const typeGroups = groups.filter(g => g.type === type);
+      if (!typeGroups.length) return;
+      if (hasBothTypes) html += `<div class="menu-type-heading">${type === 'synchro' ? 'シンクロ' : '個人'}</div>`;
+
+      typeGroups.forEach(g => {
+        const rule = (classRules[type] || {})[g.cls] || {};
+        const finalOnly = rule.finalOnly === true;
+        const hasFinal  = finalOnly ? true : rule.hasFinal === true;
+        const showCountField = hasFinal && !finalOnly;
+
+        let countFieldHtml = '';
+        if (showCountField) {
+          const qualVal = rule.finalCount   ?? '';
+          const resvVal = rule.reserveCount ?? '';
+          if (isAdminUser) {
+            countFieldHtml = `
+              <div class="menu-count-field">決勝進出人数
+                <input type="number" min="0" max="99" id="qual-${type}-${g.cls}" value="${qualVal}">
+              </div>
+              <div class="menu-count-field">リザーブ
+                <input type="number" min="0" max="99" id="resv-${type}-${g.cls}" value="${resvVal}">
+              </div>
+              <button class="btn-save-count" onclick="saveCounts(this,'${jsStr(type)}','${jsStr(g.cls)}')">保存</button>`;
+          } else {
+            countFieldHtml = `<div class="menu-count-field">決勝進出：${qualVal || '未設定'}${resvVal ? `（リザーブ${resvVal}）` : ''}</div>`;
+          }
+        }
+
+        const rowsHtml = g.genders.map(gender => {
+          if (finalOnly) {
+            return `<div class="menu-row">
+              <span class="menu-gender">${esc(gender)}</span>
+              <a class="menu-link" href="${sheetUrl(type, g.cls, gender, 'final', 0, 0)}" target="_blank">決勝</a>
+            </div>`;
+          }
+          const qualLink = isAdminUser
+            ? `<a class="menu-link" href="#" onclick="openQualifyingSheetGender('${jsStr(type)}','${jsStr(g.cls)}','${jsStr(gender)}');return false;">予選</a>`
+            : `<a class="menu-link" href="${sheetUrl(type, g.cls, gender, 'qualifying', rule.finalCount||0, rule.reserveCount||0)}" target="_blank">予選</a>`;
+          const finalLink = hasFinal
+            ? `<a class="menu-link" href="${sheetUrl(type, g.cls, gender, 'final', 0, 0)}" target="_blank">決勝</a>`
+            : '';
+          return `<div class="menu-row">
+            <span class="menu-gender">${esc(gender)}</span>
+            ${qualLink}${finalLink}
+          </div>`;
+        }).join('');
+
+        html += `<div class="menu-class-card">
+          <div class="menu-class-head">
+            <span class="menu-class-name">${esc(g.cls)}</span>
+            ${countFieldHtml}
+          </div>
+          <div class="menu-rows">${rowsHtml}</div>
+        </div>`;
       });
     });
 
-    // 団体カテゴリー（teams コレクションの class×gender ごとに1件）。クラス定義順に並べる
-    if (teamDocs.length) {
-      const teamClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.individual || []))
-        .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
-      const teamRawClasses = [...new Set(teamDocs.map(t => t.class || ''))];
-      const teamClasses = [...teamClassDefs.filter(c=>teamRawClasses.includes(c)), ...teamRawClasses.filter(c=>!teamClassDefs.includes(c))].filter(Boolean);
-      const tSeen = new Set();
-      teamClasses.forEach(cls => {
-        const genders = [...new Set(teamDocs.filter(t => (t.class||'') === cls).map(t => t.gender || ''))];
-        (genders.length ? genders : ['']).forEach(gender => {
-          const key = `team::${cls}::${gender}`;
-          if (tSeen.has(key)) return;
-          tSeen.add(key);
-          combos.push({ key, label: `団体 ${cls}${gender ? ' ' + gender : ''}` });
-        });
+    if (teamGroups.length) {
+      html += `<div class="menu-type-heading">団体</div>`;
+      teamGroups.forEach(g => {
+        const rowsHtml = g.genders.map(gender => `<div class="menu-row menu-team-row">
+          <span class="menu-gender">${esc(gender)}</span>
+          <a class="menu-link" href="${sheetUrl('team', g.cls, gender, '', 0, 0)}" target="_blank">団体順位表</a>
+        </div>`).join('');
+        html += `<div class="menu-class-card">
+          <div class="menu-class-head"><span class="menu-class-name">${esc(g.cls)}</span></div>
+          <div class="menu-rows">${rowsHtml}</div>
+        </div>`;
       });
     }
 
-    const selGroup = document.getElementById('sel-group');
-    selGroup.innerHTML = '<option value="">-- 選択 --</option>'
-      + combos.map(c => `<option value="${c.key}">${c.label}</option>`).join('');
-
-    // URLパラメータで初期選択
-    if (urlType || urlClass || urlGender) {
-      const matchKey = `${urlType||'individual'}::${urlClass||''}::${urlGender||''}`;
-      // 完全一致を優先、なければ type+class のみで探す
-      const exact = combos.find(c => c.key === matchKey);
-      const loose = exact || combos.find(c => c.key.startsWith(`${urlType||'individual'}::${urlClass||''}`));
-      if (loose) selGroup.value = loose.key;
-    }
-
-    if (urlRound) document.getElementById('sel-round').value = urlRound;
-
-    // 変更で自動再読み込み
-    ['sel-group','sel-round','sel-qual','sel-resv'].forEach(id =>
-      document.getElementById(id).addEventListener('change', () => loadRanking())
-    );
-
-    // URLパラメータあれば即表示
-    if (selGroup.value) loadRanking();
+    html += `</div>`;
+    document.getElementById('output').innerHTML = html;
   }
 
   // S1-S10: 全審判の各技減点を合計（stored値×10 = タップ単位に戻す）
@@ -343,19 +461,12 @@
 
   // 印刷/PDF保存時の既定ファイル名にクラス・男女・ラウンド・大会名を反映
   // （ブラウザの「PDFで保存」は document.title を既定ファイル名に使う）
-  function setPrintTitle() {
-    const gSel = document.getElementById('sel-group');
-    const rSel = document.getElementById('sel-round');
-    const gLabel = (gSel && gSel.value && gSel.options[gSel.selectedIndex]?.text) || '';
-    const rLabel = (rSel && rSel.options[rSel.selectedIndex]?.text) || '';
-    const parts = [gLabel, rLabel].filter(Boolean);
-    // ファイル名に使えない文字を除去し、各要素をアンダーバーで連結
-    const t = parts.join(' ').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  function setPrintTitle(label) {
+    const t = label.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
     if (t) document.title = t;
   }
 
   window.printRanking = function() {
-    setPrintTitle();
     window.print();
   };
 
@@ -742,14 +853,16 @@
       </div>`;
   }
 
-  // 選択中の1グループを表示
-  window.loadRanking = async function() {
-    const selGroup = document.getElementById('sel-group').value;
+  // 現在表示中のシートのパラメータ（全クラス印刷後に元の表示へ戻すために保持）
+  let currentSheet = null;
+
+  // 指定した1グループを表示（クラス一覧メニューから新しいタブで開かれた時に呼ばれる）
+  window.loadRanking = async function(fType, fClass, fGender, fRound, nQual, nResv) {
+    currentSheet = { fType, fClass, fGender, fRound, nQual, nResv };
     const output = document.getElementById('output');
-    if (!selGroup) { output.innerHTML = '<div class="no-data">グループを選択してください</div>'; return; }
-    const [fType, fClass, fGender] = selGroup.split('::');
-    const fRound  = document.getElementById('sel-round').value;
-    setPrintTitle();
+    const typeLabel = fType === 'synchro' ? 'シンクロ' : (fType === 'team' ? '団体' : '個人');
+    const roundLabel = fRound === 'final' ? '決勝' : '予選';
+    setPrintTitle([typeLabel, fClass, fGender, fType === 'team' ? '' : roundLabel].filter(Boolean).join('_'));
     output.innerHTML = '<div class="loading">読み込み中...</div>';
     const classRules = normalizeClassRules(tourData.classRules);
     const byAth = await fetchResultsByAth();
@@ -762,20 +875,18 @@
       return;
     }
 
-    const nQual = parseInt(document.getElementById('sel-qual').value) || 0;
-    const nResv = parseInt(document.getElementById('sel-resv').value) || 0;
     const section = buildGroupSectionHtml(fType, fClass, fGender, fRound, byAth, classRules, nQual, nResv);
     if (!section) { output.innerHTML = '<div class="no-data">該当する選手がいません</div>'; return; }
     output.innerHTML = buildSheetHeaderHtml() + section;
   };
 
   // 全クラス印刷（クラス設定順／男子→女子／予選→決勝、クラス・性別が変わるとページ送り）
+  // 決勝進出人数・リザーブは大会設定（classRules）に保存済みの値をそのまま使う。
   window.printAllClasses = async function() {
     const output = document.getElementById('output');
     output.innerHTML = '<div class="loading">全クラスを読み込み中...</div>';
     const classRules = normalizeClassRules(tourData.classRules);
     const byAth = await fetchResultsByAth();
-    const genderRank = g => g === '男子' ? 0 : g === '女子' ? 1 : 2;
     let html = '';
     let first = true;
     ['individual', 'synchro'].forEach(type => {
@@ -786,12 +897,15 @@
       const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
       const classes = [...tourClassDefs.filter(c => rawClasses.includes(c)), ...rawClasses.filter(c => !tourClassDefs.includes(c))];
       classes.forEach(cls => {
+        const rule = (classRules[type] || {})[cls] || {};
+        const nQual = rule.finalCount   || 0;
+        const nResv = rule.reserveCount || 0;
         const genders = [...new Set(
           byType.filter(a => (a.class || a.category || '') === cls).map(a => a.gender || '').filter(Boolean)
         )].sort((a, b) => genderRank(a) - genderRank(b));
         (genders.length ? genders : ['']).forEach(gender => {
           const sections = [];
-          const q = buildGroupSectionHtml(type, cls, gender, 'qualifying', byAth, classRules, 0, 0);
+          const q = buildGroupSectionHtml(type, cls, gender, 'qualifying', byAth, classRules, nQual, nResv);
           if (q) sections.push(q);
           const f = buildGroupSectionHtml(type, cls, gender, 'final', byAth, classRules, 0, 0);
           if (f) sections.push(f);
@@ -804,7 +918,10 @@
     if (!html) { output.innerHTML = '<div class="no-data">印刷できるデータがありません</div>'; return; }
     output.innerHTML = html;
     document.title = '全クラス';
-    const restore = () => { window.removeEventListener('afterprint', restore); loadRanking(); };
+    const restore = () => {
+      window.removeEventListener('afterprint', restore);
+      if (currentSheet) loadRanking(currentSheet.fType, currentSheet.fClass, currentSheet.fGender, currentSheet.fRound, currentSheet.nQual, currentSheet.nResv);
+    };
     window.addEventListener('afterprint', restore);
     setTimeout(() => window.print(), 60);
   };
