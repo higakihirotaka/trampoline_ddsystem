@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>順位表</title>
+  <style>
+    :root { --accent:#1a3a6b; --gold:#b8860b; }
+    * { box-sizing:border-box; }
+    body { font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin:0; background:#f4f6fa; color:#111; }
+    header { background:var(--accent); color:#fff; padding:14px 16px; text-align:center; }
+    header h1 { margin:0; font-size:1.05rem; font-weight:900; }
+    header .venue { font-size:.72rem; opacity:.8; margin-top:3px; }
+    .wrap { max-width:1200px; margin:0 auto; padding:14px; }
+    .classes { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+    .cls-btn { padding:8px 14px; border:1.5px solid #c3cede; border-radius:10px; background:#fff; font-size:.82rem; font-weight:700; color:#3a4a63; cursor:pointer; transition:.15s; }
+    .cls-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .cls-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .toolbar .title { font-weight:900; font-size:1rem; color:#222; }
+    .toolbar .gen { font-size:.68rem; color:#8895a8; }
+    .view-tabs { display:inline-flex; border:1.5px solid var(--accent); border-radius:9px; overflow:hidden; }
+    .view-tab { padding:6px 16px; font-size:.8rem; font-weight:700; cursor:pointer; background:#fff; color:var(--accent); border:none; }
+    .view-tab.active { background:var(--accent); color:#fff; }
+    .card { background:#fff; border-radius:12px; padding:6px; box-shadow:0 2px 12px rgba(0,0,0,.06); overflow-x:auto; }
+    .empty { text-align:center; padding:50px; color:#9aa7ba; }
+
+    table.rk { width:100%; border-collapse:collapse; font-size:13px; }
+    table.rk th { background:var(--accent); color:#fff; padding:6px 4px; font-size:11px; font-weight:700; border:1px solid #fff; text-align:center; white-space:nowrap; }
+    table.rk td { padding:5px 4px; border-bottom:1px solid #e6e9ef; border-right:1px solid #f0f2f6; text-align:center; vertical-align:middle; white-space:nowrap; }
+    .rk .nm { text-align:left; }
+    .ath-name { font-weight:700; font-size:13px; }
+    .ath-club { font-size:11px; color:#6a7688; }
+    .rank-num { font-size:1.15rem; font-weight:900; color:var(--accent); }
+    .na { color:#c2c9d4; }
+    .dns-badge { background:#7b1fa2; color:#fff; font-size:9px; font-weight:900; padding:1px 6px; border-radius:4px; }
+    .total-val { font-weight:900; color:var(--accent); font-size:14px; }
+    .round-lbl { font-size:11px; color:#66748a; }
+    /* 選手ブロック区切り */
+    tr.blk-top td { border-top:2px solid #b9c2d1; }
+    tbody.ath-block { break-inside:avoid; }
+
+    /* 詳細版: 項目セル */
+    td.item { font-weight:900; font-size:11px; background:#f1f4f9; }
+    .d-skill { font-size:12px; font-weight:400; }
+    .d-skill.dd-on { font-weight:700; }  /* 難度点が加算される技のみ太字 */
+    .sum-diff { font-weight:900; color:var(--accent); }
+    .sum-val { font-weight:700; }
+    .pen-reasons { font-size:9px; font-weight:700; color:#111; white-space:normal; line-height:1.15; margin-top:2px; }
+
+    @media (max-width:600px){ table.rk { font-size:11px; } .ath-name{font-size:11px;} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="ev-name">順位表</h1>
+    <div class="venue" id="ev-venue"></div>
+  </header>
+  <div class="wrap">
+    <div class="classes" id="classes"><div class="empty">読み込み中...</div></div>
+    <div id="view-area"></div>
+  </div>
+
+  <script type="module">
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from "./firebase-config.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event')?.trim();
+    let indexData = null, groups = [], curKey = null, curSnap = null, curView = 'simple';
+
+    const fmt1 = v => v != null ? Number(v).toFixed(1) : null;
+    const fmt2 = v => v != null ? Number(v).toFixed(2) : null;
+    const fmt3 = v => v != null ? Number(v).toFixed(3) : null;
+    const cell = v => v != null && v !== '' ? v : '<span class="na">−</span>';
+    const esc  = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    function nameHtml(r) {
+      return r.type === 'synchro' && r.name2
+        ? `<div class="ath-name">${esc(r.name1)||'−'} / ${esc(r.name2)||'−'}</div><div class="ath-club">${[r.club1,r.club2].filter(Boolean).map(esc).join(' / ')}</div>`
+        : `<div class="ath-name">${esc(r.name1)||'−'}</div><div class="ath-club">${esc(r.club1)||''}</div>`;
+    }
+    const rndLabel = rnd => rnd === 'pre1' ? '予選1' : rnd === 'pre2' ? '予選2' : '決勝';
+    const eFmt = v => v == null ? '−' : (Number.isInteger(v) ? v : Number(v).toFixed(1));
+
+    // ===== 順位表（通常版） =====
+    function renderSimple(snap) {
+      const isFinal = snap.round === 'final';
+      const showRoundCol = !isFinal;
+      const SR = snap.showRounds;
+      const th = `<tr>
+        <th>Rank</th><th>Name</th>${showRoundCol ? '<th>Round</th>' : ''}
+        ${Array.from({length:10},(_,i)=>`<th>S${i+1}</th>`).join('')}
+        <th>L</th><th>Exe</th><th>Diff</th><th>${snap.type==='synchro'?'Syn':'ToF'}</th><th>HD</th><th>Pen</th><th>Score</th>
+        ${snap.showTotalCol ? `<th>${snap.totalLabel}</th>` : ''}
+      </tr>`;
+      const totalCell = r => snap.showTotalCol
+        ? `<td class="total-val" rowspan="${SR.length}">${isFinal && snap.totalLabel==='No.' ? (r.finalOrder!=null?`No.${r.finalOrder}`:'−') : (r.qualScore!=null?fmt2(r.qualScore):'<span class="na">−</span>')}</td>` : '';
+      let body = '';
+      snap.rows.forEach(r => {
+        body += '<tbody class="ath-block">';
+        if (r.isDns) {
+          body += `<tr class="blk-top"><td><span class="dns-badge">DNS</span></td><td class="nm">${nameHtml(r)}</td>
+            <td colspan="${(showRoundCol?1:0)+10+7+(snap.showTotalCol?1:0)}" style="text-align:left;color:#999;padding-left:10px;">棄権 (DNS)</td></tr></tbody>`;
+          return;
+        }
+        SR.forEach((rnd, ri) => {
+          const rt = r.routines[rnd];
+          const first = ri === 0;
+          let sc = '';
+          for (let i=0;i<10;i++){
+            const over = rt && i >= (rt.vLimit ?? 10);
+            sc += `<td>${rt && !over ? eFmt(rt.e?.[i]) : '<span class="na"></span>'}</td>`;
+          }
+          const land = (rt && (rt.vLimit ?? 10) >= 10) ? eFmt(rt.land) : '<span class="na"></span>';
+          body += `<tr class="${first?'blk-top':''}">
+            ${first ? `<td rowspan="${SR.length}"><span class="rank-num">${r.rank}</span></td>` : ''}
+            ${first ? `<td class="nm" rowspan="${SR.length}">${nameHtml(r)}</td>` : ''}
+            ${showRoundCol ? `<td class="round-lbl">${rndLabel(rnd)}</td>` : ''}
+            ${sc}<td>${land}</td>
+            <td>${cell(rt?fmt1(rt.exe):null)}</td><td>${cell(rt?fmt1(rt.diff):null)}</td>
+            <td>${cell(rt?fmt3(rt.tof):null)}</td><td>${cell(rt?fmt2(rt.hd):null)}</td>
+            <td>${cell(rt&&rt.pen?fmt1(rt.pen):null)}</td><td>${cell(rt?fmt2(rt.score):null)}</td>
+            ${first ? totalCell(r) : ''}</tr>`;
+        });
+        body += '</tbody>';
+      });
+      return `<table class="rk"><thead>${th}</thead>${body}</table>`;
+    }
+
+    // ===== 順位表 詳細版（D/E/ToF/HD 4行） =====
+    function renderDetail(snap) {
+      const SR = snap.showRounds;
+      const tLabel = snap.type === 'synchro' ? 'Syn' : 'ToF';
+      const th = `<tr>
+        <th>Rank</th><th>Name</th><th>R</th><th>Comp.</th>
+        ${Array.from({length:10},(_,i)=>`<th>S${i+1}</th>`).join('')}
+        <th>L</th><th>Sum</th><th>Pen</th><th>Score</th>${snap.showTotalCol?`<th>${snap.totalLabel}</th>`:''}
+      </tr>`;
+      const isFinal = snap.round === 'final';
+      const bestInner = r => isFinal && snap.totalLabel==='No.'
+        ? (r.finalOrder!=null?`No.${r.finalOrder}`:'−')
+        : (r.qualScore!=null?fmt2(r.qualScore):'<span class="na">−</span>');
+      let body = '';
+      snap.rows.forEach(r => {
+        body += '<tbody class="ath-block">';
+        if (r.isDns) {
+          body += `<tr class="blk-top"><td><span class="dns-badge">DNS</span></td><td class="nm">${nameHtml(r)}</td>
+            <td colspan="${2+10+2+2+(snap.showTotalCol?1:0)}" style="text-align:left;color:#999;padding-left:10px;">棄権 (DNS)</td></tr></tbody>`;
+          return;
+        }
+        const totalRows = SR.length * 4;
+        SR.forEach((rnd, ri) => {
+          const rt = r.routines[rnd] || {};
+          const vLimit = rt.vLimit ?? 10;
+          const sCells = (arr, cls, fmtFn) => {
+            let h = '';
+            for (let i=0;i<10;i++){
+              if (i >= vLimit) { h += '<td><span class="na"></span></td>'; continue; }
+              const v = arr?.[i];
+              h += `<td class="${cls}">${v!=null?fmtFn(v):'<span class="na">−</span>'}</td>`;
+            }
+            return h;
+          };
+          // D技コード: 難度点が加算される技のみ太字（無効/重複は標準）
+          let dRow = '';
+          for (let i=0;i<10;i++){
+            if (i >= vLimit) { dRow += '<td><span class="na"></span></td>'; continue; }
+            const v = rt.d?.[i];
+            dRow += `<td class="d-skill${(rt.dCounted && rt.dCounted[i]) ? ' dd-on' : ''}">${v!=null?esc(v):'<span class="na">−</span>'}</td>`;
+          }
+          const eRow = sCells(rt.e,'', v=>eFmt(v));
+          const tRow = sCells(rt.t,'', v=>Number(v).toFixed(3));
+          const hRow = sCells(rt.h,'', v=>v);
+          const landCell = (vLimit>=10 && rt.land!=null) ? `<td>${eFmt(rt.land)}</td>` : '<td><span class="na"></span></td>';
+          const firstOfAth = ri === 0;
+          const rankCell  = firstOfAth ? `<td rowspan="${totalRows}"><span class="rank-num">${r.rank}</span></td>` : '';
+          const nameCell  = firstOfAth ? `<td class="nm" rowspan="${totalRows}">${nameHtml(r)}</td>` : '';
+          const bestCell  = (firstOfAth && snap.showTotalCol) ? `<td class="total-val" rowspan="${totalRows}">${bestInner(r)}</td>` : '';
+          const roundCell = `<td class="round-lbl" rowspan="4">${rndLabel(rnd)}</td>`;
+          const penReasons = (rt.penReasons||[]).length ? `<div class="pen-reasons">${(rt.penReasons||[]).map(esc).join('<br>')}</div>` : '';
+          const penCell   = `<td rowspan="4">${cell(rt.pen?fmt1(rt.pen):null)}${penReasons}</td>`;
+          const scoreCell = `<td rowspan="4">${cell(rt.score!=null?fmt2(rt.score):null)}</td>`;
+          const topCls = firstOfAth ? 'blk-top' : '';
+          body += `<tr class="${topCls}">${rankCell}${nameCell}${roundCell}<td class="item">E</td>${eRow}${landCell}<td class="sum-val">${cell(rt.exe!=null?fmt1(rt.exe):null)}</td>${penCell}${scoreCell}${bestCell}</tr>`;
+          body += `<tr><td class="item">D</td>${dRow}<td><span class="na">−</span></td><td class="sum-diff">${cell(rt.diff!=null?fmt1(rt.diff):null)}</td></tr>`;
+          body += `<tr><td class="item">${tLabel}</td>${tRow}<td><span class="na">−</span></td><td class="sum-val">${cell(rt.tof!=null?fmt2(rt.tof):null)}</td></tr>`;
+          body += `<tr><td class="item">HD</td>${hRow}<td><span class="na">−</span></td><td class="sum-val">${cell(rt.hd!=null?fmt2(rt.hd):null)}</td></tr>`;
+        });
+        body += '</tbody>';
+      });
+      return `<table class="rk"><thead>${th}</thead>${body}</table>`;
+    }
+
+    function renderView() {
+      const area = document.getElementById('view-area');
+      if (!curSnap) { area.innerHTML = '<div class="card"><div class="empty">クラスを選んでください</div></div>'; return; }
+      const g = groups.find(x => x.key === curKey);
+      area.innerHTML = `
+        <div class="toolbar">
+          <span class="title">${esc(curSnap.label)}</span>
+          <span class="view-tabs">
+            <button class="view-tab ${curView==='simple'?'active':''}" onclick="setView('simple')">順位表</button>
+            <button class="view-tab ${curView==='detail'?'active':''}" onclick="setView('detail')">詳細版</button>
+          </span>
+          <span class="gen">${g?.generatedAt ? '更新 '+g.generatedAt : ''}</span>
+        </div>
+        <div class="card">${curView==='simple' ? renderSimple(curSnap) : renderDetail(curSnap)}</div>`;
+    }
+    window.setView = v => { curView = v; renderView(); };
+
+    async function openGroup(key) {
+      curKey = key;
+      document.querySelectorAll('.cls-btn').forEach(b => b.classList.toggle('active', b.dataset.key === key));
+      const area = document.getElementById('view-area');
+      area.innerHTML = '<div class="card"><div class="empty">読み込み中...</div></div>';
+      const snap = await getDoc(doc(db, 'tournaments', eventId, 'publicRankings', key));
+      curSnap = snap.exists() ? snap.data() : null;
+      renderView();
+    }
+    window.openGroup = openGroup;
+
+    function renderClasses() {
+      const el = document.getElementById('classes');
+      if (!groups.length) { el.innerHTML = '<div class="empty">公開中の順位表はありません</div>'; return; }
+      el.innerHTML = groups.map(g =>
+        `<button class="cls-btn" data-key="${g.key}" onclick="openGroup('${g.key}')">${esc(g.label)}</button>`).join('');
+    }
+
+    async function init() {
+      if (!eventId) { document.getElementById('classes').innerHTML = '<div class="empty">URLに event がありません</div>'; return; }
+      const idxSnap = await getDoc(doc(db, 'tournaments', eventId, 'publicRankings', '_index'));
+      if (!idxSnap.exists()) { document.getElementById('classes').innerHTML = '<div class="empty">公開中の順位表はありません</div>'; return; }
+      indexData = idxSnap.data();
+      document.getElementById('ev-name').textContent = indexData.tournamentName || '順位表';
+      document.getElementById('ev-venue').textContent = indexData.venue || '';
+      const gmap = indexData.groups || {};
+      // 種目→クラス→性別→ラウンドの安定順で並べる
+      const order = { individual:0, synchro:1 };
+      const rorder = { qualifying:0, final:1 };
+      groups = Object.entries(gmap).map(([key, v]) => ({ key, ...v }))
+        .sort((a,b) => (order[a.type]-order[b.type]) || String(a.cls).localeCompare(String(b.cls),'ja')
+          || String(a.gender).localeCompare(String(b.gender),'ja') || (rorder[a.round]-rorder[b.round]));
+      renderClasses();
+      if (groups.length) openGroup(groups[0].key);
+    }
+    init();
+  </script>
+</body>
+</html>

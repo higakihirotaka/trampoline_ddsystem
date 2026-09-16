@@ -392,6 +392,14 @@
                     <input type="number" id="intro-duration-val" class="val-box" min="3" max="30" value="5">
                     <span class="unit">秒</span>
                 </div>
+                <label style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:0.85rem;font-weight:700;color:var(--text-main);cursor:pointer;">
+                    <input type="checkbox" id="intro-show-roster" checked style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+                    ループの最後に選手一覧ページを表示
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:0.85rem;font-weight:700;color:var(--text-main);cursor:pointer;">
+                    <input type="checkbox" id="intro-show-per-class-roster" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+                    クラスの紹介が終わるたびに、そのクラスの一覧ページを挟む
+                </label>
                 <div class="intro-mode-wrap">
                     <button class="intro-mode-btn active" data-mode="qualifying">予選試技順</button>
                     <button class="intro-mode-btn" data-mode="final">決勝試技順</button>
@@ -445,8 +453,10 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
+    import { getTournament } from "./cache.js";
+    import { applyIfChanged, buildIntroSteps } from "./shared.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -532,6 +542,12 @@
     let warmupData     = {};
     let classCombos    = [];  // 既存クラス一覧
     let ctrlTimerInterval = null;
+    // 会場練習タイマーのサーバー時刻補正（timerRef 変化時のみ測定）。
+    // 会場ディスプレイ用PCと制御PCでシステムクロックがずれても表示を一致させるため。
+    let _wuServerOffset = 0, _wuRefMs = null;
+    // 稼働中は制御PCが一定間隔で新しい timerRef を配信し、途中参加/リロードした端末を再較正させる。
+    let _wuLastRefresh = 0;
+    const WU_REFRESH_MS = 10000;
 
     const SCREEN_LABELS = {
         score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
@@ -558,6 +574,10 @@
         });
     }
 
+    // applyScreenState() のフォーム反映部分だけに使うシグネチャキャッシュ（applyIfChanged用）。
+    // 画面選択状態（badge/screen-btn/パネル切替）は毎回反映する必要があるので対象外にする。
+    const _screenStateSig = {};
+
     function applyScreenState(screen, warmup, ts, cs, carousel) {
         currentScreen = screen;
         warmupData    = warmup || {};
@@ -570,8 +590,16 @@
         // 選択中（pending）でないときのみパネルをスナップショット側で切り替える
         if (!pendingScreen) showScreenPanel(effectiveScreen);
 
-        // 各画面の設定値を反映
-        if (ts) {
+        // 選手紹介から離れたら、どの経路（このパネルのボタン操作／CJPの強制切替／別オペレーター）で
+        // 離れたのかによらず、確定状態（screen）を唯一の正として内部タイマーを必ず止める。
+        // 各切替ボタンのハンドラ側で個別に止める呼び忘れがあると、無関係な画面に切り替わった後も
+        // 選手紹介の進行がバックグラウンドで動き続け、Firestoreへの無駄な書き込みが延々と続いてしまう。
+        if (screen !== 'intro' && introTimerItv) stopIntroSequence();
+
+        // 各画面の設定値を反映。無関係なドキュメント更新（CJPのスコア確定等）でもこの関数は
+        // 毎回呼ばれるため、該当サブフィールドが実際に変化した時だけ反映してオペレーターが
+        // 入力中の値を保存済みの値で上書きしないようにする（applyIfChanged）。
+        if (ts) applyIfChanged(_screenStateSig, 'title', ts, ts => {
             const r = document.getElementById('title-fs');
             const v = document.getElementById('title-fs-val');
             if (r) r.value = ts.fontSize || 6.5;
@@ -582,33 +610,48 @@
             if (l1) l1.value = ts.line1 || '';
             if (l2) l2.value = ts.line2 || '';
             if (l3) l3.value = ts.line3 || '';
-        }
-        if (cs) {
+        });
+        if (cs) applyIfChanged(_screenStateSig, 'ceremony', cs, cs => {
             setSlider('cer-name-fs', cs.nameFontSize  || 3.5);
             setSlider('cer-label-fs', cs.labelFontSize || 10);
-        }
+        });
         if (warmup) {
-            document.getElementById('wu-class1').value = warmup.class1 || '';
-            document.getElementById('wu-class2').value = warmup.class2 || '';
-            setSlider('wu-class-fs', warmup.classFontSize || 4.5);
-            setSlider('wu-timer-fs', warmup.timerFontSize || 24);
-            document.getElementById('timer-repeat').checked = !!warmup.timerRepeat;
+            // warmup には timerRef 等の常時変化するタイマー実行中フィールドも同居しているため、
+            // シグネチャ比較はフォームに反映する項目だけの部分集合で行う
+            // （そうしないとカウントダウンのたびに「変化した」と判定されガードが効かなくなる）。
+            const warmupFormPart = {
+                class1: warmup.class1, class2: warmup.class2,
+                classFontSize: warmup.classFontSize, timerFontSize: warmup.timerFontSize,
+                timerRepeat: warmup.timerRepeat
+            };
+            applyIfChanged(_screenStateSig, 'warmup', warmupFormPart, w => {
+                document.getElementById('wu-class1').value = w.class1 || '';
+                document.getElementById('wu-class2').value = w.class2 || '';
+                setSlider('wu-class-fs', w.classFontSize || 4.5);
+                setSlider('wu-timer-fs', w.timerFontSize || 24);
+                document.getElementById('timer-repeat').checked = !!w.timerRepeat;
+            });
         }
 
         // 巡回チェックボックス復元（巡回停止中のみ上書き）
         if (carousel && !carousel.active && carousel.items) {
-            document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
-            (carousel.items || []).forEach(item => {
-                const idx = carouselCombos.findIndex(
-                    c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type);
-                if (idx >= 0) {
-                    const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
-                    if (cb) cb.checked = true;
-                }
+            applyIfChanged(_screenStateSig, 'carouselItems', carousel.items, items => {
+                document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
+                (items || []).forEach(item => {
+                    const idx = carouselCombos.findIndex(
+                        c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type &&
+                             (c.mode || '') === (item.mode || '') && (c.round || '') === (item.round || ''));
+                    if (idx >= 0) {
+                        const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
+                        if (cb) cb.checked = true;
+                    }
+                });
             });
         }
         if (carousel) {
-            document.getElementById('carousel-show-logo').checked = !!carousel.showLogo;
+            applyIfChanged(_screenStateSig, 'carouselShowLogo', !!carousel.showLogo, showLogo => {
+                document.getElementById('carousel-show-logo').checked = showLogo;
+            });
         }
 
         syncCtrlTimer();
@@ -655,22 +698,26 @@
                 const showLogo = document.getElementById('carousel-show-logo').checked;
                 await updateDoc(doc(db,'tournaments',eventId), {
                     'rankingCarousel.active':   true,
-                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type })),
+                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type, ...(c.mode ? { mode: c.mode } : {}), ...(c.round ? { round: c.round } : {}) })),
                     'rankingCarousel.showLogo': showLogo
                 });
             } else if (pendingScreen === 'intro') {
                 const sel = getSelectedIntroAthletes();
                 if (sel.length === 0) { alert('表示する選手を選択してください'); return; }
                 const durMs = Number(document.getElementById('intro-duration-val').value) * 1000;
+                const showRoster = document.getElementById('intro-show-roster')?.checked ?? true;
+                const showPerClassRoster = document.getElementById('intro-show-per-class-roster')?.checked ?? false;
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: 'intro',
                     'rankingCarousel.active': false,
                     'introSettings.athletes': sel,
                     'introSettings.durationMs': durMs,
-                    'introSettings.currentIndex': 0,
+                    'introSettings.currentIndex': -1,  // -1 = ループ開始時の「選手紹介」タイトル画面
+                    'introSettings.showRoster': showRoster,
+                    'introSettings.showPerClassRoster': showPerClassRoster,
                     'introSettings.isRunning': true
                 });
-                startIntroSequence(sel, durMs);
+                startIntroSequence(sel, durMs, showRoster, showPerClassRoster);
             } else if (pendingScreen === 'final_startlist') {
                 const target = document.getElementById('fsl-target')?.value || '';
                 if (!target) {
@@ -709,8 +756,9 @@
 
     // ---- タイトル保存 ----
     document.getElementById('save-title-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-title-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-title-btn');
+        const st  = document.getElementById('save-title-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
                 'titleSettings.fontSize': Number(document.getElementById('title-fs-val').value),
@@ -720,12 +768,14 @@
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 表彰式保存 ----
     document.getElementById('save-ceremony-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-ceremony-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-ceremony-btn');
+        const st  = document.getElementById('save-ceremony-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
                 'ceremonySettings.nameFontSize':  Number(document.getElementById('cer-name-fs-val').value),
@@ -733,12 +783,14 @@
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 会場練習保存（クラス名＋文字サイズ） ----
     document.getElementById('save-warmup-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-warmup-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-warmup-btn');
+        const st  = document.getElementById('save-warmup-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
                 'warmupSettings.class1':       document.getElementById('wu-class1').value,
@@ -749,6 +801,7 @@
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 順位表 巡回モード ----
@@ -772,6 +825,7 @@
     let introAthletes   = [];
     let introTimerItv   = null;
     let introCurIdx     = 0;
+    let introShowRoster = false;   // ループ最後に選手一覧ページを挟むか
     let introAthList    = [];
     let introClassDefs  = [];
     let introFilterKey  = '';          // '' = 全員, 'class|gender|type' = 絞り込み
@@ -897,10 +951,18 @@
         return getIntroSorted().filter(a => introCheckedIds.has(a.id));
     }
 
-    function updateIntroStatus(idx, total) {
+    // steps: 選手紹介ループの実際の手順（選手＋任意でクラス一覧ページ）。buildIntroSteps()参照
+    function updateIntroStatus(idx, steps) {
         const st = document.getElementById('intro-run-status');
         if (!st) return;
-        st.textContent = `紹介中: ${idx + 1} / ${total} 人目`;
+        const step = idx >= 0 ? steps[idx] : null;
+        st.textContent = idx < 0
+            ? '「選手紹介」タイトル表示中…'
+            : idx >= steps.length
+              ? '選手一覧ページ表示中…'
+              : step.type === 'classRoster'
+                ? `${step.className || ''} 一覧ページ表示中…`
+                : `紹介中: ${idx + 1} / ${steps.length} 手順目`;
         st.className = 'intro-run-status running';
     }
 
@@ -912,21 +974,27 @@
         if (stopBtn) stopBtn.style.display = 'none';
     }
 
-    function startIntroSequence(athletes, durationMs) {
+    function startIntroSequence(athletes, durationMs, showRoster, showPerClassRoster) {
         stopIntroSequence();
-        introAthList = athletes;
-        introCurIdx  = 0;
-        updateIntroStatus(0, athletes.length);
+        introAthList    = athletes;
+        introShowRoster = !!showRoster;
+        // クラス一覧ページを挟んだ手順（display.html側のapplyIntroSlide()と同じ組み立て方をする
+        // ことで、currentIndexの意味を両者で一致させる）
+        const steps = buildIntroSteps(athletes, !!showPerClassRoster);
+        introCurIdx     = -1;  // タイトル画面から開始（最初の刻みで1人目へ）
+        updateIntroStatus(-1, steps);
         document.getElementById('intro-stop-btn').style.display = '';
         introTimerItv = setInterval(async () => {
             introCurIdx++;
-            if (introCurIdx >= introAthList.length) {
-                introCurIdx = 0; // ループ: 先頭に戻る
+            // 末尾: 一覧ONなら 手順数（=一覧ページ）まで進み、超えたらタイトル(-1)へ戻る（毎周）
+            const maxIdx = steps.length - 1 + (introShowRoster ? 1 : 0);
+            if (introCurIdx > maxIdx) {
+                introCurIdx = -1; // 一周 → 毎回「選手紹介」タイトルから
             }
             await updateDoc(doc(db,'tournaments',eventId), {
                 'introSettings.currentIndex': introCurIdx
             }).catch(() => {});
-            updateIntroStatus(introCurIdx, introAthList.length);
+            updateIntroStatus(introCurIdx, steps);
         }, durationMs);
     }
 
@@ -939,8 +1007,29 @@
     });
 
     // ---- タイマー制御 ----
-    // timerRef（Firestore serverTimestamp）+ timerRemainingMs から終了時刻を計算。
-    // クライアント側の _serverOffset を使わないため、どのデバイス・どのタイミングでも一致する。
+    // サーバー時刻(timerRef=serverTimestamp)を基準に残り時間を計算する。
+    // 各PCは timerRef 受信時に自分の時計とサーバー時刻の差(_wuServerOffset)を測り、
+    // それで補正するため、PC間でシステムクロックがずれても表示が一致する。
+    function computeWarmupRem(wu) {
+        if (!wu || wu.timerPaused) return { rem: (wu && wu.timerRemainingMs) ?? 0, running: false };
+        if (wu.timerRef?.toMillis) {
+            const refMs = wu.timerRef.toMillis();
+            // ※ offset は refMs が変わった時だけ測る。毎回測ると refMs-Date.now() が相殺して固まる。
+            // 初回 or 大きな食い違い時のみ採用（微小な遅延ゆらぎでの毎回スナップ＝ガタつきを防ぐ）。
+            if (refMs !== _wuRefMs) {
+                const newOffset = refMs - Date.now();
+                if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
+                _wuRefMs = refMs;
+            }
+            const endServer = refMs + (wu.timerRemainingMs ?? 0);
+            const nowServer = Date.now() + _wuServerOffset;
+            return { rem: Math.max(0, endServer - nowServer), running: true };
+        }
+        // timerRef 未確定（自PCで書込んだ直後の一瞬）: 自PC時計の絶対終了時刻で暫定表示
+        if (wu.timerEndMs != null) return { rem: Math.max(0, wu.timerEndMs - Date.now()), running: true };
+        return { rem: wu.timerRemainingMs ?? 0, running: false };
+    }
+
     function syncCtrlTimer() {
         clearInterval(ctrlTimerInterval); ctrlTimerInterval = null;
         const timerEl  = document.getElementById('ctrl-timer');
@@ -949,19 +1038,25 @@
 
         function tick() {
             const wu = warmupData;
-            // timerEndMs（開始時に Date.now()+残り時間 で確定した絶対終了時刻）を使用。
-            // 全デバイスが同一の timerEndMs を Firestore から読み、Date.now() で引くだけ。
-            const running = !wu.timerPaused && wu.timerEndMs != null;
-            let rem;
-            if (running) {
-                rem = Math.max(0, wu.timerEndMs - Date.now());
-            } else {
-                rem = wu.timerRemainingMs ?? 0;
-            }
+            const { rem, running } = computeWarmupRem(wu);
             renderCtrlTimer(timerEl, rem, running);
             startBtn.textContent = '▶ 開始';
             startBtn.disabled = running || rem === 0;
             pauseBtn.disabled = !running;
+
+            // 定期リフレッシュ: 稼働中に新しい timerRef を配り、途中でリロードした
+            // 会場ディスプレイ用PC等を10秒以内に再較正させる（残り2秒未満では再基準化しない）。
+            // 残り時間は制御PC自身のローカル絶対終了時刻(timerEndMs)から算出して配信する。
+            // ← 表示推定(rem)を書き戻すと latency ぶんの累積ドリフトが乗るため、それを避ける。
+            // timerEndMs 自体は据え置き（絶対終了時刻のアンカー）。
+            const localRem = wu.timerEndMs != null ? Math.max(0, wu.timerEndMs - Date.now()) : rem;
+            if (running && localRem > 2000 && Date.now() - _wuLastRefresh > WU_REFRESH_MS) {
+                _wuLastRefresh = Date.now();
+                updateDoc(doc(db,'tournaments',eventId), {
+                    'warmupSettings.timerRef':        serverTimestamp(),
+                    'warmupSettings.timerRemainingMs':localRem,
+                }).catch(() => {});
+            }
 
             if (rem === 0 && running) {
                 clearInterval(ctrlTimerInterval); ctrlTimerInterval = null;
@@ -969,18 +1064,30 @@
                 if (wu.timerRepeat) {
                     const defaultMs = wu.timerDefaultMs ?? 5 * 60 * 1000;
                     setTimeout(async () => {
+                        _wuLastRefresh = Date.now();
                         await updateDoc(doc(db,'tournaments',eventId), {
+                            'warmupSettings.timerRef':        serverTimestamp(),
                             'warmupSettings.timerEndMs':      Date.now() + defaultMs,
                             'warmupSettings.timerRemainingMs':defaultMs,
                             'warmupSettings.timerPaused':     false,
                         }).catch(() => {});
                     }, 1500); // 1.5秒後に再スタート
+                } else {
+                    // 繰り返しなしで自然終了した場合も終了状態をFirestoreに書き戻す。
+                    // これをしないと timerPaused:false のまま古い timerRef/timerRemainingMs が
+                    // 残り続け、後から開いた別端末（審判画面等）がその古い値から残り時間を
+                    // 誤って再計算し、実際には終わっているのに「残り数秒」等の誤表示をしてしまう。
+                    updateDoc(doc(db,'tournaments',eventId), {
+                        'warmupSettings.timerRemainingMs': 0,
+                        'warmupSettings.timerPaused':      true,
+                        'warmupSettings.timerEndMs':       null,
+                        'warmupSettings.timerRef':         null,
+                    }).catch(() => {});
                 }
             }
         }
         tick();
-        const wu = warmupData;
-        if (!wu.timerPaused && wu.timerEndMs != null) {
+        if (computeWarmupRem(warmupData).running) {
             ctrlTimerInterval = setInterval(tick, 500);
         }
     }
@@ -994,22 +1101,25 @@
     document.getElementById('timer-start-btn').addEventListener('click', async () => {
         const rem = warmupData.timerRemainingMs ?? 0;
         if (rem <= 0) return;
-        // Date.now() + 残り時間 = 絶対終了時刻をその場で計算して書き込む。
-        // serverTimestamp を待たないので開始と同時に正確な残り時間を表示できる。
+        _wuLastRefresh = Date.now();
+        // timerRef=serverTimestamp を全PC共通の時刻基準にする。
+        // timerEndMs は timerRef 確定までの一瞬、この操作PC自身の即時表示に使うフォールバック。
         await updateDoc(doc(db,'tournaments',eventId), {
+            'warmupSettings.timerRef':        serverTimestamp(),
             'warmupSettings.timerEndMs':      Date.now() + rem,
             'warmupSettings.timerRemainingMs':rem,
             'warmupSettings.timerPaused':     false,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-pause-btn').addEventListener('click', async () => {
-        const wu = warmupData;
-        if (wu.timerEndMs == null) return;
-        const rem = Math.max(0, wu.timerEndMs - Date.now());
+        // サーバー時刻補正込みで残りを確定してから固定値として保存（どのPCで押しても同じ結果）。
+        const { rem, running } = computeWarmupRem(warmupData);
+        if (!running) return;
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-reset-btn').addEventListener('click', async () => {
@@ -1018,6 +1128,7 @@
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
     });
     // ---- タイマー手入力：onSnapshot で上書きされないよう「更新」ボタンでのみ反映 ----
@@ -1036,6 +1147,7 @@
             'warmupSettings.timerRemainingMs': ms,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
         // 入力欄をクリア
         minEl.value = ''; secEl.value = '';
@@ -1058,6 +1170,7 @@
                 'warmupSettings.timerRemainingMs': ms,
                 'warmupSettings.timerPaused':      true,
                 'warmupSettings.timerEndMs':       null,
+                'warmupSettings.timerRef':         null,
             }).catch(e => alert('失敗: '+e.message));
         });
     });
@@ -1070,10 +1183,8 @@
 
         if (!eventId) { document.getElementById('event-name').textContent = 'URLにeventパラメータがありません'; return; }
 
-        const tourSnap = await getDoc(doc(db,'tournaments',eventId));
-        if (!tourSnap.exists()) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
-
-        const tourData = tourSnap.data();
+        const tourData = await getTournament(eventId);
+        if (!tourData) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
         const tournamentName = tourData.name || '';
         document.getElementById('event-name').textContent = tournamentName || eventId;
         document.getElementById('btn-autofill-name').addEventListener('click', () => {
@@ -1091,6 +1202,7 @@
         const athSnap = await getDocs(collection(db,'tournaments',eventId,'athletes'));
         const comboSet = new Set();
         const carouselSet = new Set();
+        const catType = {};   // `${cls}|${gender}` → 個人/シンクロ（団体の基礎タイプ推定用）
         athSnap.forEach(d => {
             const a = d.data();
             const typeRaw = a.type || 'individual';
@@ -1098,14 +1210,49 @@
             const gender = a.gender || '';
             const cls    = a.class  || '';
             if (cls) {
+                if (!catType[`${cls}|${gender}`]) catType[`${cls}|${gender}`] = typeRaw;
                 comboSet.add(`${cls} ${gender}（${typeLabel}）`);
                 const key = `${cls}|${gender}|${typeRaw}`;
                 if (!carouselSet.has(key)) {
                     carouselSet.add(key);
-                    carouselCombos.push({ classVal: cls, gender, type: typeRaw,
-                        label: `${cls} ${gender}（${typeLabel}）` });
+                    // 予選・決勝を別々の巡回候補として選べるようにする
+                    carouselCombos.push({ classVal: cls, gender, type: typeRaw, round: 'qualifying',
+                        label: `${cls} ${gender}（${typeLabel}）予選` });
+                    carouselCombos.push({ classVal: cls, gender, type: typeRaw, round: 'final',
+                        label: `${cls} ${gender}（${typeLabel}）決勝` });
                 }
             }
+        });
+        // 団体（team）: チーム登録のある class|gender を巡回候補に追加（基礎タイプは選手から推定）
+        try {
+            const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
+            const teamSet = new Set();
+            teamSnap.forEach(d => {
+                const t = d.data();
+                const cls = t.class || '', gender = t.gender || '';
+                if (!cls) return;
+                const catKey = `${cls}|${gender}`;
+                if (teamSet.has(catKey)) return;
+                teamSet.add(catKey);
+                carouselCombos.push({ classVal: cls, gender, type: catType[catKey] || 'individual',
+                    mode: 'team', label: `${cls} ${gender}（団体）` });
+            });
+        } catch (e) { console.warn('団体（teams）取得失敗', e); }
+        // 決勝スタートリスト: isInFinal の選手がいるクラス組み合わせを巡回候補に追加
+        // （下の fsl-target 用ループと条件は同じだが、あちらは単一選択のプルダウン用、
+        //   こちらは巡回チェックリストへの追加なので別々に列挙する）
+        const fslCarouselSet = new Set();
+        athSnap.forEach(d => {
+            const a = d.data();
+            if (!a.isInFinal || !a.class) return;
+            const typeRaw   = a.type || 'individual';
+            const typeLabel = typeRaw === 'synchro' ? 'シンクロ' : '個人';
+            const gender    = a.gender || '';
+            const key = `${a.class}|${gender}|${typeRaw}`;
+            if (fslCarouselSet.has(key)) return;
+            fslCarouselSet.add(key);
+            carouselCombos.push({ classVal: a.class, gender, type: typeRaw,
+                mode: 'final_startlist', label: `${a.class} ${gender}（${typeLabel}）決勝スタートリスト` });
         });
         classCombos = [...comboSet].sort();
         carouselCombos.sort((a, b) => a.label.localeCompare(b.label, 'ja'));
@@ -1138,12 +1285,22 @@
                 kana1: a.kana1||'', kana2: a.kana2||'',
                 club1: a.club1||'', club2: a.club2||'',
                 type: a.type||'individual', class: a.class||'',
-                gender: a.gender||'', order: a.order||''
+                gender: a.gender||'', order: a.order||'',
+                finalOrder: a.finalOrder ?? null // 「決勝試技順」モード（getIntroSorted）の絞り込みに必要
             });
         });
         introAthletes.forEach(a => introCheckedIds.add(a.id));
         buildIntroFilterBtns();
         applyIntroFilter();
+
+        // 初期画面状態を即座に反映（onSnapshot 到着前にタイマーを表示する）
+        applyScreenState(
+            tourData.venueScreen      || 'score',
+            tourData.warmupSettings   || {},
+            tourData.titleSettings    || {},
+            tourData.ceremonySettings || {},
+            tourData.rankingCarousel  || {}
+        );
 
         // リアルタイム監視
         onSnapshot(doc(db,'tournaments',eventId), snap => {

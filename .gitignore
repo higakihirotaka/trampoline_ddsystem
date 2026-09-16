@@ -73,3 +73,7 @@ node_modules/
 
 # Windows artifacts
 nul
+
+# Google Drive / OneDrive sync temp files
+.tmp.driveupload/
+.tmp.drivedownload/
