@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>競技カード入力 - トランポリン大会システム</title>
+    <!-- LINE等のリンクプレビュー用。無いと本文の断片がそのまま表示されてしまうため明示的に指定する -->
+    <meta name="description" content="オンライン競技カードシステム">
+    <meta property="og:title" content="競技カード入力 - トランポリン大会システム">
+    <meta property="og:description" content="オンライン競技カードシステム">
+    <meta property="og:type" content="website">
+    <style>
+        :root { --primary-blue: #1a73e8; --bg-gray: #f0f2f5; --text-dark: #202124; --text-gray: #5f6368; --success-green: #1e8e3e; --indiv-purple: #5e35b1; --sync-teal: #00897b; }
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; padding: 20px; background: var(--bg-gray); margin: 0; }
+        .list-container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .header-section { text-align: center; margin-bottom: 20px; }
+        .club-badge { display: inline-block; margin-top: 8px; padding: 6px 18px; background: var(--primary-blue); color: #fff; border-radius: 20px; font-weight: bold; font-size: 0.95em; }
+        .notice-box { background: #fffbea; border: 1px solid #f0e2a3; border-radius: 10px; padding: 10px 16px;
+            margin-bottom: 20px; font-size: 0.82em; line-height: 1.6; color: #6b5a1e; text-align: center; }
+        .countdown-container { display: none; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; justify-content: center; }
+        .timer-card { flex: 1; min-width: 150px; max-width: 250px; background: #fff; padding: 12px; border-radius: 12px; border-left: 4px solid var(--primary-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; }
+        .timer-label { font-size: 0.65em; font-weight: bold; color: #90a4ae; margin-bottom: 3px; }
+        .timer-time { font-size: 0.82em; color: #546e7a; font-weight: bold; margin-bottom: 4px; }
+        .timer-clock { font-family: monospace; font-size: 1.1em; font-weight: 900; }
+        .timer-clock.urgent { color: var(--success-green); }
+        .timer-clock.expired { color: #d32f2f; }
+
+        .section-header { font-size: 1.8em; font-weight: 900; margin: 50px 0 20px 0; padding-bottom: 10px; border-bottom: 4px solid; }
+        .indiv-header { border-color: var(--indiv-purple); color: var(--indiv-purple); }
+        .sync-header { border-color: var(--sync-teal); color: var(--sync-teal); }
+
+        .class-header { font-size: 1.3em; font-weight: 900; margin: 30px 0 15px 0; padding: 12px 20px; border-radius: 10px; color: white; }
+        .indiv-class-header { background: var(--indiv-purple); }
+        .sync-class-header { background: var(--sync-teal); }
+
+        .category-row { background: #f8f9fa; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; table-layout: auto; }
+        th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; }
+        th { color: var(--text-gray); font-size: 0.75em; text-transform: uppercase; white-space: nowrap; }
+        .col-num { width: 36px; }
+        .col-gr { width: 30px; }
+        .col-name { text-align: left; min-width: 120px; }
+        .col-btn { width: 88px; white-space: nowrap; }
+        .status-link { text-decoration: none; padding: 8px 0; border-radius: 8px; font-size: 0.78em; font-weight: bold; display: block; width: 80px; margin: 0 auto; border: 1px solid transparent; transition: 0.2s; }
+        .status-none { background: #fff; color: var(--primary-blue); border-color: var(--primary-blue); }
+        .status-done { background: #e8f0fe; color: var(--primary-blue); border-color: transparent; }
+        .status-dns { background: #fdecee; color: #d32f2f; border-color: #f3c2c2; }
+        .withdrawn-row { background-color: #f5f5f5; color: #999; }
+        .withdrawn-row td { text-decoration: line-through; }
+
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .list-container { padding: 14px; border-radius: 12px; }
+            #event-title { font-size: 1.3em !important; }
+            .section-header { font-size: 1.3em; margin: 30px 0 12px; }
+            .class-header { font-size: 1em; padding: 8px 14px; margin: 20px 0 10px; }
+            th, td { padding: 8px 3px; font-size: 0.85em; }
+            .col-num { width: 24px; }
+            .col-gr { width: 20px; }
+            .col-btn { width: 62px; }
+            .col-name { min-width: 76px; }
+            .status-link { width: 54px; font-size: 0.68em; padding: 7px 0; }
+        }
+
+        .error-box { text-align: center; padding: 60px 20px; color: #90a4ae; }
+    </style>
+</head>
+<body>
+<div class="list-container">
+    <div class="header-section">
+        <h1 id="event-title" style="font-size:2em; margin-bottom:5px;">読み込み中...</h1>
+        <div id="event-date" style="font-size: 1em; color: #888;"></div>
+        <div id="event-venue" style="font-size: 0.95em; color: #888;"></div>
+        <div id="club-badge" class="club-badge" style="display:none;"></div>
+    </div>
+    <div class="notice-box">
+        提出および修正の履歴はサーバーに保存されています。締切後に不審な変更（改ざん等）にお気づきの場合は、審判席までお越しください。
+    </div>
+    <div id="countdown-area" class="countdown-container"></div>
+    <div id="indiv-list"></div>
+    <div id="sync-list"></div>
+</div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    const clubId  = params.get('club');
+
+    // ── Promise にタイムアウトを付与（iOS等で getDocs が応答しないハングを防ぐ）──
+    function withTimeout(promise, ms = 8000) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+        ]);
+    }
+
+    function showError(msg) {
+        document.getElementById('indiv-list').innerHTML =
+            `<div class="error-box">${msg}<br><button onclick="location.reload()" style="margin-top:16px;padding:8px 22px;border:none;background:#1a73e8;color:#fff;border-radius:8px;cursor:pointer;font-size:0.95em;">再読み込み</button></div>`;
+    }
+
+    function applyTourInfo(tour) {
+        document.getElementById('event-title').innerText = tour.name;
+        const _sd = tour.startDate || tour.start_date || '';
+        const _ed = tour.endDate   || tour.end_date   || '';
+        const _dateStr = (_sd && _ed && _sd !== _ed) ? `${_sd} ～ ${_ed}` : (_sd || _ed);
+        document.getElementById('event-date').innerText  = _dateStr    ? `開催日：${_dateStr}` : '';
+        document.getElementById('event-venue').innerText = tour.venue ? `会場：${tour.venue}` : '';
+    }
+
+    function statusButton(ath, round, dnsSet) {
+        if (ath.isWithdrawn) return `<span style="font-size:0.8em;color:#d32f2f;">棄権</span>`;
+        const subId = `${eventId}_${ath.id}_${round}`;
+        const isDns  = dnsSet.has(subId);
+        const isDone = ath.submissions?.[round] !== undefined;
+        const cls   = isDns ? 'status-dns' : (isDone ? 'status-done' : 'status-none');
+        const label = isDns ? 'DNS' : (isDone ? '提出済' : '入力');
+        // club を引き継いでおくことで、entry.html側の「一覧に戻る」・提出後の遷移先が
+        // 全選手一覧(event.html)ではなくこの所属専用一覧に戻るようにする
+        return `<a href="entry.html?event=${eventId}&athlete=${ath.id}&round=${round}&club=${clubId}" class="status-link ${cls}">${label}</a>`;
+    }
+
+    function buildTablesHtml(athletes, rulesByType, type, fallbackRules, classOrder, showGroup, dnsSet) {
+        const byClass = athletes.reduce((acc, ath) => {
+            const cn = ath.class || 'N/A';
+            (acc[cn] = acc[cn] || []).push(ath);
+            return acc;
+        }, {});
+        const ordered  = classOrder.filter(n => byClass[n]);
+        const leftover = Object.keys(byClass).filter(n => !classOrder.includes(n)).sort();
+        let html = '';
+        for (const cn of [...ordered, ...leftover]) {
+            const cls   = byClass[cn];
+            const rules = (rulesByType || {})[cn] || fallbackRules[cn] || { qualifyingRoutines: 2, hasFinal: false };
+            const numPre = rules.finalOnly === true ? 0 : rules.qualifyingRoutines;
+            cls.sort((a, b) =>
+                `${a.gender||''}-${String(a.flightGroup||'').padStart(3,'0')}-${String(a.order||'').padStart(3,'0')}`.localeCompare(
+                `${b.gender||''}-${String(b.flightGroup||'').padStart(3,'0')}-${String(b.order||'').padStart(3,'0')}`));
+            html += `<div class="class-header ${type==='synchro'?'sync-class-header':'indiv-class-header'}">${cn}</div>`;
+            let curGender = '';
+            cls.forEach(ath => {
+                if (curGender !== ath.gender) {
+                    if (curGender !== '') html += '</tbody></table></div>';
+                    curGender = ath.gender;
+                    const rh = Array.from({length: numPre}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
+                    const fh = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
+                    const grH = showGroup ? '<th class="col-gr">Gr</th>' : '';
+                    html += `<div class="table-wrap"><table><thead>
+                        <tr class="category-row"><td colspan="${(showGroup?3:2)+numPre+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
+                        <tr>${grH}<th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
+                        </thead><tbody>`;
+                }
+                const clubDisp = type === 'synchro'
+                    ? (ath.club1 && ath.club2 && ath.club1 !== ath.club2 ? `${ath.club1} / ${ath.club2}` : (ath.club1 || ath.club2 || ''))
+                    : (ath.club1 || '');
+                const pHtml = type === 'synchro'
+                    ? `<span style="font-weight:bold;">${ath.name1||''} / ${ath.name2||''}</span><br><small style="color:#888;">${clubDisp}</small>`
+                    : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${clubDisp}</small>`;
+                const grCell = showGroup ? `<td class="col-gr">${ath.flightGroup||'-'}</td>` : '';
+                html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}">${grCell}<td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
+                for (let i = 1; i <= numPre; i++) html += `<td>${statusButton(ath, `pre${i}`, dnsSet)}</td>`;
+                if (rules.hasFinal) html += `<td>${statusButton(ath, 'final', dnsSet)}</td>`;
+                html += '</tr>';
+            });
+            if (cls.length > 0) html += '</tbody></table></div>';
+        }
+        return html;
+    }
+
+    function renderList(tour, athletes, dnsSet) {
+        const rawClassRules = tour.classRules || {};
+        const hasNewFormat  = 'individual' in rawClassRules || 'synchro' in rawClassRules;
+        const classRules    = hasNewFormat ? rawClassRules :
+                              Object.keys(rawClassRules).length > 0 ? { individual: rawClassRules, synchro: {} } :
+                              { individual: {}, synchro: {} };
+        const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+        let indivClassOrder = [], syncClassOrder = [];
+        if (tour.classes && !Array.isArray(tour.classes)) {
+            indivClassOrder = sortByOrder(tour.classes.individual).map(c => c.name);
+            syncClassOrder  = sortByOrder(tour.classes.synchro).map(c => c.name);
+        } else if (Array.isArray(tour.classes)) {
+            indivClassOrder = sortByOrder(tour.classes).map(c => c.name);
+        }
+        const indivAthletes = athletes.filter(a => a.type !== 'synchro');
+        const syncAthletes  = athletes.filter(a => a.type === 'synchro');
+        const autoShowGroup = new Set(athletes.map(a => a.flightGroup).filter(g => g != null && g !== '')).size > 1;
+        const showGroup = (typeof tour.showGroupColumn === 'boolean') ? tour.showGroupColumn : autoShowGroup;
+
+        document.getElementById('indiv-list').innerHTML = indivAthletes.length > 0
+            ? '<h2 class="section-header indiv-header">個人競技</h2>' +
+                buildTablesHtml(indivAthletes, classRules.individual, 'individual', rawClassRules, indivClassOrder, showGroup, dnsSet)
+            : '';
+        document.getElementById('sync-list').innerHTML = syncAthletes.length > 0
+            ? '<h2 class="section-header sync-header">シンクロ競技</h2>' +
+                buildTablesHtml(syncAthletes, classRules.synchro, 'synchro', rawClassRules, syncClassOrder, showGroup, dnsSet)
+            : '';
+        if (indivAthletes.length === 0 && syncAthletes.length === 0) {
+            document.getElementById('indiv-list').innerHTML = '<div class="error-box">この所属の選手データが見つかりませんでした。</div>';
+        }
+    }
+
+    let _timerIds = []; // 起動中のインターバルIDを管理（tick()がconst宣言前のtimerIdを参照してしまうTDZエラーを防ぐため、event.htmlと同じ配列方式にする）
+    function startGlobalTimers(tour) {
+        _timerIds.forEach(id => clearInterval(id));
+        _timerIds = [];
+        const area = document.getElementById('countdown-area');
+        // 修正締切が提出締切と同じ値の場合は重複するので表示しない（event.htmlと同一ロジック）
+        const revSameAsSub = tour.revisionDeadline && tour.revisionDeadline === tour.submissionDeadline;
+        const deadlines = [
+            { id: 'sub', label: '提出締切', time: tour.submissionDeadline },
+            ...(revSameAsSub ? [] : [{ id: 'rev', label: '修正締切', time: tour.revisionDeadline }]),
+            ...(tour.finalSubmissionDeadlineMode === 'same' ? [] : [{ id: 'fin', label: '決勝締切', time: tour.finalSubmissionDeadline }])
+        ].filter(d => d.time).map(d => {
+            const dt = new Date(d.time);
+            return { ...d,
+                timeStr: `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`,
+                ms: dt.getTime()
+            };
+        });
+        if (deadlines.length === 0) { area.style.display = 'none'; return; }
+        area.style.display = 'flex';
+        area.innerHTML = deadlines.map(d =>
+            `<div class="timer-card"><div class="timer-label">${d.label}</div><div class="timer-time">${d.timeStr}</div><div id="clock-${d.id}" class="timer-clock urgent"></div></div>`
+        ).join('');
+        const tick = () => {
+            const now = Date.now();
+            let allDone = true;
+            deadlines.forEach(d => {
+                const el = document.getElementById(`clock-${d.id}`);
+                if (!el) return;
+                const diff = d.ms - now;
+                if (diff > 0) {
+                    allDone = false;
+                    el.className = 'timer-clock urgent';
+                    el.textContent = `${Math.floor(diff/3600000)}h ${Math.floor(diff%3600000/60000)}m ${Math.floor(diff%60000/1000)}s`;
+                } else {
+                    el.className = 'timer-clock expired';
+                    el.textContent = '終了';
+                }
+            });
+            if (allDone) { _timerIds.forEach(id => clearInterval(id)); _timerIds = []; }
+        };
+        tick();
+        _timerIds.push(setInterval(tick, 1000));
+    }
+
+    // club1/club2は "Pureトランポリンクラブ/東京農業大学第二高等学校" のように「/」区切りの
+    // ダブル所属が1フィールドに結合されて保存されていることがあり、単純な完全一致クエリ
+    // （where('club1','==',name)）ではヒットしない。そのためclub_link_admin.htmlの「更新」時に
+    // 分割済みの所属名一覧を clubNames 配列として選手データに書き込んでおき、ここでは
+    // array-contains で問い合わせる（該当所属以外のデータは一切取得しない）。
+    async function fetchClubAthletes(clubName) {
+        const col = collection(db, "tournaments", eventId, "athletes");
+        const snap = await getDocs(query(col, where("clubNames", "array-contains", clubName)));
+        return snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    }
+
+    async function fetchDnsSet(athleteIds) {
+        if (athleteIds.length === 0) return new Set();
+        // resultsコレクションもこのクラブの選手IDだけに絞って問い合わせる（in句は最大30件まで）
+        const chunks = [];
+        for (let i = 0; i < athleteIds.length; i += 30) chunks.push(athleteIds.slice(i, i + 30));
+        const snaps = await Promise.all(chunks.map(chunk =>
+            getDocs(query(collection(db, "results"), where("eventId", "==", eventId), where("athleteId", "in", chunk)))
+        ));
+        const set = new Set();
+        snaps.forEach(snap => snap.docs.forEach(d => { if (d.data().dns === true) set.add(d.id); }));
+        return set;
+    }
+
+    async function init() {
+        if (!eventId || !clubId) { showError('URLが正しくありません。'); return; }
+        try {
+            const linkSnap = await withTimeout(getDoc(doc(db, "tournaments", eventId, "clubLinks", clubId)));
+            if (!linkSnap.exists()) { showError('このリンクは無効です。管理者に発行し直しを依頼してください。'); return; }
+            const clubName = linkSnap.data().clubName;
+
+            const [tourSnap, athletes] = await withTimeout(Promise.all([
+                getDoc(doc(db, "tournaments", eventId)),
+                fetchClubAthletes(clubName)
+            ]));
+            if (!tourSnap.exists()) { showError('大会データが見つかりません。'); return; }
+            const tour = tourSnap.data();
+
+            document.title = `${clubName} - 競技カード入力`;
+            const badge = document.getElementById('club-badge');
+            badge.textContent = `🏫 ${clubName}`;
+            badge.style.display = 'inline-block';
+
+            applyTourInfo(tour);
+            startGlobalTimers(tour);
+
+            const dnsSet = await fetchDnsSet(athletes.map(a => a.id));
+            renderList(tour, athletes, dnsSet);
+        } catch (e) {
+            console.error('Fetch failed:', e.message);
+            showError('読み込みに失敗しました。通信状況をご確認ください。');
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
