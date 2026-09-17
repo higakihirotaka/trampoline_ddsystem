@@ -12,10 +12,17 @@
       --bg-dark: #000c1a;
       --bg-panel: rgba(255,255,255,0.08);
       --accent-gold: #ffd700;
+      /* --accent-cyan / --accent-rgb: 会場ディスプレイのメインカラー（色テーマ）。
+         青パターンが既定値。赤パターンは下の :root[data-theme="red"] で上書きする。
+         変数名は歴史的経緯で "cyan" のままだが、テーマによって実際の色は変わる。 */
       --accent-cyan: #00f2ff;
+      --accent-rgb: 0,242,255;
+      --bg-grad-1: #001e3d;      /* メインフレーム背景グラデーションの中心側 */
+      --bg-grad-alt-1: #001430;  /* 選手紹介画面など、中心側がわずかに異なる箇所用 */
+      --bg-grad-2: #000810;      /* グラデーション外周側（両方共通） */
       --text-white: #ffffff;
       --text-muted: #cbd5e0;
-      --border-ui: rgba(0,242,255,0.2);
+      --border-ui: rgba(var(--accent-rgb),0.2);
       --alert-red: #ff3d3d;
       --font-ui: "DIN 2014","DIN 2014 Demi","DIN 2014 Bold",
                  "DIN Alternate","DIN Condensed",
@@ -24,6 +31,15 @@
       --left-col: 8cqw;
       --col-gap: 0.6cqw;
       --frame-pad-x: 3cqw;
+    }
+    /* ---- 色テーマ: 赤パターン（大会画面コントロールから選択） ---- */
+    :root[data-theme="red"]{
+      --accent-cyan: #e63a54;
+      --accent-rgb: 230,58,84;
+      --bg-grad-1: #3a0812;
+      --bg-grad-alt-1: #2e0510;
+      --bg-grad-2: #0d0002;
+      --border-ui: rgba(var(--accent-rgb),0.2);
     }
     @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Regular.woff2") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
     @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-SemiBold.woff2") format("woff2"); font-weight:600; font-style:normal; font-display:swap; }
@@ -48,11 +64,11 @@
       height:auto;
       max-width:100%;
       max-height:100%;
-      background: radial-gradient(circle at 50% 0%, #001e3d 0%, #000810 100%);
+      background: radial-gradient(circle at 50% 0%, var(--bg-grad-1) 0%, var(--bg-grad-2) 100%);
       display:grid;
       grid-template-rows: 6.5% 17.5% 40% 10% 22% 4%;
       padding: 0 var(--frame-pad-x);
-      border: 1px solid rgba(0,242,255,0.1);
+      border: 1px solid rgba(var(--accent-rgb),0.1);
       container-type: inline-size;
     }
     @supports not (width: 1cqw){
@@ -138,7 +154,7 @@
       letter-spacing: -2px;
       margin:0;
       white-space: nowrap;
-      text-shadow: 0 0 30px rgba(0,242,255,0.2);
+      text-shadow: 0 0 30px rgba(var(--accent-rgb),0.2);
     }
     .athlete-team{
       font-size: 2.2cqw; font-weight:900;
@@ -146,7 +162,7 @@
       margin-top: 1.35cqh;
       opacity: 0.95;
       letter-spacing: 0.15cqw;
-      text-shadow: 0 0 22px rgba(0,242,255,0.15);
+      text-shadow: 0 0 22px rgba(var(--accent-rgb),0.15);
       line-height: 1.05;
     }
     /* ===== 3. リボン ===== */
@@ -197,7 +213,7 @@
       border-radius: 4px;
       overflow:hidden;
       min-width:0; min-height:0;
-      box-shadow: inset 0 0 15px rgba(0,242,255,0.03);
+      box-shadow: inset 0 0 15px rgba(var(--accent-rgb),0.03);
     }
     .card.e-card{
       grid-row:2;
@@ -249,7 +265,7 @@
       display:flex; align-items:center; justify-content:center;
     }
     .hd-val{ font-size: 1.5cqw; font-weight:800; color: var(--text-white); line-height:1; }
-    .skill-stack.bonus-style .empty-card{ background: rgba(255,255,255,0.01); border:1px dashed rgba(0,242,255,0.06); border-radius:4px; }
+    .skill-stack.bonus-style .empty-card{ background: rgba(255,255,255,0.01); border:1px dashed rgba(var(--accent-rgb),0.06); border-radius:4px; }
     /* ===== LAN列 ===== */
     .skill-stack.bonus-style .col-idx{
       font-size: 0.95cqw;
@@ -300,7 +316,7 @@
       border-top: 2.5px solid var(--border-ui);
       border-bottom: 2.5px solid var(--border-ui);
       align-items:center;
-      background: rgba(0,242,255,0.02);
+      background: rgba(var(--accent-rgb),0.02);
       min-height:0;
     }
     .stat-item{ display:flex; align-items:center; justify-content:center; gap: 1.2cqw; height:100%; }
@@ -410,7 +426,7 @@
     .monitor-frame{ position: relative; }
     #ranking-overlay{
       position: absolute; inset: 0;
-      background: radial-gradient(circle at 50% 0%, #001e3d 0%, #000810 100%);
+      background: radial-gradient(circle at 50% 0%, var(--bg-grad-1) 0%, var(--bg-grad-2) 100%);
       display: flex; flex-direction: column;
       padding: 1.4cqw 3cqw 0.8cqw;
       opacity: 0; transform: translateY(0.6cqw);
@@ -507,7 +523,7 @@
     position:fixed; inset:0;
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
-    background: radial-gradient(circle at 50% 0%, #001e3d 0%, #000810 100%);
+    background: radial-gradient(circle at 50% 0%, var(--bg-grad-1) 0%, var(--bg-grad-2) 100%);
     z-index:100;
     opacity:0; pointer-events:none;
     transition: opacity 0.8s ease;
@@ -520,7 +536,7 @@
   /* ===== 団体順位表 画面 ===== */
   #vs-team-ranking{ container-type:size; padding:0; }
   .tr-layout{ width:100%; height:100%; display:grid; grid-template-rows: 7% 11.5% 77.5% 4%; padding: 0 3cqw; }
-  .tr-conv{ border-bottom:1.5px solid rgba(0,242,255,0.2); display:flex; align-items:center; justify-content:center;
+  .tr-conv{ border-bottom:1.5px solid rgba(var(--accent-rgb),0.2); display:flex; align-items:center; justify-content:center;
     font-size:1.1cqw; font-weight:700; letter-spacing:0.8cqw; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   /* 左に「団体競技 クラス名 男女」を同じ書式で並べる（TRA表記なし・右側の記載は無し） */
   .tr-cat{ display:flex; align-items:baseline; gap:1.6cqw; padding:0.9cqh 0.2cqw 0.3cqh; }
@@ -529,12 +545,12 @@
   /* 3チーム固定（1画面3チーム・1,2チームでも同サイズ。4以上はJSでページ送り） */
   .tr-list{ display:grid; grid-template-rows:repeat(3,1fr); row-gap:1cqh; padding:0.6cqh 0; min-height:0; }
   .tr-row{ display:grid; grid-template-columns: 6cqw 20cqw 1fr 13cqw; align-items:stretch; column-gap:1.4cqw;
-    background:rgba(255,255,255,0.05); border:1.5px solid rgba(0,242,255,0.2); border-left:5px solid rgba(0,242,255,0.35);
-    border-radius:8px; padding:0.5cqh 1.4cqw; min-height:0; overflow:hidden; box-shadow: inset 0 0 20px rgba(0,242,255,0.03); }
+    background:rgba(255,255,255,0.05); border:1.5px solid rgba(var(--accent-rgb),0.2); border-left:5px solid rgba(var(--accent-rgb),0.35);
+    border-radius:8px; padding:0.5cqh 1.4cqw; min-height:0; overflow:hidden; box-shadow: inset 0 0 20px rgba(var(--accent-rgb),0.03); }
   .tr-rank{ display:flex; align-items:center; justify-content:center; font-size:3.2cqw; font-weight:900; letter-spacing:-1px; line-height:1; font-variant-numeric:tabular-nums; }
   .tr-name{ min-width:0; align-self:center; font-size:2.6cqw; font-weight:900; line-height:1.15; overflow:hidden;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; word-break:break-word;
-    text-shadow: 0 0 22px rgba(0,242,255,0.15); }
+    text-shadow: 0 0 22px rgba(var(--accent-rgb),0.15); }
   /* 出場選手を縦並び（4枠。3人でも同配置＝空き枠でそろえる）。名前を囲むブロックは無し */
   .tr-members{ display:grid; grid-template-rows:1fr; min-height:0; }
   .tr-members.has-head{ grid-template-rows:auto 1fr; }
@@ -544,13 +560,13 @@
   .tr-mem-name{ font-size:1.3cqw; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   /* 予選2本は1本目・2本目の得点を横に並べ、上に Rtn1/Rtn2 ラベルを付ける */
   .tr-mem-scores{ display:flex; gap:0.9cqw; flex-shrink:0; }
-  .tr-mem-scores span{ font-size:1.5cqw; font-weight:900; color:#00f2ff; line-height:1; font-variant-numeric:tabular-nums; min-width:5cqw; text-align:right; }
+  .tr-mem-scores span{ font-size:1.5cqw; font-weight:900; color:var(--accent-cyan); line-height:1; font-variant-numeric:tabular-nums; min-width:5cqw; text-align:right; }
   .tr-mem-head .tr-mem-scores span{ font-size:0.95cqw; font-weight:800; color:#8aa0b5; letter-spacing:0.03cqw; }
   .tr-mem.count .tr-mem-scores span{ color:#fff; }
   .tr-mem.drop .tr-mem-scores span{ color:#cbd5e0; text-decoration:line-through; text-decoration-thickness:1.5px; }
   /* best制で採用しない方の本（採用選手の低い方）を取り消し線 */
   .tr-mem-scores span.struck{ color:#9fb0c0 !important; text-decoration:line-through; text-decoration-thickness:1.5px; }
-  .tr-page{ font-size:1.4cqw; color:#00f2ff; font-weight:900; align-self:center; }
+  .tr-page{ font-size:1.4cqw; color:var(--accent-cyan); font-weight:900; align-self:center; }
   .tr-total{ display:flex; flex-direction:column; justify-content:center; align-items:flex-end; text-align:right; }
   .tr-total label{ display:block; font-size:0.85cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
   .tr-total-num{ font-size:3cqw; font-weight:900; letter-spacing:-1.5px; line-height:1; font-variant-numeric:tabular-nums; }
@@ -668,7 +684,7 @@
     font-size:var(--vs-title-fs,6.5vw); font-weight:900; line-height:1.05;
     letter-spacing:0.03em;
     color:var(--accent-cyan);
-    text-shadow:0 0 80px rgba(0,242,255,0.35);
+    text-shadow:0 0 80px rgba(var(--accent-rgb),0.35);
   }
   .vs-cer-name{
     font-size:var(--vs-cer-name-fs,3.5vw); font-weight:800; line-height:1.2;
@@ -698,8 +714,8 @@
     letter-spacing: 0.08em;
     color: var(--accent-cyan);
     text-shadow:
-      0 0 50px rgba(0,242,255,0.5),
-      0 0 130px rgba(0,242,255,0.2);
+      0 0 50px rgba(var(--accent-rgb),0.5),
+      0 0 130px rgba(var(--accent-rgb),0.2);
   }
   .vs-logo-system{
     font-size: 3.8vw; font-weight: 700; letter-spacing: 0.45em;
@@ -709,8 +725,8 @@
   .vs-logo-rule{
     width: 100%; height: 1px; margin-top: 2.2vw;
     background: linear-gradient(90deg,
-      transparent 0%, rgba(0,242,255,0.4) 30%,
-      rgba(0,242,255,0.4) 70%, transparent 100%);
+      transparent 0%, rgba(var(--accent-rgb),0.4) 30%,
+      rgba(var(--accent-rgb),0.4) 70%, transparent 100%);
   }
   .vs-logo-tagline{
     font-size: 1.8vw; font-weight: 600; letter-spacing: 0.15em;
@@ -784,7 +800,7 @@
   /* ===== 選手紹介画面 ===== */
   #vs-intro{
     container-type:size; padding:0;
-    background: radial-gradient(circle at 50% 20%, #001430 0%, #000810 100%);
+    background: radial-gradient(circle at 50% 20%, var(--bg-grad-alt-1) 0%, var(--bg-grad-2) 100%);
   }
   .intro-layout{
     width:100%; height:100%;
@@ -810,7 +826,7 @@
   /* ライン装飾 */
   .intro-divider{
     width:0; height:1px;
-    background:linear-gradient(90deg, transparent, rgba(0,242,255,0.6), transparent);
+    background:linear-gradient(90deg, transparent, rgba(var(--accent-rgb),0.6), transparent);
   }
   .intro-anim .intro-divider{
     animation: intro-line-expand 1200ms 700ms cubic-bezier(0.22,1,0.36,1) both;
@@ -899,7 +915,7 @@
   .intro-roster-head{
     break-inside:avoid; font-weight:900; color:var(--accent-gold);
     margin:0.7em 0 0.25em; letter-spacing:0.12em; font-size:0.72em;
-    border-bottom:1px solid rgba(0,242,255,0.25); padding-bottom:0.12em;
+    border-bottom:1px solid rgba(var(--accent-rgb),0.25); padding-bottom:0.12em;
   }
   .intro-roster-head:first-child{ margin-top:0; }
   .intro-roster-item{
@@ -939,7 +955,7 @@
     0%  { opacity:0; transform:scale(1.18) translateY(1.5cqh); filter:blur(18px); }
     55% { opacity:1; filter:blur(0); }
     100%{ opacity:1; transform:scale(1) translateY(0); filter:blur(0);
-          text-shadow: 0 0 120px rgba(255,255,255,0.35), 0 0 40px rgba(0,242,255,0.2); }
+          text-shadow: 0 0 120px rgba(255,255,255,0.35), 0 0 40px rgba(var(--accent-rgb),0.2); }
   }
   /* 所属 */
   .intro-anim .intro-club-lbl{
@@ -994,7 +1010,7 @@
     flex-shrink:0;
     display:flex; flex-direction:column; align-items:flex-start;
     padding-bottom:1.5cqh;
-    border-bottom:2px solid rgba(0,242,255,0.28);
+    border-bottom:2px solid rgba(var(--accent-rgb),0.28);
     gap:0.6cqh;
   }
   .fsl-final-badge{
@@ -1758,7 +1774,17 @@
     holdSec:        3,   // アニメーション完了後に保持する秒数
     rankingRows:   12,   // 順位表の1ページあたりの表示人数
     rankingPageSec: 8,   // 順位表ページ送りの間隔（秒）
+    colorTheme: 'blue',  // 会場ディスプレイの色テーマ（'blue' | 'red'）
   };
+
+  // 色テーマをhtml要素のdata-theme属性に反映する（CSS側の :root[data-theme="red"] が実際の色を差し替える）
+  function applyColorTheme() {
+    if (displaySettings.colorTheme === 'red') {
+      document.documentElement.dataset.theme = 'red';
+    } else {
+      delete document.documentElement.dataset.theme;
+    }
+  }
 
   let rankingTimer     = null;   // スコア表示→順位表遷移タイマー
   let rankingPageTimer = null;   // 順位表ページ切替タイマー
@@ -2944,6 +2970,7 @@
           Object.assign(displaySettings, tourData.displaySettings);
           applyAnimSettings();
         }
+        applyColorTheme();
       }
 
       // ---- 初期ページ表示でのスコア復元 ----
@@ -2970,6 +2997,7 @@
           Object.assign(displaySettings, data.displaySettings);
           applyAnimSettings();
         }
+        applyColorTheme();
         applyVenueScreen(data);
         if (!_tourInitDone) { _tourInitDone = true; tryRestoreLastScore(); }
       });

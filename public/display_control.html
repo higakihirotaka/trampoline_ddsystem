@@ -45,6 +45,13 @@
         .unit { font-size:0.8rem; color:var(--text-sub); width:22px; }
         .timeline { background:#f8fbff; border-radius:10px; padding:12px 16px; font-size:0.83rem; color:var(--text-sub); margin-top:8px; border:1px solid #e3eaf5; }
         .timeline strong { color:var(--text-main); }
+
+        /* 色テーマ選択スウォッチ */
+        .theme-swatches { display:flex; gap:10px; flex-wrap:wrap; }
+        .theme-swatch { display:flex; align-items:center; gap:8px; padding:8px 18px; border:2px solid #e0e0e0; border-radius:10px; background:#fff; cursor:pointer; font-size:0.88rem; font-weight:700; color:var(--text-sub); transition:0.15s; }
+        .theme-swatch:hover { border-color:#ccc; }
+        .theme-swatch.active { border-color:var(--swatch-color); color:var(--text-main); background:#fafafa; }
+        .theme-swatch .swatch-dot { width:16px; height:16px; border-radius:50%; background:var(--swatch-color); box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--swatch-color); flex-shrink:0; }
         .btn-save { display:block; width:100%; padding:15px; background:var(--green); color:white; border:none; border-radius:12px; font-size:1.0rem; font-weight:700; cursor:pointer; transition:0.2s; margin-top:18px; }
         .btn-save:hover { background:#1b5e20; }
         .btn-save:disabled { background:#aaa; cursor:default; }
@@ -173,6 +180,24 @@
 
     <!-- タブ1: 画面表示設定 -->
     <div id="tab-display" class="tab-panel active">
+        <div class="section-title">🎨 色テーマ</div>
+        <div class="card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>会場ディスプレイの配色</strong>
+                    <span>会場ディスプレイ（すべての画面）の配色を切り替えます</span>
+                </div>
+                <div class="setting-control theme-swatches" id="theme-swatches">
+                    <button type="button" class="theme-swatch active" data-theme="blue" style="--swatch-color:#00f2ff;">
+                        <span class="swatch-dot"></span>青パターン
+                    </button>
+                    <button type="button" class="theme-swatch" data-theme="red" style="--swatch-color:#e63a54;">
+                        <span class="swatch-dot"></span>赤パターン
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="section-title">📊 個人スコア表示</div>
         <div class="card">
             <div class="setting-row">
@@ -481,6 +506,15 @@
     const DISP_KEYS = ['animTotalSec','holdSec','rankingRows','rankingPageSec'];
     const DISP_DEF  = { animTotalSec:10, holdSec:3, rankingRows:12, rankingPageSec:8 };
 
+    // 色テーマ（スライダー類とは別枠。selectedColorThemeを readDispSettings() で拾う）
+    let selectedColorTheme = 'blue';
+    document.querySelectorAll('.theme-swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectedColorTheme = btn.dataset.theme;
+            document.querySelectorAll('.theme-swatch').forEach(b => b.classList.toggle('active', b === btn));
+        });
+    });
+
     function updateTimeline() {
         const a = Number(document.getElementById('val-animTotalSec').value);
         const h = Number(document.getElementById('val-holdSec').value);
@@ -504,9 +538,11 @@
             if (r) r.value = v; if (i) i.value = v;
         });
         updateTimeline();
+        selectedColorTheme = s.colorTheme === 'red' ? 'red' : 'blue';
+        document.querySelectorAll('.theme-swatch').forEach(b => b.classList.toggle('active', b.dataset.theme === selectedColorTheme));
     }
     function readDispSettings() {
-        const o = {};
+        const o = { colorTheme: selectedColorTheme };
         DISP_KEYS.forEach(k => { o[k] = Number(document.getElementById(`val-${k}`).value); });
         return o;
     }
