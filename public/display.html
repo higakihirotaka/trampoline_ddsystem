@@ -271,7 +271,7 @@
        E判定カードを大きく表示してレイアウトの空白を埋める ===== */
     .ribbon-wrapper.paper-mode .row-labels,
     .ribbon-wrapper.paper-mode .skill-stack{ grid-template-rows: 12fr 88fr; }
-    .ribbon-wrapper.paper-mode .skill-stack .card.e-card{ grid-row: 2 / 5; }
+    .ribbon-wrapper.paper-mode .skill-stack .card.e-card{ grid-row: 2 / 3; }
     .ribbon-wrapper.paper-mode.has-hdts .row-labels,
     .ribbon-wrapper.paper-mode.has-hdts .skill-stack{ grid-template-rows: 9fr 46fr 22fr 23fr; }
     .ribbon-wrapper.paper-mode.has-hdts .skill-stack .card.e-card{ grid-row: 2 / 3; }
@@ -824,7 +824,7 @@
   .intro-layout::before{
     content:'';
     position:absolute; inset:0;
-    background: radial-gradient(ellipse at 50% 45%, rgba(0,180,255,0.18) 0%, transparent 65%);
+    background: radial-gradient(ellipse at 50% 45%, rgba(var(--accent-rgb),0.18) 0%, transparent 65%);
     opacity:0; pointer-events:none;
   }
   .intro-layout.intro-flash::before{
@@ -1600,7 +1600,7 @@
       <div class="skill-stack bonus-style">
         <div class="col-idx" style="${lanDim}">LAN</div>
         <div class="card e-card" style="${lanDim}"><div class="e-val num${synchro ? ' syn' : ''}">${isLanValid && landDed !== null ? (synchro ? (landDed * 10).toFixed(2) : Math.round(landDed * 10)) : '--'}</div></div>
-        ${bonus > 0 ? `
+        ${(!isPaperMode && bonus > 0) ? `
         <div class="bonus-note-block">
           <span>D-SCORE</span>
           <span>BONUS</span>

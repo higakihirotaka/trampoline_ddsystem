@@ -1235,15 +1235,21 @@
         const _vc = data.validCount ?? 10;
         document.getElementById('valid-count').value = _vc;
         updateValidHeaders(_vc);
-        // 手動入力中は Firestore の値で上書きしない
-        if (dMode === 'auto') {
-            document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
-        }
 
         // 紙運用クラス（オンライン競技カード不使用）: 技ごとの申請/実施/指定難度行は出さず、
         // 合計DDのみを表示・確認する（D審判画面側でも同じclassRuleを見て合計だけ入力させている）。
         const _cjpAth = athletes.find(a => a.id === athleteId);
         isPaperMode = !!_cjpAth && currentTour?.classRules?.[_cjpAth.type || 'individual']?.[_cjpAth.class || _cjpAth.category || '']?.useOnlineCard === false;
+
+        // 手動入力中（通常のD手動モード、または紙運用のdd-total-cell編集中）はFirestoreの値で
+        // #res-d を上書きしない。紙運用ではdd-total-cellが常時編集可能なため、CJPが入力中に
+        // 同じ結果ドキュメントへ他パネル（E審判等）が書き込んでonSnapshotが再発火すると、
+        // #res-dだけ古い値/0.0に巻き戻り、そのまま確定するとdd-total-cellの表示と食い違う
+        // 誤った値が publish() されてしまう不具合があったため、フォーカス中は据え置く。
+        const _paperTotalFocused = isPaperMode && document.activeElement === document.getElementById('dd-total-cell');
+        if (dMode === 'auto' && !_paperTotalFocused) {
+            document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
+        }
         ['declared-row', 'skill-symbols-row', 'designated-row'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = isPaperMode ? 'none' : '';
@@ -2547,6 +2553,12 @@
             }
             return;
         }
+
+        // 予選中（pre1/pre2）にサイドバーが「🏆 決勝」タブで絞り込まれていると、
+        // sidebarFilteredAthletes は決勝試技順ソートの別リストになり、以下のグループ判定の
+        // 前提（クラス→性別→グループ番号→試技順で連続していること）が崩れる。
+        // 誤った選手へ切り替わることを防ぐため、この組み合わせでは何もしない。
+        if (fFinalOnly) return;
 
         if (round === 'pre2') {
             const { end } = groupBounds(list, idx);
