@@ -266,6 +266,17 @@
     }
     .hd-val{ font-size: 1.5cqw; font-weight:800; color: var(--text-white); line-height:1; }
     .skill-stack.bonus-style .empty-card{ background: rgba(255,255,255,0.01); border:1px dashed rgba(var(--accent-rgb),0.06); border-radius:4px; }
+
+    /* ===== 紙運用クラス（オンライン競技カード不使用）: 技ごとのSKILLCODE/D-Score行を出さず、
+       E判定カードを大きく表示してレイアウトの空白を埋める ===== */
+    .ribbon-wrapper.paper-mode .row-labels,
+    .ribbon-wrapper.paper-mode .skill-stack{ grid-template-rows: 12fr 88fr; }
+    .ribbon-wrapper.paper-mode .skill-stack .card.e-card{ grid-row: 2 / 5; }
+    .ribbon-wrapper.paper-mode.has-hdts .row-labels,
+    .ribbon-wrapper.paper-mode.has-hdts .skill-stack{ grid-template-rows: 9fr 46fr 22fr 23fr; }
+    .ribbon-wrapper.paper-mode.has-hdts .skill-stack .card.e-card{ grid-row: 2 / 3; }
+    .ribbon-wrapper.paper-mode.has-hdts .card.tof-card{ grid-row: 3; }
+    .ribbon-wrapper.paper-mode.has-hdts .card.hd-card{ grid-row: 4; }
     /* ===== LAN列 ===== */
     .skill-stack.bonus-style .col-idx{
       font-size: 0.95cqw;
@@ -1428,6 +1439,8 @@
 
     // ---- 指定難度 ----
     const _classRule  = getClassRule(ath);
+    // 紙運用クラス（オンライン競技カード不使用）: 技ごとのSKILLCODE/D-Scoreは表示しない
+    const isPaperMode = _classRule.useOnlineCard === false;
     // 難度点上限（null=なし）
     const _psc = parseFloat(_classRule.perSkillDDCap);
     const perSkillDDCap = (_classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
@@ -1446,6 +1459,9 @@
     let baseDD = 0, tripleCount = 0, hasAnyDiff = false;
 
     const hasManualDDValues = !!(resData.officialDDValues && resData.officialDDValues.length > 0);
+    // 紙運用クラスは技ごとのDDを積み上げられない（officialSkillsが無い）ため、
+    // 手動確定と同様に officialTotalDD をそのまま合計難度として扱う。
+    const trustDirectTotal = hasManualDDValues || isPaperMode;
 
     // ---- HDTS 技別 ToF/HD（アクティブパネルの保存値。存在する時だけ表示） ----
     // シンクロは judge_cjp.html 側で個人と別の形（syn / hd1 / hd2、HD欄は2人分をスラッシュ表示）で
@@ -1555,22 +1571,23 @@
               ? `${hdtsPerSkill.hd1?.[i] ?? '-'} / ${hdtsPerSkill.hd2?.[i] ?? '-'}` : '-')
           : ((hdtsPerSkill?.hd?.[i] != null) ? hdtsPerSkill.hd[i] : '-');
       skillCols.push(`
-        <div class="skill-stack">
+        <div class="skill-stack${isPaperMode ? ' paper-mode' : ''}">
           <div class="col-idx num">${String(i+1).padStart(2,'0')}</div>
           <div class="card e-card"><div class="e-val num${synchro ? ' syn' : ''}">${eDisplay}</div></div>
+          ${isPaperMode ? '' : `
           <div class="card d-card">
             <div class="d-code${codeAlert ? ' alert' : dimCode ? ' dim' : ''}">${dCodeTxt}</div>
             <div class="d-val num${valAlert ? ' alert' : dimVal ? ' dim' : isCappedSkill ? ' capped' : ''}">${dValTxt}</div>
-          </div>
+          </div>`}
           ${hasHdts ? `<div class="card tof-card"><div class="tof-val num">${tofTxt}</div></div><div class="card hd-card"><div class="hd-val num">${hdTxt}</div></div>` : ''}
         </div>`);
     }
 
     // ---- ボーナス計算 ----
-    const bonus   = hasManualDDValues ? (resData.officialDDBonus || 0) : calcBonus(ath.gender, tripleCount);
-    let finalDD = hasManualDDValues ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
-    // 構成あたり難度上限（自動計算時のみ。手動確定値 officialTotalDD はそのまま尊重）
-    if (!hasManualDDValues && routineDDCap != null && round1(finalDD) > routineDDCap) finalDD = routineDDCap;
+    const bonus   = trustDirectTotal ? (resData.officialDDBonus || 0) : calcBonus(ath.gender, tripleCount);
+    let finalDD = trustDirectTotal ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
+    // 構成あたり難度上限（自動計算時のみ。手動確定値・紙運用の officialTotalDD はそのまま尊重）
+    if (!trustDirectTotal && routineDDCap != null && round1(finalDD) > routineDDCap) finalDD = routineDDCap;
 
     // LAN列（officialELanding があれば CJP 値を優先）
     const landDed = (resData.officialELanding != null)
@@ -1591,7 +1608,7 @@
         <div class="bonus-dval">
           <span class="bonus-val num">+${bonus.toFixed(1)}</span>
         </div>` : ''}
-        ${hasHdts ? '<div class="empty-card" style="grid-row:5;"></div><div class="empty-card" style="grid-row:6;"></div>' : ''}
+        ${hasHdts ? `<div class="empty-card" style="grid-row:${isPaperMode ? 3 : 5};"></div><div class="empty-card" style="grid-row:${isPaperMode ? 4 : 6};"></div>` : ''}
       </div>`;
 
     // ---- スコア集計 ----
@@ -1696,12 +1713,13 @@
         </div>
       </div>
 
-      <div class="ribbon-wrapper${hasHdts ? ' has-hdts' : ''}">
+      <div class="ribbon-wrapper${hasHdts ? ' has-hdts' : ''}${isPaperMode ? ' paper-mode' : ''}">
         <div class="row-labels">
           <div class="row-title idx-label">Skill No</div>
           <div class="row-title e-label">E-Deduction</div>
+          ${isPaperMode ? '' : `
           <div class="row-title d-sub-label">Skill Code</div>
-          <div class="row-title d-sub-label">D-Score</div>
+          <div class="row-title d-sub-label">D-Score</div>`}
           ${hasHdts ? `<div class="row-title d-sub-label" style="text-transform:none">${isSynHdts ? 'Syn' : 'ToF'}</div><div class="row-title d-sub-label">HD</div>` : ''}
         </div>
         ${skillCols.join('')}

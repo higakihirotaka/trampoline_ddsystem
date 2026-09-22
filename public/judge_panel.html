@@ -108,6 +108,13 @@
         .badge-locked { background: #e8f5e9; color: var(--ok-green); border: 1px solid #c8e6c9; }
         .badge-cjp-locked { background: #ffebee; color: var(--danger); border: 1px solid #ffcdd2; }
         .cjp-lock-msg { width: 100%; min-height: 110px; box-sizing: border-box; color: var(--danger); font-weight: bold; padding: 14px; text-align: center; background: #ffebee; border-radius: 10px; border: 2px solid #ffcdd2; display: flex; align-items: center; justify-content: center; }
+
+        /* 紙運用クラス（オンライン競技カード不使用）: 技ごとの選択欄の代わりに合計DDを直接入力する */
+        .paper-mode-note { background: #fff8e1; border: 1px solid #ffe0b2; color: #8d5a00; font-size: 0.85em; font-weight: bold; padding: 10px 16px; border-radius: 10px; margin-bottom: 16px; text-align: center; }
+        .paper-total-row { display: flex; flex-direction: column; align-items: center; gap: 10px; background: #f8f9fa; border: 1px solid #eee; border-radius: 14px; padding: 22px; margin-bottom: 16px; }
+        .paper-total-row label { font-weight: bold; color: #546e7a; font-size: 0.95em; }
+        .paper-total-row input[type="number"] { width: 160px; padding: 14px; font-size: 2em; font-weight: 900; text-align: center; border: 2px solid #ddd; border-radius: 12px; color: var(--ok-green); }
+        .paper-total-row input[type="number"]:disabled { background: #f5f5f5; color: #999; border-color: #eee; }
     </style>
 </head>
 <body>
@@ -154,6 +161,7 @@
     let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
     let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
     let minRoutineDD  = null;     // 難度下限（null=なし。10本演技かつ未満の時に確定ボタンの表記を変える）
+    let isPaperMode   = false;    // 紙運用クラス（classRule.useOnlineCard===false）: 技選択の代わりに合計DDを直接入力
     let designatedDDIndices = []; // 指定技インデックス（0-based）
 
     // Firestore doc ID (文字列 or 数値) でスキルを引く。位置アクセスは使わない
@@ -478,6 +486,7 @@
                 if (actionArea) {
                     if (cjpConfirmed) {
                         document.querySelectorAll('select').forEach(s => s.disabled = true);
+                        document.getElementById('paper-total-dd')?.setAttribute('disabled', '');
                         actionArea.innerHTML = `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`;
                     } else {
                         // CJP解除 → 修正するボタンを表示（セレクトはまだ無効のまま）
@@ -530,6 +539,7 @@
         const athType2 = ath.type || 'individual';
         const athClass2 = ath.class || ath.category || '';
         const classRule = currentTour?.classRules?.[athType2]?.[athClass2] || {};
+        isPaperMode = classRule.useOnlineCard === false;
         // 難度点上限（null=なし）
         const _psc = parseFloat(classRule.perSkillDDCap);
         perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
@@ -598,6 +608,33 @@
                             ${routineDDCap  != null ? `<div class="cap-ref-row"><span>構成上限</span><b>${routineDDCap.toFixed(1)}</b></div>` : ''}
                             ${minRoutineDD  != null ? `<div class="cap-ref-row"><span>難度下限</span><b>${minRoutineDD.toFixed(1)}</b></div>` : ''}
                         </div>` : '';
+
+        // 紙運用クラス（オンライン競技カード不使用）: 技ごとの選択欄の代わりに合計DDを直接入力するだけの簡略UI
+        if (isPaperMode) {
+            const existingTotal = (dSaved && resData.officialTotalDD != null) ? resData.officialTotalDD : '';
+            const paperInputDisabled = (isLocked || cjpConfirmed);
+            document.getElementById('main-content').innerHTML = `
+                <div class="score-card">
+                    <div class="header-info">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <div style="font-size:0.9em; color:var(--accent); font-weight:bold;">OFFICIAL SCORING</div>
+                            ${cjpConfirmed ? '<span class="status-badge badge-cjp-locked">🔒 CJP確定済</span>' : dSaved ? '<span class="status-badge badge-locked">✓ D確定済</span>' : ''}
+                        </div>
+                        <h2>No.${round === 'final' ? (ath.finalOrder ?? ath.order) : ath.order} ${headerName} <span style="font-size:0.5em; color:#666;">${headerKana ? `(${headerKana})` : ''}</span></h2>
+                        ${headerClub ? `<div style="font-size:0.9em; color:inherit; margin-top:2px;">${headerClub}</div>` : ''}
+                    </div>
+                    <div class="paper-mode-note">📄 紙運用クラス：技ごとの入力は不要です。競技カードに記入された合計難度点をそのまま入力してください</div>
+                    <div class="paper-total-row">
+                        <label>合計難度点（DD）</label>
+                        <input type="number" id="paper-total-dd" min="0" max="99" step="0.1" value="${existingTotal}" ${paperInputDisabled ? 'disabled' : ''}>
+                    </div>
+                    ${capRefHtml}
+                    <div class="action-area" id="action-area">${actionBtnHtml}</div>
+                </div>`;
+            watchValidCount(subId);
+            scheduleFit();
+            return;
+        }
 
         document.getElementById('main-content').innerHTML = `
             <div class="score-card">
@@ -839,8 +876,9 @@
     window.enableEditing = () => {
         if (cjpConfirmed) return; // CJP確定済のため修正不可
         document.querySelectorAll('select').forEach(s => s.disabled = false);
+        document.getElementById('paper-total-dd')?.removeAttribute('disabled');
         document.getElementById('action-area').innerHTML = `<button id="btn-save" class="btn btn-submit" data-orig-label="修正を保存" onclick="saveOfficialScore()">修正を保存</button>`;
-        calcTotal(); // 表記を今の入力内容（難度下限判定含む）に合わせて即座に更新
+        calcTotal(); // 表記を今の入力内容（難度下限判定含む）に合わせて即座に更新（紙運用クラスでは何もしない）
         // 修正開始 → D確定を解除（CJP画面を「未確定」表示に戻す）。再度「修正を保存」で確定される。
         if (athleteId && round) {
             setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`), { dConfirmedAt: deleteField() }, { merge: true })
@@ -850,6 +888,28 @@
 
     window.saveOfficialScore = async () => {
         const btn = document.getElementById('btn-save'); if (!btn) return;
+
+        // 紙運用クラス: 技ごとの選択を検証せず、合計DD欄の数値だけを保存する
+        if (isPaperMode) {
+            const totalEl = document.getElementById('paper-total-dd');
+            const totalVal = parseFloat(totalEl?.value);
+            if (isNaN(totalVal) || totalVal < 0) {
+                alert('合計難度点を入力してから保存してください。');
+                return;
+            }
+            btn.disabled = true;
+            try {
+                const resId = `${eventId}_${athleteId}_${round}`;
+                // officialSkills は空にしておく（過去にオンライン運用で保存された技データが残っていた場合の一掃も兼ねる）
+                await setDoc(doc(db, "results", resId), { eventId, athleteId, round, officialSkills: [], officialTotalDD: totalVal, dConfirmedAt: serverTimestamp(), revisionCount: increment(1) }, { merge: true });
+                results[resId] = { ...(results[resId] || {}), eventId, athleteId, round, officialSkills: [], officialTotalDD: totalVal, dConfirmedAt: new Date() };
+                _pendingSidebarScroll = document.getElementById('sidebar-list')?.scrollTop ?? null;
+                renderSidebar();
+                renderScoringArea();
+            } catch (e) { console.error(e); btn.disabled = false; }
+            return;
+        }
+
         const validCount = parseInt(document.getElementById('valid-count').value);
         const skills = [];
         for (let i = 1; i <= 10; i++) {

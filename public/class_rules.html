@@ -202,6 +202,7 @@
         const ddCount = (rule.designatedDDCount != null && rule.designatedDDCount >= 0) ? rule.designatedDDCount : -1;
         const hasH5H6 = (rule.hasH5H6 === true || rule.hasH5H6 === 'true' || Number(rule.hasH5H6) === 1);
         const useHDTS       = (rule.useHDTS !== false); // default true
+        const useOnlineCard = (rule.useOnlineCard !== false); // default true（紙運用クラスのみfalse）
         const finalScoreMode = (rule.finalScoreMode === 'combined') ? 'combined' : 'zero';
         // 難度点上限（null=なし）
         const _psc = parseFloat(rule.perSkillDDCap);
@@ -225,6 +226,24 @@
             <div class="class-card-header">
                 <span class="class-badge">${escHtml(className)}</span>
                 <h2>クラスルール設定</h2>
+            </div>
+
+            <!-- オンライン競技カード -->
+            <div class="rule-row">
+                <div class="rule-label">オンライン競技カード</div>
+                <div class="rule-controls">
+                    <div class="radio-group">
+                        <label class="radio-btn">
+                            <input type="radio" name="onlinecard-${key}" value="true" ${useOnlineCard ? 'checked' : ''}>
+                            <span>使用する</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="onlinecard-${key}" value="false" ${!useOnlineCard ? 'checked' : ''}>
+                            <span>使用しない（紙運用）</span>
+                        </label>
+                    </div>
+                    <div style="font-size:0.75rem;color:#90a4ae;margin-top:4px;">「使用しない」にすると、D審判は技ごとの選択の代わりに合計難度点を直接入力し、会場ディスプレイでは技記号を表示しません。選手一覧のカード入力欄も「紙運用」表示に変わります。</div>
+                </div>
             </div>
 
             <!-- 予選本数 -->
@@ -552,6 +571,7 @@
                 const designatedDDCount = (!isNaN(_ddRaw) && _ddRaw >= 0) ? _ddRaw : -1;
                 const hasH5H6        = card.querySelector(`input[name="h56-${key}"]:checked`)?.value === 'true';
                 const useHDTS        = card.querySelector(`input[name="hdts-${key}"]:checked`)?.value !== 'false';
+                const useOnlineCard  = card.querySelector(`input[name="onlinecard-${key}"]:checked`)?.value !== 'false';
                 // 決勝のみは予選が無いので合計不可 → zero固定
                 const finalScoreMode = finalOnly ? 'zero' : (card.querySelector(`input[name="final-score-mode-${key}"]:checked`)?.value || 'zero');
                 // 難度点上限（あり かつ 有効な数値のときのみ値、それ以外は null）
@@ -579,6 +599,7 @@
                     designatedDDCount,
                     hasH5H6,
                     useHDTS,
+                    useOnlineCard,
                     perSkillDDCap,
                     routineDDCap,
                     minRoutineDD

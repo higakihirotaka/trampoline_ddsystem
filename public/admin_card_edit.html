@@ -269,6 +269,7 @@
             // 決勝のみクラスは予選を実施しないため、予選列は0本にする
             // （event.html/admin_dns.html/club_entry.html等と同じ判定方法）
             const numPre = rules.finalOnly === true ? 0 : rules.qualifyingRoutines;
+            const isPaperClass = rules.useOnlineCard === false; // 紙運用クラス: 入力ボタンの代わりに「紙運用」と表示
 
             classAthletes.sort((a, b) =>
                 `${a.gender || ''}-${String(a.flightGroup || '').padStart(3,'0')}-${String(a.order || '').padStart(3,'0')}`
@@ -309,11 +310,12 @@
 
                 finalHtml += `<tr class="${ath.isWithdrawn ? 'withdrawn-row' : ''}"><td class="col-num">${ath.flightGroup || '-'}</td><td class="col-num">${ath.order || '-'}</td><td class="col-name">${playerHtml}</td>`;
 
+                const paperBadge = `<span style="font-size:0.78em;color:#888;">紙運用</span>`;
                 for (let i = 1; i <= numPre; i++) {
-                    finalHtml += `<td>${getStatusButton(ath, `pre${i}`, subDataMap, resDataMap)}</td>`;
+                    finalHtml += `<td>${isPaperClass ? paperBadge : getStatusButton(ath, `pre${i}`, subDataMap, resDataMap)}</td>`;
                 }
                 if (rules.hasFinal) {
-                    finalHtml += `<td>${getStatusButton(ath, 'final', subDataMap, resDataMap)}</td>`;
+                    finalHtml += `<td>${isPaperClass ? paperBadge : getStatusButton(ath, 'final', subDataMap, resDataMap)}</td>`;
                 }
                 finalHtml += '</tr>';
             });

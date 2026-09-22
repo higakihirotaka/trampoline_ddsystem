@@ -91,7 +91,7 @@
                 </tr>
                 <!-- DD行 -->
                 <tr class="d-info-row" id="dd-row">
-                    <th style="width:70px;">DD</th>
+                    <th style="width:70px;white-space:normal;line-height:1.4;">DD<br><span id="d-confirmed-badge-paper"></span></th>
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
                     <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
                     <th id="dd-bonus-cell">-</th><th id="dd-total-cell">-</th><th class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" id="d-mode-toggle" onchange="toggleDMode(this.checked)"><span class="track-sm"></span></label></th>
@@ -273,6 +273,7 @@
     let designatedDDIndices = []; // 指定中の技インデックス（0-based）
     let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
     let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
+    let isPaperMode   = false;    // 紙運用クラス（classRule.useOnlineCard===false）: 合計DDのみ表示・確認
     let designatedDDManualChanged = false; // 審判が手動で変更したフラグ
 
     function withTimeout(promise, ms) {
@@ -1239,6 +1240,18 @@
             document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
         }
 
+        // 紙運用クラス（オンライン競技カード不使用）: 技ごとの申請/実施/指定難度行は出さず、
+        // 合計DDのみを表示・確認する（D審判画面側でも同じclassRuleを見て合計だけ入力させている）。
+        const _cjpAth = athletes.find(a => a.id === athleteId);
+        isPaperMode = !!_cjpAth && currentTour?.classRules?.[_cjpAth.type || 'individual']?.[_cjpAth.class || _cjpAth.category || '']?.useOnlineCard === false;
+        ['declared-row', 'skill-symbols-row', 'designated-row'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = isPaperMode ? 'none' : '';
+        });
+        document.querySelectorAll('.d-dd').forEach(el => { el.style.display = isPaperMode ? 'none' : ''; });
+        const dModeToggleCell = document.getElementById('d-mode-toggle')?.closest('.toggle-col');
+        if (dModeToggleCell) dModeToggleCell.style.display = isPaperMode ? 'none' : '';
+
         // ---- D情報行 ----
         const resId = `${eventId}_${athleteId}_${round}`;
         const subSkills = submissions[resId]?.skills || [];
@@ -1285,7 +1298,7 @@
         }
 
         // 実施行（officialSkills → skillMasterMap でシンボル取得、重複は黄色・申請差異は赤）
-        if (dMode === 'auto') {
+        if (dMode === 'auto' && !isPaperMode) {
             const ddCells = [...document.querySelectorAll('.d-dd')];
             // Pass1: シンボル・ID収集 & クラスリセット（skill-header と d-dd 両方）
             const execSymbols = [];
@@ -1323,22 +1336,42 @@
             });
         }
 
-        // D確定バッジ・緑枠（クリックで切り替え）
-        const badge = document.getElementById('d-confirmed-badge');
+        // D確定バッジ・緑枠（クリックで切り替え）。紙運用クラスはDD行の方の見出しに出す。
         const dInfoRows = document.querySelectorAll('.d-info-row');
+        [document.getElementById('d-confirmed-badge'), document.getElementById('d-confirmed-badge-paper')].forEach(badge => {
+            if (!badge) return;
+            if (data.dConfirmedAt) {
+                badge.textContent = '確定';
+                badge.className = 'd-badge';
+            } else {
+                badge.textContent = '未確定';
+                badge.style.cssText = 'font-size:0.68rem;color:#90a4ae;font-weight:normal;margin-left:4px;';
+                badge.className = '';
+            }
+        });
         if (data.dConfirmedAt) {
-            badge.textContent = '確定';
-            badge.className = 'd-badge';
             dInfoRows.forEach(r => r.classList.add('d-confirmed'));
         } else {
-            badge.textContent = '未確定';
-            badge.style.cssText = 'font-size:0.68rem;color:#90a4ae;font-weight:normal;margin-left:4px;';
-            badge.className = '';
             dInfoRows.forEach(r => r.classList.remove('d-confirmed'));
         }
 
+        // 紙運用クラス: 合計DDセルを直接表示・編集可能にする（申請/実施/指定難度の行は出さない）
+        if (isPaperMode) {
+            const totalCell = document.getElementById('dd-total-cell');
+            const bonusCell = document.getElementById('dd-bonus-cell');
+            if (bonusCell) bonusCell.textContent = '-';
+            if (totalCell) {
+                // フォーカス中（入力中）は上書きしない
+                if (document.activeElement !== totalCell) {
+                    totalCell.textContent = data.officialTotalDD != null ? Number(data.officialTotalDD).toFixed(1) : '-';
+                }
+                totalCell.contentEditable = (data.published === true) ? 'false' : 'true';
+                totalCell.classList.add('d-manual-cell');
+            }
+        }
+
         // DD行（重複=0.0赤、ボーナス計算）
-        if (dMode === 'auto') {
+        if (dMode === 'auto' && !isPaperMode) {
             if (data.officialDDValues && data.officialDDValues.length > 0) {
                 // 手動入力で保存されたDD値を復元
                 document.querySelectorAll('.d-dd').forEach((el, i) => {
@@ -2219,6 +2252,12 @@
             saveData.officialDDValues = manualDDs;   // 各技のDD値（再読み込み復元用）
             saveData.officialDDBonus  = manualBonus;
             saveData.officialTotalDD  = d; // #res-d の確定D値（合計セル手動上書きを含む）
+        } else if (isPaperMode) {
+            // 紙運用クラス: 合計DDセルはCJPも直接編集できるため、確定時点の値をD審判画面用にも保存し直す
+            saveData.officialSkills   = [];
+            saveData.officialTotalDD  = d;
+            saveData.officialDDValues = deleteField();
+            saveData.officialDDBonus  = deleteField();
         } else {
             // autoモードで再確定する場合は手動DD値をクリア
             saveData.officialDDValues = deleteField();
