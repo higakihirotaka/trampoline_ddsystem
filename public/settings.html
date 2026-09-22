@@ -80,7 +80,6 @@
             <label>会場</label>
             <input type="text" id="venue" placeholder="例：○○体育館">
         </div>
-        <button class="btn-save" id="btn-save-basic" onclick="saveBasicInfo()">基本情報を保存</button>
     </div>
 
     <div class="card">
@@ -102,8 +101,9 @@
             <button class="btn-add" onclick="addToType('synchro')">＋ シンクロクラスを追加</button>
         </div>
 
-        <button class="btn-save" id="btn-save-classes" style="margin-top:20px;" onclick="saveClasses()">クラスを保存</button>
     </div>
+
+    <button class="btn-save" id="btn-save-all" style="margin-bottom:24px;" onclick="saveAll()">保存</button>
 
     <div class="danger-zone">
         <h2>⚠️ 危険な操作</h2>
@@ -233,31 +233,11 @@
         if (inputs.length) inputs[inputs.length - 1].focus();
     };
 
-    window.saveBasicInfo = async () => {
+    // 基本情報とクラスをまとめて保存
+    window.saveAll = async () => {
+        // ── バリデーション（基本情報 → クラス）───────────────────
         const name = document.getElementById('name').value.trim();
         if (!name) { showToast('大会名を入力してください', true); return; }
-
-        const btn = document.getElementById('btn-save-basic');
-        btn.disabled = true;
-        btn.textContent = '保存中…';
-        try {
-            await setDoc(doc(db, 'tournaments', eventId), {
-                name,
-                start_date: document.getElementById('start_date').value,
-                end_date: document.getElementById('end_date').value,
-                venue: document.getElementById('venue').value.trim(),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
-            showToast('基本情報を保存しました');
-        } catch (e) {
-            showToast('保存に失敗しました: ' + e.message, true);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = '基本情報を保存';
-        }
-    };
-
-    window.saveClasses = async () => {
         const allClasses = [...individual, ...synchro];
         if (allClasses.some(c => !c.name.trim())) {
             showToast('クラス名を入力してください', true);
@@ -276,7 +256,7 @@
                 });
             });
 
-        const btn = document.getElementById('btn-save-classes');
+        const btn = document.getElementById('btn-save-all');
         btn.disabled = true;
         btn.textContent = '保存中…';
         try {
@@ -335,10 +315,15 @@
                 if (migratedCount > 0) await batch.commit();
             }
 
-            // ── Firestore 保存 ────────────────────────────────────
+            // ── Firestore 保存（基本情報＋クラスを1回で）──────────
             await setDoc(doc(db, 'tournaments', eventId), {
+                name,
+                start_date: document.getElementById('start_date').value,
+                end_date: document.getElementById('end_date').value,
+                venue: document.getElementById('venue').value.trim(),
                 classes: payload,
-                classRules: { individual: mergedIndividual, synchro: mergedSynchro }
+                classRules: { individual: mergedIndividual, synchro: mergedSynchro },
+                updatedAt: serverTimestamp()
             }, { merge: true });
 
             // 保存後に originalName を新名称へ更新
@@ -348,15 +333,15 @@
             invalidateCache(eventId);
 
             const msg = migratedCount > 0
-                ? `クラスを保存しました（選手 ${migratedCount} 名のクラス名を自動更新）`
-                : 'クラスを保存しました';
+                ? `保存しました（選手 ${migratedCount} 名のクラス名を自動更新）`
+                : '保存しました';
             showToast(msg);
             renderAll();
         } catch (e) {
             showToast('保存に失敗しました: ' + e.message, true);
         } finally {
             btn.disabled = false;
-            btn.textContent = 'クラスを保存';
+            btn.textContent = '保存';
         }
     };
 

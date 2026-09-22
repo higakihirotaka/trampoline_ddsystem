@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>所属別入力リンク - Trampoline System</title>
+    <style>
+        :root { --primary:#263238; --accent:#1a73e8; --bg:#f0f2f5; --card:#ffffff; --text-main:#263238; --text-sub:#546e7a; --green:#2e7d32; --orange:#e65100; --red:#c62828; }
+        body { font-family:'Inter',sans-serif; background:var(--bg); margin:0; padding:20px; color:var(--text-main); }
+        .container { max-width:900px; margin:0 auto; }
+        .header-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+        .btn-back { text-decoration:none; color:var(--text-sub); font-size:0.9rem; border:1px solid #ccc; padding:8px 20px; border-radius:8px; }
+        .auth-info { font-size:0.85em; color:#999; display:none; align-items:center; }
+        .auth-info span { font-weight:bold; color:var(--text-main); }
+        .logout-btn { background:none; border:1px solid #ccc; border-radius:5px; color:var(--accent); cursor:pointer; font-size:0.9em; margin-left:12px; padding:3px 8px; }
+        .header { text-align:center; margin-bottom:20px; }
+        .event-badge { display:inline-block; padding:6px 16px; background:var(--accent); color:white; border-radius:20px; font-weight:bold; margin-top:8px; }
+        h1 { margin:0 0 8px; }
+
+        .intro-card { background:#e3f2fd; border:1px solid #bbdefb; border-radius:14px; padding:16px 20px; margin-bottom:20px; font-size:0.86rem; line-height:1.7; color:#1565c0; }
+        .intro-card b { color:#0d47a1; }
+
+        .section-title { font-size:1.0rem; font-weight:900; margin:24px 0 10px; display:flex; align-items:center; gap:10px; border-left:5px solid var(--accent); padding-left:14px; }
+        .card { background:var(--card); border-radius:16px; padding:20px 22px; box-shadow:0 2px 8px rgba(0,0,0,0.07); margin-bottom:16px; }
+
+        .action-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+        .btn { padding:10px 20px; border-radius:10px; border:none; font-size:0.88rem; font-weight:700; cursor:pointer; transition:0.15s; }
+        .btn-primary { background:var(--accent); color:#fff; }
+        .btn-primary:hover { background:#1557b0; }
+        .btn-secondary { background:#fff; color:var(--text-sub); border:1.5px solid #ccc; }
+        .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+        .btn:disabled { opacity:0.5; cursor:default; }
+
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:10px 8px; border-bottom:1px solid #eee; text-align:left; font-size:0.88rem; vertical-align:middle; }
+        th { color:var(--text-sub); font-size:0.72em; text-transform:uppercase; }
+        .col-count { width:70px; text-align:center; }
+        .col-btns { width:190px; white-space:nowrap; }
+        .url-box { font-family:monospace; font-size:0.78em; color:#546e7a; word-break:break-all; background:#f1f3f4; padding:6px 10px; border-radius:6px; display:inline-block; max-width:100%; text-decoration:none; }
+        .url-box:hover { background:#e3f2fd; color:var(--accent); }
+        .btn-mini { padding:6px 12px; border-radius:7px; border:1.5px solid var(--accent); background:#fff; color:var(--accent); font-size:0.78rem; font-weight:700; cursor:pointer; margin-right:4px; }
+        .btn-mini:hover { background:#e3f2fd; }
+        .btn-mini.danger { border-color:#e0e0e0; color:#b0bec5; }
+        .btn-mini.danger:hover { border-color:var(--red); color:var(--red); }
+        .badge-new { font-size:0.72rem; font-weight:700; background:#fff3e0; color:var(--orange); border-radius:10px; padding:2px 9px; }
+
+        .warn-card { background:#fff8e1; border:1px solid #ffe0b2; border-radius:14px; padding:16px 20px; margin-bottom:16px; }
+        .warn-title { font-size:0.85rem; font-weight:700; color:#e65100; margin-bottom:10px; }
+        .warn-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 0; border-top:1px solid #ffe0b2; }
+        .warn-row:first-of-type { border-top:none; }
+        .warn-old-name { font-weight:700; font-size:0.88rem; }
+        .warn-select { padding:6px 10px; border:1.5px solid #ffcc80; border-radius:8px; font-size:0.85rem; background:#fff; }
+
+        .empty-msg { padding:28px; text-align:center; color:var(--text-sub); font-size:0.88rem; }
+        .loading-msg { text-align:center; padding:40px; color:var(--text-sub); font-size:0.9rem; }
+
+        .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#263238; color:white; padding:11px 28px; border-radius:30px; font-size:0.9rem; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:300; white-space:nowrap; }
+        .toast.show { opacity:1; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-bar">
+        <a id="back-link" href="admin_menu.html" class="btn-back">← メニューに戻る</a>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <h1>🏫 所属別入力リンク</h1>
+        <div id="event-name" class="event-badge">読み込み中...</div>
+    </div>
+
+    <div class="intro-card">
+        学校・クラブ（所属）ごとに、<b>その所属の選手だけが表示される競技カード入力ページ</b>のURLを発行できます。
+        リンク先ではそのクラブ以外の選手データは一切表示・取得されません。<br>
+        <b>所属名（club1/club2）が変わらない限りURLは変わりません。</b>
+        選手が増えたり所属名を修正したりした後は、下の「更新」ボタンを押すと選手データが同期され、同じURLに反映されます。<br>
+        ※ 団体戦（3〜4名の選抜チーム）とは別の機能です。
+    </div>
+
+    <div class="section-title">📋 所属一覧</div>
+    <div class="card">
+        <div class="action-row">
+            <button id="btn-refresh" class="btn btn-primary" disabled>🔄 更新（新しい所属を追加）</button>
+            <button id="btn-csv" class="btn btn-secondary" disabled>📄 CSV出力</button>
+        </div>
+        <div id="link-table-wrap" class="loading-msg">読み込み中...</div>
+    </div>
+
+    <div id="orphan-section" style="display:none;">
+        <div class="section-title">⚠ 選手データに一致しないリンク</div>
+        <div class="warn-card">
+            <div class="warn-title">保存されている所属名が、現在の選手データのどのクラブ名にも一致しません（表記が変更された可能性があります）。正しい所属名を選び直すとURLはそのまま使えます。</div>
+            <div id="orphan-list"></div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import {
+        doc, getDocs, addDoc, updateDoc, deleteDoc, writeBatch,
+        collection, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from "./auth.js";
+    import { getTournament, getAthletes } from "./cache.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+
+    let allAthletes = [];
+    let links       = []; // [{id, clubName, createdAt}]
+    let tourName    = '';
+    const baseUrl   = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // 所属名の抽出: club1/club2 は "A/B" のようにダブル所属が「/」区切りで
+    // 1フィールドにまとまっていることがあるため、分割して個々の所属名にする（event.htmlと同一ロジック）。
+    function collectClubNames(athletes) {
+        const set = new Set();
+        athletes.forEach(a => {
+            [a.club1, a.club2].forEach(c => {
+                (c || '').split('/').map(s => s.trim()).filter(Boolean).forEach(name => set.add(name));
+            });
+        });
+        return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
+    }
+
+    function countMembers(clubName) {
+        return allAthletes.filter(a =>
+            [a.club1, a.club2].some(c => (c || '').split('/').map(s => s.trim()).includes(clubName))
+        ).length;
+    }
+
+    // club1/club2は "Pureトランポリンクラブ/東京農業大学第二高等学校" のように「/」区切りの
+    // ダブル所属が1フィールドに結合されて保存されていることがある。club_entry.html側は
+    // Firestoreクエリで該当所属の選手だけに絞り込む必要があり、完全一致クエリでは
+    // この結合ケースを拾えないため、分割済みの所属名一覧をこのclubNames配列として
+    // 選手データ側に書き込んでおく（array-containsクエリで問い合わせるため）。
+    function computeClubNames(a) {
+        return [...new Set([a.club1, a.club2].flatMap(c => (c || '').split('/').map(s => s.trim()).filter(Boolean)))];
+    }
+    function sameClubNames(a, b) {
+        const sa = [...(a || [])].sort(), sb = [...(b || [])].sort();
+        return sa.length === sb.length && sa.every((v, i) => v === sb[i]);
+    }
+    function getStaleAthletes() {
+        return allAthletes.filter(a => !sameClubNames(computeClubNames(a), a.clubNames || []));
+    }
+
+    function linkUrl(linkId) {
+        return `${baseUrl}/club_entry.html?event=${eventId}&club=${linkId}`;
+    }
+
+    function render() {
+        const currentNames = collectClubNames(allAthletes);
+        const currentSet   = new Set(currentNames);
+        const linkedNames  = new Set(links.map(l => l.clubName));
+
+        // ── メインテーブル: 今の選手データに存在する所属名を軸に表示 ──
+        const wrap = document.getElementById('link-table-wrap');
+        if (currentNames.length === 0) {
+            wrap.innerHTML = '<div class="empty-msg">選手データがまだ登録されていません</div>';
+        } else {
+            let rows = '';
+            currentNames.forEach(name => {
+                const link  = links.find(l => l.clubName === name);
+                const count = countMembers(name);
+                if (link) {
+                    rows += `<tr>
+                        <td>${name}</td>
+                        <td class="col-count">${count}名</td>
+                        <td><a class="url-box" id="url-${link.id}" href="${linkUrl(link.id)}" target="_blank" rel="noopener">${linkUrl(link.id)}</a></td>
+                        <td class="col-btns">
+                            <button class="btn-mini" onclick="copyUrl('${link.id}')">📋 コピー</button>
+                            <button class="btn-mini danger" onclick="removeLink('${link.id}')">🗑</button>
+                        </td>
+                    </tr>`;
+                } else {
+                    rows += `<tr>
+                        <td>${name}</td>
+                        <td class="col-count">${count}名</td>
+                        <td colspan="2"><span class="badge-new">未発行 — 下の「更新」ボタンで発行されます</span></td>
+                    </tr>`;
+                }
+            });
+            wrap.innerHTML = `<table><thead><tr><th>所属名</th><th class="col-count">人数</th><th>URL</th><th class="col-btns">操作</th></tr></thead><tbody>${rows}</tbody></table>`;
+        }
+
+        // ── 更新ボタンの有効/無効: 未発行の所属がある、または選手データの所属名同期が
+        //    古いままの選手がいるときに有効にする（人数が増えた・所属名を修正した等）。
+        const hasUnlinked = currentNames.some(n => !linkedNames.has(n));
+        const staleCount  = getStaleAthletes().length;
+        const btnRefresh = document.getElementById('btn-refresh');
+        btnRefresh.disabled = !hasUnlinked && staleCount === 0;
+        btnRefresh.textContent = btnRefresh.disabled ? '🔄 更新（変更なし）' : '🔄 更新（新しい所属・選手データを反映）';
+        document.getElementById('btn-csv').disabled = links.length === 0;
+
+        // ── 孤立リンク: 保存済みだが今の選手データに一致する所属名が無いもの ──
+        const orphans = links.filter(l => !currentSet.has(l.clubName));
+        const orphanSection = document.getElementById('orphan-section');
+        if (orphans.length === 0) {
+            orphanSection.style.display = 'none';
+        } else {
+            orphanSection.style.display = 'block';
+            const unlinkedCurrent = currentNames.filter(n => !linkedNames.has(n));
+            document.getElementById('orphan-list').innerHTML = orphans.map(l => `
+                <div class="warn-row">
+                    <span class="warn-old-name">${l.clubName}</span>
+                    <span style="color:#e65100;">→</span>
+                    <select class="warn-select" id="orphan-sel-${l.id}">
+                        <option value="">（正しい所属名を選択）</option>
+                        ${unlinkedCurrent.map(n => `<option value="${n}">${n}</option>`).join('')}
+                    </select>
+                    <button class="btn-mini" onclick="fixOrphan('${l.id}')">この名前に修正</button>
+                    <button class="btn-mini danger" onclick="removeLink('${l.id}')">🗑 削除</button>
+                </div>
+            `).join('');
+        }
+    }
+
+    async function reloadLinks() {
+        const snap = await getDocs(collection(db, 'tournaments', eventId, 'clubLinks'));
+        links = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    // 配列をチャンクに分割してバッチ書込する（Firestoreの1バッチ最大500件に対し余裕を持って400件区切り）
+    async function commitInChunks(ops) {
+        for (let i = 0; i < ops.length; i += 400) {
+            const batch = writeBatch(db);
+            ops.slice(i, i + 400).forEach(op => op(batch));
+            await batch.commit();
+        }
+    }
+
+    // ── 更新: ①まだ発行されていない所属名にURLを発行（既存リンクには一切触れない）
+    //          ②選手データのclubNames配列を現在のclub1/club2に合わせて同期
+    //            （人数が増えた選手・所属名を修正した選手にも同じURLがそのまま使えるようにするため）
+    document.getElementById('btn-refresh').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-refresh');
+        btn.disabled = true;
+        try {
+            const currentNames = collectClubNames(allAthletes);
+            const linkedNames  = new Set(links.map(l => l.clubName));
+            const toAdd = currentNames.filter(n => !linkedNames.has(n));
+            const staleAthletes = getStaleAthletes();
+
+            if (toAdd.length === 0 && staleAthletes.length === 0) {
+                showToast('変更はありません');
+                render();
+                return;
+            }
+
+            const ops = [];
+            toAdd.forEach(name => {
+                const ref = doc(collection(db, 'tournaments', eventId, 'clubLinks'));
+                ops.push(batch => batch.set(ref, { clubName: name, createdAt: serverTimestamp() }));
+            });
+            staleAthletes.forEach(a => {
+                const newNames = computeClubNames(a);
+                ops.push(batch => batch.update(doc(db, 'tournaments', eventId, 'athletes', a.id), { clubNames: newNames }));
+                a.clubNames = newNames; // ローカル側も反映して再描画時の差分計算を最新化する
+            });
+            await commitInChunks(ops);
+            await reloadLinks();
+            render();
+            showToast(`✅ 所属URL ${toAdd.length}件を発行、選手データ${staleAthletes.length}件を同期しました`);
+        } catch (e) {
+            alert('更新に失敗しました: ' + e.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    window.copyUrl = (linkId) => {
+        const url = linkUrl(linkId);
+        navigator.clipboard.writeText(url).then(() => showToast('URLをコピーしました！'));
+    };
+
+    window.removeLink = async (linkId) => {
+        const link = links.find(l => l.id === linkId);
+        if (!link) return;
+        if (!confirm(`「${link.clubName}」の入力リンクを削除しますか？\nこのリンクは今後使えなくなります。`)) return;
+        try {
+            await deleteDoc(doc(db, 'tournaments', eventId, 'clubLinks', linkId));
+            links = links.filter(l => l.id !== linkId);
+            render();
+            showToast('🗑️ リンクを削除しました');
+        } catch (e) {
+            alert('削除に失敗しました: ' + e.message);
+        }
+    };
+
+    window.fixOrphan = async (linkId) => {
+        const sel = document.getElementById(`orphan-sel-${linkId}`);
+        const newName = sel.value;
+        if (!newName) { alert('正しい所属名を選択してください'); return; }
+        try {
+            await updateDoc(doc(db, 'tournaments', eventId, 'clubLinks', linkId), { clubName: newName });
+            const link = links.find(l => l.id === linkId);
+            if (link) link.clubName = newName;
+            render();
+            showToast(`✅ 「${newName}」に修正しました（URLは変わりません）`);
+        } catch (e) {
+            alert('修正に失敗しました: ' + e.message);
+        }
+    };
+
+    // ── CSV出力 ──
+    const csvCell = v => { v = String(v ?? ''); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+    document.getElementById('btn-csv').addEventListener('click', () => {
+        const rows = [['所属名', 'URL', '人数']];
+        links.slice().sort((a, b) => a.clubName.localeCompare(b.clubName, 'ja')).forEach(l => {
+            rows.push([l.clubName, linkUrl(l.id), countMembers(l.clubName)]);
+        });
+        const csv  = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM付きでExcel文字化け防止
+        const url  = URL.createObjectURL(blob);
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+        const a = document.createElement('a');
+        a.href = url; a.download = `所属別入力リンク_${tourName || eventId}_${stamp}.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    // ── 認証 & 初期ロード ──
+    ensureAdmin(async user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+
+        if (!eventId) {
+            document.getElementById('event-name').textContent = 'URLにeventパラメータがありません';
+            return;
+        }
+
+        const tourData = await getTournament(eventId);
+        if (!tourData) {
+            document.getElementById('event-name').textContent = '大会が見つかりません';
+            return;
+        }
+        tourName = tourData.name || eventId;
+        document.getElementById('event-name').textContent = tourName;
+
+        allAthletes = await getAthletes(eventId);
+        await reloadLinks();
+        render();
+    });
+</script>
+</body>
+</html>
