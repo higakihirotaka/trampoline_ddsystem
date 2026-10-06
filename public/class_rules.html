@@ -55,6 +55,28 @@
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-sub); }
         .empty-state a { color: var(--accent); }
 
+        /* 設定のコピー */
+        .btn-copy-rules { margin-left: auto; align-self: center; background: #fff; color: var(--accent); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 14px; font-size: 0.82rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
+        .btn-copy-rules:hover { background: #e8f0fe; }
+        .class-card.copied { animation: copiedFlash 3s ease-out; }
+        @keyframes copiedFlash { 0% { box-shadow: 0 0 0 4px #ffd54f, 0 2px 8px rgba(0,0,0,0.06); } 100% { box-shadow: 0 0 0 0 rgba(255,213,79,0), 0 2px 8px rgba(0,0,0,0.06); } }
+        .copy-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+        .copy-dialog { background: #fff; border-radius: 16px; width: 100%; max-width: 480px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+        .copy-dialog-head { padding: 20px 24px 8px; }
+        .copy-dialog-head h3 { margin: 0 0 8px; font-size: 1.05rem; }
+        .copy-dialog-note { font-size: 0.8rem; color: var(--text-sub); line-height: 1.6; margin: 0; }
+        .copy-quick { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 24px; }
+        .copy-quick button { background: #f0f2f5; border: none; border-radius: 14px; padding: 4px 12px; font-size: 0.78rem; font-weight: bold; color: var(--text-sub); cursor: pointer; }
+        .copy-quick button:hover { background: #e0e4e8; }
+        .copy-list { padding: 4px 24px 12px; overflow-y: auto; flex: 1; }
+        .copy-group-title { font-size: 0.78rem; font-weight: 900; color: var(--text-sub); margin: 12px 0 4px; }
+        .copy-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.95rem; cursor: pointer; }
+        .copy-item input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+        .copy-dialog-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px 20px; border-top: 1px solid #eee; }
+        .copy-dialog-foot button { border-radius: 8px; padding: 9px 20px; font-size: 0.9rem; font-weight: bold; cursor: pointer; border: 1px solid #ccc; background: #fff; color: var(--text-sub); }
+        .copy-dialog-foot button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .copy-dialog-foot button:disabled { background: #b0bec5; border-color: #b0bec5; color: #fff; cursor: not-allowed; }
+
         /* トースト */
         .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #263238; color: white; padding: 12px 28px; border-radius: 30px; font-size: 0.95rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; white-space: nowrap; }
         .toast.show { opacity: 1; }
@@ -186,7 +208,12 @@
         // 型が不明なデータでも必ず有効値になるよう正規化（文字列・0・NaN対策）
         const qualRoutes = (parseInt(rule.qualifyingRoutines) === 1) ? 1 : 2;
         const scoreMode  = (rule.scoreMode === 'total') ? 'total' : 'best';
-        const hasFinal   = (rule.hasFinal === true || rule.hasFinal === 'true' || Number(rule.hasFinal) === 1 || (rule.finalCount != null && parseInt(rule.finalCount) > 0));
+        // hasFinal が明示されている場合はその値を使う。未設定の旧データだけ finalCount>0 から推定する
+        // （決勝人数を保存した後で「決勝なし」にしても、再読込で「あり」に戻ってしまわないように）。
+        const hasFinalExplicit = rule.hasFinal !== undefined && rule.hasFinal !== null;
+        const hasFinal   = hasFinalExplicit
+            ? (rule.hasFinal === true || rule.hasFinal === 'true' || Number(rule.hasFinal) === 1)
+            : (rule.finalCount != null && parseInt(rule.finalCount) > 0);
         const finalOnly  = (rule.finalOnly === true || rule.finalOnly === 'true' || Number(rule.finalOnly) === 1);
         // 決勝設定モード: none(なし) / final(あり) / finalOnly(決勝のみ)
         const finalMode  = finalOnly ? 'finalOnly' : (hasFinal ? 'final' : 'none');
@@ -226,6 +253,7 @@
             <div class="class-card-header">
                 <span class="class-badge">${escHtml(className)}</span>
                 <h2>クラスルール設定</h2>
+                <button type="button" class="btn-copy-rules" title="このクラスの現在の設定を、他のクラスにコピーします">📋 他のクラスにコピー</button>
             </div>
 
             <!-- オンライン競技カード -->
@@ -535,7 +563,157 @@
                 document.getElementById(`ejudge-split-wrap-${key}`)?.classList.toggle('hidden', !split);
             }));
 
+        card.querySelector('.btn-copy-rules').addEventListener('click', () => openCopyDialog(card));
+
         return card;
+    }
+
+    // カードのフォーム入力から、このフォームが管理している設定項目だけを取り出す。
+    // （保存時と、他クラスへのコピー時で共通に使う。finalCount/reserveCount等フォーム外の値は含めない）
+    function collectFormRule(card) {
+        const name = card.dataset.class;
+        const type = card.dataset.type;
+        const key  = `${type}-${name}`;
+        const qualRoutes = parseInt(card.querySelector(`input[name="qual-${key}"]:checked`)?.value) || 2;
+        const scoreMode  = card.querySelector(`input[name="score-${key}"]:checked`)?.value || 'best';
+        const finalVal   = card.querySelector(`input[name="final-${key}"]:checked`)?.value;
+        const finalOnly  = finalVal === 'finalOnly';
+        const hasFinal   = finalVal === 'true' || finalOnly;   // 決勝のみも「決勝あり」扱い
+        // E審判人数: 「個別」選択時は{pre,final}オブジェクト、「共通」選択時は今まで通り数値で保存
+        const eJudgeMode = card.querySelector(`input[name="ejudge-mode-${key}"]:checked`)?.value || 'same';
+        const eJudge = eJudgeMode === 'split'
+            ? {
+                pre:   parseInt(card.querySelector(`#e-judge-pre-${key}`)?.value)   || 1,
+                final: parseInt(card.querySelector(`#e-judge-final-${key}`)?.value) || 1
+              }
+            : parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
+        const tofDefaultMode  = card.querySelector(`input[name="tof-mode-${key}"]:checked`)?.value || 'auto';
+        const hdDefaultMode   = card.querySelector(`input[name="hd-mode-${key}"]:checked`)?.value  || 'auto';
+        // -1=設定なし、0=0本指定、1-9=N本指定
+        const _ddRaw = parseInt(card.querySelector(`#dd-count-${key}`)?.value);
+        const designatedDDCount = (!isNaN(_ddRaw) && _ddRaw >= 0) ? _ddRaw : -1;
+        const hasH5H6        = card.querySelector(`input[name="h56-${key}"]:checked`)?.value === 'true';
+        const useHDTS        = card.querySelector(`input[name="hdts-${key}"]:checked`)?.value !== 'false';
+        const useOnlineCard  = card.querySelector(`input[name="onlinecard-${key}"]:checked`)?.value !== 'false';
+        // 決勝のみは予選が無いので合計不可 → zero固定
+        const finalScoreMode = finalOnly ? 'zero' : (card.querySelector(`input[name="final-score-mode-${key}"]:checked`)?.value || 'zero');
+        // 難度点上限（あり かつ 有効な数値のときのみ値、それ以外は null）
+        const skillCapOn = card.querySelector(`input[name="skillcap-${key}"]:checked`)?.value === 'on';
+        const _scRaw = parseFloat(card.querySelector(`#skillcap-val-${key}`)?.value);
+        const perSkillDDCap = (skillCapOn && !isNaN(_scRaw)) ? _scRaw : null;
+        const routineCapOn = card.querySelector(`input[name="routinecap-${key}"]:checked`)?.value === 'on';
+        const _rcRaw = parseFloat(card.querySelector(`#routinecap-val-${key}`)?.value);
+        const routineDDCap = (routineCapOn && !isNaN(_rcRaw)) ? _rcRaw : null;
+        // 難度下限（あり かつ 有効な数値のときのみ値、それ以外は null）
+        const minDDOn = card.querySelector(`input[name="mindd-${key}"]:checked`)?.value === 'on';
+        const _mddRaw = parseFloat(card.querySelector(`#mindd-val-${key}`)?.value);
+        const minRoutineDD = (minDDOn && !isNaN(_mddRaw)) ? _mddRaw : null;
+
+        return {
+            qualifyingRoutines: qualRoutes,
+            scoreMode,
+            eJudgeCount: eJudge,
+            tofDefaultMode,
+            hdDefaultMode,
+            hasFinal,
+            finalOnly,
+            finalScoreMode,
+            designatedDDCount,
+            hasH5H6,
+            useHDTS,
+            useOnlineCard,
+            perSkillDDCap,
+            routineDDCap,
+            minRoutineDD
+        };
+    }
+
+    // ---- 他のクラスへ設定をコピー ----
+    // コピーするのは、元カードの「現在の入力内容」（未保存の変更を含む）。コピー先のカードの表示を
+    // 置き換えるだけで、「すべてのクラスを保存」を押すまでFirestoreには保存されない。
+    // finalCount/reserveCount等、このフォームで管理していない値はコピー先の元の値を維持する。
+    function openCopyDialog(srcCard) {
+        const srcName = srcCard.dataset.class, srcType = srcCard.dataset.type;
+        const typeLabel = t => t === 'synchro' ? 'シンクロ' : '個人';
+        const targets = [...document.querySelectorAll('.class-card')].filter(c => c !== srcCard);
+        if (!targets.length) { showToast('コピー先になる他のクラスがありません', true); return; }
+
+        const groupHtml = ['individual', 'synchro'].map(t => {
+            const items = targets.map((c, i) => ({ c, i })).filter(x => x.c.dataset.type === t);
+            if (!items.length) return '';
+            return `<div class="copy-group-title">${typeLabel(t)}クラス</div>` + items.map(({ c, i }) =>
+                `<label class="copy-item"><input type="checkbox" data-idx="${i}" data-type="${t}"><span>${escHtml(c.dataset.class)}</span></label>`
+            ).join('');
+        }).join('');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'copy-overlay';
+        overlay.innerHTML = `
+            <div class="copy-dialog" role="dialog" aria-modal="true">
+                <div class="copy-dialog-head">
+                    <h3>「${escHtml(srcName)}」（${typeLabel(srcType)}）の設定をコピー</h3>
+                    <p class="copy-dialog-note">
+                        コピー先を選ぶと、このクラスの現在の設定内容（未保存の変更を含む）で上書きします。
+                        反映後は各クラスのカードで確認でき、<b>「すべてのクラスを保存」を押すまで保存されません。</b><br>
+                        決勝進出人数・リザーブ人数など、この画面で管理していない項目はコピーしません。
+                    </p>
+                </div>
+                <div class="copy-quick">
+                    <button type="button" data-quick="same">同じ種目をすべて選択</button>
+                    <button type="button" data-quick="all">すべて選択</button>
+                    <button type="button" data-quick="none">解除</button>
+                </div>
+                <div class="copy-list">${groupHtml}</div>
+                <div class="copy-dialog-foot">
+                    <button type="button" data-act="cancel">キャンセル</button>
+                    <button type="button" class="primary" data-act="apply" disabled>選択したクラスに反映</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        const boxes = () => [...overlay.querySelectorAll('input[type="checkbox"]')];
+        const applyBtn = overlay.querySelector('[data-act="apply"]');
+        const refresh = () => {
+            const n = boxes().filter(b => b.checked).length;
+            applyBtn.disabled = n === 0;
+            applyBtn.textContent = n ? `${n}クラスに反映` : '選択したクラスに反映';
+        };
+        const close = () => overlay.remove();
+
+        overlay.addEventListener('change', refresh);
+        overlay.addEventListener('click', e => {
+            if (e.target === overlay) { close(); return; }
+            const quick = e.target.dataset?.quick;
+            if (quick) {
+                boxes().forEach(b => { b.checked = quick === 'all' || (quick === 'same' && b.dataset.type === srcType); });
+                refresh();
+                return;
+            }
+            const act = e.target.dataset?.act;
+            if (act === 'cancel') close();
+            if (act === 'apply') {
+                const selected = boxes().filter(b => b.checked).map(b => targets[parseInt(b.dataset.idx)]);
+                const srcRule = collectFormRule(srcCard);
+                selected.forEach(card => {
+                    const merged = { ...(card._origRule || {}), ...srcRule };
+                    // 新カードの表示は、コピー元の設定で作る。ただし finalCount は旧データ判定
+                    // （hasFinal未設定時のみ使用）に影響するため、カード生成時には渡さない。
+                    const forBuild = { ...merged };
+                    delete forBuild.finalCount;
+                    const fresh = createClassCard(card.dataset.class, card.dataset.type, forBuild);
+                    fresh._origRule = merged; // 保存時に finalCount/reserveCount を維持するため
+                    card.replaceWith(fresh);
+                    fresh.classList.add('copied');
+                    setTimeout(() => fresh.classList.remove('copied'), 3000);
+                });
+                close();
+                showToast(`${selected.length}クラスに設定を反映しました（まだ保存されていません）`);
+            }
+        });
+        document.addEventListener('keydown', function onKey(e) {
+            if (!overlay.isConnected) { document.removeEventListener('keydown', onKey); return; }
+            if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); }
+        });
     }
 
     window.saveAll = async () => {
@@ -550,60 +728,13 @@
             document.querySelectorAll('.class-card').forEach(card => {
                 const name = card.dataset.class;
                 const type = card.dataset.type;
-                const key  = `${type}-${name}`;
-                const qualRoutes = parseInt(card.querySelector(`input[name="qual-${key}"]:checked`)?.value) || 2;
-                const scoreMode  = card.querySelector(`input[name="score-${key}"]:checked`)?.value || 'best';
-                const finalVal   = card.querySelector(`input[name="final-${key}"]:checked`)?.value;
-                const finalOnly  = finalVal === 'finalOnly';
-                const hasFinal   = finalVal === 'true' || finalOnly;   // 決勝のみも「決勝あり」扱い
-                // E審判人数: 「個別」選択時は{pre,final}オブジェクト、「共通」選択時は今まで通り数値で保存
-                const eJudgeMode = card.querySelector(`input[name="ejudge-mode-${key}"]:checked`)?.value || 'same';
-                const eJudge = eJudgeMode === 'split'
-                    ? {
-                        pre:   parseInt(card.querySelector(`#e-judge-pre-${key}`)?.value)   || 1,
-                        final: parseInt(card.querySelector(`#e-judge-final-${key}`)?.value) || 1
-                      }
-                    : parseInt(card.querySelector(`#e-judge-${key}`).value) || 1;
-                const tofDefaultMode  = card.querySelector(`input[name="tof-mode-${key}"]:checked`)?.value || 'auto';
-                const hdDefaultMode   = card.querySelector(`input[name="hd-mode-${key}"]:checked`)?.value  || 'auto';
-                // -1=設定なし、0=0本指定、1-9=N本指定
-                const _ddRaw = parseInt(card.querySelector(`#dd-count-${key}`)?.value);
-                const designatedDDCount = (!isNaN(_ddRaw) && _ddRaw >= 0) ? _ddRaw : -1;
-                const hasH5H6        = card.querySelector(`input[name="h56-${key}"]:checked`)?.value === 'true';
-                const useHDTS        = card.querySelector(`input[name="hdts-${key}"]:checked`)?.value !== 'false';
-                const useOnlineCard  = card.querySelector(`input[name="onlinecard-${key}"]:checked`)?.value !== 'false';
-                // 決勝のみは予選が無いので合計不可 → zero固定
-                const finalScoreMode = finalOnly ? 'zero' : (card.querySelector(`input[name="final-score-mode-${key}"]:checked`)?.value || 'zero');
-                // 難度点上限（あり かつ 有効な数値のときのみ値、それ以外は null）
-                const skillCapOn = card.querySelector(`input[name="skillcap-${key}"]:checked`)?.value === 'on';
-                const _scRaw = parseFloat(card.querySelector(`#skillcap-val-${key}`)?.value);
-                const perSkillDDCap = (skillCapOn && !isNaN(_scRaw)) ? _scRaw : null;
-                const routineCapOn = card.querySelector(`input[name="routinecap-${key}"]:checked`)?.value === 'on';
-                const _rcRaw = parseFloat(card.querySelector(`#routinecap-val-${key}`)?.value);
-                const routineDDCap = (routineCapOn && !isNaN(_rcRaw)) ? _rcRaw : null;
-                // 難度下限（あり かつ 有効な数値のときのみ値、それ以外は null）
-                const minDDOn = card.querySelector(`input[name="mindd-${key}"]:checked`)?.value === 'on';
-                const _mddRaw = parseFloat(card.querySelector(`#mindd-val-${key}`)?.value);
-                const minRoutineDD = (minDDOn && !isNaN(_mddRaw)) ? _mddRaw : null;
-
                 const ruleObj = {
                     ...(card._origRule || {}), // finalCount/reserveCount等、このフォーム外で保存された値を維持
-                    qualifyingRoutines: qualRoutes,
-                    scoreMode,
-                    eJudgeCount: eJudge,
-                    tofDefaultMode,
-                    hdDefaultMode,
-                    hasFinal,
-                    finalOnly,
-                    finalScoreMode,
-                    designatedDDCount,
-                    hasH5H6,
-                    useHDTS,
-                    useOnlineCard,
-                    perSkillDDCap,
-                    routineDDCap,
-                    minRoutineDD
+                    ...collectFormRule(card)
                 };
+                // 決勝なしのクラスに決勝進出人数・リザーブ人数が残っていると、再読込時に旧データ判定で
+                // 「決勝あり」と誤認されるため、決勝なしで保存する時はこれらを取り除く。
+                if (!ruleObj.hasFinal) { delete ruleObj.finalCount; delete ruleObj.reserveCount; }
                 if (type === 'synchro') synchro[name] = ruleObj;
                 else individual[name] = ruleObj;
             });
