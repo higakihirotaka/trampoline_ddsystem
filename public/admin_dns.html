@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>棄権登録 - Trampoline System</title>
+    <style>
+        :root { --primary-blue: #1a73e8; --bg-gray: #f0f2f5; --text-dark: #202124; --text-gray: #5f6368; --success-green: #1e8e3e; --indiv-purple: #5e35b1; --sync-teal: #00897b; --text-sub:#546e7a; }
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; padding: 20px; background: var(--bg-gray); margin: 0; }
+        .list-container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
+        .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
+        .auth-info span { font-weight: bold; color: var(--text-dark); }
+        .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--primary-blue); cursor: pointer; font-size: 0.9em; margin-left: 12px; padding: 3px 8px; }
+        .header-section { text-align: center; margin-bottom: 20px; }
+
+        .intro-card { background:#fdecee; border:1px solid #f3c2c2; border-radius:14px; padding:16px 20px; margin-bottom:20px; font-size:0.86rem; line-height:1.7; color:#a02332; }
+        .intro-card b { color:#8a1c29; }
+
+        .section-header { font-size: 1.8em; font-weight: 900; margin: 50px 0 20px 0; padding-bottom: 10px; border-bottom: 4px solid; }
+        .indiv-header { border-color: var(--indiv-purple); color: var(--indiv-purple); }
+        .sync-header { border-color: var(--sync-teal); color: var(--sync-teal); }
+
+        .class-header { font-size: 1.3em; font-weight: 900; margin: 30px 0 15px 0; padding: 12px 20px; border-radius: 10px; color: white; }
+        .indiv-class-header { background: var(--indiv-purple); }
+        .sync-class-header { background: var(--sync-teal); }
+
+        .category-row { background: #f8f9fa; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; table-layout: auto; }
+        th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; }
+        th { color: var(--text-gray); font-size: 0.75em; text-transform: uppercase; white-space: nowrap; }
+        .col-num { width: 36px; }
+        .col-gr { width: 30px; }
+        .col-name { text-align: left; min-width: 120px; }
+        .col-btn { width: 88px; white-space: nowrap; }
+        .status-link { text-decoration: none; padding: 8px 0; border-radius: 8px; font-size: 0.78em; font-weight: bold; display: block; width: 80px; margin: 0 auto; border: 1px solid transparent; transition: 0.2s; cursor: pointer; font-family: inherit; }
+        .status-none { background: #fff; color: var(--primary-blue); border-color: var(--primary-blue); }
+        .status-done { background: #e8f0fe; color: var(--primary-blue); border-color: transparent; }
+        .status-dns { background: #fdecee; color: #d32f2f; border-color: #f3c2c2; }
+        .withdrawn-row { background-color: #f5f5f5; color: #999; }
+        .withdrawn-row td { text-decoration: line-through; }
+
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .loading-msg, .empty-msg { text-align: center; padding: 40px; color: var(--text-sub); font-size: 0.9rem; }
+
+        .filter-bar { display: none; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;
+            margin-bottom: 24px; padding: 12px 16px; background: var(--bg-gray); border-radius: 12px; }
+        .filter-bar label { display: flex; flex-direction: column; gap: 3px; font-size: 0.72em; color: var(--text-gray); font-weight: bold; }
+        .filter-bar select { padding: 7px 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; font-size: 0.9em; min-width: 140px; }
+        .filter-bar select:focus { outline: 2px solid var(--primary-blue); }
+        .filter-bar .filter-clear { align-self: flex-end; padding: 7px 14px; border-radius: 8px; border: 1px solid #ccc;
+            background: #fff; color: var(--text-gray); font-size: 0.82em; cursor: pointer; }
+        .filter-bar .filter-clear:hover { background: #f0f2f5; }
+
+        .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#263238; color:white; padding:11px 28px; border-radius:30px; font-size:0.9rem; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:300; white-space:nowrap; }
+        .toast.show { opacity:1; }
+
+        @media (max-width: 600px) {
+            .filter-bar { gap: 8px; padding: 10px; margin-bottom: 16px; }
+            .filter-bar select { min-width: 100px; font-size: 0.82em; }
+            body { padding: 10px; }
+            .list-container { padding: 14px; border-radius: 12px; }
+            .section-header { font-size: 1.3em; margin: 30px 0 12px; }
+            .class-header { font-size: 1em; padding: 8px 14px; margin: 20px 0 10px; }
+            th, td { padding: 8px 3px; font-size: 0.85em; }
+            .col-num { width: 24px; }
+            .col-gr { width: 20px; }
+            .col-btn { width: 62px; }
+            .col-name { min-width: 76px; }
+            .status-link { width: 54px; font-size: 0.68em; padding: 7px 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="list-container">
+    <div class="header-bar">
+        <a id="back-link" href="admin_menu.html" class="btn-back">← メニューに戻る</a>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
+    </div>
+    <div class="header-section">
+        <h1 id="event-title" style="font-size:2em; margin-bottom:5px;">読み込み中...</h1>
+    </div>
+    <div class="intro-card">
+        <b>各ラウンドのボタンをクリックすると、その選手をそのラウンドの棄権（DNS）に設定／解除できます。</b><br>
+        棄権に設定すると、順位表・集計では0点・最下位扱いになります。<br>
+        既に得点が確定している試技を棄権にした場合、解除すると確定していたスコアはそのまま復元されます
+        （まだ得点が無い場合は、解除すると「未実施」の状態に戻ります）。
+    </div>
+    <div id="filter-bar" class="filter-bar">
+        <label>クラス<select id="filter-class"><option value="">すべて</option></select></label>
+        <label>性別<select id="filter-gender"><option value="">すべて</option></select></label>
+        <label>チーム名<select id="filter-team"><option value="">すべて</option></select></label>
+        <button type="button" id="filter-clear" class="filter-clear">条件をクリア</button>
+    </div>
+    <div id="indiv-list" class="loading-msg">読み込み中...</div>
+    <div id="sync-list"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import {
+        doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField,
+        collection, getDocs, query, where, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from "./auth.js";
+    import { getTournament, getAthletes } from "./cache.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+
+    let tourData    = {};
+    let allAthletes = [];
+    let resultsMap  = {}; // resId -> { dns, officialTotal }
+
+    // ── フィルタ状態（クラス・性別・チーム名）── event.htmlと同一ロジック ──
+    let filterState = { cls: '', gender: '', team: '' };
+
+    function collectTeamNames(athletes) {
+        const set = new Set();
+        athletes.forEach(a => {
+            [a.club1, a.club2].forEach(c => {
+                (c || '').split('/').map(s => s.trim()).filter(Boolean).forEach(name => set.add(name));
+            });
+        });
+        return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
+    }
+
+    function collectClassOptions(athletes) {
+        const seen = new Set();
+        const opts = [];
+        athletes.forEach(a => {
+            if (!a.class) return;
+            const type = a.type === 'synchro' ? 'synchro' : 'individual';
+            const key = `${type}::${a.class}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            const label = `${a.class}（${type === 'synchro' ? 'シンクロ' : '個人'}）`;
+            opts.push({ value: key, label });
+        });
+        opts.sort((x, y) => x.label.localeCompare(y.label, 'ja'));
+        return opts;
+    }
+
+    function buildFilterOptions(athletes) {
+        if (!athletes.length) return;
+        const bar = document.getElementById('filter-bar');
+        bar.style.display = 'flex';
+
+        const classOpts = collectClassOptions(athletes);
+        const genderOrder = g => g === '女子' ? 0 : g === '男子' ? 1 : 2;
+        const genders = [...new Set(athletes.map(a => a.gender).filter(Boolean))].sort((a,b)=>genderOrder(a)-genderOrder(b));
+        const teams = collectTeamNames(athletes);
+
+        const fillSelect = (id, values, current) => {
+            const sel = document.getElementById(id);
+            const prev = sel.value;
+            const items = values.map(v => typeof v === 'string' ? { value: v, label: v } : v);
+            sel.innerHTML = '<option value="">すべて</option>' +
+                items.map(it => `<option value="${it.value}">${it.label}</option>`).join('');
+            const want = current !== undefined ? current : prev;
+            if (want && items.some(it => it.value === want)) sel.value = want;
+        };
+        fillSelect('filter-class',  classOpts, filterState.cls);
+        fillSelect('filter-gender', genders,   filterState.gender);
+        fillSelect('filter-team',   teams,     filterState.team);
+    }
+
+    function applyFilters(athletes) {
+        if (!filterState.cls && !filterState.gender && !filterState.team) return athletes;
+        const [wantType, wantClass] = filterState.cls ? filterState.cls.split('::') : [null, null];
+        return athletes.filter(a => {
+            if (filterState.cls) {
+                const type = a.type === 'synchro' ? 'synchro' : 'individual';
+                if (type !== wantType || a.class !== wantClass) return false;
+            }
+            if (filterState.gender && a.gender !== filterState.gender) return false;
+            if (filterState.team) {
+                const inClub = (c) => (c || '').includes(filterState.team);
+                if (!inClub(a.club1) && !inClub(a.club2)) return false;
+            }
+            return true;
+        });
+    }
+
+    document.getElementById('filter-class').addEventListener('change', e => { filterState.cls = e.target.value; renderList(); });
+    document.getElementById('filter-gender').addEventListener('change', e => { filterState.gender = e.target.value; renderList(); });
+    document.getElementById('filter-team').addEventListener('change', e => { filterState.team = e.target.value; renderList(); });
+    document.getElementById('filter-clear').addEventListener('click', () => {
+        filterState = { cls: '', gender: '', team: '' };
+        buildFilterOptions(allAthletes);
+        renderList();
+    });
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    async function reloadResults() {
+        const snap = await getDocs(query(collection(db, "results"), where("eventId", "==", eventId)));
+        resultsMap = {};
+        snap.docs.forEach(d => { resultsMap[d.id] = d.data(); });
+    }
+
+    function statusButton(ath, round) {
+        if (ath.isWithdrawn) return `<span style="font-size:0.8em;color:#d32f2f;">棄権</span>`;
+        const resId = `${eventId}_${ath.id}_${round}`;
+        const r = resultsMap[resId];
+        const isDns = r?.dns === true;
+        const isDone = ath.submissions?.[round] !== undefined;
+        const cls   = isDns ? 'status-dns' : (isDone ? 'status-done' : 'status-none');
+        const label = isDns ? '棄権中' : (isDone ? '提出済' : '未提出');
+        return `<button type="button" id="status-${ath.id}-${round}" class="status-link ${cls}" onclick="toggleDns('${ath.id}','${round}')">${label}</button>`;
+    }
+
+    function buildTablesHtml(athletes, rulesByType, type, fallbackRules, classOrder, showGroup) {
+        const byClass = athletes.reduce((acc, ath) => {
+            const cn = ath.class || 'N/A';
+            (acc[cn] = acc[cn] || []).push(ath);
+            return acc;
+        }, {});
+        const ordered  = classOrder.filter(n => byClass[n]);
+        const leftover = Object.keys(byClass).filter(n => !classOrder.includes(n)).sort();
+        let html = '';
+        for (const cn of [...ordered, ...leftover]) {
+            const cls   = byClass[cn];
+            const rules = (rulesByType || {})[cn] || fallbackRules[cn] || { qualifyingRoutines: 2, hasFinal: false };
+            const numPre = rules.finalOnly === true ? 0 : rules.qualifyingRoutines;
+            cls.sort((a, b) =>
+                `${a.gender||''}-${String(a.flightGroup||'').padStart(3,'0')}-${String(a.order||'').padStart(3,'0')}`.localeCompare(
+                `${b.gender||''}-${String(b.flightGroup||'').padStart(3,'0')}-${String(b.order||'').padStart(3,'0')}`));
+            html += `<div class="class-header ${type==='synchro'?'sync-class-header':'indiv-class-header'}">${cn}</div>`;
+            let curGender = '';
+            cls.forEach(ath => {
+                if (curGender !== ath.gender) {
+                    if (curGender !== '') html += '</tbody></table></div>';
+                    curGender = ath.gender;
+                    const rh = Array.from({length: numPre}, (_, i) => `<th class="col-btn">予選${i+1}</th>`).join('');
+                    const fh = rules.hasFinal ? '<th class="col-btn">決勝</th>' : '';
+                    const grH = showGroup ? '<th class="col-gr">Gr</th>' : '';
+                    html += `<div class="table-wrap"><table><thead>
+                        <tr class="category-row"><td colspan="${(showGroup?3:2)+numPre+(rules.hasFinal?1:0)}" style="text-align:left;">${curGender}</td></tr>
+                        <tr>${grH}<th class="col-num">順</th><th class="col-name">選手</th>${rh}${fh}</tr>
+                        </thead><tbody>`;
+                }
+                const clubDisp = type === 'synchro'
+                    ? (ath.club1 && ath.club2 && ath.club1 !== ath.club2 ? `${ath.club1} / ${ath.club2}` : (ath.club1 || ath.club2 || ''))
+                    : (ath.club1 || '');
+                const pHtml = type === 'synchro'
+                    ? `<span style="font-weight:bold;">${ath.name1||''} / ${ath.name2||''}</span><br><small style="color:#888;">${clubDisp}</small>`
+                    : `<span style="font-weight:bold;">${ath.name1}</span><br><small style="color:#888;">${clubDisp}</small>`;
+                const grCell = showGroup ? `<td class="col-gr">${ath.flightGroup||'-'}</td>` : '';
+                html += `<tr class="${ath.isWithdrawn?'withdrawn-row':''}">${grCell}<td class="col-num">${ath.order||'-'}</td><td class="col-name">${pHtml}</td>`;
+                for (let i = 1; i <= numPre; i++) html += `<td>${statusButton(ath, `pre${i}`)}</td>`;
+                if (rules.hasFinal) html += `<td>${statusButton(ath, 'final')}</td>`;
+                html += '</tr>';
+            });
+            if (cls.length > 0) html += '</tbody></table></div>';
+        }
+        return html;
+    }
+
+    function renderList() {
+        const rawClassRules = tourData.classRules || {};
+        const hasNewFormat  = 'individual' in rawClassRules || 'synchro' in rawClassRules;
+        const classRules    = hasNewFormat ? rawClassRules :
+                              Object.keys(rawClassRules).length > 0 ? { individual: rawClassRules, synchro: {} } :
+                              { individual: {}, synchro: {} };
+        const sortByOrder = arr => (arr || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+        let indivClassOrder = [], syncClassOrder = [];
+        if (tourData.classes && !Array.isArray(tourData.classes)) {
+            indivClassOrder = sortByOrder(tourData.classes.individual).map(c => c.name);
+            syncClassOrder  = sortByOrder(tourData.classes.synchro).map(c => c.name);
+        } else if (Array.isArray(tourData.classes)) {
+            indivClassOrder = sortByOrder(tourData.classes).map(c => c.name);
+        }
+        const filteredAthletes = applyFilters(allAthletes);
+        const indivAthletes = filteredAthletes.filter(a => a.type !== 'synchro');
+        const syncAthletes  = filteredAthletes.filter(a => a.type === 'synchro');
+        const autoShowGroup = new Set(allAthletes.map(a => a.flightGroup).filter(g => g != null && g !== '')).size > 1;
+        const showGroup = (typeof tourData.showGroupColumn === 'boolean') ? tourData.showGroupColumn : autoShowGroup;
+
+        const indivContainer = document.getElementById('indiv-list');
+        indivContainer.innerHTML = indivAthletes.length > 0
+            ? '<h2 class="section-header indiv-header">個人競技</h2>' +
+                buildTablesHtml(indivAthletes, classRules.individual, 'individual', rawClassRules, indivClassOrder, showGroup)
+            : '<div class="empty-msg">選手データがありません</div>';
+        const syncContainer = document.getElementById('sync-list');
+        syncContainer.innerHTML = syncAthletes.length > 0
+            ? '<h2 class="section-header sync-header">シンクロ競技</h2>' +
+                buildTablesHtml(syncAthletes, classRules.synchro, 'synchro', rawClassRules, syncClassOrder, showGroup)
+            : '';
+    }
+
+    // ── 棄権のトグル（設定／解除）──
+    window.toggleDns = async function(athleteId, round) {
+        const ath = allAthletes.find(a => a.id === athleteId);
+        if (!ath) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        const r = resultsMap[resId];
+        const isDns = r?.dns === true;
+        // 「得点あり」判定はofficialTotal（CJP確定後）だけでなく、E/D審判が入力途中の
+        // データ（execution.judges・officialSkills等）が既にある場合も含める。
+        // officialTotalだけで判定すると、CJP確定前に棄権→解除しただけで入力途中の
+        // 採点データがまるごと削除されてしまう（deleteDocされる）ため。
+        const DNS_BOOKKEEPING_KEYS = new Set(['eventId', 'athleteId', 'round', 'dns', 'dnsAt', 'published']);
+        const hasScore = !!r && Object.keys(r).some(k => !DNS_BOOKKEEPING_KEYS.has(k));
+
+        if (!isDns) {
+            try {
+                await setDoc(doc(db, 'results', resId), {
+                    eventId, athleteId, round, dns: true, published: true, dnsAt: serverTimestamp()
+                }, { merge: true });
+                resultsMap[resId] = { ...(resultsMap[resId] || {}), dns: true, published: true };
+                rerenderCell(athleteId, round);
+                // 既に採点データ（確定済み、または入力途中）がある試技の場合は、その旨をトーストで併記する
+                // （データは消えず、解除すれば元の状態に復元される）
+                showToast(hasScore ? '棄権に設定しました（採点データあり。解除すると復元されます）' : '棄権に設定しました');
+            } catch (e) {
+                alert('設定に失敗しました: ' + e.message);
+            }
+        } else {
+            const restoreMsg = hasScore
+                ? '棄権を取り消しますか？\n入力済みの採点データ（確定済み・入力途中を含む）は復元されます。'
+                : '棄権を取り消しますか？\nこの試技はまだ得点が無いため「未実施」の状態に戻ります。';
+            if (!confirm(restoreMsg)) return;
+            try {
+                if (hasScore) {
+                    // 採点データが残っている場合は、dns関連フィールドだけ取り除いて元のデータを復元する
+                    await updateDoc(doc(db, 'results', resId), { dns: deleteField(), dnsAt: deleteField() });
+                    const { dns, dnsAt, ...rest } = resultsMap[resId] || {};
+                    resultsMap[resId] = rest;
+                } else {
+                    // 得点が元々無かった（棄権登録のためだけに作られたドキュメント）場合は、
+                    // 完全に削除して「未実施」のきれいな状態に戻す
+                    await deleteDoc(doc(db, 'results', resId));
+                    delete resultsMap[resId];
+                }
+                rerenderCell(athleteId, round);
+                showToast('棄権を取り消しました');
+            } catch (e) {
+                alert('取り消しに失敗しました: ' + e.message);
+            }
+        }
+    };
+
+    function rerenderCell(athleteId, round) {
+        const el = document.getElementById(`status-${athleteId}-${round}`);
+        if (!el) return;
+        const ath = allAthletes.find(a => a.id === athleteId);
+        el.outerHTML = statusButton(ath, round);
+    }
+
+    // ── 認証 & 初期ロード ──
+    ensureAdmin(async user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+
+        if (!eventId) {
+            document.getElementById('event-title').textContent = 'URLにeventパラメータがありません';
+            return;
+        }
+
+        const tour = await getTournament(eventId);
+        if (!tour) {
+            document.getElementById('event-title').textContent = '大会が見つかりません';
+            return;
+        }
+        tourData = tour;
+        document.getElementById('event-title').innerText = tour.name;
+        document.title = `${tour.name} - 棄権登録`;
+
+        allAthletes = await getAthletes(eventId);
+        await reloadResults();
+        buildFilterOptions(allAthletes);
+        renderList();
+    });
+</script>
+</body>
+</html>

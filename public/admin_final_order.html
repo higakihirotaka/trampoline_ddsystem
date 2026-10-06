@@ -95,26 +95,54 @@
     .sl-btn-print-cls { padding:4px 12px; background:#607d8b; color:#fff; border:none; border-radius:6px; font-size:.75rem; font-weight:700; cursor:pointer; white-space:nowrap; }
     .sl-btn-print-cls:hover { background:#455a64; }
 
-    /* 印刷 */
+    /* 印刷（会場掲示を想定: 操作系UIは全て排し、文字は離れても読める大きさにする） */
     .sl-print-title { display:none; }
     @media print {
+      @page { size:landscape; margin:14mm; }
       .header-bar, .header, .info-box, .card, .standings-card,
       #warn-overwrite, #save-btn, .save-status,
-      .sl-section-head .btn-print, .sl-section-head .btn-refresh { display:none !important; }
-      .sl-print-title { display:block; text-align:center; margin-bottom:16px; }
-      .sl-print-title h1 { font-size:14pt; margin:0 0 4px; }
-      .sl-print-title p  { font-size:9pt;  margin:0; color:#555; }
-      .sl-accordion { box-shadow:none; margin-bottom:16pt; page-break-inside:avoid; }
-      .sl-header { background:#263238 !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      .sl-chevron { display:none; }
+      .sl-section-head, .sl-btn-print-cls, .sl-chevron,
+      .sl-header { display:none !important; } /* セクション見出し・クラス名の黒帯見出しは1・2行目と重複するため印刷では非表示 */
+      .sl-print-title { display:block; text-align:center; margin-bottom:14pt; }
+      .sl-print-title h1 { font-size:20pt; margin:0 0 6pt; }
+      /* 2行目「決勝スタートリスト」は主役なので大きく強調する */
+      .sl-print-title p  { font-size:22pt; font-weight:900; margin:0; color:var(--gold); letter-spacing:.08em; }
+      .sl-accordion { box-shadow:none; margin-bottom:20pt; page-break-inside:avoid; border:none; }
       .sl-body { display:block !important; }
-      .sl-table th { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      .sl-table td.sl-no { color:#000 !important; }
+      .sl-table th { -webkit-print-color-adjust:exact; print-color-adjust:exact; font-size:11pt; padding:6pt 14pt; }
+      .sl-table td { padding:7pt 14pt; }
+      .sl-table td.sl-no { color:#000 !important; font-size:19pt; }
+      .sl-name { font-size:14pt; }
+      .sl-kana { font-size:9pt; }
+      .sl-club { font-size:12pt; }
       body { background:#fff; padding:0; }
       /* クラス単体印刷モード: 対象以外を非表示 */
       body.printing-class .sl-accordion:not(.print-target) { display:none !important; }
-      body.printing-class .sl-section-head h2,
       body.printing-class .sl-print-title p { display:block !important; }
+
+      /* アナウンス原稿印刷時は、スタートリスト側を隠してアナウンス原稿だけを出す */
+      body.printing-announce .sl-print-title,
+      body.printing-announce #startlist-section { display:none !important; }
+    }
+
+    /* ===== アナウンス原稿（シンクロのみ・読み上げ用） ===== */
+    .an-print-title { display:none; }
+    .an-group { margin-bottom:18pt; break-inside:avoid; page-break-inside:avoid; }
+    .an-group-title { font-weight:900; font-size:13pt; border-bottom:2px solid #263238; padding-bottom:4pt; margin-bottom:8pt; break-after:avoid; page-break-after:avoid; }
+    .an-entry { display:flex; gap:14pt; align-items:flex-start; padding:8pt 0; border-bottom:1px dashed #ccc; break-inside:avoid; page-break-inside:avoid; }
+    .an-no { flex:0 0 auto; min-width:40pt; text-align:center; font-weight:900; font-size:20pt; color:var(--gold); }
+    .an-body { flex:1; min-width:0; }
+    .an-line { font-size:12pt; line-height:1.6; }
+    .an-name { font-weight:700; }
+    .an-kana { font-size:9pt; font-weight:400; color:var(--text-sub); margin-left:4pt; }
+    .an-club-line { color:var(--text-sub); margin-bottom:4pt; }
+    @media print {
+      body.printing-announce { background:#fff; }
+      .an-print-title { text-align:center; margin-bottom:14pt; }
+      .an-print-title h1 { font-size:20pt; margin:0 0 6pt; }
+      .an-print-title p  { font-size:22pt; font-weight:900; margin:0; color:var(--gold); letter-spacing:.08em; }
+      body.printing-announce #announce-section { display:block !important; }
+      body.printing-announce .an-print-title { display:block !important; }
     }
   </style>
 </head>
@@ -201,9 +229,19 @@
     <div class="sl-section-head">
       <h2>📋 スタートリスト</h2>
       <button class="btn-print" onclick="printFiltered()">🖨️ 印刷</button>
+      <button class="btn-print" onclick="printAnnounceScript()">📢 アナウンス原稿</button>
       <button class="btn-refresh" onclick="refreshStartList()">↻ 更新</button>
     </div>
     <div id="startlist-container"></div>
+  </div>
+
+  <!-- アナウンス原稿（シンクロのみ。画面には表示せず印刷時のみ出力） -->
+  <div id="announce-section" style="display:none">
+    <div class="sl-print-title an-print-title">
+      <h1 id="an-print-event"></h1>
+      <p>シンクロ　アナウンス原稿</p>
+    </div>
+    <div id="announce-container"></div>
   </div>
 </div>
 
@@ -212,7 +250,7 @@
   import { doc, getDocs, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { ensureAdmin, logout } from "./auth.js";
   import { getTournament, getAthletes, getFinalOrders, invalidateCache } from "./cache.js";
-  import { normalizeClassRules, calcQualifyingScore, calcQualifyingTb, compareRankEntries } from "./shared.js";
+  import { normalizeClassRules, calcQualifyingScore, calcQualifyingTb, compareRankEntries, assignRanks } from "./shared.js";
 
   const params  = new URLSearchParams(location.search);
   const eventId = params.get('event');
@@ -278,7 +316,7 @@
   function renderFilters() {
     const byType = athletes.filter(a => (a.type || 'individual') === fType);
     const genders = [...new Set(byType.map(a => a.gender || '').filter(Boolean))];
-    const tourClassDefs = (tourData?.classes?.[fType] || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+    const tourClassDefs = (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.[fType] || [])).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
     const rawClasses = [...new Set(byType.map(a => a.class || a.category || '').filter(Boolean))];
     const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))];
 
@@ -349,10 +387,6 @@
 
   // ---- 確認・確定ボタン ----
   window.applyFinalCount = async function() {
-    const finalCount  = parseInt(document.getElementById('final-count').value);
-    if (!finalCount || finalCount < 1) { alert('決勝人数を入力してください'); return; }
-    const shuffleMode = document.querySelector('input[name="shuffle"]:checked')?.value || 'none';
-
     // このクラスの全選手を取得
     const classAthletes = athletes.filter(a =>
       (a.type || 'individual') === fType &&
@@ -360,6 +394,27 @@
       (!fClass  || (a.class || a.category || '') === fClass)
     );
     if (classAthletes.length === 0) { alert('該当する選手がいません'); return; }
+
+    // 決勝のみクラス: 予選を行わず、登録順(order)をそのまま決勝試技順に割り当てる
+    const _rules = normalizeClassRules(tourData.classRules);
+    if (((_rules[fType] || {})[fClass] || {}).finalOnly === true) {
+      const ordered = classAthletes.slice().sort((a,b) => (Number(a.order)||0) - (Number(b.order)||0));
+      pendingFinalOrder = ordered.map((a, i) => ({
+        a, pre1:null, pre2:null, qualScore:null, tbSum:null, tb:{},
+        qualRank: i+1, inFinal: true, finalOrder: Number(a.order) || (i+1)
+      }));
+      renderStandings(pendingFinalOrder, 0, ordered.length, 'finalOnly');
+      document.getElementById('standings-card').style.display = '';
+      document.getElementById('save-btn').style.display = '';
+      document.getElementById('save-btn').disabled = false;
+      document.getElementById('save-status').textContent = '';
+      document.getElementById('warn-overwrite').style.display = classAthletes.some(a=>a.finalOrder!=null) ? '' : 'none';
+      return;
+    }
+
+    const finalCount  = parseInt(document.getElementById('final-count').value);
+    if (!finalCount || finalCount < 1) { alert('決勝人数を入力してください'); return; }
+    const shuffleMode = document.querySelector('input[name="shuffle"]:checked')?.value || 'none';
 
     // publishedな予選結果を取得
     const resSnap = await getDocs(query(
@@ -387,17 +442,25 @@
       const pre2r = rMap['pre2'] || null;
       const pre1  = pre1r?.officialTotal ?? null;
       const pre2  = pre2r?.officialTotal ?? null;
-      const qualScore       = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
+      let qualScore         = calcQualifyingScore(pre1, pre2, numPre, scoreMode);
       const { tbSum, tb }   = calcQualifyingTb(pre1, pre2, pre1r, pre2r, numPre, scoreMode);
-      return { a, pre1, pre2, qualScore, tbSum, tb };
+      // DNS（棄権）チェック: 棄権登録は既存の確定スコアをmergeで残したまま行われるため、
+      // officialTotalの有無だけでは判定できない。ranking.htmlと同じくdns:trueなら
+      // qualScoreをnullにして最下位・決勝進出対象外にする（そうしないと棄権した選手が
+      // 決勝進出者に選ばれてしまう）。
+      const isDns = pre1r?.dns === true || pre2r?.dns === true;
+      if (isDns) qualScore = null;
+      return { a, pre1, pre2, qualScore, tbSum, tb, isDns };
     }).sort(compareRankEntries);
 
     const actual = Math.min(finalCount, sorted.filter(r => r.qualScore != null).length);
 
-    // 予選順位を付与
+    // 予選順位を付与（同点はranking.htmlと同じくassignRanksで同順位にする。
+    // 単純なidx+1だと、同点でもここだけ連番になりranking.html側の表示と食い違っていた）
+    assignRanks(sorted);
     const withRanks = sorted.map((entry, idx) => ({
       ...entry,
-      qualRank: idx + 1,
+      qualRank: entry.rank,
       inFinal:  idx < actual && entry.qualScore != null
     }));
 
@@ -449,9 +512,10 @@
   // ---- 順位表描画 ----
   function renderStandings(entries, numPre, actual, shuffleMode = 'none') {
     const title = [fClass, fGender, fType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
-    const shuffleLabel = { none:'逆順', full:'完全シャッフル', split4:'上位4名分割シャッフル', qualifying:'予選試技順維持' }[shuffleMode] || shuffleMode;
-    document.getElementById('standings-title').textContent = `${title} 予選順位`;
-    document.getElementById('standings-meta').textContent = `決勝進出: ${actual}人 ／ ${shuffleLabel}`;
+    const isFinalOnly = shuffleMode === 'finalOnly';
+    const shuffleLabel = { none:'逆順', full:'完全シャッフル', split4:'上位4名分割シャッフル', qualifying:'予選試技順維持', finalOnly:'登録順' }[shuffleMode] || shuffleMode;
+    document.getElementById('standings-title').textContent = isFinalOnly ? `${title} 決勝試技順（登録順）` : `${title} 予選順位`;
+    document.getElementById('standings-meta').textContent = isFinalOnly ? `決勝のみ・全${actual}人 ／ 登録順で試技順を割り当て` : `決勝進出: ${actual}人 ／ ${shuffleLabel}`;
 
     const r2col = numPre >= 2;
     const tbody = document.getElementById('standings-tbody');
@@ -468,7 +532,7 @@
         </td>
         <td class="num">${fmt(e.pre1)}</td>
         ${r2cell}
-        <td class="num">${e.qualScore != null ? fmt(e.qualScore) : '<span class="no-score">未提出</span>'}</td>
+        <td class="num">${isFinalOnly ? '<span style="color:#bbb">—</span>' : (e.qualScore != null ? fmt(e.qualScore) : '<span class="no-score">未提出</span>')}</td>
         <td>${badge}</td>
       </tr>`;
     }).join('');
@@ -492,7 +556,7 @@
     // クラス別グループ化（種目 → 性別 → クラス順）
     const tourClassDefs = {};
     ['individual','synchro'].forEach(tp => {
-      (tourData?.classes?.[tp] || [])
+      (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.[tp] || []))
         .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99))
         .forEach((c, i) => { tourClassDefs[`${tp}|${c.name}`] = i; });
     });
@@ -580,6 +644,14 @@
     section.style.display = '';
   }
 
+  // 「PDFに保存」時の既定ファイル名は多くのブラウザでdocument.titleが使われるため、
+  // 印刷直前だけタイトルを「個人Bクラス女子_決勝スタートリスト」のような名前に差し替える。
+  const _origDocTitle = document.title;
+  function buildPrintFilename(type, cls, gender) {
+    const typeLabel = type === 'synchro' ? 'シンクロ' : '個人';
+    return `${typeLabel}${cls || ''}${gender || ''}_決勝スタートリスト`;
+  }
+
   window.printFiltered = function() {
     const accs = [...document.querySelectorAll('#startlist-container .sl-accordion')];
     const targets = accs.filter(acc =>
@@ -589,6 +661,7 @@
     );
     const label = [fClass, fGender, fType === 'synchro' ? 'シンクロ' : '個人'].filter(Boolean).join(' ');
     document.getElementById('sl-print-event').textContent = (tourData?.name || '') + (label ? ` — ${label}` : '');
+    document.title = buildPrintFilename(fType, fClass, fGender);
     targets.forEach(acc => acc.classList.add('print-target', 'open'));
     document.body.classList.add('printing-class');
     window.print();
@@ -596,6 +669,7 @@
       targets.forEach(acc => acc.classList.remove('print-target'));
       document.body.classList.remove('printing-class');
       document.getElementById('sl-print-event').textContent = tourData?.name || '';
+      document.title = _origDocTitle;
       window.onafterprint = null;
     };
   };
@@ -604,6 +678,7 @@
     const acc = btn.closest('.sl-accordion');
     // 印刷タイトルをクラス名に更新
     document.getElementById('sl-print-event').textContent = `${tourData?.name || ''} — ${title}`;
+    document.title = buildPrintFilename(acc.dataset.type, acc.dataset.cls, acc.dataset.gender);
     acc.classList.add('print-target', 'open'); // 本文を確実に展開
     document.body.classList.add('printing-class');
     window.print();
@@ -611,6 +686,81 @@
       acc.classList.remove('print-target');
       document.body.classList.remove('printing-class');
       document.getElementById('sl-print-event').textContent = tourData?.name || '';
+      document.title = _origDocTitle;
+      window.onafterprint = null;
+    };
+  };
+
+  // ---- アナウンス原稿（シンクロのみ。個人は読み上げの必要がないため対象外） ----
+  // 「選手A→選手A所属→選手B→選手B所属」の順で、試技順ごとに読み上げやすく整理する。
+  function buildAnnounceScript() {
+    const tourClassDefs = {};
+    (Array.isArray(tourData?.classes) ? tourData.classes : (tourData?.classes?.synchro || []))
+      .slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99))
+      .forEach((c, i) => { tourClassDefs[c.name] = i; });
+
+    const finalists = athletes.filter(a => a.type === 'synchro' && a.isInFinal && a.finalOrder != null);
+
+    const groupMap = {};
+    finalists.forEach(a => {
+      const gender = a.gender || '';
+      const cls    = a.class || a.category || '';
+      const key    = `${gender}|${cls}`;
+      if (!groupMap[key]) groupMap[key] = { gender, cls, athletes: [] };
+      groupMap[key].athletes.push(a);
+    });
+
+    const groups = Object.values(groupMap).sort((a, b) => {
+      const oa = tourClassDefs[a.cls] ?? 99, ob = tourClassDefs[b.cls] ?? 99;
+      if (oa !== ob) return oa - ob;
+      return (a.gender||'').localeCompare(b.gender||'');
+    });
+
+    const container = document.getElementById('announce-container');
+    container.innerHTML = '';
+    if (groups.length === 0) return 0;
+
+    groups.forEach(g => {
+      g.athletes.sort((a,b) => (a.finalOrder||999) - (b.finalOrder||999));
+      const title = [g.cls, g.gender, 'シンクロ'].filter(Boolean).join(' ');
+
+      const entries = g.athletes.map(a => {
+        const withKana = (text, kana) => `${text || '---'}${kana ? `<span class="an-kana">（${kana}）</span>` : ''}`;
+        const nameLine = (name, kana) => `<div class="an-line"><span class="an-name">${withKana(name, kana)}</span></div>`;
+        const clubLine = (club, kana) => `<div class="an-line an-club-line">${withKana(club, kana)}</div>`;
+        // 所属が同じ（両者未入力を除く）場合は二重に読み上げず、選手A→選手B→所属1回にまとめる
+        const sameClub = a.club1 && a.club1 === a.club2;
+        const bodyHtml = sameClub
+            ? nameLine(a.name1, a.kana1) + nameLine(a.name2, a.kana2) + clubLine(a.club1, a.clubKana1)
+            : nameLine(a.name1, a.kana1) + clubLine(a.club1, a.clubKana1) + nameLine(a.name2, a.kana2) + clubLine(a.club2, a.clubKana2);
+        return `<div class="an-entry">
+          <div class="an-no">${a.finalOrder}</div>
+          <div class="an-body">${bodyHtml}</div>
+        </div>`;
+      }).join('');
+
+      const grp = document.createElement('div');
+      grp.className = 'an-group';
+      grp.innerHTML = `<div class="an-group-title">${title}</div>${entries}`;
+      container.appendChild(grp);
+    });
+
+    return groups.reduce((n, g) => n + g.athletes.length, 0);
+  }
+
+  window.printAnnounceScript = function() {
+    const count = buildAnnounceScript();
+    if (count === 0) {
+      alert('シンクロの決勝進出者（決勝試技順が設定済み）が見つかりません。');
+      return;
+    }
+    document.getElementById('an-print-event').textContent = tourData?.name || '';
+    document.title = 'シンクロ_アナウンス原稿';
+    document.body.classList.add('printing-announce');
+    window.print();
+    window.onafterprint = () => {
+      document.body.classList.remove('printing-announce');
+      document.title = _origDocTitle;
       window.onafterprint = null;
     };
   };

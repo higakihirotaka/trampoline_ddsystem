@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表示順設定 - Trampoline System</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root { --accent: #1a73e8; --green: #2e7d32; }
+        body { padding: 20px 32px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 24px; }
+        .event-badge { display: inline-block; padding: 6px 16px; background: var(--accent); color: white; border-radius: 20px; font-weight: bold; }
+
+        .card { background: var(--card); border-radius: 16px; padding: 22px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .card-title { font-size: 1rem; font-weight: 900; margin: 0 0 6px; }
+        .card-desc { font-size: 0.85rem; color: var(--text-sub); line-height: 1.6; margin: 0 0 16px; }
+
+        .section-title { font-size: 0.95rem; font-weight: 900; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; }
+        .section-badge { font-size: 0.72rem; font-weight: 800; padding: 2px 10px; border-radius: 10px; letter-spacing: 0.3px; }
+        .section-badge.individual { background: #e3f2fd; color: #1565c0; }
+        .section-badge.synchro    { background: #e8f5e9; color: var(--green); }
+        .btn-reset { margin-left: auto; background: none; border: 1px solid #d0d7de; color: var(--text-sub); font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; cursor: pointer; }
+        .btn-reset:hover { background: #f5f5f5; }
+
+        .block-list { display: flex; flex-direction: column; gap: 8px; min-height: 10px; }
+        .block-row {
+            display: flex; align-items: center; gap: 10px; background: #f8fbff;
+            border: 1.5px solid #e0e5ec; border-radius: 10px; padding: 10px 14px; cursor: grab;
+        }
+        .block-row.dragging { opacity: 0.35; }
+        .block-row.hidden-block { background: #eceff1; border-style: dashed; }
+        .block-row.hidden-block .block-title,
+        .block-row.hidden-block .block-sub { color: #b0bec5; text-decoration: line-through; }
+        .drag-handle { color: #b0bec5; font-size: 1rem; user-select: none; flex-shrink: 0; }
+        .block-info { flex: 1; min-width: 0; }
+        .block-title { font-size: 0.92rem; font-weight: 800; color: var(--text-main); }
+        .block-sub { font-size: 0.75rem; color: var(--text-sub); margin-top: 2px; }
+        .block-num { flex-shrink: 0; font-size: 0.72rem; font-weight: 800; color: #b0bec5; width: 22px; text-align: center; }
+        .block-hide-toggle {
+            display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+            font-size: 0.72rem; font-weight: 700; color: var(--text-sub); cursor: pointer; user-select: none;
+            padding: 4px 10px; border-radius: 20px; border: 1px solid #d0d7de; background: #fff;
+        }
+        .block-hide-toggle input { margin: 0; }
+        .block-row.hidden-block .block-hide-toggle { color: #e65100; border-color: #ffcc80; background: #fff8e1; }
+
+        .empty-msg { color: var(--text-sub); font-size: 0.88rem; text-align: center; padding: 20px; }
+
+        .btn-save-all { background: var(--accent); color: white; display: block; width: 100%; padding: 13px; margin-top: 4px; font-size: 1rem; border-radius: 12px; border: none; font-weight: 900; cursor: pointer; }
+        .btn-save-all:hover { background: #1251a3; }
+        .btn-save-all:disabled { background: #b0bec5; cursor: not-allowed; }
+
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: #263238; color: white; padding: 12px 28px; border-radius: 30px;
+            font-size: 0.95rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; white-space: nowrap;
+        }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #d32f2f; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-bar">
+        <a href="#" id="back-link" class="btn-back">← 管理メニューに戻る</a>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
+    </div>
+    <div class="header">
+        <h1 style="margin:0;">🔀 表示順設定</h1>
+        <div id="event-name" class="event-badge">Loading...</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">審判構成画面の表示順</div>
+        <p class="card-desc">
+            <a href="#" id="link-roster" target="_blank" style="color:var(--accent);">審判構成画面（judge_roster.html）</a>
+            では、同じ審判構成（CJP・E審判・D審判が全て同一）のクラスは1つのブロックにまとめて表示されます。
+            ここではそのブロック単位で表示順を並べ替え（ドラッグして移動）、終わった競技は「非表示」に
+            チェックすることで審判構成画面から隠せます（ここでは灰色表示のまま残るので、後から戻せます）。
+        </p>
+        <div id="lists"></div>
+        <button class="btn-save-all" id="btn-save" disabled>💾 表示順を保存</button>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { doc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from './auth.js';
+    import { getTournament, getAthletes, invalidateCache } from "./cache.js";
+    import { buildJudgeRosterGroups, applyJudgeRosterOrder } from "./shared.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+
+    let dirty = false;
+    function markDirty() {
+        dirty = true;
+        document.getElementById('btn-save').disabled = false;
+    }
+
+    function escHtml(s) {
+        return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast show' + (isError ? ' error' : '');
+        setTimeout(() => { t.className = 'toast'; }, 2600);
+    }
+
+    ensureAdmin(user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+        initPage();
+    });
+
+    async function initPage() {
+        if (!eventId) { location.href = 'admin_index.html'; return; }
+        document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+        document.getElementById('link-roster').href = `judge_roster.html?event=${eventId}`;
+
+        let d, athletes;
+        try {
+            [d, athletes] = await Promise.all([getTournament(eventId), getAthletes(eventId)]);
+        } catch (e) {
+            console.error('大会データの取得に失敗:', e);
+            showToast('大会データの読み込みに失敗しました', true);
+            return;
+        }
+        if (!d) { showToast('大会データが見つかりません', true); return; }
+
+        document.getElementById('event-name').textContent = d.name || '大会';
+        document.title = `${d.name || '大会'} — 表示順設定`;
+
+        const athClasses = new Set(athletes.map(a =>
+            `${a.type || 'individual'}:${a.class || a.category || ''}`));
+
+        const cls = d.classes || {};
+        const individual = (cls.individual || []).filter(c => athClasses.has(`individual:${c.name}`));
+        const synchro    = (cls.synchro    || []).filter(c => athClasses.has(`synchro:${c.name}`));
+        const judgeConfig  = d.judgeConfig?.classes || {};
+        const classRules   = d.classRules || {};
+        const rosterOrder  = d.judgeConfig?.rosterOrder  || {};
+        const rosterHidden = d.judgeConfig?.rosterHidden || {};
+
+        const listsEl = document.getElementById('lists');
+        listsEl.innerHTML = '';
+
+        const sections = [
+            { type: 'individual', label: '個人',   list: individual },
+            { type: 'synchro',    label: 'シンクロ', list: synchro    },
+        ];
+
+        let anySection = false;
+        sections.forEach(({ type, label, list }) => {
+            if (list.length === 0) return;
+            let groups = buildJudgeRosterGroups(list, type, judgeConfig, classRules);
+            groups = applyJudgeRosterOrder(groups, rosterOrder[type]);
+            if (groups.length === 0) return;
+            anySection = true;
+
+            const wrap = document.createElement('div');
+            wrap.style.marginBottom = '24px';
+            wrap.innerHTML = `
+                <div class="section-title">
+                    <span class="section-badge ${type}">${label}</span>
+                    <span>${groups.length}ブロック</span>
+                    <button type="button" class="btn-reset" data-type="${type}">自然な順序に戻す</button>
+                </div>
+                <div class="block-list" id="list-${type}"></div>
+            `;
+            listsEl.appendChild(wrap);
+
+            const hiddenSet = new Set(rosterHidden[type] || []);
+            const listEl = wrap.querySelector(`#list-${type}`);
+            renderBlocks(listEl, groups, hiddenSet);
+
+            wrap.querySelector('.btn-reset').addEventListener('click', () => {
+                // 保存順を使わず、クラス定義順（自然順）で再描画するだけ（保存は「表示順を保存」ボタンで別途行う）
+                // 非表示状態は直前の保存済みの状態のまま引き継ぐ（この操作は順序だけをリセットする）
+                const naturalGroups = buildJudgeRosterGroups(list, type, judgeConfig, classRules);
+                renderBlocks(listEl, naturalGroups, hiddenSet);
+                markDirty();
+            });
+        });
+
+        if (!anySection) {
+            listsEl.innerHTML = '<div class="empty-msg">審判構成が設定されているクラスがありません。先に審判構成設定を行ってください。</div>';
+            return;
+        }
+
+        document.getElementById('btn-save').addEventListener('click', () => saveOrder(sections.map(s => s.type)));
+    }
+
+    // グループ配列をドラッグ並べ替え可能なブロック行として描画する（hiddenSet: 非表示中のleafKeyのSet）
+    function renderBlocks(listEl, groups, hiddenSet) {
+        listEl.innerHTML = '';
+        groups.forEach((g, i) => {
+            const classes = [...new Set(g.sections.map(s => s.className))];
+            const genders = [...new Set(g.sections.map(s => s.gender).filter(Boolean))];
+            const rounds  = [...new Set(g.sections.map(s => s.round).filter(Boolean))];
+            const subParts = [];
+            if (genders.length) subParts.push(genders.join('・') + ' / ' + rounds.join('・'));
+            if (g.data?.cjp) subParts.push('CJP: ' + g.data.cjp);
+            const isHidden = g.leafKeys.every(k => hiddenSet.has(k));
+
+            const row = document.createElement('div');
+            row.className = 'block-row' + (isHidden ? ' hidden-block' : '');
+            row.draggable = true;
+            row.dataset.leafKeys = JSON.stringify(g.leafKeys);
+            row.innerHTML = `
+                <span class="block-num">${i + 1}</span>
+                <span class="drag-handle">⠿</span>
+                <div class="block-info">
+                    <div class="block-title">${escHtml(classes.join('・'))}</div>
+                    ${subParts.length ? `<div class="block-sub">${escHtml(subParts.join(' ・ '))}</div>` : ''}
+                </div>
+                <label class="block-hide-toggle" title="チェックすると審判構成画面（judge_roster.html）から非表示になります">
+                    <input type="checkbox" class="hide-checkbox" ${isHidden ? 'checked' : ''}>
+                    非表示
+                </label>
+            `;
+            row.querySelector('.hide-checkbox').addEventListener('change', e => {
+                row.classList.toggle('hidden-block', e.target.checked);
+                markDirty();
+            });
+            listEl.appendChild(row);
+        });
+        attachDragHandlers(listEl);
+    }
+
+    // 標準的な並べ替え可能リストのドラッグ処理（マウスY座標から挿入位置を決めてDOMを直接並べ替える）
+    function attachDragHandlers(listEl) {
+        listEl.querySelectorAll('.block-row').forEach(row => {
+            row.addEventListener('dragstart', () => {
+                setTimeout(() => row.classList.add('dragging'), 0);
+            });
+            row.addEventListener('dragend', () => {
+                row.classList.remove('dragging');
+                renumber(listEl);
+                markDirty();
+            });
+        });
+        listEl.addEventListener('dragover', e => {
+            e.preventDefault();
+            const dragging = listEl.querySelector('.dragging');
+            if (!dragging) return;
+            const afterEl = getDragAfterElement(listEl, e.clientY);
+            if (afterEl == null) listEl.appendChild(dragging);
+            else listEl.insertBefore(dragging, afterEl);
+        });
+    }
+
+    function getDragAfterElement(container, y) {
+        const els = [...container.querySelectorAll('.block-row:not(.dragging)')];
+        return els.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) return { offset, element: child };
+            return closest;
+        }, { offset: -Infinity, element: null }).element;
+    }
+
+    function renumber(listEl) {
+        listEl.querySelectorAll('.block-row').forEach((row, i) => {
+            row.querySelector('.block-num').textContent = i + 1;
+        });
+    }
+
+    async function saveOrder(types) {
+        const btn = document.getElementById('btn-save');
+        btn.disabled = true;
+        btn.textContent = '保存中...';
+        try {
+            const updates = {};
+            types.forEach(type => {
+                const listEl = document.getElementById(`list-${type}`);
+                if (!listEl) return;
+                const rows = [...listEl.querySelectorAll('.block-row')];
+                const order = rows.flatMap(row => JSON.parse(row.dataset.leafKeys));
+                updates[`judgeConfig.rosterOrder.${type}`] = order.length ? order : deleteField();
+                const hidden = rows
+                    .filter(row => row.querySelector('.hide-checkbox').checked)
+                    .flatMap(row => JSON.parse(row.dataset.leafKeys));
+                updates[`judgeConfig.rosterHidden.${type}`] = hidden.length ? hidden : deleteField();
+            });
+            await updateDoc(doc(db, 'tournaments', eventId), updates);
+            invalidateCache(eventId);
+            dirty = false;
+            showToast('表示順を保存しました');
+        } catch (e) {
+            console.error('表示順の保存に失敗:', e);
+            showToast('保存に失敗しました: ' + e.message, true);
+        } finally {
+            btn.textContent = '💾 表示順を保存';
+            btn.disabled = !dirty;
+        }
+    }
+
+    window.addEventListener('beforeunload', e => {
+        if (dirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+</script>
+</body>
+</html>
