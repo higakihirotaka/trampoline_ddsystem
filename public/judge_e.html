@@ -145,11 +145,12 @@
             .btn-warmup-toggle { padding: 4px 8px; font-size: 0.65rem; }
 
             /* ステップバーをコンパクトに */
-            /* S1〜S5 / S6〜S10 の2段＋Lを3段目に単独配置し、1セルを大きくして数字(タブレットと同じ大きさ)を余裕で収める */
+            /* 6列×2段（1段目 S1〜S5、2段目 S6〜S10＋L。Lだけ右端の6列目にはみ出す）にし、1セルを大きくして数字(タブレットと同じ大きさ)を余裕で収める */
             .steps {
-                grid-template-columns: repeat(5, 1fr);
+                grid-template-columns: repeat(6, 1fr);
                 gap: 4px; padding: 6px 6px;
             }
+            .step:nth-child(6) { grid-column-start: 1; } /* S6から2段目 */
             .step {
                 aspect-ratio: unset;
                 height: 52px;
