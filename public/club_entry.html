@@ -76,7 +76,7 @@
         <div id="club-badge" class="club-badge" style="display:none;"></div>
     </div>
     <div class="notice-box">
-        提出および修正の履歴はサーバーに保存されています。締切後に不審な変更（改ざん等）にお気づきの場合は、審判席までお越しください。
+        提出および修正の履歴はサーバーに保存されています。<span id="notice-after-deadline" style="display:none;">締切後に</span>不審な変更（改ざん等）にお気づきの場合は、審判席までお越しください。
     </div>
     <div id="countdown-area" class="countdown-container"></div>
     <div id="indiv-list"></div>
@@ -224,6 +224,8 @@
                 ms: dt.getTime()
             };
         });
+        // 締切が1つも設定されていない大会では「締切後に」の文言を出さない（締切がある時だけ表示）
+        document.getElementById('notice-after-deadline').style.display = deadlines.length > 0 ? '' : 'none';
         if (deadlines.length === 0) { area.style.display = 'none'; return; }
         area.style.display = 'flex';
         area.innerHTML = deadlines.map(d =>
