@@ -69,6 +69,11 @@
         .status-msg.ok  { color: var(--success); }
         .status-msg.err { color: var(--danger); }
 
+        /* CJP確定後のロック表示（Eと同様、CJPが「修正」を押すまで入力不可） */
+        .lock-note { width: 100%; max-width: 360px; text-align: center; background: #1b2a1b; border: 1px solid #2e5a2e; color: #81c784; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; font-weight: bold; line-height: 1.5; }
+        .lock-note small { display: block; font-size: 0.72rem; font-weight: normal; color: var(--text-dim); }
+        .big-input:disabled { opacity: 0.4; cursor: not-allowed; }
+
         /* 有効本数/保存済み値のまとまり（PC・タブレットでは従来どおり縦に並べる） */
         .saved-pair { display: contents; }
 
@@ -123,6 +128,8 @@
     </div>
     </div>
 
+    <div class="lock-note" id="lock-note" style="display:none;">🔒 CJP確定済み<small>CJPが「修正」を押すと再入力できます</small></div>
+
     <div class="input-section">
         <div class="input-label" id="input-label">入力値（整数）</div>
         <input type="number" class="big-input" id="val-input"
@@ -155,6 +162,7 @@
     let currentAthleteId = null;
     let currentRound     = null;
     let unsubResults     = null;
+    let isLocked         = false; // CJP確定済み（liveState[panel].locked）。確定後は修正不可
 
     // ---- UI 初期化 ----
     document.getElementById('role-label').textContent  = role === 'T' ? 'ToF (T)' : 'HD';
@@ -191,6 +199,15 @@
         statusEl.className = 'status-msg';
     }
 
+    // ---- CJP確定ロックの反映（入力欄・送信ボタン・案内表示） ----
+    function applyLock() {
+        const inp = document.getElementById('val-input');
+        inp.disabled = isLocked;
+        document.getElementById('lock-note').style.display = isLocked ? '' : 'none';
+        const v = parseInt(inp.value, 10);
+        document.getElementById('btn-send').disabled = isLocked || !(currentAthleteId && !isNaN(v) && v >= 0);
+    }
+
     // ---- liveState を監視して現在の選手を追従 ----
     if (eventId) {
         onSnapshot(doc(db, 'tournaments', eventId), snap => {
@@ -208,6 +225,7 @@
 
             currentAthleteId = newAthleteId;
             currentRound     = newRound;
+            isLocked         = !!newAthleteId && live.locked === true;
 
             const nameEl = document.getElementById('ath-name');
             const metaEl = document.getElementById('ath-meta');
@@ -222,8 +240,7 @@
                 : '-';
 
             // 送信ボタンの活性制御（入力済みのとき）
-            const v = parseInt(document.getElementById('val-input').value, 10);
-            document.getElementById('btn-send').disabled = !(currentAthleteId && !isNaN(v) && v >= 0);
+            applyLock();
 
             if (changed) {
                 // 有効本数のリアルタイム監視を開始（選手切替時はリスナー張り直し）
@@ -265,7 +282,7 @@
         const btn = document.getElementById('btn-send');
         if (!isNaN(v) && v >= 0) {
             document.getElementById('actual-display').textContent = (v / divisor).toFixed(3);
-            btn.disabled = !currentAthleteId;
+            btn.disabled = !currentAthleteId || isLocked;
         } else {
             document.getElementById('actual-display').textContent = '-';
             btn.disabled = true;
@@ -274,6 +291,10 @@
 
     // ---- 送信 ----
     window.send = async function() {
+        if (isLocked) {
+            showStatus('CJP確定済みのため送信できません', true);
+            return;
+        }
         if (!currentAthleteId || !currentRound) {
             showStatus('選手が選択されていません', true);
             return;
@@ -305,7 +326,7 @@
         } catch (e) {
             showStatus('エラー: ' + e.message, true);
         } finally {
-            btn.disabled = false;
+            btn.disabled = isLocked;
         }
     };
 
