@@ -42,8 +42,8 @@
     :root[data-theme="red"]{
       --accent-cyan: #ffffff;
       --accent-rgb: 255,255,255;
-      --accent-gold: #fff1a8;
-      --gold-rgb: 255,241,168;
+      --accent-gold: #ffffff;   /* 強調色: 赤背景では黄色系より白が最も遠目に読みやすい */
+      --gold-rgb: 70,0,12;      /* 光彩・下線は濃いえんじ（白文字の背後に敷いて輪郭を立てる） */
       --bg-grad-1: #e7354f;
       --bg-grad-alt-1: #e7354f;
       --bg-grad-2: #e7354f;
@@ -55,6 +55,11 @@
       --border-ui: rgba(var(--accent-rgb),0.45);
     }
     /* 赤テーマ: 赤背景上で読めるよう、固定色で書かれた箇所を個別に上書き */
+    :root[data-theme="red"] .routine-box:not(.active) .val{ color:rgba(255,255,255,0.4); }
+    :root[data-theme="red"] .routine-box.active .val{ border-bottom-color:#ffffff; }
+    :root[data-theme="red"] .rk-row.rk-current{ background:rgba(70,0,12,0.38); border-color:rgba(255,255,255,0.85); }
+    :root[data-theme="red"] .rk-current .rk-team{ color:rgba(255,255,255,0.9); }
+    :root[data-theme="red"] .tr-row.r1{ background:rgba(70,0,12,0.32); border-color:rgba(255,255,255,0.85); }
     :root[data-theme="red"] .pen-reason-chip{ background:rgba(0,0,0,0.22); border-color:rgba(255,255,255,0.7); color:#fff; }
     :root[data-theme="red"] .d-val.capped{ color:#4a0613 !important; }
     :root[data-theme="red"] .tr-cat-round,
