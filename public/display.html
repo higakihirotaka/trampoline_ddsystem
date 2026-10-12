@@ -55,6 +55,10 @@
       --border-ui: rgba(var(--accent-rgb),0.45);
     }
     /* 赤テーマ: 赤背景上で読めるよう、固定色で書かれた箇所を個別に上書き */
+    :root[data-theme="red"] .card.d-card,
+    :root[data-theme="red"] .card.tof-card,
+    :root[data-theme="red"] .card.hd-card{ background:transparent; }
+    :root[data-theme="red"] .d-code{ background:transparent; }
     :root[data-theme="red"] .routine-box:not(.active) .val{ color:rgba(255,255,255,0.4); }
     :root[data-theme="red"] .routine-box.active .val{ border-bottom-color:#ffffff; }
     :root[data-theme="red"] .rk-row.rk-current{ background:rgba(70,0,12,0.16); border-color:rgba(255,255,255,0.85); }
