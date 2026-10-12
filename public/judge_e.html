@@ -145,12 +145,14 @@
             .btn-warmup-toggle { padding: 4px 8px; font-size: 0.65rem; }
 
             /* ステップバーをコンパクトに */
+            /* 11セルを6列×2段に折り返し、1セルを大きくして数字(タブレットと同じ大きさ)を余裕で収める */
             .steps {
-                gap: 2px; padding: 4px 4px;
+                grid-template-columns: repeat(6, 1fr);
+                gap: 4px; padding: 6px 6px;
             }
             .step {
                 aspect-ratio: unset;
-                height: 42px;
+                height: 56px;
                 min-height: unset;
                 border-radius: 4px;
                 gap: 1px;
@@ -158,7 +160,7 @@
             .step-lbl { font-size: 0.65rem; color: #333; }
             .step.filled .step-lbl { color: #fff; }
             .step.active .step-lbl { color: #fff; }
-            .step-val { font-size: 1.15rem; }
+            .step-val { font-size: 1.4rem; }
 
 
             /* キーパッドをコンパクトに */
