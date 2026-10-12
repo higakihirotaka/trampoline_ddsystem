@@ -12,6 +12,10 @@
       --bg-dark: #000c1a;
       --bg-panel: rgba(255,255,255,0.08);
       --accent-gold: #ffd700;
+      --gold-rgb: 255,215,0;       /* アクセント(ゴールド)の光彩・枠線用RGB */
+      --bg-logo-1: #07111f;        /* システムロゴ画面の背景（中心側） */
+      --bg-logo-2: #020810;        /* システムロゴ画面の背景（外周側） */
+      --dns-color: #e040fb;        /* DNS表示色 */
       /* --accent-cyan / --accent-rgb: 会場ディスプレイのメインカラー（色テーマ）。
          青パターンが既定値。赤パターンは下の :root[data-theme="red"] で上書きする。
          変数名は歴史的経緯で "cyan" のままだが、テーマによって実際の色は変わる。 */
@@ -33,14 +37,48 @@
       --frame-pad-x: 3cqw;
     }
     /* ---- 色テーマ: 赤パターン（大会画面コントロールから選択） ---- */
+    /* 大会ロゴ(#E7354F)に合わせたフラット背景。グラデーションは使わず、全背景変数を同色にする。
+       背景自体が赤なので、アクセント(枠線・光彩・見出し)は白系に置き換えて視認性を確保する。 */
     :root[data-theme="red"]{
-      --accent-cyan: #e63a54;
-      --accent-rgb: 230,58,84;
-      --bg-grad-1: #3a0812;
-      --bg-grad-alt-1: #2e0510;
-      --bg-grad-2: #0d0002;
-      --border-ui: rgba(var(--accent-rgb),0.2);
+      --accent-cyan: #ffffff;
+      --accent-rgb: 255,255,255;
+      --accent-gold: #fff1a8;
+      --gold-rgb: 255,241,168;
+      --bg-grad-1: #e7354f;
+      --bg-grad-alt-1: #e7354f;
+      --bg-grad-2: #e7354f;
+      --bg-logo-1: #e7354f;
+      --bg-logo-2: #e7354f;
+      --text-muted: #ffe3e8;
+      --dns-color: #4a0613;
+      --alert-red: #4a0613;
+      --border-ui: rgba(var(--accent-rgb),0.45);
     }
+    /* 赤テーマ: 赤背景上で読めるよう、固定色で書かれた箇所を個別に上書き */
+    :root[data-theme="red"] .pen-reason-chip{ background:rgba(0,0,0,0.22); border-color:rgba(255,255,255,0.7); color:#fff; }
+    :root[data-theme="red"] .d-val.capped{ color:#4a0613 !important; }
+    :root[data-theme="red"] .tr-cat-round,
+    :root[data-theme="red"] .tr-total label,
+    :root[data-theme="red"] .tr-mem.drop .tr-mem-scores span,
+    :root[data-theme="red"] .tr-empty{ color:#ffe3e8; }
+    :root[data-theme="red"] .tr-mem-head .tr-mem-scores span{ color:rgba(255,255,255,0.75); }
+    :root[data-theme="red"] .tr-mem-scores span.struck{ color:rgba(255,255,255,0.55) !important; }
+    :root[data-theme="red"] .tr-gap{ color:#4a0613; }
+    :root[data-theme="red"] .tr-row.r2{ border-left-color:#ffffff; }
+    :root[data-theme="red"] .tr-row.r2 .tr-rank{ color:#ffffff; }
+    :root[data-theme="red"] .tr-row.r3{ border-left-color:#ffd0b0; }
+    :root[data-theme="red"] .tr-row.r3 .tr-rank{ color:#ffd0b0; }
+    :root[data-theme="red"] #vs-inquiry{ box-shadow:none; }
+    :root[data-theme="red"] #vs-inquiry .calc-conv,
+    :root[data-theme="red"] #vs-inquiry .calc-class{ color:rgba(255,255,255,0.9); }
+    :root[data-theme="red"] .vs-logo-tagline,
+    :root[data-theme="red"] .vs-warmup-event,
+    :root[data-theme="red"] .footer-credits{ color:rgba(255,255,255,0.7); }
+    :root[data-theme="red"] .vs-logo-system{ color:rgba(255,255,255,0.85); }
+    :root[data-theme="red"] .inquiry-line-en{ color:#4a0613; }
+    :root[data-theme="red"] .inquiry-line-ja{ text-shadow:0 0 1.6cqw rgba(0,0,0,0.35); }
+    :root[data-theme="red"] .vs-timer.warning,
+    :root[data-theme="red"] .intro-warmup-timer.warning{ color:#4a0613; text-shadow:none; }
     @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Regular.woff2") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
     @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-SemiBold.woff2") format("woff2"); font-weight:600; font-style:normal; font-display:swap; }
     @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Bold.woff2") format("woff2"); font-weight:700; font-style:normal; font-display:swap; }
@@ -386,9 +424,9 @@
     .routine-box.active label{ color: var(--accent-gold); }
     .routine-box.active .val{
       color: rgba(255,255,255,0.85);
-      border-bottom: 6px solid rgba(255,215,0,0.85);
+      border-bottom: 6px solid rgba(var(--gold-rgb),0.85);
       padding-bottom: 3px;
-      text-shadow: 0 0 14px rgba(255,215,0,0.18);
+      text-shadow: 0 0 14px rgba(var(--gold-rgb),0.18);
     }
     .final-results{
       display:flex;
@@ -483,8 +521,8 @@
       overflow: hidden;
     }
     .rk-row.rk-current{
-      background: rgba(255,215,0,0.09);
-      border-color: rgba(255,215,0,0.35);
+      background: rgba(var(--gold-rgb),0.09);
+      border-color: rgba(var(--gold-rgb),0.35);
     }
     .rk-rank{ font-size: calc(2.6cqw  * var(--rk-scale, 1)); font-weight: 900; line-height: 1.0; color: var(--text-muted); }
     .rk-name-group{
@@ -503,7 +541,7 @@
       flex: 1; min-width: 0;
     }
     .rk-current .rk-name{ color: var(--accent-gold); }
-    .rk-current .rk-team{ color: rgba(255,215,0,0.65); }
+    .rk-current .rk-team{ color: rgba(var(--gold-rgb),0.65); }
     .rk-sc{ font-size: calc(2.6cqw  * var(--rk-scale, 1)); font-weight: 700; line-height: 1.0; text-align: right; color: var(--text-muted); }
     .rk-tot{ font-size: calc(3.8cqw  * var(--rk-scale, 1)); font-weight: 900; line-height: 1.0; text-align: right; }
     .rk-current .rk-tot{ color: var(--accent-gold); }
@@ -551,7 +589,7 @@
     font-size:1.1cqw; font-weight:700; letter-spacing:0.8cqw; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   /* 左に「団体競技 クラス名 男女」を同じ書式で並べる（TRA表記なし・右側の記載は無し） */
   .tr-cat{ display:flex; align-items:baseline; gap:1.6cqw; padding:0.9cqh 0.2cqw 0.3cqh; }
-  .tr-cat-title, .tr-cat-part{ font-size:2.6cqw; font-weight:900; color:#ffd700; letter-spacing:-0.5px; line-height:1; }
+  .tr-cat-title, .tr-cat-part{ font-size:2.6cqw; font-weight:900; color:var(--accent-gold); letter-spacing:-0.5px; line-height:1; }
   .tr-cat-round{ font-size:1.7cqw; font-weight:800; color:#cbd5e0; line-height:1; }
   /* 3チーム固定（1画面3チーム・1,2チームでも同サイズ。4以上はJSでページ送り） */
   .tr-list{ display:grid; grid-template-rows:repeat(3,1fr); row-gap:1cqh; padding:0.6cqh 0; min-height:0; }
@@ -582,8 +620,8 @@
   .tr-total label{ display:block; font-size:0.85cqw; font-weight:800; color:#cbd5e0; letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
   .tr-total-num{ font-size:3cqw; font-weight:900; letter-spacing:-1.5px; line-height:1; font-variant-numeric:tabular-nums; }
   .tr-gap{ font-size:0.95cqw; font-weight:800; color:#ff8a80; letter-spacing:0.02cqw; margin-top:0.35cqh; line-height:1; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .tr-row.r1{ border-color:rgba(255,215,0,0.55); border-left-color:#ffd700; background:rgba(255,215,0,0.06); }
-  .tr-row.r1 .tr-rank, .tr-row.r1 .tr-total-num{ color:#ffd700; text-shadow: 0 0 16px rgba(255,215,0,0.25); }
+  .tr-row.r1{ border-color:rgba(var(--gold-rgb),0.55); border-left-color:var(--accent-gold); background:rgba(var(--gold-rgb),0.06); }
+  .tr-row.r1 .tr-rank, .tr-row.r1 .tr-total-num{ color:var(--accent-gold); text-shadow: 0 0 16px rgba(var(--gold-rgb),0.25); }
   .tr-row.r2{ border-left-color:#d6e0ea; } .tr-row.r2 .tr-rank{ color:#d6e0ea; }
   .tr-row.r3{ border-left-color:#e8a06a; } .tr-row.r3 .tr-rank{ color:#e8a06a; }
   /* 団体順位表の登場アニメ：初回表示・ページ送りのたびに各行がフェード＋スライドアップ（個人順位表の登場に合わせた演出） */
@@ -706,11 +744,11 @@
   .vs-ceremony-label{
     font-size:var(--vs-cer-label-fs,10vw); font-weight:900; letter-spacing:0.15em;
     color:var(--accent-gold);
-    text-shadow:0 0 80px rgba(255,215,0,0.35);
+    text-shadow:0 0 80px rgba(var(--gold-rgb),0.35);
   }
   /* ===== システムロゴ画面 ===== */
   #vs-logo{
-    background: radial-gradient(ellipse at 50% 48%, #07111f 0%, #020810 100%);
+    background: radial-gradient(ellipse at 50% 48%, var(--bg-logo-1) 0%, var(--bg-logo-2) 100%);
     justify-content: center; gap: 0;
   }
   .vs-logo-wrap{
@@ -801,7 +839,7 @@
     flex-shrink:0;
   }
   .vs-timer.warning{ color:#ff6b35; text-shadow:0 0 120px rgba(255,107,53,0.4); }
-  .vs-timer.done   { color:var(--accent-gold); text-shadow:0 0 120px rgba(255,215,0,0.45); animation:pulse 1s ease-in-out infinite; }
+  .vs-timer.done   { color:var(--accent-gold); text-shadow:0 0 120px rgba(var(--gold-rgb),0.45); animation:pulse 1s ease-in-out infinite; }
   @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:0.55} }
   .vs-footer{
     position:absolute; bottom:1.5vw; left:0; width:100%; text-align:center;
@@ -861,7 +899,7 @@
   .intro-warmup-timer{
     font-size:120px; font-weight:900; letter-spacing:0.06em;  /* タイマー本体は120px固定（以前の60pxの2倍） */
     color:var(--accent-gold); line-height:1;
-    text-shadow:0 0 24px rgba(255,215,0,0.25);
+    text-shadow:0 0 24px rgba(var(--gold-rgb),0.25);
     text-align:center;                   /* ラベルと時間を互いにセンタリング */
   }
   .intro-warmup-timer .lbl{
@@ -882,7 +920,7 @@
   .intro-title-big{
     font-size:9cqw; font-weight:900; letter-spacing:0.3em; text-indent:0.3em;
     color:var(--accent-gold); white-space:nowrap;
-    text-shadow:0 0 80px rgba(255,215,0,0.28);
+    text-shadow:0 0 80px rgba(var(--gold-rgb),0.28);
   }
   .intro-title-screen.active .intro-title-big{
     animation: intro-title-in 1600ms 150ms cubic-bezier(0.16,1,0.3,1) both;
@@ -912,7 +950,7 @@
   .intro-roster-title{
     font-size:3.2cqw; font-weight:900; letter-spacing:0.4em; text-indent:0.4em;
     color:var(--accent-gold); line-height:1;
-    text-shadow:0 0 40px rgba(255,215,0,0.2);
+    text-shadow:0 0 40px rgba(var(--gold-rgb),0.2);
   }
   .intro-roster-screen.active .intro-roster-title{
     animation: intro-fade-up 1000ms 0ms cubic-bezier(0.22,1,0.36,1) both;
@@ -1415,7 +1453,7 @@
           </div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
-          <div style="font-size:16cqw;font-weight:900;color:#e040fb;letter-spacing:0.12em;line-height:1;">DNS</div>
+          <div style="font-size:16cqw;font-weight:900;color:var(--dns-color,#e040fb);letter-spacing:0.12em;line-height:1;">DNS</div>
           <div style="font-size:3cqw;color:rgba(255,255,255,0.45);font-weight:700;letter-spacing:0.08em;">棄権 — DID NOT START</div>
         </div>
         <footer class="footer-credits">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>`;
