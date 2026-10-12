@@ -68,6 +68,30 @@
         .status-msg { font-size: 0.95rem; font-weight: bold; min-height: 1.4em; text-align: center; }
         .status-msg.ok  { color: var(--success); }
         .status-msg.err { color: var(--danger); }
+
+        /* 有効本数/保存済み値のまとまり（PC・タブレットでは従来どおり縦に並べる） */
+        .saved-pair { display: contents; }
+
+        /* スマホ: 1画面（スクロールなし）に収まるよう各部を圧縮し、2つのカードを横並びにする */
+        @media (max-width: 540px) {
+            body { min-height: 100dvh; }
+            .top-bar { padding: 8px 14px; }
+            .role-badge { font-size: 1.3rem; }
+            .athlete-bar { padding: 10px 14px; }
+            .athlete-name { font-size: 1.25rem; }
+            .athlete-meta { font-size: 0.8rem; margin-top: 2px; }
+            .main { justify-content: flex-start; padding: 12px 14px; gap: 10px; min-height: 0; }
+            .saved-pair { display: flex; gap: 8px; width: 100%; max-width: 360px; }
+            .saved-pair .saved-row { flex: 1; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; }
+            .saved-val { font-size: 1.25rem; }
+            .vc-val { font-size: 1.4rem; }
+            .input-label { margin-bottom: 6px; }
+            .big-input { padding: 8px; font-size: 3rem; }
+            .actual-wrap { margin-top: 6px; }
+            .actual-value { font-size: 1.6rem; }
+            .btn-send { padding: 14px; font-size: 1.2rem; }
+            .status-msg { font-size: 0.9rem; min-height: 1.2em; }
+        }
     </style>
 </head>
 <body>
@@ -87,6 +111,7 @@
 
 <div class="main">
 
+    <div class="saved-pair">
     <div class="saved-row">
         <span class="saved-label">有効本数</span>
         <span class="vc-val" id="vc-val">-</span>
@@ -95,6 +120,7 @@
     <div class="saved-row">
         <span class="saved-label">保存済み値</span>
         <span class="saved-val" id="saved-val">-</span>
+    </div>
     </div>
 
     <div class="input-section">
