@@ -89,6 +89,9 @@
         .dd-total-label { font-size: 0.65rem; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
         .dd-total-val { font-size: 2.4rem; font-weight: 900; color: var(--accent); line-height: 1; }
         .dd-capped { color: #e65100 !important; font-weight: 900; }
+        .duplicate-row td { background-color: #fff176 !important; }
+        .dd-zero { color: #d93025 !important; font-weight: bold; }
+        .dd-not-designated { color: #90a4ae !important; }
         .actions-section { margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
         .btn-group { display: flex; gap: 10px; }
         .btn-status { flex: 1; padding: 12px 8px; border-radius: 10px; font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; border: 2px solid transparent; background: #f5f5f5; color: #999; }
@@ -194,16 +197,18 @@
     }
 
     function resolveSkill(raw) {
-        if (!raw && raw !== 0) return { symbol: '-', dd: null, direction: '', isTriple: false };
+        if (!raw && raw !== 0) return { symbol: '-', dd: null, direction: '', isTriple: false, key: '' };
         if (typeof raw === 'object' && raw !== null) {
             const found = raw.id
                 ? (skillMasterById.get(String(raw.id)) || skillMasterBySymbol.get(raw.skill))
                 : skillMasterBySymbol.get(raw.skill);
-            return { symbol: raw.skill || '-', dd: raw.dd ?? null, direction: found?.direction || '', isTriple: found?.isTriple || false };
+            // DDは選手入力画面（entry.html）と同じく技マスターの現在値を優先（未登録の技のみ提出時の値）。重複判定キーも同様にマスターID優先。
+            return { symbol: raw.skill || '-', dd: found?.dd ?? raw.dd ?? null, direction: found?.direction || '', isTriple: found?.isTriple || false,
+                     key: found?.id ? String(found.id) : (raw.skill || '') };
         }
         const found = skillMasterById.get(String(raw));
-        return found ? { symbol: found.symbol || '-', dd: found.dd ?? null, direction: found.direction || '', isTriple: found.isTriple || false }
-                     : { symbol: '-', dd: null, direction: '', isTriple: false };
+        return found ? { symbol: found.symbol || '-', dd: found.dd ?? null, direction: found.direction || '', isTriple: found.isTriple || false, key: String(found.id) }
+                     : { symbol: '-', dd: null, direction: '', isTriple: false, key: '' };
     }
 
     const DIR_LABEL = { '前方系': '前方', '後方系': '後方', '基礎技': '基礎' };
@@ -500,19 +505,32 @@
         const showDes  = effDDCnt >= 0;
 
         let tableRows = '', baseDD = 0, tripleCount = 0;
+        // 選手入力画面（entry.html）と同じ重複判定: 同じ技が複数ある場合、2回目以降は0.0点（基礎点・トリプル数に含めない）。重複行は黄色。
+        const resolved = [];
+        const keyCounts = {};
         for (let i = 0; i < 10; i++) {
-            const s = resolveSkill((submission.skills || [])[i]);
+            const r = resolveSkill((submission.skills || [])[i]);
+            resolved.push(r);
+            if (r.key) keyCounts[r.key] = (keyCounts[r.key] || 0) + 1;
+        }
+        const seenKeys = new Set();
+        for (let i = 0; i < 10; i++) {
+            const s = resolved[i];
+            const isDupRow = !!s.key && keyCounts[s.key] > 1;
+            const isDupZero = !!s.key && seenKeys.has(s.key);
+            if (s.key) seenKeys.add(s.key);
             const counts = effDDCnt < 0 ? true : (effDDCnt > 0 && desSet.has(i));
             // 1技あたり難度上限: 上限超の技は上限値で計算（表示も上限値にして色付け）
-            const isCapped = (perSkillDDCap != null && s.dd != null && round1(s.dd) > perSkillDDCap);
-            const usedDD   = isCapped ? perSkillDDCap : s.dd;
-            if (s.dd != null && counts) baseDD += usedDD;
-            if (s.isTriple && counts) tripleCount++;
+            const isCapped = !isDupZero && (perSkillDDCap != null && s.dd != null && round1(s.dd) > perSkillDDCap);
+            const usedDD   = isDupZero ? 0 : (isCapped ? perSkillDDCap : s.dd);
+            if (s.dd != null && counts && !isDupZero) baseDD += usedDD;
+            if (s.isTriple && counts && !isDupZero) tripleCount++;
+            const ddCls = isDupZero ? ' dd-zero' : (isCapped && counts ? ' dd-capped' : (!counts && s.dd != null ? ' dd-not-designated' : ''));
             const desMark = showDes ? '<td class="skill-des">' + (counts && effDDCnt > 0 ? '<span class="skill-des-mark">★</span>' : '') + '</td>' : '';
-            tableRows += '<tr><td class="skill-num">' + (i + 1) + '</td>' +
+            tableRows += '<tr' + (isDupRow ? ' class="duplicate-row"' : '') + '><td class="skill-num">' + (i + 1) + '</td>' +
                 '<td class="skill-dir">' + (DIR_LABEL[s.direction] || '-') + '</td>' +
                 '<td class="skill-sym">' + s.symbol + '</td>' +
-                '<td class="skill-dd' + (isCapped && counts ? ' dd-capped' : '') + '">' + (s.dd != null ? usedDD.toFixed(1) : '-') + '</td>' + desMark + '</tr>';
+                '<td class="skill-dd' + ddCls + '">' + (s.dd != null ? usedDD.toFixed(1) : '-') + '</td>' + desMark + '</tr>';
         }
 
         const bonus  = calcBonus(athlete.gender || '', tripleCount);
