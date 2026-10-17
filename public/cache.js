@@ -66,9 +66,12 @@ export async function getTournament(eventId) {
  */
 export async function getAthletes(eventId) {
     const key = `ath:${eventId}`;
-    if (_mem.has(key)) return _mem.get(key);
+    // 空配列のキャッシュは無視して再取得する（読込タイミングで0件が返ったものを
+    // ロックすると、選手名が引けずIDにフォールバックし続けるため）
+    const mem = _mem.get(key);
+    if (mem && mem.length > 0) return mem;
     const ss = ssGet(key);
-    if (ss !== undefined) { _mem.set(key, ss); return ss; }
+    if (ss !== undefined && ss.length > 0) { _mem.set(key, ss); return ss; }
 
     const snap = await getDocs(collection(db, 'tournaments', eventId, 'athletes'));
     // finalOrder / isInFinal は試技順変更で頻繁に更新されるためキャッシュ除外
@@ -76,8 +79,8 @@ export async function getAthletes(eventId) {
         const { finalOrder, isInFinal, ...stable } = { id: d.id, ...d.data() };
         return stable;
     });
-    _mem.set(key, data);
-    ssSet(key, data);
+    // 空はキャッシュしない（次回また取得を試みる）
+    if (data.length > 0) { _mem.set(key, data); ssSet(key, data); }
     return data;
 }
 
@@ -101,8 +104,53 @@ export async function getFinalOrders(eventId) {
 }
 
 /**
+ * skillMaster コレクションを Firestore から取得（キャッシュ処理は呼び出し元が行う）。
+ * @returns {Promise<Array<{id: string, [key: string]: any}>>}
+ */
+async function fetchSkillsFromFirestore() {
+    const snap = await getDocs(collection(db, 'skillMaster'));
+    return snap.docs
+        .map(d => {
+            const s = { id: d.id, ...d.data() };
+            // 2回宙はDDで低グループ(≤1.5) / 高グループ(≥1.6) に自動分類
+            if (s.somersaultType === '2回宙') {
+                s.doubleSomaGroup = (s.dd >= 1.6) ? 'high' : 'low';
+            }
+            return s;
+        })
+        .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)));
+}
+
+/**
+ * skills.json が最新かどうかを、更新日時マーカー（meta/skillMaster.updatedAt、
+ * skill_master.html が編集の都度書き込む）と skills.json 埋め込みの generatedAt を
+ * 比較して判定する。マーカー未作成・読み取り失敗など判定できない場合は「stale ではない」
+ * 側に倒す（= 静的ファイルを使う。誤ってFirestore全件取得に倒れないようfail-open）。
+ * @param {number|undefined} generatedAt skills.json 生成時点のUnixミリ秒
+ * @returns {Promise<boolean>}
+ */
+async function isSkillsJsonStale(generatedAt) {
+    if (!generatedAt) return false; // 版情報のない旧形式ファイルは判定不能なのでそのまま使う
+    try {
+        const markerSnap = await getDoc(doc(db, 'meta', 'skillMaster'));
+        if (!markerSnap.exists()) return false; // マーカー未作成＝比較対象なし
+        const updatedAt = markerSnap.data().updatedAt;
+        const updatedMs = updatedAt?.toMillis ? updatedAt.toMillis() : 0;
+        return updatedMs > generatedAt;
+    } catch (e) {
+        console.warn('技マスタ更新マーカーの取得に失敗、staleではないものとして扱います:', e);
+        return false;
+    }
+}
+
+/**
  * skillMaster コレクションを取得（キャッシュあり）
  * displayOrder → id の数値順でソートして返す。
+ *
+ * 大会中はほぼ不変なデータなので、まず静的な skills.json（1回のHTTPリクエスト・
+ * ブラウザの標準HTTPキャッシュも効く）を試す。skill_master.html での編集後に
+ * skills.json の再生成・再デプロイを忘れていても、更新日時マーカーと突き合わせて
+ * 古いと判定した場合は自動的に Firestore から取り直す（取得失敗時も同様にフォールバック）。
  * @returns {Array<{id: string, [key: string]: any}>}
  */
 export async function getSkills() {
@@ -112,17 +160,27 @@ export async function getSkills() {
     if (ss !== undefined) { _mem.set(key, ss); return ss; }
 
     try {
-        const snap = await getDocs(collection(db, 'skillMaster'));
-        const data = snap.docs
-            .map(d => {
-                const s = { id: d.id, ...d.data() };
-                // 2回宙はDDで低グループ(≤1.5) / 高グループ(≥1.6) に自動分類
-                if (s.somersaultType === '2回宙') {
-                    s.doubleSomaGroup = (s.dd >= 1.6) ? 'high' : 'low';
-                }
-                return s;
-            })
-            .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)));
+        const res = await fetch('./skills.json');
+        if (res.ok) {
+            const payload = await res.json();
+            // 新形式 { generatedAt, skills } / 旧形式（配列そのもの）の両方に対応
+            const data = Array.isArray(payload) ? payload : payload.skills;
+            const generatedAt = Array.isArray(payload) ? undefined : payload.generatedAt;
+            if (Array.isArray(data) && data.length > 0 && !(await isSkillsJsonStale(generatedAt))) {
+                _mem.set(key, data);
+                ssSet(key, data);
+                return data;
+            }
+            if (Array.isArray(data) && data.length > 0) {
+                console.warn('skills.json が技マスタ更新より古いため、Firestoreから取得し直します。');
+            }
+        }
+    } catch (e) {
+        console.warn('skills.json 取得失敗、Firestoreにフォールバックします:', e);
+    }
+
+    try {
+        const data = await fetchSkillsFromFirestore();
         _mem.set(key, data);
         ssSet(key, data);
         return data;
