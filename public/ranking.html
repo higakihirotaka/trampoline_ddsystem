@@ -6,6 +6,10 @@
   <title>順位表</title>
   <style>
     :root { --accent:#1a3a6b; --gold:#b8860b; --print-font-size:10px; --print-name-w:140px; }
+    /* 大会画面コントロールの色テーマが「赤」の大会は、メインカラーを大会ロゴ色(#E7354F)にする（青は既定のまま） */
+    :root[data-theme="red"] { --accent:#e7354f; }
+    :root[data-theme="red"] .q-mark { color:#e7354f; }
+    :root[data-theme="red"] tr.is-qual td { background:#fde8ec !important; }
     * { box-sizing:border-box; }
     body { font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin:0; padding:0; background:#fff; color:#111; font-size:13px; }
 
@@ -186,7 +190,7 @@
     <option value="200">200</option>
   </select>
   <button class="btn-print" onclick="printRanking()">🖨 印刷</button>
-  <button class="btn-print" onclick="printAllClasses()" style="background:#1a3a6b;">🖨 全クラス印刷</button>
+  <button class="btn-print" onclick="printAllClasses()" style="background:var(--accent);">🖨 全クラス印刷</button>
 </div>
 
 <div class="print-area">
@@ -217,6 +221,7 @@
     ]);
     if (!fetchedTour) { document.getElementById('output').innerHTML = '<div class="no-data">大会が見つかりません</div>'; return; }
     tourData = fetchedTour;
+    if (tourData.displaySettings?.colorTheme === 'red') document.documentElement.dataset.theme = 'red';
     athletes = fetchedAth;
     // 決勝試技順はキャッシュ除外なので毎回Firestoreから取得してマージ
     const finalOrders = await getFinalOrders(eventId);
