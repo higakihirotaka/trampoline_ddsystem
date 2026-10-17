@@ -2581,6 +2581,8 @@
     });
     clearInterval(warmupTimerInterval);
     warmupTimerInterval = null;
+    clearInterval(_introTicker);   // 選手紹介の自動進行は、選手紹介を表示する時（applyIntroSlide）だけ再開する
+    _introTicker = null;
 
     // 集計中は最優先（他の画面より前面）
     if (tourData.calculating) {
@@ -2748,10 +2750,50 @@
   // 直近に描画したintroSettingsの内容（無関係な大会ドキュメント更新のたびにapplyVenueScreen経由で
   // 呼ばれても、選手やページが実際に変わっていなければ登場アニメを再発火させないためのガード）
   let _lastIntroSig = null;
+
+  // ---- 選手紹介の自動進行（会場ディスプレイ側で時計から手順を計算する） ----
+  // 以前は display_control.html を開いた端末のタイマーが currentIndex を書き込んでいたため、その端末の
+  // タブを閉じる・スリープする・裏に回ると紹介が途中で止まっていた。現在は開始時刻(startedAt=サーバー時刻)
+  // と間隔(durationMs)だけをもらい、この画面が自分で「何周目の何手順目か」を計算して進める。
+  // startedAt が無い（古い操作画面から開始された）場合は従来どおり currentIndex に従う。
+  let _introTicker = null;
+  let _introLatest = null;
+  let _introClockOffset = 0;   // サーバー時刻 - この端末の時刻(ms)。HTTP Dateヘッダで測る（秒精度）
+  async function measureIntroClockOffset() {
+    try {
+      const t0 = Date.now();
+      const res = await fetch(location.pathname, { method: 'HEAD', cache: 'no-store' });
+      const dh = res.headers.get('Date');
+      if (!dh) return;
+      const t1 = Date.now();
+      const srv = new Date(dh).getTime();
+      if (!isNaN(srv)) _introClockOffset = srv - (t0 + t1) / 2;
+    } catch {}
+  }
+  measureIntroClockOffset();
+  setInterval(measureIntroClockOffset, 10 * 60 * 1000);
+
+  function introClockIdx(settings) {
+    const startMs = settings.startedAt?.toMillis ? settings.startedAt.toMillis() : null;
+    const dur = Number(settings.durationMs);
+    if (startMs == null || !(dur > 0)) return settings.currentIndex ?? 0;
+    const stepsLen = buildIntroSteps(settings.athletes || [], !!settings.showPerClassRoster).length;
+    // display_control.html の従来ループと同じ: -1(タイトル) → 0..手順数-1 →(一覧ONなら手順数) → -1 ...
+    const maxIdx = stepsLen - 1 + (settings.showRoster ? 1 : 0);
+    const elapsed = Math.max(0, Date.now() + _introClockOffset - startMs);
+    return (Math.floor(elapsed / dur) % (maxIdx + 2)) - 1;
+  }
+
   function applyIntroSlide(settings) {
     const athletes = settings.athletes || [];
-    const idx      = settings.currentIndex ?? 0;
+    const idx      = introClockIdx(settings);
     if (athletes.length === 0) return;
+    _introLatest = settings;
+    if (settings.startedAt?.toMillis && Number(settings.durationMs) > 0) {
+      if (!_introTicker) _introTicker = setInterval(() => { if (_introLatest) applyIntroSlide(_introLatest); }, 250);
+    } else if (_introTicker) {
+      clearInterval(_introTicker); _introTicker = null;
+    }
     const sig = `${idx}|${athletes.length}|${settings.showPerClassRoster ? 1 : 0}`;
     if (sig === _lastIntroSig) return; // 同じ手順のまま＝無関係な更新なので何もしない
     _lastIntroSig = sig;

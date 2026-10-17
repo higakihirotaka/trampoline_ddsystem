@@ -751,6 +751,7 @@
                     'introSettings.currentIndex': -1,  // -1 = ループ開始時の「選手紹介」タイトル画面
                     'introSettings.showRoster': showRoster,
                     'introSettings.showPerClassRoster': showPerClassRoster,
+                    'introSettings.startedAt': serverTimestamp(),  // 進行は会場ディスプレイ側がこの時刻から計算する
                     'introSettings.isRunning': true
                 });
                 startIntroSequence(sel, durMs, showRoster, showPerClassRoster);
@@ -1027,9 +1028,7 @@
             if (introCurIdx > maxIdx) {
                 introCurIdx = -1; // 一周 → 毎回「選手紹介」タイトルから
             }
-            await updateDoc(doc(db,'tournaments',eventId), {
-                'introSettings.currentIndex': introCurIdx
-            }).catch(() => {});
+            // currentIndex の書き込みは廃止（会場ディスプレイが startedAt から自分で進める）。ここは操作画面の表示用のみ。
             updateIntroStatus(introCurIdx, steps);
         }, durationMs);
     }
