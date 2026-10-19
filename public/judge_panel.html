@@ -630,11 +630,12 @@
                     <div class="paper-mode-note">📄 紙運用クラス：技ごとの入力は不要です。競技カードに記入された合計難度点をそのまま入力してください</div>
                     <div class="paper-total-row">
                         <label>合計難度点（DD）</label>
-                        <input type="number" id="paper-total-dd" min="0" max="99" step="0.1" value="${existingTotal}" ${paperInputDisabled ? 'disabled' : ''}>
+                        <input type="number" id="paper-total-dd" min="0" max="99" step="0.1" value="${existingTotal}" oninput="calcTotal()" ${paperInputDisabled ? 'disabled' : ''}>
                     </div>
                     ${capRefHtml}
                     <div class="action-area" id="action-area">${actionBtnHtml}</div>
                 </div>`;
+            calcTotal(); // 入力済みの合計DDで、難度上限（失格設定）・難度下限の確定ボタン表記を初期反映
             watchValidCount(subId);
             scheduleFit();
             return;
@@ -756,10 +757,24 @@
         if (doCalc) calcTotal();
     };
 
+    // 紙運用クラス: 技ごとの値が無いので、入力された合計DDだけで判定する。
+    // 構成あたり難度上限（失格設定）の超過・難度下限未満のとき、確定ボタンの表記だけ変える（確定自体はできる）。
+    // 1技あたり難度上限は技ごとの値が無いため判定できない。
+    function updatePaperSaveLabel() {
+        const saveBtn = document.getElementById('btn-save');
+        if (!saveBtn || !saveBtn.dataset.origLabel) return;
+        const v = parseFloat(document.getElementById('paper-total-dd')?.value);
+        const has = !isNaN(v);
+        const overCapDQ = has && routineDDCap != null && routineDDCapDQ && round1(v) > routineDDCap;
+        const belowMin  = has && minRoutineDD != null && round1(v) < minRoutineDD;
+        saveBtn.textContent = overCapDQ ? '⚠ 難度上限超過（失格）' : belowMin ? '⚠ 難度下限未満' : saveBtn.dataset.origLabel;
+        saveBtn.classList.toggle('btn-below-min', overCapDQ || belowMin);
+    }
+
     window.calcTotal = () => {
         const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId];
         const validCountEl = document.getElementById('valid-count'), totalDDContainer = document.getElementById('total-dd');
-        if (!validCountEl) return;
+        if (!validCountEl) { if (isPaperMode) updatePaperSaveLabel(); return; }
 
         const validLimit = parseInt(validCountEl.value);
         let baseDD = 0, tripleCount = 0, hasAnyDiff = false, skillOverCapDQ = false;
