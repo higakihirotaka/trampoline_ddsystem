@@ -160,6 +160,8 @@
     let designatedDDCount = -1;   // -1=無効, 0=全DD0, 1以上=N本指定
     let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
     let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
+    let perSkillDDCapDQ = false;  // true=1技あたり上限超過は失格（丸め込まず、確定ボタンの表記を変える）
+    let routineDDCapDQ  = false;  // true=構成あたり上限超過は失格（同上）
     let minRoutineDD  = null;     // 難度下限（null=なし。10本演技かつ未満の時に確定ボタンの表記を変える）
     let isPaperMode   = false;    // 紙運用クラス（classRule.useOnlineCard===false）: 技選択の代わりに合計DDを直接入力
     let designatedDDIndices = []; // 指定技インデックス（0-based）
@@ -545,6 +547,8 @@
         perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
         const _rtc = parseFloat(classRule.routineDDCap);
         routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+        perSkillDDCapDQ = classRule.perSkillDDCapMode === 'disqualify';
+        routineDDCapDQ  = classRule.routineDDCapMode  === 'disqualify';
         const _mdd = parseFloat(classRule.minRoutineDD);
         minRoutineDD  = (classRule.minRoutineDD != null && !isNaN(_mdd)) ? _mdd : null;
         const rawDDCount = classRule.designatedDDCount ?? -1;
@@ -604,8 +608,8 @@
         const capRefHtml = (perSkillDDCap != null || routineDDCap != null || minRoutineDD != null) ? `
                         <div class="cap-ref">
                             <span class="cap-ref-title">難度制限（参考）</span>
-                            ${perSkillDDCap != null ? `<div class="cap-ref-row"><span>1技あたり上限</span><b>${perSkillDDCap.toFixed(1)}</b></div>` : ''}
-                            ${routineDDCap  != null ? `<div class="cap-ref-row"><span>構成上限</span><b>${routineDDCap.toFixed(1)}</b></div>` : ''}
+                            ${perSkillDDCap != null ? `<div class="cap-ref-row"><span>1技あたり上限${perSkillDDCapDQ ? '（失格）' : ''}</span><b>${perSkillDDCap.toFixed(1)}</b></div>` : ''}
+                            ${routineDDCap  != null ? `<div class="cap-ref-row"><span>構成上限${routineDDCapDQ ? '（失格）' : ''}</span><b>${routineDDCap.toFixed(1)}</b></div>` : ''}
                             ${minRoutineDD  != null ? `<div class="cap-ref-row"><span>難度下限</span><b>${minRoutineDD.toFixed(1)}</b></div>` : ''}
                         </div>` : '';
 
@@ -758,7 +762,7 @@
         if (!validCountEl) return;
 
         const validLimit = parseInt(validCountEl.value);
-        let baseDD = 0, tripleCount = 0, hasAnyDiff = false;
+        let baseDD = 0, tripleCount = 0, hasAnyDiff = false, skillOverCapDQ = false;
         const seenIds = new Set(), idCounts = {};
 
         for(let i=1; i<=validLimit; i++) {
@@ -810,10 +814,13 @@
                     || (designatedDDCount > 0 && designatedDDIndices.includes(i - 1));
                 if (isDesig) {
                     // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
-                    const isCapped = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
+                    // 失格設定のクラスは丸め込まず、超過した技を色付けして確定ボタンの表記を変える
+                    const overCap  = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
+                    const isCapped = overCap && !perSkillDDCapDQ;
+                    if (overCap && perSkillDDCapDQ) skillOverCapDQ = true;
                     const usedDD   = isCapped ? perSkillDDCap : skill.dd;
                     baseDD += usedDD; ddSpan.innerText = usedDD.toFixed(1); if (skill.isTriple) tripleCount++;
-                    ddSpan.classList.toggle('dd-capped', isCapped);
+                    ddSpan.classList.toggle('dd-capped', overCap);
                 } else {
                     ddSpan.innerText = '-';
                     if (!ddSpan.classList.contains('diff-skill')) ddSpan.style.color = '#90a4ae';
@@ -828,11 +835,14 @@
 
         // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
         let totalDD = baseDD + bonus;
-        const routineCapped = (routineDDCap != null && round1(totalDD) > routineDDCap);
+        const routineOverCap = (routineDDCap != null && round1(totalDD) > routineDDCap);
+        const routineCapped  = routineOverCap && !routineDDCapDQ;
+        const routineOverDQ  = routineOverCap && routineDDCapDQ;
         if (routineCapped) totalDD = routineDDCap;
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
-        totalDDContainer.classList.toggle('dd-capped', routineCapped);
-        const capNote = routineCapped ? ` <span style="font-size:0.4em; color:#e65100; font-weight:bold;">上限${routineDDCap.toFixed(1)}</span>` : '';
+        totalDDContainer.classList.toggle('dd-capped', routineOverCap);
+        const capNote = routineCapped ? ` <span style="font-size:0.4em; color:#e65100; font-weight:bold;">上限${routineDDCap.toFixed(1)}</span>`
+                      : routineOverDQ ? ` <span style="font-size:0.4em; color:#e65100; font-weight:bold;">上限${routineDDCap.toFixed(1)}超過</span>` : '';
         totalDDContainer.innerHTML = `${totalDD.toFixed(1)} <span style="font-size:0.4em; color:#999; font-weight:normal;">(Base ${baseDD.toFixed(1)} + Bonus ${bonus.toFixed(1)})</span>${capNote}`;
 
         // 難度下限: 10本演技した上で合計難度がこの値未満の場合、確定・保存系ボタンの表記だけ変える
@@ -840,8 +850,10 @@
         const saveBtn = document.getElementById('btn-save');
         if (saveBtn && saveBtn.dataset.origLabel) {
             const belowMin = minRoutineDD != null && validLimit === 10 && round1(totalDD) < minRoutineDD;
-            saveBtn.textContent = belowMin ? '⚠ 難度下限未満' : saveBtn.dataset.origLabel;
-            saveBtn.classList.toggle('btn-below-min', belowMin);
+            // 難度上限（失格設定）の超過も同じ仕組みで表記を変える（難度下限より優先して表示）
+            const overCapDQ = skillOverCapDQ || routineOverDQ;
+            saveBtn.textContent = overCapDQ ? '⚠ 難度上限超過（失格）' : belowMin ? '⚠ 難度下限未満' : saveBtn.dataset.origLabel;
+            saveBtn.classList.toggle('btn-below-min', overCapDQ || belowMin);
         }
     };
 

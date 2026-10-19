@@ -495,9 +495,9 @@
         const cr       = (classRules[athType] && classRules[athType][athlete.class]) || {};
         // 難度点上限（null=なし）
         const _psc = parseFloat(cr.perSkillDDCap);
-        const perSkillDDCap = (cr.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+        const perSkillDDCap = (cr.perSkillDDCap != null && !isNaN(_psc) && cr.perSkillDDCapMode !== 'disqualify') ? _psc : null; // 失格設定のクラスは丸め込まない
         const _rtc = parseFloat(cr.routineDDCap);
-        const routineDDCap  = (cr.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+        const routineDDCap  = (cr.routineDDCap != null && !isNaN(_rtc) && cr.routineDDCapMode !== 'disqualify') ? _rtc : null;
         const rawDDCnt = (cr.designatedDDCount != null && cr.designatedDDCount >= 0) ? cr.designatedDDCount : -1;
         const isDesMod = rawDDCnt >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round === 'pre1';
         const effDDCnt = isDesMod ? rawDDCnt : -1;

@@ -766,9 +766,9 @@
         const classRule = currentTour?.classRules?.[athType]?.[athClass] || {};
         // 難度点上限（null=なし）
         const _psc = parseFloat(classRule.perSkillDDCap);
-        perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+        perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc) && classRule.perSkillDDCapMode !== 'disqualify') ? _psc : null; // 失格設定のクラスは丸め込まない
         const _rtc = parseFloat(classRule.routineDDCap);
-        routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+        routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc) && classRule.routineDDCapMode !== 'disqualify') ? _rtc : null;
         // 指定難度は2本合計・予選1本目のみ有効（-1=無効, 0=全DD0, 1-9=N本指定）
         const rawDDCount = (classRule.designatedDDCount != null && classRule.designatedDDCount >= 0) ? classRule.designatedDDCount : -1;
         designatedDDCount = (rawDDCount >= 0 && classRule.qualifyingRoutines === 2 && classRule.scoreMode === 'total' && rid === 'pre1')

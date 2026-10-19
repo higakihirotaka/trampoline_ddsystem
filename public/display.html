@@ -1490,9 +1490,9 @@
     const isPaperMode = _classRule.useOnlineCard === false;
     // 難度点上限（null=なし）
     const _psc = parseFloat(_classRule.perSkillDDCap);
-    const perSkillDDCap = (_classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+    const perSkillDDCap = (_classRule.perSkillDDCap != null && !isNaN(_psc) && _classRule.perSkillDDCapMode !== 'disqualify') ? _psc : null; // 失格設定のクラスは丸め込まない
     const _rtc = parseFloat(_classRule.routineDDCap);
-    const routineDDCap  = (_classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+    const routineDDCap  = (_classRule.routineDDCap != null && !isNaN(_rtc) && _classRule.routineDDCapMode !== 'disqualify') ? _rtc : null;
     const _rawDesig   = _classRule.designatedDDCount ?? -1;
     const _validDesig = _rawDesig >= 0
         && _classRule.qualifyingRoutines === 2

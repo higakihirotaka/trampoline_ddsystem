@@ -431,7 +431,7 @@ if (rule.hasFinal !== false) rounds.push({ key:'final', label:'F' });
         const _vAth  = athletes[athleteId] || {};
         const _vRule = currentTour?.classRules?.[_vAth.type||'individual']?.[_vAth.class||_vAth.category||''] || {};
         const _vpsc  = parseFloat(_vRule.perSkillDDCap);
-        const perSkillDDCap = (_vRule.perSkillDDCap != null && !isNaN(_vpsc)) ? _vpsc : null;
+        const perSkillDDCap = (_vRule.perSkillDDCap != null && !isNaN(_vpsc) && _vRule.perSkillDDCapMode !== 'disqualify') ? _vpsc : null; // 失格設定のクラスは丸め込まない
         const totalDD = data.officialTotalDD || 0;
         const bonus   = data.officialDDBonus || 0;
         const ddCells = document.querySelectorAll('.d-dd');

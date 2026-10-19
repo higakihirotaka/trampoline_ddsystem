@@ -236,6 +236,9 @@
         const perSkillDDCap = (rule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
         const _rtc = parseFloat(rule.routineDDCap);
         const routineDDCap  = (rule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+        // 上限を超えた時の扱い: 'clamp'=上限値に丸め込み（既定・従来動作） / 'disqualify'=失格（得点は丸めず、D審判の確定ボタンの表記を変える）
+        const perSkillDDCapMode = rule.perSkillDDCapMode === 'disqualify' ? 'disqualify' : 'clamp';
+        const routineDDCapMode  = rule.routineDDCapMode  === 'disqualify' ? 'disqualify' : 'clamp';
         // 難度下限（null=なし）
         const _mdd = parseFloat(rule.minRoutineDD);
         const minRoutineDD = (rule.minRoutineDD != null && !isNaN(_mdd)) ? _mdd : null;
@@ -428,7 +431,17 @@
                     </div>
                     <div class="num-input-wrap conditional ${perSkillDDCap == null ? 'hidden' : ''}" id="skillcap-wrap-${key}" style="margin-top:8px;">
                         <input type="number" id="skillcap-val-${key}" value="${perSkillDDCap != null ? perSkillDDCap : ''}" min="0" max="10" step="0.1" placeholder="1.2">
-                        <span class="num-unit">点（この値以上の技はこの値で計算）</span>
+                        <span class="num-unit">点（超えた技の扱いを下で選択）</span>
+                    </div>
+                    <div class="radio-group conditional ${perSkillDDCap == null ? 'hidden' : ''}" id="skillcap-mode-wrap-${key}" style="margin-top:8px;">
+                        <label class="radio-btn">
+                            <input type="radio" name="skillcap-mode-${key}" value="clamp" ${perSkillDDCapMode === 'clamp' ? 'checked' : ''}>
+                            <span>丸め込み（その技はこの値で計算）</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="skillcap-mode-${key}" value="disqualify" ${perSkillDDCapMode === 'disqualify' ? 'checked' : ''}>
+                            <span>失格（D審判の確定ボタンの表記を変える。得点は丸めない）</span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -449,7 +462,17 @@
                     </div>
                     <div class="num-input-wrap conditional ${routineDDCap == null ? 'hidden' : ''}" id="routinecap-wrap-${key}" style="margin-top:8px;">
                         <input type="number" id="routinecap-val-${key}" value="${routineDDCap != null ? routineDDCap : ''}" min="0" max="30" step="0.1" placeholder="8.0">
-                        <span class="num-unit">点（合計＝Base＋ボーナスがこの値を超えたら上限に）</span>
+                        <span class="num-unit">点（合計＝Base＋ボーナスがこの値を超えた時の扱いを下で選択）</span>
+                    </div>
+                    <div class="radio-group conditional ${routineDDCap == null ? 'hidden' : ''}" id="routinecap-mode-wrap-${key}" style="margin-top:8px;">
+                        <label class="radio-btn">
+                            <input type="radio" name="routinecap-mode-${key}" value="clamp" ${routineDDCapMode === 'clamp' ? 'checked' : ''}>
+                            <span>丸め込み（合計をこの値にする）</span>
+                        </label>
+                        <label class="radio-btn">
+                            <input type="radio" name="routinecap-mode-${key}" value="disqualify" ${routineDDCapMode === 'disqualify' ? 'checked' : ''}>
+                            <span>失格（D審判の確定ボタンの表記を変える。得点は丸めない）</span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -547,7 +570,7 @@
             .forEach(radio => radio.addEventListener('change', refreshConditionals));
 
         // 難度上限 あり/なし → 数値入力欄の表示切替
-        [['skillcap', 'skillcap-wrap'], ['routinecap', 'routinecap-wrap'], ['mindd', 'mindd-wrap']].forEach(([nm, wrap]) => {
+        [['skillcap', 'skillcap-wrap'], ['skillcap', 'skillcap-mode-wrap'], ['routinecap', 'routinecap-wrap'], ['routinecap', 'routinecap-mode-wrap'], ['mindd', 'mindd-wrap']].forEach(([nm, wrap]) => {
             card.querySelectorAll(`input[name="${nm}-${key}"]`).forEach(radio =>
                 radio.addEventListener('change', () => {
                     const on = card.querySelector(`input[name="${nm}-${key}"]:checked`)?.value === 'on';
@@ -604,6 +627,8 @@
         const routineCapOn = card.querySelector(`input[name="routinecap-${key}"]:checked`)?.value === 'on';
         const _rcRaw = parseFloat(card.querySelector(`#routinecap-val-${key}`)?.value);
         const routineDDCap = (routineCapOn && !isNaN(_rcRaw)) ? _rcRaw : null;
+        const perSkillDDCapMode = card.querySelector(`input[name="skillcap-mode-${key}"]:checked`)?.value === 'disqualify' ? 'disqualify' : 'clamp';
+        const routineDDCapMode  = card.querySelector(`input[name="routinecap-mode-${key}"]:checked`)?.value === 'disqualify' ? 'disqualify' : 'clamp';
         // 難度下限（あり かつ 有効な数値のときのみ値、それ以外は null）
         const minDDOn = card.querySelector(`input[name="mindd-${key}"]:checked`)?.value === 'on';
         const _mddRaw = parseFloat(card.querySelector(`#mindd-val-${key}`)?.value);
@@ -623,7 +648,9 @@
             useHDTS,
             useOnlineCard,
             perSkillDDCap,
+            perSkillDDCapMode,
             routineDDCap,
+            routineDDCapMode,
             minRoutineDD
         };
     }

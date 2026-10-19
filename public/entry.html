@@ -374,9 +374,9 @@
             finalOnly = cr.finalOnly === true;   // 決勝のみクラス（予選なし）
             // 難度点上限（null=なし）
             const _psc = parseFloat(cr.perSkillDDCap);
-            perSkillDDCap = (cr.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
+            perSkillDDCap = (cr.perSkillDDCap != null && !isNaN(_psc) && cr.perSkillDDCapMode !== 'disqualify') ? _psc : null; // 失格設定のクラスは丸め込まない
             const _rtc = parseFloat(cr.routineDDCap);
-            routineDDCap  = (cr.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
+            routineDDCap  = (cr.routineDDCap != null && !isNaN(_rtc) && cr.routineDDCapMode !== 'disqualify') ? _rtc : null;
             // -1=設定なし, 0=0本指定(DD全0), 1-9=N本指定
             const rawDDCount = (cr.designatedDDCount != null && cr.designatedDDCount >= 0) ? cr.designatedDDCount : -1;
             designatedDDCount = (rawDDCount >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round === 'pre1')
