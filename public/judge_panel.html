@@ -123,9 +123,34 @@
             .paper-total-row input[type="number"] { font-size: 2.8em; }
         }
         .paper-total-row input[type="number"]:disabled { background: #f5f5f5; color: #999; border-color: #eee; }
+        .phone-bar { display: none; }
+        @media (max-width: 760px) {
+            /* body.paper-ui = 紙運用クラスの選手を表示中（または紙運用クラスがある大会で選手未選択）。
+               左の選手一覧(350px固定)は隠し、上のバーの「選手一覧」ボタンで一覧⇔入力画面を切り替える */
+            body.paper-ui { flex-direction: column; }
+            body.paper-ui .phone-bar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding: 8px 12px; background: var(--primary); color: #fff; }
+            body.paper-ui .phone-bar button { padding: 9px 14px; border: none; border-radius: 8px; background: #fff; color: var(--primary); font-size: 0.95em; font-weight: bold; cursor: pointer; flex-shrink: 0; }
+            body.paper-ui .phone-bar-title { font-size: 0.9em; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; }
+            body.paper-ui .sidebar { display: none; width: 100%; flex: 1; min-height: 0; border-right: none; }
+            body.paper-ui .sidebar-header { padding: 12px 16px; }
+            body.paper-ui.show-list .sidebar { display: flex; }
+            body.paper-ui.show-list .main-content { display: none; }
+            body.paper-ui .main-content { flex: 1; min-height: 0; padding: 10px 10px 18px; }
+            body.paper-ui .score-card { padding: 14px 14px 16px; border-radius: 14px; margin-top: 0; }
+            body.paper-ui .header-info { padding-bottom: 8px; margin-bottom: 12px; }
+            body.paper-ui .header-info h2 { font-size: 1.25em; flex-wrap: wrap; }
+            body.paper-ui .paper-body { gap: 12px; }
+            body.paper-ui .paper-side .btn { min-height: 84px; padding: 14px 10px; }
+            body.paper-ui .paper-side .cjp-lock-msg { min-height: 84px; }
+        }
     </style>
 </head>
 <body>
+
+<div class="phone-bar" id="phone-bar">
+    <button type="button" id="phone-list-btn" onclick="togglePhoneList()">☰ 選手一覧</button>
+    <span class="phone-bar-title" id="phone-bar-title"></span>
+</div>
 
 <div class="sidebar">
     <div class="sidebar-header">
@@ -273,6 +298,12 @@
 
             renderSidebar();
             if (athleteId) renderScoringArea();
+            else {
+                // 選手未選択でも、紙運用クラスがある大会ならスマホでは選手一覧を全画面で出す
+                const _cr = currentTour.classRules || {};
+                const _hasPaper = ['individual', 'synchro'].some(t => Object.values(_cr[t] || {}).some(r => r && r.useOnlineCard === false));
+                if (_hasPaper) { document.body.classList.add('paper-ui', 'show-list'); updatePhoneBar(); }
+            }
         } catch (e) {
             console.error("Init Error:", e);
             const msg = e.message === 'TIMEOUT' ? 'ネットワーク接続に時間がかかっています' : 'データの読み込みに失敗しました';
@@ -456,10 +487,26 @@
         return `<a href="#" class="r-dot ${cls}" onclick="selectRound('${aid}','${rid}');return false;">${label}</a>`;
     }
 
+    // スマホ×紙運用: 選手一覧と入力画面の切替（body.paper-ui のときだけCSSが効く）
+    function updatePhoneBar() {
+        const btn = document.getElementById('phone-list-btn');
+        if (!btn) return;
+        const listing = document.body.classList.contains('show-list');
+        btn.textContent = listing ? '← 入力画面へ' : '☰ 選手一覧';
+        btn.style.display = (listing && !athleteId) ? 'none' : '';
+        const t = document.getElementById('phone-bar-title');
+        if (t) t.textContent = listing && !athleteId ? '選手を選んでください' : (t.dataset.title || '');
+    }
+    window.togglePhoneList = () => {
+        document.body.classList.toggle('show-list');
+        updatePhoneBar();
+    };
+
     window.selectRound = (aid, rid) => {
         if (unsubValidCount) { unsubValidCount(); unsubValidCount = null; }
         athleteId = aid;
         round = rid;
+        document.body.classList.remove('show-list'); // スマホ紙運用: 選手を選んだら入力画面に戻る
         history.replaceState(null, '', `?event=${eventId}&athlete=${aid}&round=${rid}`);
         renderSidebar();
         renderScoringArea();
@@ -519,6 +566,8 @@
         const card = mc && mc.querySelector('.score-card');
         if (!card) return;
         card.style.zoom = '1';
+        // スマホ×紙運用: 画面幅いっぱいの1カラムで、拡大縮小せず（必要なら縦スクロール）
+        if (document.body.classList.contains('paper-ui') && window.innerWidth <= 760) return;
         const cs = getComputedStyle(mc);
         const availW = mc.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
         const availH = mc.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
@@ -550,6 +599,9 @@
         const athClass2 = ath.class || ath.category || '';
         const classRule = currentTour?.classRules?.[athType2]?.[athClass2] || {};
         isPaperMode = classRule.useOnlineCard === false;
+        document.body.classList.toggle('paper-ui', isPaperMode);
+        { const _t = document.getElementById('phone-bar-title'); if (_t) _t.dataset.title = `${athClass2} ${(ath.gender || '')}`.trim(); }
+        updatePhoneBar();
         // 難度点上限（null=なし）
         const _psc = parseFloat(classRule.perSkillDDCap);
         perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
@@ -638,7 +690,7 @@
                     <div class="paper-body">
                     <div class="paper-total-row">
                         <label>合計難度点（DD）</label>
-                        <input type="number" id="paper-total-dd" min="0" max="99" step="0.1" value="${existingTotal}" oninput="calcTotal()" ${paperInputDisabled ? 'disabled' : ''}>
+                        <input type="number" id="paper-total-dd" min="0" max="99" step="0.1" value="${existingTotal}" inputmode="decimal" oninput="calcTotal()" ${paperInputDisabled ? 'disabled' : ''}>
                     </div>
                     <div class="paper-side">
                         ${capRefHtml}
