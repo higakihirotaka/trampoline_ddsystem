@@ -199,6 +199,18 @@
             const cls = [warmupData.class1, warmupData.class2].filter(Boolean).join(' / ');
             document.getElementById('bar-classes').textContent = cls;
             startTimerTick();
+            // 全クラスが紙運用（オンライン競技カード不使用）なら、競技カードチェックと選手用入力画面は使わないので非表示にする。
+            // クラスルール未設定のクラスはオンライン扱いなので、1つでもあれば表示する。
+            const rules = d.classRules || {};
+            const entries = [];
+            ['individual', 'synchro'].forEach(t => Object.entries(rules[t] || {}).forEach(([name, r]) => entries.push({ name, r: r || {} })));
+            const definedNames = Array.isArray(d.classes)
+                ? d.classes.map(c => c && c.name).filter(Boolean)
+                : Object.values(d.classes || {}).flat().map(c => c && c.name).filter(Boolean);
+            const allPaper = entries.length > 0
+                && entries.every(e => e.r.useOnlineCard === false)
+                && definedNames.every(n => entries.some(e => e.name === n));
+            ['nav-cardcheck', 'nav-entry'].forEach(id => { document.getElementById(id).style.display = allPaper ? 'none' : ''; });
         },
         err => {
             document.getElementById('event-name').textContent = '読み込みに失敗しました。再読み込みしてください。';
