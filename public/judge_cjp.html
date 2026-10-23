@@ -1256,7 +1256,7 @@
         });
         document.querySelectorAll('.d-dd').forEach(el => { el.style.display = isPaperMode ? 'none' : ''; });
         const dModeToggleCell = document.getElementById('d-mode-toggle')?.closest('.toggle-col');
-        if (dModeToggleCell) dModeToggleCell.style.display = isPaperMode ? 'none' : '';
+        if (dModeToggleCell) dModeToggleCell.style.display = ''; // 紙運用でも「読込/手動」を切り替えられるよう常に表示
 
         // ---- D情報行 ----
         const resId = `${eventId}_${athleteId}_${round}`;
@@ -1367,12 +1367,14 @@
             const bonusCell = document.getElementById('dd-bonus-cell');
             if (bonusCell) bonusCell.textContent = '-';
             if (totalCell) {
-                // フォーカス中（入力中）は上書きしない
-                if (document.activeElement !== totalCell) {
+                // 読込（auto）: D審判が入力した合計DDを表示するだけ（編集不可・オレンジ背景なし）。
+                // 手動（manual）: CJPが直接入力する。入力中の文字をスナップショットで上書きしない。
+                const _paperManual = (dMode === 'manual');
+                if (!_paperManual && document.activeElement !== totalCell) {
                     totalCell.textContent = data.officialTotalDD != null ? Number(data.officialTotalDD).toFixed(1) : '-';
                 }
-                totalCell.contentEditable = (data.published === true) ? 'false' : 'true';
-                totalCell.classList.add('d-manual-cell');
+                totalCell.contentEditable = (_paperManual && data.published !== true) ? 'true' : 'false';
+                totalCell.classList.toggle('d-manual-cell', _paperManual);
             }
         }
 
@@ -2159,7 +2161,7 @@
                 el.contentEditable = 'true'; el.classList.add('d-manual-cell');
                 if (el.textContent.trim() === '-') el.textContent = '';  // デフォルト "-" を消去
             });
-            if (bonusCell) {
+            if (bonusCell && !isPaperMode) {
                 bonusCell.contentEditable = 'true'; bonusCell.classList.add('d-manual-cell');
                 if (bonusCell.textContent.trim() === '-') bonusCell.textContent = '';
             }
@@ -2242,7 +2244,7 @@
         };
 
         // D手動入力モードの場合、officialSkills・officialDDValues・officialDDBonus・officialTotalDD を保存
-        if (dMode === 'manual') {
+        if (dMode === 'manual' && !isPaperMode) {
             // Symbol→ID 逆引きマップ（一度だけ構築）
             const symToId = {};
             Object.entries(skillMasterMap).forEach(([id, v]) => { symToId[v.symbol] = id; });
