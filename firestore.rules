@@ -2,15 +2,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ログイン済み(request.auth != null)であることに加え、そのUIDが admins コレクションに
+    // 登録済みであることを確認する。これまで「ログインさえしていれば誰でも書込可」に
+    // なっていた各ルールを、これに差し替えて「登録済み管理者のみ」に絞る。
+    function isAdmin() {
+      return request.auth != null
+          && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     // ---- 大会設定・選手データ ----
-    // 読込自由、書込はログイン必須（管理者・CJP操作）
+    // 読込自由、書込は管理者のみ
     match /tournaments/{eventId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
 
       match /athletes/{athleteId} {
         allow read: if true;
-        allow write: if request.auth != null;
+        allow write: if isAdmin();
         // 未ログイン（選手）: 提出ステータスとふりがなのみ更新可
         allow update: if request.auth == null
             && request.resource.data.diff(resource.data).affectedKeys()
@@ -19,19 +27,25 @@ service cloud.firestore {
     }
 
     // ---- 申請技（選手入力） ----
-    // 公式記録ではないため誰でも読み書き可
+    // 公式記録ではないため誰でも読み書き可（ここは変更しない）
     match /submissions/{docId} {
       allow read, write: if true;
+
+      // 修正で上書きされる直前の内容を退避する履歴（card_history.html の差分表示用）。
+      // 親と同じく公式記録ではないため誰でも読み書き可。
+      match /revisions/{revId} {
+        allow read, write: if true;
+      }
     }
 
     // ---- 採点結果 ----
     match /results/{resultId} {
       allow read: if true;
 
-      // ログイン済み（CJP・管理者）: 全フィールド書込可
-      allow write: if request.auth != null;
+      // 管理者（CJP）: 全フィールド書込可（確定フィールド含む）
+      allow write: if isAdmin();
 
-      // 未ログイン（E/D/T/HD 審判）:
+      // 未ログイン（E/D/T/HD 審判）: ここは変更しない
       //   published / publishedAt / verifiedAt の変更は不可
       //   それ以外の審判スコア入力は書込可
       allow write: if request.auth == null
@@ -39,16 +53,24 @@ service cloud.firestore {
     }
 
     // ---- 技マスタ ----
-    // 読込自由、書込はログイン必須
+    // 読込自由、書込は管理者のみ
     match /skillMaster/{docId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
 
-    // ---- その他（将来の拡張コレクション）----
+    // ---- 管理者一覧 ----
+    // 誰が管理者かは引き続き公開のままだが、書込（管理者の追加・削除）は
+    // 既存の管理者のみ許可する（無関係なログインユーザーが自分を追加できないように）。
+    match /admins/{uid} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- その他（将来の拡張コレクション。teams / clubLinks / publicRankings / meta 等）----
     match /{document=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 
