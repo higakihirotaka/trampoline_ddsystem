@@ -45,6 +45,8 @@
     .menu-link:hover { background:var(--accent); color:#fff; }
     .menu-team-row .menu-link { border-color:#666; color:#666; }
     .menu-team-row .menu-link:hover { background:#666; color:#fff; }
+    .menu-prog { font-size:.8rem; font-weight:800; color:#777; white-space:nowrap; margin-left:-4px; }
+    .menu-prog.done { color:#2e7d32; }
     .menu-empty { text-align:center; color:#aaa; padding:40px 0; }
 
     /* ---- 本体 ---- */
@@ -198,7 +200,7 @@
 </div>
 
 <script type="module">
-  import { getDocs, getDoc, doc, updateDoc, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getDocs, getDoc, doc, updateDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { db } from "./firebase-config.js";
   import { normalizeClassRules, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks } from "./shared.js";
   import { getTournament, getAthletes, getFinalOrders, invalidateCache } from "./cache.js";
@@ -249,6 +251,7 @@
       // クラス一覧メニュー（ランディング画面）
       document.getElementById('controls').style.display = 'none';
       renderMenu();
+      startProgress();
       // ?from=admin で管理者ログイン中の場合だけ、決勝進出人数/リザーブの編集欄を出す
       // （event.html等と同じ方針：通常の閲覧者には認証チェック自体を行わない）
       if (params.get('from') === 'admin') {
@@ -382,6 +385,7 @@
             return `<div class="menu-row">
               <span class="menu-gender">${esc(gender)}</span>
               <a class="menu-link" href="${sheetUrl(type, g.cls, gender, 'final', 0, 0)}" target="_blank">決勝</a>
+              ${progSpan(type, g.cls, gender, 'f')}
             </div>`;
           }
           const qualLink = isAdminUser
@@ -392,7 +396,7 @@
             : '';
           return `<div class="menu-row">
             <span class="menu-gender">${esc(gender)}</span>
-            ${qualLink}${finalLink}
+            ${qualLink}${progSpan(type, g.cls, gender, 'q')}${finalLink}${hasFinal ? progSpan(type, g.cls, gender, 'f') : ''}
           </div>`;
         }).join('');
 
@@ -422,6 +426,58 @@
 
     html += `</div>`;
     document.getElementById('output').innerHTML = html;
+    updateProgress();
+  }
+
+  // ---- クラス別の「スコア確定人数」表示（管理者メニュー ?from=admin のみ） ----
+  // 選手N人中、確定したM人を M/N で表示する。resultsを監視して自動更新（入力欄を作り直さず、数字だけ差し替える）。
+  //  ・予選: 予選本数（qualifyingRoutines。既定2）がすべて確定（published）で「確定」。どれかが棄権(dns)なら確定扱い。
+  //  ・決勝: 決勝進出者（isInFinal または finalOrder あり。決勝のみクラスは全員）の決勝が確定または棄権で「確定」。
+  let progResults = null;   // null=未取得 / {docId: data}
+  let unsubProg = null;
+  const progSpan = (type, cls, gender, kind) => isProgressEnabled()
+    ? `<span class="menu-prog" data-type="${esc(type)}" data-cls="${esc(cls)}" data-gender="${esc(gender)}" data-kind="${kind}"></span>` : '';
+  function isProgressEnabled() { return params.get('from') === 'admin'; }
+
+  function startProgress() {
+    if (!isProgressEnabled() || unsubProg) return;
+    unsubProg = onSnapshot(
+      query(collection(db, 'results'), where('eventId', '==', eventId)),
+      snap => {
+        const m = {};
+        snap.forEach(d => { m[d.id] = d.data(); });
+        progResults = m;
+        updateProgress();
+      },
+      err => console.warn('確定人数の取得に失敗:', err.message)
+    );
+  }
+
+  function updateProgress() {
+    if (!isProgressEnabled() || !tourData) return;
+    const classRules = normalizeClassRules(tourData.classRules);
+    document.querySelectorAll('.menu-prog').forEach(el => {
+      if (progResults === null) { el.textContent = ''; return; }
+      const { type, cls, gender, kind } = el.dataset;
+      const rule = (classRules[type] || {})[cls] || {};
+      const group = athletes.filter(a => (a.type || 'individual') === type
+        && (a.class || a.category || '') === cls && (a.gender || '') === gender);
+      const res = (aid, rid) => progResults[`${eventId}_${aid}_${rid}`];
+      let list, isDone;
+      if (kind === 'q') {
+        const n = rule.qualifyingRoutines === 1 ? 1 : 2;
+        const rounds = Array.from({ length: n }, (_, i) => 'pre' + (i + 1));
+        list = group;
+        isDone = a => { const rs = rounds.map(r => res(a.id, r)); return rs.some(r => r?.dns === true) || rs.every(r => r?.published === true); };
+      } else {
+        list = rule.finalOnly === true ? group : group.filter(a => a.isInFinal === true || a.finalOrder != null);
+        isDone = a => { const r = res(a.id, 'final'); return r?.published === true || r?.dns === true; };
+      }
+      const done = list.filter(isDone).length;
+      el.textContent = `${done}/${list.length}`;
+      el.classList.toggle('done', list.length > 0 && done === list.length);
+      el.title = (kind === 'q' ? '予選' : '決勝') + ': 対象' + list.length + '人中、スコア確定' + done + '人（棄権は確定扱い）';
+    });
   }
 
   // S1-S10: 全審判の各技減点を合計（stored値×10 = タップ単位に戻す）
