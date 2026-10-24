@@ -578,6 +578,25 @@
         renderSidebar();
     };
 
+    // 「黄色枠のまま確定」の印（confirmedIncomplete）は確定した瞬間の画面状態で保存されるため、確定直後に
+    // 入力・確定が追いついた場合（E審判の確定が数秒遅れた等）でも true のまま残る。
+    // 一覧の表示では、保存フラグがtrueでも、最新のデータが「そろっている」ならこの印を出さない
+    // （保存データは変えない。印を消すだけで、新たに付けることはしない）。
+    //  未完了とみなす条件（1つでも当てはまれば未完了）:
+    //   ・D審判が未確定（dConfirmedAt が無い。CJPがDを手動入力して保存した場合は確定扱い）
+    //   ・ToF / HD が 0 または未入力（確定時に空欄だと 0 で保存されるため）
+    //   ・保存されているE審判のうち、確定（confirmedAt）していない審判がいる
+    function isResultStillIncomplete(r) {
+        if (!r) return false;
+        const manualD = Array.isArray(r.officialDDValues) && r.officialDDValues.length > 0 && r.officialTotalDD != null;
+        if (!r.dConfirmedAt && !manualD) return true;
+        if (!(Number(r.tof) > 0)) return true;
+        if (!(Number(r.hd?.total) > 0)) return true;
+        const judges = Object.values(r.execution?.judges || {});
+        if (judges.some(j => !j?.confirmedAt)) return true;
+        return false;
+    }
+
     // ドットの状態クラスを計算（getDotHtml / updateCurrentDot で共用）
     function dotStateClass(aid, rid) {
         const id = `${eventId}_${aid}_${rid}`;
@@ -585,7 +604,7 @@
         return (r?.published ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
                (r?.dns === true ? ' dns-dot' : '') +
                // 内訳が黄色枠（D/E/ToF/HDのいずれか未確定・未入力）のまま確定された場合、目立たせる
-               (r?.published && r?.confirmedIncomplete === true ? ' confirmed-incomplete' : '') +
+               (r?.published && r?.confirmedIncomplete === true && isResultStillIncomplete(r) ? ' confirmed-incomplete' : '') +
                (aid === athleteId && rid === round ? ' current' : '');
     }
 
