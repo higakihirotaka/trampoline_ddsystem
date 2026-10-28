@@ -174,7 +174,7 @@
     import { db } from "./firebase-config.js";
     import { doc, collection, getDocs, query, where, setDoc, serverTimestamp, increment, onSnapshot, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
-    import { round1 } from "./shared.js";
+    import { round1, parseDDRule, calcCardDD } from "./shared.js";
     
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim();
@@ -196,6 +196,7 @@
     let perSkillDDCapDQ = false;  // true=1技あたり上限超過は失格（丸め込まず、確定ボタンの表記を変える）
     let routineDDCapDQ  = false;  // true=構成あたり上限超過は失格（同上）
     let minRoutineDD  = null;     // 難度下限（null=なし。10本演技かつ未満の時に確定ボタンの表記を変える）
+    let ddRule = parseDDRule({}, '');   // 上の設定の元になる、parseDDRule（shared.js）の読み取り結果
     let isPaperMode   = false;    // 紙運用クラス（classRule.useOnlineCard===false）: 技選択の代わりに合計DDを直接入力
     let designatedDDIndices = []; // 指定技インデックス（0-based）
 
@@ -602,21 +603,14 @@
         document.body.classList.toggle('paper-ui', isPaperMode);
         { const _t = document.getElementById('phone-bar-title'); if (_t) _t.dataset.title = `${athClass2} ${(ath.gender || '')}`.trim(); }
         updatePhoneBar();
-        // 難度点上限（null=なし）
-        const _psc = parseFloat(classRule.perSkillDDCap);
-        perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc)) ? _psc : null;
-        const _rtc = parseFloat(classRule.routineDDCap);
-        routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc)) ? _rtc : null;
-        perSkillDDCapDQ = classRule.perSkillDDCapMode === 'disqualify';
-        routineDDCapDQ  = classRule.routineDDCapMode  === 'disqualify';
-        const _mdd = parseFloat(classRule.minRoutineDD);
-        minRoutineDD  = (classRule.minRoutineDD != null && !isNaN(_mdd)) ? _mdd : null;
-        const rawDDCount = classRule.designatedDDCount ?? -1;
-        const validDesig = rawDDCount >= 0
-            && classRule.qualifyingRoutines === 2
-            && classRule.scoreMode === 'total'
-            && round === 'pre1';
-        designatedDDCount   = validDesig ? rawDDCount : -1;
+        // 難度の上限・下限・指定難度の設定（読み取りは shared.js の parseDDRule）
+        ddRule = parseDDRule(classRule, round);
+        perSkillDDCap   = ddRule.perSkillDDCap;
+        routineDDCap    = ddRule.routineDDCap;
+        perSkillDDCapDQ = ddRule.perSkillDQ;
+        routineDDCapDQ  = ddRule.routineDQ;
+        minRoutineDD    = ddRule.minRoutineDD;
+        designatedDDCount   = ddRule.designatedDDCount;
         designatedDDIndices = [...(resData?.officialDesignatedDDIndices || sub?.designatedDDIndices || [])];
 
         const initialIds = initialData.map(s => {
@@ -840,17 +834,25 @@
         if (!validCountEl) { if (isPaperMode) updatePaperSaveLabel(); return; }
 
         const validLimit = parseInt(validCountEl.value);
-        let baseDD = 0, tripleCount = 0, hasAnyDiff = false, skillOverCapDQ = false;
-        const seenIds = new Set(), idCounts = {};
+        let hasAnyDiff = false;
 
-        for(let i=1; i<=validLimit; i++) {
-            const id = document.getElementById(`skill-${i}`)?.value;
-            if(id) idCounts[id] = (idCounts[id] || 0) + 1;
-        }
+        // 計算は shared.js の calcCardDD。この画面は結果を各行の表示・色に反映するだけ。
+        const calc = calcCardDD({
+            skills: Array.from({ length: 10 }, (_, k) => {
+                const id = document.getElementById(`skill-${k + 1}`)?.value;
+                const skill = id ? findSkillById(id) : null;
+                return skill ? { key: id, dd: skill.dd, isTriple: skill.isTriple } : null;
+            }),
+            gender: athletes.find(a => a.id === athleteId)?.gender || '',
+            ddRule: { ...ddRule, designatedDDCount },
+            designatedIndices: designatedDDIndices,
+            validLimit,
+        });
 
         for (let i = 1; i <= 10; i++) {
             const id = document.getElementById(`skill-${i}`)?.value, row = document.getElementById(`row-${i}`), ddSpan = document.getElementById(`dd-${i}`), selSkill = document.getElementById(`skill-${i}`), selDir = document.getElementById(`dir-${i}`);
             const subSkill = resolveSubSkill((sub?.skills || [])[i-1]);
+            const c = calc.rows[i - 1];
 
             // 指定難度の星マーク（中断以降も含めて全行対象）
             const isDesigIdx = designatedDDCount > 0 && designatedDDIndices.includes(i - 1);
@@ -858,7 +860,7 @@
             if (numCell) numCell.classList.toggle('designated', isDesigIdx);
             if (ddSpan) ddSpan.classList.remove('dd-capped'); // 前回描画の上限色をリセット
 
-            if (i > validLimit) {
+            if (c.beyondLimit) {
                 row.classList.add('invalid-row');
                 ddSpan.style.color = '';
                 // 非指定はハイフン、指定スロットは0.0
@@ -875,8 +877,8 @@
 
             const skill = findSkillById(id);
             if (!skill) continue;
-            if (idCounts[id] > 1) row.classList.add('duplicate-row'); else row.classList.remove('duplicate-row');
-            
+            row.classList.toggle('duplicate-row', c.isDupRow);
+
             if (subSkill && skill.symbol !== subSkill.symbol) {
                 selSkill.classList.add('diff-skill'); selDir.classList.add('diff-skill'); ddSpan.classList.add('diff-skill'); hasAnyDiff = true;
             } else {
@@ -884,21 +886,15 @@
             }
 
             ddSpan.style.color = ''; // 色リセット
-            if (seenIds.has(id)) {
+            if (c.isDupZero) {
                 ddSpan.innerText = "0.0"; ddSpan.classList.add('dd-zero');
             } else {
-                seenIds.add(id); ddSpan.classList.remove('dd-zero');
-                const isDesig = designatedDDCount < 0
-                    || (designatedDDCount > 0 && designatedDDIndices.includes(i - 1));
-                if (isDesig) {
+                ddSpan.classList.remove('dd-zero');
+                if (c.isDesignated) {
                     // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
                     // 失格設定のクラスは丸め込まず、超過した技を色付けして確定ボタンの表記を変える
-                    const overCap  = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
-                    const isCapped = overCap && !perSkillDDCapDQ;
-                    if (overCap && perSkillDDCapDQ) skillOverCapDQ = true;
-                    const usedDD   = isCapped ? perSkillDDCap : skill.dd;
-                    baseDD += usedDD; ddSpan.innerText = usedDD.toFixed(1); if (skill.isTriple) tripleCount++;
-                    ddSpan.classList.toggle('dd-capped', overCap);
+                    ddSpan.innerText = c.usedDD.toFixed(1);
+                    ddSpan.classList.toggle('dd-capped', c.overCap);
                 } else {
                     ddSpan.innerText = '-';
                     if (!ddSpan.classList.contains('diff-skill')) ddSpan.style.color = '#90a4ae';
@@ -906,17 +902,12 @@
             }
         }
 
-        const ath = athletes.find(a => a.id === athleteId);
-        let bonus = 0;
-        if (ath?.gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-        else if ((ath?.gender === '女子' || ath?.gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
-
+        const baseDD = calc.baseDD, bonus = calc.bonus, skillOverCapDQ = calc.skillOverCapDQ;
         // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
-        let totalDD = baseDD + bonus;
-        const routineOverCap = (routineDDCap != null && round1(totalDD) > routineDDCap);
-        const routineCapped  = routineOverCap && !routineDDCapDQ;
-        const routineOverDQ  = routineOverCap && routineDDCapDQ;
-        if (routineCapped) totalDD = routineDDCap;
+        const totalDD = calc.total;
+        const routineOverCap = calc.routineOverCap;
+        const routineCapped  = calc.routineCapped;
+        const routineOverDQ  = calc.routineOverDQ;
         if (hasAnyDiff) totalDDContainer.classList.add('diff-skill'); else totalDDContainer.classList.remove('diff-skill');
         totalDDContainer.classList.toggle('dd-capped', routineOverCap);
         const capNote = routineCapped ? ` <span style="font-size:0.4em; color:#e65100; font-weight:bold;">上限${routineDDCap.toFixed(1)}</span>`
