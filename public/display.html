@@ -1222,7 +1222,7 @@
 <script type="module">
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, round1, buildIntroSteps, resolveEJudgeCount } from "./shared.js";
+  import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, round1, buildIntroSteps, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";
   import { startWarmupTicker } from "./warmup_timer.js";
   import { getTournament, getAthletes } from "./cache.js";
 
@@ -1489,17 +1489,9 @@
     const _classRule  = getClassRule(ath);
     // 紙運用クラス（オンライン競技カード不使用）: 技ごとのSKILLCODE/D-Scoreは表示しない
     const isPaperMode = _classRule.useOnlineCard === false;
-    // 難度点上限（null=なし）
-    const _psc = parseFloat(_classRule.perSkillDDCap);
-    const perSkillDDCap = (_classRule.perSkillDDCap != null && !isNaN(_psc) && _classRule.perSkillDDCapMode !== 'disqualify') ? _psc : null; // 失格設定のクラスは丸め込まない
-    const _rtc = parseFloat(_classRule.routineDDCap);
-    const routineDDCap  = (_classRule.routineDDCap != null && !isNaN(_rtc) && _classRule.routineDDCapMode !== 'disqualify') ? _rtc : null;
-    const _rawDesig   = _classRule.designatedDDCount ?? -1;
-    const _validDesig = _rawDesig >= 0
-        && _classRule.qualifyingRoutines === 2
-        && _classRule.scoreMode === 'total'
-        && resData.round === 'pre1';
-    const desigCount   = _validDesig ? _rawDesig : -1;
+    // 難度の上限・指定難度の設定（読み取りは shared.js の parseDDRule。失格モードのクラスは丸め込まない）
+    const ddRule     = parseDDRule(_classRule, resData.round);
+    const desigCount = ddRule.designatedDDCount;
     const desigIndices = resData.officialDesignatedDDIndices || sub?.designatedDDIndices || [];
 
     // ---- 技ごとデータ計算 ----
@@ -1526,6 +1518,18 @@
     const hasHdts = !!(hdtsPerSkill && (isSynHdts
       ? ((hdtsPerSkill.syn || []).some(v => v != null) || (hdtsPerSkill.hd1 || []).some(v => v != null) || (hdtsPerSkill.hd2 || []).some(v => v != null))
       : ((hdtsPerSkill.tof || []).some(v => v != null) || (hdtsPerSkill.hd || []).some(v => v != null))));
+
+    // 自動計算（手動確定値でない場合）: 基礎点・ボーナス・上限の適用は shared.js の calcCardDD。この画面は結果を表示に反映するだけ。
+    const calc = hasManualDDValues ? null : calcCardDD({
+      skills: Array.from({ length: 10 }, (_, k) => {
+        if (k >= vLimit) return null;
+        const raw = officialSkills[k];
+        const sk = raw ? (skillMaster.find(m => m.id === String(raw)) || skillMaster.find(m => m.symbol === String(raw))) : undefined;
+        return sk ? { key: sk.id, dd: sk.dd, isTriple: sk.isTriple } : null;
+      }),
+      gender: ath.gender, ddRule: { ...ddRule, designatedDDCount: desigCount },
+      designatedIndices: desigIndices, validLimit: vLimit,
+    });
 
     const skillCols = [];
     for (let i = 0; i < 10; i++) {
@@ -1586,10 +1590,8 @@
           seenIds.add(repeatKey);
           if (isDesigSkill) {
             // 1技あたり難度上限: 上限超の技は上限値で計算（色付け）
-            isCappedSkill = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
-            displayDD = isCappedSkill ? perSkillDDCap : skill.dd;
-            baseDD   += displayDD;
-            if (skill.isTriple) tripleCount++;
+            isCappedSkill = calc.rows[i].isCapped;
+            displayDD = calc.rows[i].usedDD;
           }
         }
         dCodeTxt = skill ? (skill.displaySymbol || skill.symbol) : '-';
@@ -1632,10 +1634,11 @@
     }
 
     // ---- ボーナス計算 ----
+    if (calc) { baseDD = calc.baseDD; tripleCount = calc.tripleCount; }
     const bonus   = trustDirectTotal ? (resData.officialDDBonus || 0) : calcBonus(ath.gender, tripleCount);
     let finalDD = trustDirectTotal ? (resData.officialTotalDD || baseDD + bonus) : baseDD + bonus;
     // 構成あたり難度上限（自動計算時のみ。手動確定値・紙運用の officialTotalDD はそのまま尊重）
-    if (!trustDirectTotal && routineDDCap != null && round1(finalDD) > routineDDCap) finalDD = routineDDCap;
+    if (!trustDirectTotal) finalDD = calc.total;
 
     // LAN列（officialELanding があれば CJP 値を優先）
     const landDed = (resData.officialELanding != null)
