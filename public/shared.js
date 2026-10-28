@@ -193,6 +193,104 @@ export function calcBonus(gender, tripleCount) {
 }
 
 // ============================================================
+//  難度（DD）計算（entry / admin_card_check / judge_cjp / judge_panel / display / score_viewer 共用）
+//  以前は各ページに同じ計算が別々に書かれていて、ルールの追加（上限の丸め込み/失格など）のたびに
+//  全ページの修正が必要だった。クラスルールの読み取りと計算本体はここに集約し、
+//  各ページは結果を自分の画面の色・文言に反映するだけにする。
+// ============================================================
+
+/**
+ * クラスルールから難度に関する設定を読み取る。
+ * @param {object} rule   classRules[type][class]（未設定は {}）
+ * @param {string} round  'pre1' | 'pre2' | 'final'（指定難度は予選1本目のみ有効なため）
+ * @returns {{
+ *   perSkillDDCap: number|null,  1技あたり難度上限（設定なし=null。失格モードでも値は入る）
+ *   perSkillDQ: boolean,         true=上限超過は丸め込まず失格
+ *   routineDDCap: number|null,   構成あたり難度上限
+ *   routineDQ: boolean,
+ *   minRoutineDD: number|null,   難度下限
+ *   designatedDDCount: number    指定難度本数（-1=無効, 0=全DD0, 1以上=N本指定。2本合計・予選1本目のみ有効）
+ * }}
+ */
+export function parseDDRule(rule, round) {
+  const r = rule || {};
+  const num = v => { const n = parseFloat(v); return (v != null && !isNaN(n)) ? n : null; };
+  const rawDesig = (r.designatedDDCount != null && r.designatedDDCount >= 0) ? r.designatedDDCount : -1;
+  const desigValid = rawDesig >= 0 && r.qualifyingRoutines === 2 && r.scoreMode === 'total' && round === 'pre1';
+  return {
+    perSkillDDCap: num(r.perSkillDDCap),
+    perSkillDQ:    r.perSkillDDCapMode === 'disqualify',
+    routineDDCap:  num(r.routineDDCap),
+    routineDQ:     r.routineDDCapMode === 'disqualify',
+    minRoutineDD:  num(r.minRoutineDD),
+    designatedDDCount: desigValid ? rawDesig : -1,
+  };
+}
+
+/**
+ * 競技カード（最大10技）の難度を計算する。
+ *  - 同じ技（key が同じ）は2回目以降 0.0 点（基礎点・トリプル数に含めない）
+ *  - 指定難度: count<0 は全技有効、0 は全技無効、1以上は designatedIndices に含まれる技のみ有効
+ *  - 1技あたり上限: 超えた技は上限値で計算（失格モードのクラスは丸め込まず overCap だけ立てる）
+ *  - 構成上限: 合計（基礎点＋ボーナス）が超えたら上限で頭打ち（失格モードは丸め込まず routineOverDQ を立てる）
+ *  - 上限との比較は小数第1位に丸めてから行う（浮動小数の誤差で「ちょうど上限」が超過扱いにならないように）
+ *
+ * @param {object} p
+ * @param {Array<{key:string, dd:number|null, isTriple?:boolean}|null>} p.skills  技（空欄・未解決は null）。10要素まで
+ * @param {string} p.gender             ボーナス計算用（'男子'|'女子'|'混合'）
+ * @param {object} p.ddRule             parseDDRule の戻り値
+ * @param {number[]|Set<number>} [p.designatedIndices]  指定難度に選んだ技の位置（0始まり）
+ * @param {number} [p.validLimit=10]    有効本数（これ以降の技は計算・重複判定の対象外。中断時など）
+ * @returns {{ rows:Array, baseDD:number, tripleCount:number, bonus:number, rawTotal:number, total:number,
+ *             routineOverCap:boolean, routineCapped:boolean, routineOverDQ:boolean, skillOverCapDQ:boolean }}
+ *   rows[i]: { index, blank, beyondLimit, skill, isDesignated, isDupRow, isDupZero, overCap, isCapped, counted, usedDD }
+ */
+export function calcCardDD({ skills, gender, ddRule, designatedIndices = [], validLimit = 10 }) {
+  const { perSkillDDCap: pc, perSkillDQ, routineDDCap: rc, routineDQ, designatedDDCount: dc } = ddRule;
+  const desigSet = designatedIndices instanceof Set ? designatedIndices : new Set(designatedIndices);
+
+  const keyCounts = {};
+  for (let i = 0; i < 10 && i < validLimit; i++) {
+    const s = skills[i];
+    if (s && s.key) keyCounts[s.key] = (keyCounts[s.key] || 0) + 1;
+  }
+
+  const rows = [], seen = new Set();
+  let baseDD = 0, tripleCount = 0, skillOverCapDQ = false;
+  for (let i = 0; i < 10; i++) {
+    const s = skills[i] || null;
+    const isDesignated = dc < 0 || (dc > 0 && desigSet.has(i));
+    const row = { index: i, blank: !s, beyondLimit: i >= validLimit, skill: s, isDesignated,
+                  isDupRow: false, isDupZero: false, overCap: false, isCapped: false, counted: false, usedDD: 0 };
+    rows.push(row);
+    if (row.beyondLimit || !s) continue;
+
+    row.isDupRow  = !!s.key && keyCounts[s.key] > 1;
+    row.isDupZero = !!s.key && seen.has(s.key);
+    if (s.key) seen.add(s.key);
+
+    const dd = s.dd;
+    row.overCap  = !row.isDupZero && pc != null && dd != null && round1(dd) > pc;
+    row.isCapped = row.overCap && !perSkillDQ;
+    row.usedDD   = row.isDupZero ? 0 : (row.isCapped ? pc : (dd ?? 0));
+    row.counted  = isDesignated && !row.isDupZero;
+    if (row.counted) {
+      if (dd != null) baseDD += row.usedDD;
+      if (s.isTriple) tripleCount++;
+      if (row.overCap && perSkillDQ) skillOverCapDQ = true;
+    }
+  }
+
+  const bonus = calcBonus(gender || '', tripleCount);
+  const rawTotal = baseDD + bonus;
+  const routineOverCap = rc != null && round1(rawTotal) > rc;
+  const routineCapped  = routineOverCap && !routineDQ;
+  const routineOverDQ  = routineOverCap && routineDQ;
+  return { rows, baseDD, tripleCount, bonus, rawTotal, total: routineCapped ? rc : rawTotal,
+           routineOverCap, routineCapped, routineOverDQ, skillOverCapDQ };
+}
+
+// ============================================================
 //  審判構成ブロック（judge_roster.html / admin_roster_order.html 共用）
 // ============================================================
 
