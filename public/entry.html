@@ -198,7 +198,7 @@
     import { db } from "./firebase-config.js";
     import { doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getSkills } from "./cache.js";
-    import { round1 } from "./shared.js";
+    import { round1, parseDDRule, calcCardDD } from "./shared.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round');
@@ -224,8 +224,7 @@
     }
     let subDocRef = null;   // submissionDoc の存在確認用
     let designatedDDCount = -1; // 指定難度本数（-1=無効、0=0本指定、1-9=N本指定）
-    let perSkillDDCap = null;   // 1技あたり難度上限（null=なし）
-    let routineDDCap  = null;   // 構成あたり難度上限（null=なし）
+    let ddRule = parseDDRule({}, '');   // 難度上限・指定難度などの設定（クラスルールから parseDDRule で読み取る）
 
     // データ取得中、技一覧テーブルに骨組み（シマーアニメーション）を出しておく。
     // 実際の待ち時間は変わらないが「固まっている」印象を減らすための表示専用の処理。
@@ -372,15 +371,10 @@
             const athClass = currentAthlete.class || currentAthlete.category || '';
             const cr = (tourData.classRules?.[athType] || {})[athClass] || {};
             finalOnly = cr.finalOnly === true;   // 決勝のみクラス（予選なし）
-            // 難度点上限（null=なし）
-            const _psc = parseFloat(cr.perSkillDDCap);
-            perSkillDDCap = (cr.perSkillDDCap != null && !isNaN(_psc) && cr.perSkillDDCapMode !== 'disqualify') ? _psc : null; // 失格設定のクラスは丸め込まない
-            const _rtc = parseFloat(cr.routineDDCap);
-            routineDDCap  = (cr.routineDDCap != null && !isNaN(_rtc) && cr.routineDDCapMode !== 'disqualify') ? _rtc : null;
+            // 難度の上限・指定難度の設定（失格モードのクラスは丸め込まない。読み取りは shared.js の parseDDRule）
+            ddRule = parseDDRule(cr, round);
             // -1=設定なし, 0=0本指定(DD全0), 1-9=N本指定
-            const rawDDCount = (cr.designatedDDCount != null && cr.designatedDDCount >= 0) ? cr.designatedDDCount : -1;
-            designatedDDCount = (rawDDCount >= 0 && cr.qualifyingRoutines === 2 && cr.scoreMode === 'total' && round === 'pre1')
-                ? rawDDCount : -1;
+            designatedDDCount = ddRule.designatedDDCount;
             if (designatedDDCount > 0) {
                 // 1本以上指定: チェックボックス列を表示
                 document.getElementById('check-th').style.display = '';
@@ -611,49 +605,42 @@
     };
 
     window.calcTotal = () => {
-        let baseDD = 0, tripleCount = 0;
-        const seenIds = new Set(), idCounts = {};
-        for(let i=1; i<=10; i++) {
-            const id = document.getElementById(`skill-${i}`).value;
-            if(id) idCounts[id] = (idCounts[id] || 0) + 1;
-        }
-
-        let designatedChecked = 0;
+        // 画面の入力を共通の計算（shared.js の calcCardDD）に渡し、結果を各行の表示に反映する
+        const skills = [];
         for (let i = 1; i <= 10; i++) {
             const id = document.getElementById(`skill-${i}`).value;
+            const skill = id ? skillMaster.find(s => s.id === id) : null;
+            skills.push(skill ? { key: id, dd: skill.dd, isTriple: skill.isTriple } : null);
+        }
+        // 指定難度チェック（-1=全技有効、0=全技無効、1以上=チェック済みのみ有効）
+        const checkedIdx = [];
+        for (let i = 1; i <= 10; i++) {
+            if (designatedDDCount > 0 && skills[i - 1] && document.getElementById(`chk-${i}`)?.checked === true) checkedIdx.push(i - 1);
+        }
+        const designatedChecked = checkedIdx.length;
+        const calc = calcCardDD({ skills, gender: document.getElementById('ath-gender').value, ddRule, designatedIndices: checkedIdx });
+
+        for (let i = 1; i <= 10; i++) {
             const row = document.getElementById(`row-${i}`);
             const ddSpan = document.getElementById(`dd-${i}`);
-            if (!id) {
+            const c = calc.rows[i - 1];
+            if (c.blank) {
                 ddSpan.textContent = "0.0";
                 ddSpan.classList.remove('dd-zero', 'dd-not-designated', 'dd-capped');
                 row.classList.remove('duplicate-row');
                 continue;
             }
-
-            const skill = skillMaster.find(s => s.id === id);
-            row.classList.toggle('duplicate-row', idCounts[id] > 1);
-
-            // 指定難度チェック（-1=全技有効、0=全技無効、1以上=チェック済みのみ有効）
-            const isDesignated = designatedDDCount < 0
-                || (designatedDDCount > 0 && document.getElementById(`chk-${i}`)?.checked === true);
-            if (isDesignated && designatedDDCount > 0) designatedChecked++;
-
-            if (seenIds.has(id)) {
-                ddSpan.textContent = "0.0";
+            row.classList.toggle('duplicate-row', c.isDupRow);
+            // 1技あたり難度上限: 上限超の技は上限値で計算（表示も上限値にして色付け）
+            ddSpan.textContent = c.usedDD.toFixed(1);
+            if (c.isDupZero) {
                 ddSpan.classList.add('dd-zero');
                 ddSpan.classList.remove('dd-not-designated', 'dd-capped');
             } else {
-                seenIds.add(id);
                 ddSpan.classList.remove('dd-zero');
-                // 1技あたり難度上限: 上限超の技は上限値で計算（表示も上限値にして色付け）
-                const isCapped = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
-                const usedDD   = isCapped ? perSkillDDCap : skill.dd;
-                ddSpan.textContent = usedDD.toFixed(1);
-                if (isDesignated) {
-                    baseDD += usedDD;
-                    if (skill.isTriple) tripleCount++;
+                if (c.isDesignated) {
                     ddSpan.classList.remove('dd-not-designated');
-                    ddSpan.classList.toggle('dd-capped', isCapped);
+                    ddSpan.classList.toggle('dd-capped', c.isCapped);
                 } else {
                     ddSpan.classList.add('dd-not-designated'); // 非指定はグレー表示
                     ddSpan.classList.remove('dd-capped');
@@ -661,20 +648,12 @@
             }
         }
 
-        const gender = document.getElementById('ath-gender').value;
-        let bonus = 0;
-        if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-        if ((gender === '女子' || gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3; // 混合は女子ルール適用
-
         // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
-        let totalDD = baseDD + bonus;
-        const routineCapped = (routineDDCap != null && round1(totalDD) > routineDDCap);
-        if (routineCapped) totalDD = routineDDCap;
-        document.getElementById('dd-base').textContent  = baseDD.toFixed(1);
-        document.getElementById('dd-bonus').textContent = bonus.toFixed(1);
+        document.getElementById('dd-base').textContent  = calc.baseDD.toFixed(1);
+        document.getElementById('dd-bonus').textContent = calc.bonus.toFixed(1);
         const totalEl = document.getElementById('total-dd');
-        totalEl.textContent = totalDD.toFixed(1);
-        totalEl.classList.toggle('dd-capped', routineCapped);
+        totalEl.textContent = calc.total.toFixed(1);
+        totalEl.classList.toggle('dd-capped', calc.routineCapped);
 
         // 指定難度インジケーター更新
         if (designatedDDCount === 0) {
