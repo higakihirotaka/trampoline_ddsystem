@@ -1,0 +1,2 @@
+# 改行コード統一のコミット（git blame で無視する: git config blame.ignoreRevsFile .git-blame-ignore-revs）
+749b53c0d0de771b014f0729ef286507e51ad545
