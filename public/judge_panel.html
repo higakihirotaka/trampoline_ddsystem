@@ -314,6 +314,16 @@
         }
     }
 
+    // D審判の入力・確定のデータがあるか。結果ドキュメントは E / TOF / HD 審判の書き込みでも作られるため、
+    // 「ドキュメントがある」だけでは D確定済み とみなさない（D審判がまだ何も入力していないのに、
+    // 「D確定済」の表示になり、入力欄がロックされてしまうため）。
+    // CJPがDを手動確定した場合（officialDDValues）や、D確定を解除して修正中（dConfirmedAt なし・officialSkills あり）も含める。
+    function hasDData(r) {
+        return !!r && (r.dConfirmedAt != null || r.officialTotalDD != null
+            || (Array.isArray(r.officialSkills) && r.officialSkills.length > 0)
+            || (Array.isArray(r.officialDDValues) && r.officialDDValues.length > 0));
+    }
+
     function checkHasDiff(aid, rid) {
         const subId = `${eventId}_${aid}_${rid}`;
         const sub = submissions[subId], res = results[subId];
@@ -548,7 +558,7 @@
                         actionArea.innerHTML = `<div class="cjp-lock-msg">🔒 CJPが確定済のため修正できません</div>`;
                     } else {
                         // CJP解除 → 修正するボタンを表示（セレクトはまだ無効のまま）
-                        const dSaved = !!data;
+                        const dSaved = hasDData(data);
                         actionArea.innerHTML = dSaved
                             ? `<button id="btn-save" class="btn btn-modify" onclick="enableEditing()">修正する</button>`
                             : `<button id="btn-save" class="btn btn-submit" data-orig-label="確定・保存" onclick="saveOfficialScore()">確定・保存</button>`;
@@ -589,11 +599,11 @@
         const subId = `${eventId}_${athleteId}_${round}`, sub = submissions[subId], resData = results[subId], ath = athletes.find(a => a.id === athleteId);
         if (!ath) { document.getElementById('main-content').innerHTML = `<div style="margin-top:150px;text-align:center;color:var(--danger);">選手データが見つかりません</div>`; return; }
         const noSub = !sub;
-        const dSaved = !!resData;
+        const dSaved = hasDData(resData);
         cjpConfirmed = resData?.published === true;
         const isLocked = dSaved; // D審判側のソフトロック（修正するで解除可）
         const initialData = (dSaved ? resData.officialSkills : sub?.skills) || [];
-        const validCount = (isLocked && resData.validCount !== undefined) ? resData.validCount : 10;
+        const validCount = (resData && resData.validCount !== undefined) ? resData.validCount : 10;   // CJPが設定した有効本数（Dの入力前でも反映）
 
         // 指定難度ロード
         const athType2 = ath.type || 'individual';
