@@ -79,17 +79,17 @@ export async function syncServerClock() {
         let prev = null;
         const est = [];
         const t0 = Date.now();
-        while (Date.now() - t0 < 6000 && est.length < 3) {
+        while (Date.now() - t0 < 9000 && est.length < 5) {
             const cur = await probeOnce();
             if (!prev) {
                 // 最初の1回だけで暫定値（誤差±0.5秒）。あとの測定で精度を上げる
                 if (_offset === 0) { _offset = cur.dateMs + 500 - cur.mid; notifySync(); }
-            } else if (cur.dateMs > prev.dateMs && cur.mid - prev.mid < 600) {
+            } else if (cur.dateMs > prev.dateMs && cur.mid - prev.mid < 350) {
                 // prev〜cur の間にサーバー時刻が cur.dateMs ちょうどになった
                 est.push(cur.dateMs - (prev.mid + cur.mid) / 2);
             }
             prev = cur;
-            await new Promise(r => setTimeout(r, 80));
+            await new Promise(r => setTimeout(r, 20));
         }
         if (est.length) {
             est.sort((a, b) => a - b);
