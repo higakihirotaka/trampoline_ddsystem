@@ -20,6 +20,14 @@ const MIME    = {
 
 // QIRA 接続先（起動時に qira-config.json から読み込み、/api/config で動的変更可能）
 function loadQiraConfig() {
+    // 1. バッチファイル（環境変数）での指定があれば最優先する
+    if (process.env.QIRA_TARGET_IP) {
+        return { 
+            host: process.env.QIRA_TARGET_IP, 
+            port: process.env.QIRA_TARGET_PORT || 8080 
+        };
+    }
+    // 2. なければ従来の JSON ファイルから読み込む（フォールバック）
     try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch {}
     return { host: 'localhost', port: 8080 };
 }
