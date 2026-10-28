@@ -77,23 +77,29 @@ async function probeOnce() {
 export async function syncServerClock() {
     try {
         let prev = null;
-        const est = [];
+        const good = [];          // 切り替わりの検出間隔が短く、精度が高いもの
+        let best = null;          // 間隔が最も短かったもの（精度が高いものが取れなかったときの代用）
         const t0 = Date.now();
-        while (Date.now() - t0 < 9000 && est.length < 5) {
+        // 待ち時間を入れずに HEAD を続けて送る（setTimeout は裏タブ・最小化では1秒以上に間引かれ、
+        // 測定間隔が開いて精度が落ちるが、通信の完了待ちは間引かれない）
+        while (Date.now() - t0 < 9000 && good.length < 5) {
             const cur = await probeOnce();
             if (!prev) {
                 // 最初の1回だけで暫定値（誤差±0.5秒）。あとの測定で精度を上げる
                 if (_offset === 0) { _offset = cur.dateMs + 500 - cur.mid; notifySync(); }
-            } else if (cur.dateMs > prev.dateMs && cur.mid - prev.mid < 350) {
-                // prev〜cur の間にサーバー時刻が cur.dateMs ちょうどになった
-                est.push(cur.dateMs - (prev.mid + cur.mid) / 2);
+            } else if (cur.dateMs > prev.dateMs) {
+                // prev〜cur の間にサーバー時刻が cur.dateMs ちょうどになった（誤差は測定間隔の半分以下）
+                const gap = cur.mid - prev.mid;
+                const e = cur.dateMs - (prev.mid + cur.mid) / 2;
+                if (gap < 350) good.push(e);
+                if (!best || gap < best.gap) best = { gap, e };
             }
             prev = cur;
-            await new Promise(r => setTimeout(r, 20));
         }
-        if (est.length) {
-            est.sort((a, b) => a - b);
-            _offset = est[Math.floor(est.length / 2)];
+        const use = good.length ? good : (best ? [best.e] : []);
+        if (use.length) {
+            use.sort((a, b) => a - b);
+            _offset = use[Math.floor(use.length / 2)];
             notifySync();
         }
     } catch { /* 取得できなければ現状のまま（初期値は端末の時計をそのまま使う） */ }
