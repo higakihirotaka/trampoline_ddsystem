@@ -1,0 +1,15 @@
+# 改行コードの方針: リポジトリも作業ツリーも LF に統一する。
+# （以前は CRLF と LF が混在し、編集のたびに改行が変わったり、差分が全行になったりした。
+#   Windows の core.autocrlf=true より、このファイルの eol 指定が優先される）
+* text=auto eol=lf
+
+# Windows で実行するスクリプトは CRLF のまま（LF だと cmd / PowerShell で不具合になることがある）
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# バイナリ
+*.png binary
+*.ico binary
+*.jpg binary
+*.woff2 binary
