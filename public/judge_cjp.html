@@ -183,7 +183,7 @@
     import { doc, onSnapshot, getDocs, getDocFromServer, collection, query, where, setDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin } from "./auth.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
-    import { round1, resolveEJudgeCount } from "./shared.js";
+    import { round1, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
@@ -271,8 +271,7 @@
     // 指定難度（-1=無効、0=0本指定(全DD=0)、1-9=N本指定）
     let designatedDDCount = -1;
     let designatedDDIndices = []; // 指定中の技インデックス（0-based）
-    let perSkillDDCap = null;     // 1技あたり難度上限（null=なし）
-    let routineDDCap  = null;     // 構成あたり難度上限（null=なし）
+    let ddRule = parseDDRule({}, '');   // 難度上限などの設定（クラスルールから parseDDRule で読み取る。失格モードのクラスは丸め込まない）
     let isPaperMode   = false;    // 紙運用クラス（classRule.useOnlineCard===false）: 合計DDのみ表示・確認
     let designatedDDManualChanged = false; // 審判が手動で変更したフラグ
 
@@ -783,15 +782,10 @@
         const athType  = ath.type || 'individual';
         const athClass = ath.class || ath.category || '';
         const classRule = currentTour?.classRules?.[athType]?.[athClass] || {};
-        // 難度点上限（null=なし）
-        const _psc = parseFloat(classRule.perSkillDDCap);
-        perSkillDDCap = (classRule.perSkillDDCap != null && !isNaN(_psc) && classRule.perSkillDDCapMode !== 'disqualify') ? _psc : null; // 失格設定のクラスは丸め込まない
-        const _rtc = parseFloat(classRule.routineDDCap);
-        routineDDCap  = (classRule.routineDDCap != null && !isNaN(_rtc) && classRule.routineDDCapMode !== 'disqualify') ? _rtc : null;
+        // 難度の上限・指定難度の設定（読み取りは shared.js の parseDDRule）
+        ddRule = parseDDRule(classRule, rid);
         // 指定難度は2本合計・予選1本目のみ有効（-1=無効, 0=全DD0, 1-9=N本指定）
-        const rawDDCount = (classRule.designatedDDCount != null && classRule.designatedDDCount >= 0) ? classRule.designatedDDCount : -1;
-        designatedDDCount = (rawDDCount >= 0 && classRule.qualifyingRoutines === 2 && classRule.scoreMode === 'total' && rid === 'pre1')
-            ? rawDDCount : -1;
+        designatedDDCount = ddRule.designatedDDCount;
 
         const resId = `${eventId}_${ath.id}_${rid}`;
         const officialIdx    = results[resId]?.officialDesignatedDDIndices;
@@ -1428,61 +1422,53 @@
             } else {
                 const ath = athletes.find(a => a.id === athleteId);
                 const gender = ath?.gender || '';
-                const seenIds = new Set();
-                let baseDD = 0, tripleCount = 0;
+
+                // 計算は shared.js の calcCardDD。この画面は結果を各セルの文言・色に反映するだけ。
+                const calc = calcCardDD({
+                    skills: Array.from({ length: 10 }, (_, i) => {
+                        const id = execSkills[i];
+                        if (i >= vLimitD || !id) return null;
+                        const skill = skillMasterMap[id]
+                            || Object.values(skillMasterMap).find(v => v.symbol === id);
+                        return skill ? { key: id, dd: skill.dd, isTriple: skill.isTriple } : null;
+                    }),
+                    gender,
+                    ddRule: { ...ddRule, designatedDDCount },     // 指定難度（-1=無効=全技有効、0=全DD0、1以上=指定のみ有効）
+                    designatedIndices: designatedDDIndices,
+                    validLimit: vLimitD,
+                });
 
                 document.querySelectorAll('.d-dd').forEach((el, i) => {
                     el.style.color = '';
                     el.style.fontWeight = '';
-                    const id = execSkills[i];
-                    // 指定難度マスキング（-1=無効=全技有効、0=全DD0、1以上=指定のみ有効）
-                    const isDesignated = designatedDDCount < 0
-                        || (designatedDDCount > 0 && designatedDDIndices.includes(i));
-
-                    if (i >= vLimitD || !id) {
+                    const c = calc.rows[i];
+                    if (!c) return;
+                    if (c.beyondLimit) {
                         // 中断以降：非指定はハイフン(グレー)、指定スロットは空欄
-                        if (i >= vLimitD) {
-                            if (!isDesignated) { el.textContent = '-'; el.style.color = '#90a4ae'; }
-                            else { el.textContent = ''; }
-                        } else {
-                            el.textContent = '-';
-                        }
+                        if (!c.isDesignated) { el.textContent = '-'; el.style.color = '#90a4ae'; }
+                        else { el.textContent = ''; }
                         return;
                     }
-                    const skill = skillMasterMap[id]
-                        || Object.values(skillMasterMap).find(v => v.symbol === id);
-                    if (!skill) { el.textContent = '-'; return; }
-
-                    if (seenIds.has(id)) {
+                    if (c.blank) { el.textContent = '-'; return; }
+                    if (c.isDupZero) {
                         el.textContent = '0.0';
                         el.style.color = 'var(--danger)';
                         el.style.fontWeight = 'bold';
+                    } else if (c.isDesignated) {
+                        // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
+                        el.textContent = c.usedDD.toFixed(1);
+                        if (c.isCapped) { el.style.color = '#e65100'; el.style.fontWeight = 'bold'; }
                     } else {
-                        seenIds.add(id);
-                        if (isDesignated) {
-                            // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
-                            const isCapped = (perSkillDDCap != null && round1(skill.dd) > perSkillDDCap);
-                            const usedDD   = isCapped ? perSkillDDCap : skill.dd;
-                            el.textContent = usedDD.toFixed(1);
-                            baseDD += usedDD;
-                            if (skill.isTriple) tripleCount++;
-                            if (isCapped) { el.style.color = '#e65100'; el.style.fontWeight = 'bold'; }
-                        } else {
-                            el.textContent = '-';          // 非指定はハイフン
-                            el.style.color = '#90a4ae';    // グレー
-                        }
+                        el.textContent = '-';          // 非指定はハイフン
+                        el.style.color = '#90a4ae';    // グレー
                     }
                 });
 
-                // ボーナス計算（男子:6本目以降のトリプル×0.3、女子・混合:3本目以降のトリプル×0.3）
-                let bonus = 0;
-                if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
-                else if ((gender === '女子' || gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
-
-                // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
-                let totalDD = baseDD + bonus;
-                const routineCapped = (routineDDCap != null && round1(totalDD) > routineDDCap);
-                if (routineCapped) totalDD = routineDDCap;
+                // ボーナス（男子:6本目以降のトリプル×0.3、女子・混合:3本目以降のトリプル×0.3）と
+                // 構成あたり難度上限（合計が上限を超えたら上限で頭打ち）も calcCardDD の結果
+                const bonus = calc.bonus;
+                const routineCapped = calc.routineCapped;
+                let totalDD = calc.total;
                 const dTotalCell = document.getElementById('dd-total-cell');
                 dTotalCell.textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
                 dTotalCell.style.color = routineCapped ? '#e65100' : '';
