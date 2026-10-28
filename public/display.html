@@ -1223,6 +1223,7 @@
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, round1, buildIntroSteps, resolveEJudgeCount } from "./shared.js";
+  import { startWarmupTicker } from "./warmup_timer.js";
   import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
@@ -2477,39 +2478,8 @@
   }
 
   // ---- 会場画面オーバーレイ管理 ----
-  let warmupTimerInterval = null;
-  // 会場練習タイマーのサーバー時刻補正。
-  // timerRef(=serverTimestamp) が変わった時だけ自PCの時計とサーバー時刻の差を測り、
-  // 以降その差で補正する。これによりPC間でシステムクロックがずれても表示が一致する。
-  // ※毎回測ると refMs-Date.now() が相殺してタイマーが固まるので、必ず refMs 変化時のみ更新する。
-  let _wuServerOffset = 0, _wuRefMs = null;
-  // バックアップ配信（制御PCが配信を止めたら会場ディスプレイが肩代わり）用の状態
-  let _wuLastFreshRefLocal = 0;  // 新しい timerRef を受信したローカル時刻
-  let _wuOffsetTrusted = false;  // ライブで ref 変化を観測し、オフセットを信頼できるか
-  let _wuBackupLast = 0;         // 直近にバックアップ配信したローカル時刻
-  function warmupRem(w) {
-    if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
-    if (w.timerRef?.toMillis) {
-      const refMs = w.timerRef.toMillis();
-      if (refMs !== _wuRefMs) {
-        const newOffset = refMs - Date.now();
-        // 初回、または現行オフセットと大きく食い違う時だけ採用する。
-        // ・通常運用（開始時に新鮮な ref を受信）→ latency ぶんのゆらぎは無視され安定。
-        // ・カウント途中でリロード → 最初は stale な ref で誤オフセットを持つが、
-        //   制御PCが定期配信する新鮮な ref との差が大きいためここで再較正され復帰する。
-        if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
-        if (_wuRefMs !== null) _wuOffsetTrusted = true;  // 初回でなく“変化”を観測＝新鮮な ref で較正済み
-        _wuRefMs = refMs;
-        _wuLastFreshRefLocal = Date.now();
-      }
-      const endServer = refMs + (w.timerRemainingMs ?? 0);
-      const nowServer = Date.now() + _wuServerOffset;
-      return { rem: Math.max(0, endServer - nowServer), running: true };
-    }
-    // timerRef 未確定（書込直後の一瞬のみ・自PC以外では通常発生しない）: 自PC時計で暫定表示
-    if (w.timerEndMs != null) return { rem: Math.max(0, w.timerEndMs - Date.now()), running: true };
-    return { rem: w.timerRemainingMs ?? 0, running: false };
-  }
+  let _stopWarmupTick = null;   // 会場練習画面のタイマー更新の停止用（warmup_timer.js の startWarmupTicker）
+  function stopWarmupDisplay() { if (_stopWarmupTick) { _stopWarmupTick(); _stopWarmupTick = null; } }
 
   let _teamRankKey = null;     // 表示中の団体順位表の対象キー（同一なら再描画せずちらつき防止）
   let _teamRankLastTarget = null;  // 表示中の団体順位表の対象（class/gender/type）。
@@ -2579,8 +2549,7 @@
       if (carouselActive && (id === 'vs-team-ranking' || id === 'vs-final-startlist')) return;
       document.getElementById(id)?.classList.remove('active');
     });
-    clearInterval(warmupTimerInterval);
-    warmupTimerInterval = null;
+    stopWarmupDisplay();
     clearInterval(_introTicker);   // 選手紹介の自動進行は、選手紹介を表示する時（applyIntroSlide）だけ再開する
     _introTicker = null;
 
@@ -2721,21 +2690,13 @@
   }
 
   function startWarmupDisplay(warmup) {
-    // サーバー時刻基準（warmupRem）で残り時間を計算する。
+    // 残り時間は warmup_timer.js が開始時刻（サーバー時刻）から各端末で計算し、秒の切り替わりに合わせて更新する。
     // snapshot 毎にこの関数が再呼び出しされるため、warmup は毎回最新に更新される。
-    clearInterval(warmupTimerInterval);
-    warmupTimerInterval = null;
+    stopWarmupDisplay();
     const timerEl = document.getElementById('vs-timer');
-    function tick() {
-      if (!timerEl) return;
-      const { rem, running } = warmupRem(warmup);
-      showTimerDisplay(timerEl, rem);
-      if (rem === 0 && running) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
-    }
-    tick();
-    if (warmupRem(warmup).running) {
-      warmupTimerInterval = setInterval(tick, 500);
-    }
+    _stopWarmupTick = startWarmupTicker(() => warmup, ({ rem }) => {
+      if (timerEl) showTimerDisplay(timerEl, rem);
+    });
   }
 
   function showTimerDisplay(el, ms) {
@@ -2941,28 +2902,7 @@
   // 選手紹介ループ中の会場練習残り時間（右上）
   // warmupSettings を常時監視し、タイマーがカウント中のみ表示する。
   // （要素は vs-intro 内にあるため、紹介画面表示中しか見えない＝他画面には影響しない）
-  setInterval(() => {
-    const w = tournamentData?.warmupSettings || {};
-    const { rem, running } = warmupRem(w);   // サーバー時刻補正で会場ディスプレイ用PCと一致
-
-    // ---- バックアップ配信 ----
-    // 制御PC(大会画面コントロール)が新しい timerRef を配信しなくなったとき、常時ONの会場
-    // ディスプレイが肩代わりして fresh な timerRef を書き直し、リロードした審判端末等を再較正させる。
-    // ・オフセットを信頼できる（ライブで ref 変化を観測済み）ときだけ
-    // ・制御PCの配信間隔(10s)を超えて ref が途絶えたときのみ（＝二重書き込み回避）
-    // ・endServer(サーバー基準の終了時刻)を維持したまま timerRef だけ更新する
-    if (running && rem > 2000 && _wuOffsetTrusted && eventId && w.timerRef?.toMillis
-        && (Date.now() - _wuLastFreshRefLocal) > 14000
-        && (Date.now() - _wuBackupLast)       > 10000) {
-      _wuBackupLast = Date.now();
-      const endServer = w.timerRef.toMillis() + (w.timerRemainingMs ?? 0);
-      const newRem    = Math.max(0, endServer - (Date.now() + _wuServerOffset));
-      updateDoc(doc(db, 'tournaments', eventId), {
-        'warmupSettings.timerRef':         serverTimestamp(),
-        'warmupSettings.timerRemainingMs': newRem
-      }).catch(() => {});
-    }
-
+  startWarmupTicker(() => tournamentData?.warmupSettings || {}, ({ rem, running }) => {
     const el = document.getElementById('intro-warmup-timer');
     if (!el) return;
     // クラス別・全選手の一覧ページ表示中は、一覧と重ならないよう会場練習タイマーを隠す
@@ -2974,7 +2914,7 @@
     el.innerHTML = `<span class="lbl">会場練習</span>${mm}:${ss}`;
     el.classList.toggle('warning', rem < 60000);
     el.style.display = 'block';
-  }, 500);
+  }, { keepAlive: true });
 
   // ---- 決勝スタートリスト描画 ----
   function renderFinalStartlist(target) {
@@ -3149,7 +3089,7 @@
               document.getElementById(id)?.classList.remove('active');
             });
             // warmupタイマーも停止
-            if (warmupTimerInterval) { clearInterval(warmupTimerInterval); warmupTimerInterval = null; }
+            stopWarmupDisplay();
             // ※ venueScreen:'score' への切替は judge_cjp.html の publish() 側で書き込む
             // （venue_displayは非ログインのためFirestore書き込み不可）
             enqueueResult(change.doc);

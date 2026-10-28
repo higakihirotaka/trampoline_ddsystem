@@ -135,6 +135,7 @@
 <script type="module">
     import { db } from "./firebase-config.js";
     import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { startWarmupTicker } from "./warmup_timer.js";
 
     const eventId = new URLSearchParams(location.search).get('event');
     if (!eventId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">大会IDが見つかりません。</p>'; throw new Error(); }
@@ -149,43 +150,20 @@
     document.getElementById('nav-display').href = `display.html?event=${eventId}`;
     document.getElementById('nav-admin').href   = `admin_menu.html?event=${eventId}`;
 
-    let timerInterval = null, warmupData = {}, _wuServerOffset = 0, _wuRefMs = null;
-    // サーバー時刻補正（会場ディスプレイ/制御PC/E審判画面と同一ロジック）。
-    // timerRef(=serverTimestamp) 受信時に自端末の時計とサーバー時刻の差を測り補正するため、
-    // 端末ごとの時計ズレがあっても表示が一致する。offset は refMs 変化時のみ測定する。
-    // ※以前は書き込まれない timerEndTime を参照しておりカウントしなかったが、
-    //   timerRef + timerRemainingMs 方式に統一して復活させる。
-    function warmupRem(w) {
-        if (!w || w.timerPaused) return { rem: (w && w.timerRemainingMs) ?? 0, running: false };
-        if (w.timerRef?.toMillis) {
-            const refMs = w.timerRef.toMillis();
-            if (refMs !== _wuRefMs) {
-                const newOffset = refMs - Date.now();
-                // 初回 or 大きな食い違い時のみ採用（微小な遅延ゆらぎでの毎回スナップを防ぐ）。
-                if (_wuRefMs === null || Math.abs(newOffset - _wuServerOffset) > 1500) _wuServerOffset = newOffset;
-                _wuRefMs = refMs;
-            }
-            const endServer = refMs + (w.timerRemainingMs ?? 0);
-            const nowServer = Date.now() + _wuServerOffset;
-            return { rem: Math.max(0, endServer - nowServer), running: true };
-        }
-        if (w.timerEndMs != null) return { rem: Math.max(0, w.timerEndMs - Date.now()), running: true };
-        return { rem: w.timerRemainingMs ?? 0, running: false };
-    }
+    let warmupData = {}, stopTimerTick = null;
+    // 会場練習タイマーは warmup_timer.js の共通計算（開始時刻から各端末が自分で計算・秒の切り替わりで更新）。
     function startTimerTick() {
-        clearInterval(timerInterval);
+        if (stopTimerTick) stopTimerTick();
         const el  = document.getElementById('timer-val');
         const bar = document.querySelector('.timer-bar');
-        function tick() {
-            const { rem, running } = warmupRem(warmupData);
+        stopTimerTick = startWarmupTicker(() => warmupData, ({ rem, running }) => {
             // カウント中（残り0秒より多い）でなければバーごと非表示にする
             if (!running || rem <= 0) { bar.style.display = 'none'; return; }
             bar.style.display = 'flex';
             const s = Math.ceil(rem / 1000);
             el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
             el.className = 'timer-val' + (rem < 60000 ? ' warning' : ' running');
-        }
-        tick(); timerInterval = setInterval(tick, 500);
+        });
     }
 
     onSnapshot(
