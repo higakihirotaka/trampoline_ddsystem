@@ -93,7 +93,7 @@
 | 2 | 新しい操作画面（別URLで並行）: タイル、プレビュー、ドロワー、自動保存、前の画面に戻す、ワンタップモード、お知らせ文と保存した文 | 中 — **実装済み**（2026-10-30。`venue_control.html`。会場ディスプレイは `?preview=1` でプレビュー、`announceSettings` / `announcePhrases` を追加。従来の `display_control.html` は残してある） |
 | 3 | ディスプレイごとの切り替え（名前、上書き、操作対象チップ、CJP の `venueScreenAt`） | 中 — **実装済み**（2026-10-30。判定は `venue_scene.js` の `resolveScene` / `effectiveTour`、データは `venueDisplays.{名前}.override / follow`、`venueDisplayNames`、`venueScreenAt`）。選手紹介の中身・順位表巡回の項目は全ディスプレイ共通 |
 | 4 | プログラム（自動切り替え）と、保存した組み合わせ | 中 — **実装済み**（2026-10-30。保存は `venuePrograms`、実行中は `venueProgram`（全体）／`venueDisplays.{名前}.override.program`、計算は `venue_scene.js` の `programPosition` / `resolveScene`）。項目の秒数は全項目で指定。巡回・選手紹介は指定秒数だけ出して次へ。団体順位は、CJPが対象を選ぶため項目にしていない。「組み合わせ」は、開始と同時に会場練習タイマーを始めて画面に重ねる設定 |
-| 5 | ディスプレイの接続状況の表示（ルール変更を伴う） | 中 |
+| 5 | ディスプレイの接続状況の表示（ルール変更を伴う） | 中 — **実装済み**（2026-10-30。`tournaments/{id}/venuePresence/{名前__端末ID}` に、会場ディスプレイが20秒ごと・画面が変わったときに書く。ルールは `validPresence`。操作画面のチップに「接続中／応答なし（◯分前）／未接続」、端末ごとの一覧、一覧にない名前の案内。24時間より古い印は管理者として片づける） |
 | 6 | 大会ドキュメントの分割（大会の合間に、テスト大会で確認） | 大 |
 
 - 各段階で、テスト用の大会（`ZZTEST…`）を作り、複数タブで実機確認する。確認後に削除する。
