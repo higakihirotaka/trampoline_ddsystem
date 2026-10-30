@@ -1014,7 +1014,7 @@
         await Promise.all([
             setDoc(doc(db, 'results', resId), { publishedAt: serverTimestamp() }, { merge: true }),
             // 再表示で別の画面が出るので集計中・団体順位表などを解除しスコア画面へ
-            setDoc(doc(db, 'tournaments', eventId), { calculating: false, venueScreen: 'score' }, { merge: true })
+            setDoc(doc(db, 'tournaments', eventId), { calculating: false, venueScreen: 'score', venueScreenAt: serverTimestamp() }, { merge: true })
         ]);
     };
 
@@ -1046,6 +1046,7 @@
         if (!ath) return;
         await setDoc(doc(db, 'tournaments', eventId), {
             venueScreen: 'teamRanking',
+            venueScreenAt: serverTimestamp(),
             teamRankingTarget: {
                 class:  ath.class || ath.category || '',
                 gender: ath.gender || '',
@@ -2312,7 +2313,8 @@
                 isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
                     calculating: false,
                     inquiry: false,
-                    venueScreen: 'score'
+                    venueScreen: 'score',
+                    venueScreenAt: serverTimestamp()
                 }, { merge: true })
             ]);
             if (!results[resId]) results[resId] = {};

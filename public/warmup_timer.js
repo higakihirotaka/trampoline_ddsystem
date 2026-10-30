@@ -27,8 +27,10 @@ const WU_DEFAULT_MS = 5 * 60 * 1000;
  */
 export function calcWarmupRem(w, nowMs, localNowMs = Date.now()) {
     if (!w) return { rem: 0, running: false };
-    if (w.timerPaused) return { rem: w.timerRemainingMs ?? 0, running: false };
-    const base = Math.max(0, w.timerRemainingMs ?? 0);
+    // 不正な値（NaN など）が保存されていても、「NaN:NaN」を出さず 0 として扱う
+    const saved = Number.isFinite(w.timerRemainingMs) ? w.timerRemainingMs : 0;
+    if (w.timerPaused) return { rem: saved, running: false };
+    const base = Math.max(0, saved);
     if (w.timerRef?.toMillis) {
         const elapsed = Math.max(0, nowMs - w.timerRef.toMillis());
         if (elapsed < base) {

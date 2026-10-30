@@ -1264,6 +1264,7 @@
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, round1, buildIntroSteps, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";
   import { startWarmupTicker, overlayConfig, overlayVisible } from "./warmup_timer.js";
+  import { displayNameFromParam, effectiveTour, resolveScene } from "./venue_scene.js";
   import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
@@ -2529,6 +2530,13 @@
                                     // results の onSnapshot からスコア確定時に再計算を呼ぶために保持する
                                     // （tournaments ドキュメントの venueSig は変化しないため applyVenueScreen 経由では拾えない）
   const PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
+  // この会場ディスプレイの名前（URL の &screen=名前。無ければ「メイン」）。操作画面で、ディスプレイごとに別の画面を指定できる
+  const SCREEN_NAME = displayNameFromParam(new URLSearchParams(location.search).get('screen'));
+  // 大会ドキュメントに、この会場ディスプレイの画面指定（上書き・CJPに従うか）を反映したもの。
+  // 上書きも「CJPに従わない」指定も無ければ、同じオブジェクトを返す＝従来と同じ動作。
+  function sceneTour(t) { return withPreviewOverride(effectiveTour(t, SCREEN_NAME)); }
+  // CJP の確定・集計中・問い合わせに従うか（従わないディスプレイは、スコアの発表も流さない）
+  function followsCjp() { return resolveScene(tournamentData || {}, SCREEN_NAME).follow; }
   let _previewOv = null;    // プレビュー指定 { screen, finalStartlistTarget? }（PREVIEW のときだけ使う）
   function withPreviewOverride(t) {
     if (!PREVIEW || !_previewOv) return t;
@@ -2559,7 +2567,7 @@
     });
   }
   function applyVenueScreen(tourData) {
-    tourData = withPreviewOverride(tourData);
+    tourData = sceneTour(tourData);
     updateTimerOverlay();   // 画面・設定が変わったら、次の秒の更新を待たずに重ね表示を出し分ける
     // 会場画面に関係する設定が変わっていなければ DOM を一切触らない。
     // （CJPの選手選択=liveState更新など無関係な更新でのちらつき・再描画を防ぐ）
@@ -2981,7 +2989,7 @@
     if (state) _tovLast = state;
     const el = document.getElementById('timer-overlay');
     if (!el) return;
-    const t = withPreviewOverride(tournamentData || {});
+    const t = sceneTour(tournamentData || {});
     const w = t.warmupSettings || {};
     const cfg = overlayConfig(w);
     const ctx = {
@@ -3130,7 +3138,7 @@
       function tryRestoreLastScore() {
         if (_restoreTriggered || !_tourInitDone || _initialResultDoc === undefined) return;
         _restoreTriggered = true;
-        const screen = tournamentData?.venueScreen ?? 'score';
+        const screen = sceneTour(tournamentData || {}).venueScreen ?? 'score';
         if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {
           enqueueResult(_initialResultDoc);
         }
@@ -3166,8 +3174,8 @@
           tryRestoreLastScore();
           return;
         }
-        // 以後: 新規追加分のみキューに入れる（プレビューでは流さない）
-        if (PREVIEW) return;
+        // 以後: 新規追加分のみキューに入れる（プレビューでは流さない。CJP に従わないディスプレイも流さない）
+        if (PREVIEW || !followsCjp()) return;
         snap.docChanges().forEach(change => {
           // 新規公開(added)と再公開(modified)の両方を表示
           if (change.type === 'added' || change.type === 'modified') {

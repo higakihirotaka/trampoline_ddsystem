@@ -184,6 +184,20 @@
         .vc-onetap { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:0.84rem; font-weight:700; color:var(--text-main); cursor:pointer; }
         .vc-onetap input { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; }
         .vc-onetap-note { font-size:0.74rem; color:var(--text-sub); margin:2px 0 0 25px; line-height:1.5; }
+        /* 操作対象（会場ディスプレイごとの切り替え） */
+        .vc-target { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+        .vc-target-label { font-size:0.78rem; font-weight:900; color:var(--text-sub); letter-spacing:0.06em; }
+        .vc-chips { display:flex; gap:6px; flex-wrap:wrap; }
+        .vc-chip { padding:7px 14px; border:2px solid #e0e0e0; background:#fff; border-radius:18px; font-size:0.85rem; font-weight:800; color:var(--text-sub); cursor:pointer; text-align:left; line-height:1.25; }
+        .vc-chip small { display:block; font-size:0.68rem; font-weight:600; color:var(--text-sub); }
+        .vc-chip:hover { border-color:var(--accent); }
+        .vc-chip.active { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .vc-display-box { background:#f8fbff; border:1.5px solid #e3eaf5; border-radius:12px; padding:10px 12px; margin-bottom:12px; font-size:0.82rem; }
+        .vc-display-box .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+        .vc-display-box .row:first-child { margin-top:0; }
+        .vc-display-box input[type="text"] { flex:1; min-width:180px; padding:6px 8px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:0.78rem; color:var(--text-sub); background:#fff; }
+        .vc-display-note { font-size:0.74rem; color:var(--text-sub); line-height:1.5; margin-top:6px; }
+        .vc-all-note { font-size:0.74rem; color:#e65100; margin:-4px 0 10px; line-height:1.5; }
         /* 自動保存: 各パネルの保存ボタンは隠し、状態の表示だけ残す */
         .vc-left .fs-save-row .btn-save-sm { display:none; }
         .vc-left .fs-save-row { margin-top:8px; }
@@ -331,6 +345,29 @@
     <!-- タブ2: 画面切り替え -->
     <div id="tab-switch" class="tab-panel active">
         <div class="card">
+
+            <div class="vc-target">
+                <span class="vc-target-label">操作対象</span>
+                <div class="vc-chips" id="vc-chips"></div>
+                <button type="button" class="adj-btn" id="vc-add-display">＋ ディスプレイを追加</button>
+            </div>
+            <div class="vc-all-note" id="vc-all-note" style="display:none"></div>
+            <div class="vc-display-box" id="vc-display-box" style="display:none">
+                <div class="row">
+                    <span style="font-weight:800;">このディスプレイのURL</span>
+                    <input type="text" id="vc-display-url" readonly>
+                    <button type="button" class="adj-btn" id="vc-copy-url">コピー</button>
+                </div>
+                <div class="vc-display-note">会場のディスプレイ用PCで、このURLを開いてください。名前ごとに、別々の画面を出せます。</div>
+                <div class="row">
+                    <label class="repeat-row" style="margin-top:0;">
+                        <input type="checkbox" id="vc-follow">
+                        CJP の確定・集計中・問い合わせに従う
+                    </label>
+                </div>
+                <div class="vc-display-note">オフにすると、このディスプレイは、ここで選んだ画面を保ち、スコアの発表も出しません（サブをタイマーやお知らせに固定したいときに使います）。オフのままだと、このディスプレイではスコアが発表されません。</div>
+                <div class="row"><button type="button" class="adj-btn" id="vc-remove-display" style="color:#c62828;">この名前を削除</button></div>
+            </div>
 
             <div class="vc-group-title">競技</div>
             <div class="screen-btns">
@@ -652,11 +689,12 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
     import { getTournament } from "./cache.js";
     import { applyIfChanged, buildIntroSteps } from "./shared.js";
     import { startWarmupTicker, warmupRem } from "./warmup_timer.js";
+    import { resolveScene, isValidDisplayName, DEFAULT_DISPLAY, BASE_DISPLAY } from "./venue_scene.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -755,7 +793,21 @@
     let classCombos    = [];  // 既存クラス一覧
     let stopCtrlTimer = null;
     let liveScreen = null;      // いま会場に出ている画面（巡回中は 'carousel'）
-    let backScreen = null;      // 直前に会場に出していた画面（「前の画面に戻す」用）
+    let backScreen = null;      // 直前に会場に出していた画面（「前の画面に戻す」用。対象ごとに backMap に保存）
+    let target = 'all';         // 操作対象: 'all'（全部）または会場ディスプレイの名前
+    let lastDoc = {};           // 最新の大会ドキュメント
+    const backMap = {};         // 対象ごとの「前の画面」
+    // 操作画面に並べる会場ディスプレイの名前（「メイン」は常に。追加した名前と、画面指定を持つ名前）
+    function knownNames() {
+        const set = new Set([DEFAULT_DISPLAY]);
+        (lastDoc.venueDisplayNames || []).forEach(n => set.add(n));
+        Object.keys(lastDoc.venueDisplays || {}).forEach(n => set.add(n));
+        return [...set];
+    }
+    // 操作対象がいま出している画面（全部＝基準の画面。巡回中は 'carousel'）
+    function liveScreenForTarget() {
+        return resolveScene(lastDoc, target === 'all' ? BASE_DISPLAY : target).screen;
+    }
 
     const SCREEN_LABELS = {
         score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
@@ -792,7 +844,7 @@
         warmupData    = warmup || {};
 
         // 巡回が有効な場合はcarouselボタンをアクティブとして扱う
-        const effectiveScreen = carousel?.active ? 'carousel' : screen;
+        const effectiveScreen = liveScreenForTarget();
         document.getElementById('current-screen-badge').textContent = SCREEN_LABELS[effectiveScreen] || effectiveScreen;
         liveScreen = effectiveScreen;
         if (typeof refreshPreviewLabel === 'function') refreshPreviewLabel();
@@ -907,6 +959,25 @@
         });
     });
 
+    // 画面を切り替える書き込み。
+    //   全部: 全体の基準（venueScreen など＋書き込み時刻）を更新。ディスプレイごとの上書きは、追従中のものは消し、
+    //         固定中（CJPに従わない）のものは同じ画面に揃える。
+    //   ディスプレイ名: その名前の上書きだけを書く（ほかのディスプレイは変わらない）。巡回・選手紹介の設定は共通。
+    async function writeScene(screen, allFields, cfgFields = {}, extra = {}) {
+        const upd = {};
+        if (target === 'all') {
+            Object.assign(upd, allFields, { venueScreenAt: serverTimestamp() });
+            knownNames().forEach(n => {
+                const d = lastDoc.venueDisplays?.[n];
+                if (!d) return;
+                upd['venueDisplays.' + n + '.override'] = d.follow === false ? { screen, at: serverTimestamp(), ...extra } : deleteField();
+            });
+        } else {
+            Object.assign(upd, cfgFields, { ['venueDisplays.' + target + '.override']: { screen, at: serverTimestamp(), ...extra } });
+        }
+        await updateDoc(doc(db, 'tournaments', eventId), upd);
+    }
+
     document.getElementById('btn-show-screen').addEventListener('click', async () => {
         if (!pendingScreen) return;
         const shown = pendingScreen, before = liveScreen;
@@ -919,20 +990,19 @@
                 });
                 if (checked.length === 0) { alert('表示するクラスを選択してください'); return; }
                 const showLogo = document.getElementById('carousel-show-logo').checked;
-                await updateDoc(doc(db,'tournaments',eventId), {
-                    'rankingCarousel.active':   true,
+                const carouselCfg = {
                     'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type, ...(c.mode ? { mode: c.mode } : {}), ...(c.round ? { round: c.round } : {}) })),
                     'rankingCarousel.showLogo': showLogo
-                });
+                };
+                await writeScene('carousel', { 'rankingCarousel.active': true, ...carouselCfg }, carouselCfg);
             } else if (pendingScreen === 'intro') {
                 const sel = getSelectedIntroAthletes();
                 if (sel.length === 0) { alert('表示する選手を選択してください'); return; }
                 const durMs = Number(document.getElementById('intro-duration-val').value) * 1000;
                 const showRoster = document.getElementById('intro-show-roster')?.checked ?? true;
                 const showPerClassRoster = document.getElementById('intro-show-per-class-roster')?.checked ?? false;
-                await updateDoc(doc(db,'tournaments',eventId), {
-                    venueScreen: 'intro',
-                    'rankingCarousel.active': false,
+                // 選手紹介の中身（選手・間隔・開始時刻）は全ディスプレイ共通。始め直すと、紹介中の全ディスプレイが最初に戻る
+                const introCfg = {
                     'introSettings.athletes': sel,
                     'introSettings.durationMs': durMs,
                     'introSettings.currentIndex': -1,  // -1 = ループ開始時の「選手紹介」タイトル画面
@@ -940,7 +1010,8 @@
                     'introSettings.showPerClassRoster': showPerClassRoster,
                     'introSettings.startedAt': serverTimestamp(),  // 進行は会場ディスプレイ側がこの時刻から計算する
                     'introSettings.isRunning': true
-                });
+                };
+                await writeScene('intro', { venueScreen: 'intro', 'rankingCarousel.active': false, ...introCfg }, introCfg);
                 startIntroSequence(sel, durMs, showRoster, showPerClassRoster);
             } else if (pendingScreen === 'final_startlist') {
                 const target = document.getElementById('fsl-target')?.value || '';
@@ -950,17 +1021,14 @@
                     return;
                 }
                 const [cls, gender, type] = target.split('|');
-                await updateDoc(doc(db,'tournaments',eventId), {
-                    venueScreen: 'final_startlist',
-                    'rankingCarousel.active': false,
-                    'finalStartlistTarget': { class: cls, gender, type }
-                });
+                const fslTarget = { class: cls, gender, type };
+                await writeScene('final_startlist', { venueScreen: 'final_startlist', 'rankingCarousel.active': false, finalStartlistTarget: fslTarget }, {}, { finalStartlistTarget: fslTarget });
             } else {
                 // warmupSettings のタイマーフィールドには触れない
                 // → 他画面表示中もバックグラウンドでカウントダウン継続
                 // → warmup に戻った際は timerEndTime から残り時間を再計算して表示
-                await updateDoc(doc(db,'tournaments',eventId), {
-                    venueScreen: pendingScreen,
+                await writeScene(shown, {
+                    venueScreen: shown,
                     'rankingCarousel.active': false   // 巡回中でも画面切り替えで停止
                 });
             }
@@ -969,6 +1037,7 @@
             document.getElementById('btn-show-screen').disabled = true;
             pendingScreen = null;
             if (before && before !== shown) backScreen = before;
+            backMap[target] = backScreen;
             updateBackBtn(); postPreview(null); refreshPreviewLabel();
         } catch(e) {
             pendingScreen = null;
@@ -984,7 +1053,9 @@
     // ---- プレビュー（会場ディスプレイを読み取り専用モードで埋め込み、会場に出す前の画面を確認する） ----
     const previewFrame = document.getElementById('vc-preview');
     const previewBox = document.getElementById('vc-preview-frame');
-    previewFrame.src = venueUrl + '&preview=1';
+    // 操作対象（全部＝基準そのもの／ディスプレイ名＝そのディスプレイの出す画面）の状態を映す
+    function previewUrlFor(t) { return venueUrl + '&screen=' + encodeURIComponent(t === 'all' ? BASE_DISPLAY : t) + '&preview=1'; }
+    previewFrame.src = previewUrlFor(target);
     function fitPreview() { previewFrame.style.transform = 'scale(' + (previewBox.clientWidth / 1280) + ')'; }
     new ResizeObserver(fitPreview).observe(previewBox);
     fitPreview();
@@ -1025,6 +1096,88 @@
         document.getElementById('btn-show-screen').click();    // 会場に出す
     });
     updateBackBtn();
+
+    // ---- 操作対象（全部／会場ディスプレイごと） ----
+    function displayUrl(name) { return venueUrl + '&screen=' + encodeURIComponent(name); }
+    function renderTargetUI() {
+        if (target !== 'all' && !knownNames().includes(target)) target = 'all';
+        const box = document.getElementById('vc-chips');
+        box.innerHTML = '';
+        const mk = (key, label, sub, pinned) => {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'vc-chip' + (key === target ? ' active' : '');
+            b.innerHTML = '';
+            b.appendChild(document.createTextNode((pinned ? '📌 ' : '') + label));
+            if (sub) { const sm = document.createElement('small'); sm.textContent = sub; b.appendChild(sm); }
+            b.addEventListener('click', () => setTarget(key));
+            box.appendChild(b);
+        };
+        const lbl = scr => (SCREEN_LABELS[scr] || scr).replace(/中$/, '').replace(/画面$/, '');
+        mk('all', '全部', lbl(resolveScene(lastDoc, BASE_DISPLAY).screen), false);
+        knownNames().forEach(n => {
+            const r = resolveScene(lastDoc, n);
+            mk(n, n, lbl(r.screen), !r.follow);
+        });
+        const pinned = knownNames().filter(n => lastDoc.venueDisplays?.[n]?.follow === false);
+        const note = document.getElementById('vc-all-note');
+        if (target === 'all' && pinned.length) { note.style.display = ''; note.textContent = '📌 ' + pinned.join('、') + ' は、CJPに従わない設定です。「全部」に出すと、同じ画面に揃います。'; }
+        else note.style.display = 'none';
+        const dbox = document.getElementById('vc-display-box');
+        dbox.style.display = target === 'all' ? 'none' : '';
+        if (target !== 'all') {
+            document.getElementById('vc-display-url').value = displayUrl(target);
+            document.getElementById('vc-follow').checked = lastDoc.venueDisplays?.[target]?.follow !== false;
+            document.getElementById('vc-remove-display').style.display = target === DEFAULT_DISPLAY ? 'none' : '';
+        }
+    }
+    function setTarget(t) {
+        if (t === target) return;
+        backMap[target] = backScreen;
+        target = t; backScreen = backMap[t] || null;
+        pendingScreen = null;
+        document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById('btn-show-screen').disabled = true;
+        previewFrame.src = previewUrlFor(t);
+        applyScreenState(lastDoc.venueScreen || 'score', lastDoc.warmupSettings || {}, lastDoc.titleSettings || {}, lastDoc.ceremonySettings || {}, lastDoc.rankingCarousel || {});
+        renderTargetUI(); updateBackBtn(); refreshPreviewLabel();
+    }
+    document.getElementById('vc-add-display').addEventListener('click', async () => {
+        const name = (prompt('ディスプレイの名前を入力してください（例: サブ）') || '').trim();
+        if (!name) return;
+        if (!isValidDisplayName(name)) { alert('その名前は使えません。1〜20文字で、「. / [ ] * ~」とバッククォートは使えません。'); return; }
+        if (knownNames().includes(name)) { setTarget(name); return; }
+        try { await updateDoc(doc(db, 'tournaments', eventId), { venueDisplayNames: arrayUnion(name) }); lastDoc = { ...lastDoc, venueDisplayNames: [...(lastDoc.venueDisplayNames || []), name] }; setTarget(name); renderTargetUI(); }
+        catch (e) { alert('追加に失敗: ' + e.message); }
+    });
+    document.getElementById('vc-remove-display').addEventListener('click', async () => {
+        const n = target; if (n === 'all' || n === DEFAULT_DISPLAY) return;
+        if (!confirm('「' + n + '」を一覧から削除します（そのディスプレイの画面指定も消えます）。よろしいですか？')) return;
+        try {
+            await updateDoc(doc(db, 'tournaments', eventId), { venueDisplayNames: arrayRemove(n), ['venueDisplays.' + n]: deleteField() });
+            setTarget('all');
+        } catch (e) { alert('削除に失敗: ' + e.message); }
+    });
+    document.getElementById('vc-copy-url').addEventListener('click', async () => {
+        const inp = document.getElementById('vc-display-url'), btn = document.getElementById('vc-copy-url');
+        try { await navigator.clipboard.writeText(inp.value); } catch (e) { inp.select(); document.execCommand('copy'); }
+        btn.textContent = 'コピーしました'; setTimeout(() => { btn.textContent = 'コピー'; }, 1500);
+    });
+    // CJPに従う: オフにするとき、いまの画面を上書きとして保つ。オンに戻すとき、上書きを消す
+    document.getElementById('vc-follow').addEventListener('change', async e => {
+        const n = target; if (n === 'all') return;
+        const ref = doc(db, 'tournaments', eventId);
+        try {
+            if (e.target.checked) {
+                await updateDoc(ref, { ['venueDisplays.' + n + '.follow']: true, ['venueDisplays.' + n + '.override']: deleteField() });
+            } else {
+                const r = resolveScene(lastDoc, n);
+                const fsl = r.screen === 'final_startlist' ? (r.finalStartlistTarget || lastDoc.finalStartlistTarget || null) : null;
+                await updateDoc(ref, {
+                    ['venueDisplays.' + n + '.follow']: false,
+                    ['venueDisplays.' + n + '.override']: { screen: r.screen, at: serverTimestamp(), ...(fsl ? { finalStartlistTarget: fsl } : {}) },
+                });
+            }
+        } catch (err) { alert('失敗: ' + err.message); renderTargetUI(); }
+    });
 
     // ---- ワンタップ切替の記憶（この端末） ----
     (function () {
@@ -1374,7 +1527,8 @@
         stopIntroSequence();
         await updateDoc(doc(db,'tournaments',eventId), {
             'introSettings.isRunning': false,
-            venueScreen: 'score'
+            venueScreen: 'score',
+            venueScreenAt: serverTimestamp()
         }).catch(e => alert('失敗: ' + e.message));
     });
 
@@ -1478,8 +1632,10 @@
     // ---- ±30秒 ----
     // 動作中: その時点の残りを±して新しい基準にする（全端末が同じ残り時間になる）。一時停止中: 保存された残りを±する。
     // 自然終了後は何もしない（↺ リセットで戻す）。残りは最低1秒。
-    document.querySelectorAll('.adj-btn').forEach(btn => btn.addEventListener('click', async () => {
+    // data-delta を持つボタン（±30秒）だけが対象。同じ見た目の他のボタン（追加・コピー・保存など）では動かさない
+    document.querySelectorAll('.adj-btn[data-delta]').forEach(btn => btn.addEventListener('click', async () => {
         const delta = Number(btn.dataset.delta);
+        if (!Number.isFinite(delta)) return;   // 万一でも、不正な値（NaN）を残り時間に書かない
         const { rem, running } = warmupRem(warmupData);
         const ref = doc(db, 'tournaments', eventId);
         try {
@@ -1713,6 +1869,7 @@
         applyIntroFilter();
 
         // 初期画面状態を即座に反映（onSnapshot 到着前にタイマーを表示する）
+        lastDoc = tourData;
         applyScreenState(
             tourData.venueScreen      || 'score',
             tourData.warmupSettings   || {},
@@ -1721,12 +1878,14 @@
             tourData.rankingCarousel  || {}
         );
         applyAnnounce(tourData);
+        renderTargetUI();
 
         // リアルタイム監視
         onSnapshot(doc(db,'tournaments',eventId), snap => {
             if (!snap.exists()) return;
             const d = snap.data();
             if (d.displaySettings) applyDispToUI(d.displaySettings);
+            lastDoc = d;
             applyScreenState(
                 d.venueScreen      || 'score',
                 d.warmupSettings   || {},
@@ -1735,6 +1894,7 @@
                 d.rankingCarousel  || {}
             );
             applyAnnounce(d);
+            renderTargetUI();
         });
     });
 </script>

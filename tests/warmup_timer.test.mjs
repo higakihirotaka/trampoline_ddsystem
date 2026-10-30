@@ -145,3 +145,9 @@ test('overlayVisible: 選手紹介は、一覧ページを除いて重ねる', (
   assert.equal(overlayVisible(on, { screen: 'intro' }, RUN), true);
   assert.equal(overlayVisible(on, { screen: 'intro', introRoster: true }, RUN), false);
 });
+
+test('残り時間に不正な値（NaN）が保存されていても、0として扱う', () => {
+  assert.deepEqual(calcWarmupRem({ timerPaused: true, timerRemainingMs: NaN }, T0), { rem: 0, running: false });
+  assert.deepEqual(calcWarmupRem(w({ timerRemainingMs: NaN }), T0), { rem: 0, running: false });
+  assert.deepEqual(calcWarmupRem({ timerPaused: true, timerRemainingMs: null }, T0), { rem: 0, running: false });
+});

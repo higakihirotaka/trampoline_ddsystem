@@ -808,6 +808,7 @@
                 if (checked.length === 0) { alert('表示するクラスを選択してください'); return; }
                 const showLogo = document.getElementById('carousel-show-logo').checked;
                 await updateDoc(doc(db,'tournaments',eventId), {
+                    venueScreenAt: serverTimestamp(),
                     'rankingCarousel.active':   true,
                     'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type, ...(c.mode ? { mode: c.mode } : {}), ...(c.round ? { round: c.round } : {}) })),
                     'rankingCarousel.showLogo': showLogo
@@ -820,6 +821,7 @@
                 const showPerClassRoster = document.getElementById('intro-show-per-class-roster')?.checked ?? false;
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: 'intro',
+                    venueScreenAt: serverTimestamp(),
                     'rankingCarousel.active': false,
                     'introSettings.athletes': sel,
                     'introSettings.durationMs': durMs,
@@ -840,6 +842,7 @@
                 const [cls, gender, type] = target.split('|');
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: 'final_startlist',
+                    venueScreenAt: serverTimestamp(),
                     'rankingCarousel.active': false,
                     'finalStartlistTarget': { class: cls, gender, type }
                 });
@@ -849,6 +852,7 @@
                 // → warmup に戻った際は timerEndTime から残り時間を再計算して表示
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: pendingScreen,
+                    venueScreenAt: serverTimestamp(),
                     'rankingCarousel.active': false   // 巡回中でも画面切り替えで停止
                 });
             }
@@ -1114,7 +1118,8 @@
         stopIntroSequence();
         await updateDoc(doc(db,'tournaments',eventId), {
             'introSettings.isRunning': false,
-            venueScreen: 'score'
+            venueScreen: 'score',
+            venueScreenAt: serverTimestamp()
         }).catch(e => alert('失敗: ' + e.message));
     });
 
@@ -1215,8 +1220,10 @@
     // ---- ±30秒 ----
     // 動作中: その時点の残りを±して新しい基準にする（全端末が同じ残り時間になる）。一時停止中: 保存された残りを±する。
     // 自然終了後は何もしない（↺ リセットで戻す）。残りは最低1秒。
-    document.querySelectorAll('.adj-btn').forEach(btn => btn.addEventListener('click', async () => {
+    // data-delta を持つボタン（±30秒）だけが対象。同じ見た目の他のボタン（追加・コピー・保存など）では動かさない
+    document.querySelectorAll('.adj-btn[data-delta]').forEach(btn => btn.addEventListener('click', async () => {
         const delta = Number(btn.dataset.delta);
+        if (!Number.isFinite(delta)) return;   // 万一でも、不正な値（NaN）を残り時間に書かない
         const { rem, running } = warmupRem(warmupData);
         const ref = doc(db, 'tournaments', eventId);
         try {
