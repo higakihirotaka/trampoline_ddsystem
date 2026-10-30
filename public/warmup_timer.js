@@ -54,6 +54,45 @@ export function calcWarmupRem(w, nowMs, localNowMs = Date.now()) {
     return { rem: base, running: false };
 }
 
+// ---- 重ね表示（オーバーレイ）----
+// 会場練習タイマーを、会場ディスプレイのどの画面にも重ねて出すための設定と判定。
+// 設定は warmupSettings の overlay* 項目（全ディスプレイ共通）:
+//   overlayEnabled   重ねて出すか（既定: 出さない）
+//   overlayStyle     'badge'（角のバッジ）| 'band'（上または下の帯）
+//   overlayPosition  'tr' 右上 | 'tl' 左上 | 'br' 右下 | 'bl' 左下（帯は上 tr/tl・下 br/bl）
+//   overlayScale     大きさの倍率（0.5〜2）
+//   overlayOnScore   スコア画面（集計中・問い合わせを含む）にも重ねるか（既定: 重ねない。得点表示を隠さないため）
+const OVERLAY_POSITIONS = ['tr', 'tl', 'br', 'bl'];
+export function overlayConfig(w) {
+    const x = w || {};
+    const scale = Number(x.overlayScale);
+    return {
+        enabled: x.overlayEnabled === true,
+        style: x.overlayStyle === 'band' ? 'band' : 'badge',
+        position: OVERLAY_POSITIONS.includes(x.overlayPosition) ? x.overlayPosition : 'tr',
+        scale: scale >= 0.5 && scale <= 2 ? scale : 1,
+        onScore: x.overlayOnScore === true,
+    };
+}
+
+/**
+ * 重ね表示を出すか。
+ *   ctx: { screen: venueScreen, carousel: 順位表巡回中か, calculating, inquiry, introRoster: 選手紹介の一覧ページ表示中か }
+ *   state: warmupRem の結果 { rem, running }
+ * 出さない画面: 会場練習（タイマーが画面いっぱいに出ている）、スコア画面（既定。集計中・問い合わせ含む）、
+ *               選手紹介の一覧ページ（一覧と重なるため）。
+ */
+export function overlayVisible(cfg, ctx, state) {
+    if (!cfg.enabled || !state || !state.running || !(state.rem > 0)) return false;
+    const c = ctx || {};
+    if (c.calculating || c.inquiry) return cfg.onScore;
+    const scene = c.carousel ? 'carousel' : (c.screen || 'score');
+    if (scene === 'warmup') return false;
+    if (scene === 'score') return cfg.onScore;
+    if (scene === 'intro') return !c.introRoster;
+    return true;
+}
+
 // ---- サーバー時刻との差 ----
 // サーバー時刻 ≒ Date.now() + _offset。HTTP の Date ヘッダ（秒単位）が「次の秒に切り替わった瞬間」を
 // 短い間隔で何度も検出して求める。誤差は通信時間のゆらぎ込みで数十〜100ms程度。

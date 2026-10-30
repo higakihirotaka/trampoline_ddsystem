@@ -126,6 +126,33 @@
         .timer-manual-set { padding:6px 14px; background:var(--accent); color:white; border:none; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer; white-space:nowrap; transition:0.15s; }
         .timer-manual-set:hover { background:#1251a3; }
 
+        /* タイマー帯（ページ上部に固定。どのタブを見ていても残り時間と開始・停止を操作できる） */
+        .timer-dock { position:sticky; top:0; z-index:40; background:var(--card); border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.14); padding:10px 16px; margin-bottom:16px; }
+        .timer-dock-main { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        .timer-dock .timer-display { font-size:2.4rem; margin:0; min-width:5.2ch; }
+        .timer-dock .timer-btns { margin:0; flex:1; min-width:230px; }
+        .timer-dock .timer-btn { padding:9px 6px; }
+        .timer-adjust { display:flex; gap:6px; }
+        .adj-btn { padding:8px 10px; border:1.5px solid #b0bec5; background:white; border-radius:10px; font-size:0.78rem; font-weight:800; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .adj-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .dock-toggle { padding:8px 12px; border:1.5px solid #b0bec5; background:white; border-radius:10px; font-size:0.8rem; font-weight:800; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .dock-toggle[aria-expanded="true"] { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .timer-dock-detail { margin-top:12px; padding-top:12px; border-top:1px solid #eceff1; max-height:60vh; overflow-y:auto; }   /* 設定を開いても、帯が画面を占領しないように */
+        .repeat-row { display:flex; align-items:center; gap:10px; margin-top:12px; font-size:0.88rem; font-weight:700; color:var(--text-main); cursor:pointer; }
+        .repeat-row input { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; }
+        /* 会場への重ね表示の設定 */
+        .ov-box { margin-top:14px; padding:12px 14px; background:#f8fbff; border:1.5px solid #e3eaf5; border-radius:12px; }
+        .ov-title { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:0.9rem; font-weight:900; color:var(--accent); margin-bottom:8px; }
+        .ov-status { font-size:0.78rem; font-weight:700; color:var(--green); min-height:1.2em; }
+        .ov-row { display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
+        .ov-label { font-size:0.8rem; font-weight:700; min-width:64px; color:var(--text-main); }
+        .ov-seg { display:flex; gap:6px; flex-wrap:wrap; }
+        .ov-seg button { padding:7px 14px; border:2px solid #e0e0e0; background:white; border-radius:10px; font-size:0.82rem; font-weight:800; cursor:pointer; color:var(--text-sub); }
+        .ov-seg button.active { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .ov-pos { display:grid; grid-template-columns:repeat(2,auto); gap:6px; }
+        .ov-note { font-size:0.74rem; color:var(--text-sub); line-height:1.5; margin-top:8px; }
+        .ov-box.off .ov-row:not(.ov-main) { opacity:0.45; }
+
         /* 巡回モード */
         .carousel-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; background:#f8fbff; border:1.5px solid #e3eaf5; font-size:0.88rem; font-weight:600; color:var(--text-main); cursor:pointer; transition:0.15s; }
         .carousel-item:hover { border-color:var(--accent); background:#eef4ff; }
@@ -170,6 +197,86 @@
         <div>
             <a id="venue-link" href="#" target="_blank">会場ディスプレイを開く</a>
             <p>会場表示用PCのブラウザでこのURLを開いてください</p>
+        </div>
+    </div>
+
+    <!-- ⏱️ タイマー帯（上に固定。どのタブを見ていても、残り時間の確認と開始・停止ができる） -->
+    <div class="timer-dock" id="timer-dock">
+        <div class="timer-dock-main">
+            <div class="timer-display num" id="ctrl-timer">--:--</div>
+            <div class="timer-btns">
+                <button class="timer-btn timer-btn-start" id="timer-start-btn">▶ 開始</button>
+                <button class="timer-btn timer-btn-pause" id="timer-pause-btn" disabled>⏸ 一時停止</button>
+                <button class="timer-btn timer-btn-reset" id="timer-reset-btn">↺ リセット</button>
+            </div>
+            <div class="timer-adjust">
+                <button type="button" class="adj-btn" data-delta="-30000">−30秒</button>
+                <button type="button" class="adj-btn" data-delta="30000">＋30秒</button>
+            </div>
+            <button type="button" class="dock-toggle" id="dock-toggle" aria-expanded="false">⚙ 設定</button>
+        </div>
+        <div class="timer-dock-detail" id="timer-dock-detail" style="display:none">
+            <div class="timer-preset">
+                <span class="preset-label">プリセット:</span>
+                <button class="preset-btn" data-min="3">3分</button>
+                <button class="preset-btn" data-min="5">5分</button>
+                <button class="preset-btn" data-min="8">8分</button>
+                <button class="preset-btn" data-min="10">10分</button>
+                <button class="preset-btn" data-min="15">15分</button>
+            </div>
+            <div class="timer-manual">
+                <span class="timer-manual-label">手入力:</span>
+                <div class="timer-manual-inputs">
+                    <input type="number" id="timer-manual-min" class="timer-manual-input" min="0" max="99" step="1" placeholder="MM">
+                    <span class="timer-manual-sep">:</span>
+                    <input type="number" id="timer-manual-sec" class="timer-manual-input" min="0" max="59" step="1" placeholder="SS">
+                </div>
+                <button class="timer-manual-set" id="timer-manual-set-btn">更新</button>
+            </div>
+            <label class="repeat-row">
+                <input type="checkbox" id="timer-repeat">
+                繰り返し（0になったら自動で再スタート）
+            </label>
+
+            <div class="ov-box" id="ov-box">
+                <div class="ov-title"><span>📺 会場に重ねて表示</span><span class="ov-status" id="ov-status"></span></div>
+                <label class="repeat-row ov-main" style="margin-top:0;">
+                    <input type="checkbox" id="ov-enabled">
+                    どの画面にも残り時間を重ねて出す（全ディスプレイ共通）
+                </label>
+                <div class="ov-row">
+                    <span class="ov-label">見せ方</span>
+                    <div class="ov-seg" id="ov-style">
+                        <button type="button" data-style="badge">角のバッジ</button>
+                        <button type="button" data-style="band">上／下の帯</button>
+                    </div>
+                </div>
+                <div class="ov-row">
+                    <span class="ov-label">位置</span>
+                    <div class="ov-seg ov-pos" id="ov-pos">
+                        <button type="button" data-pos="tl">左上</button>
+                        <button type="button" data-pos="tr">右上</button>
+                        <button type="button" data-pos="bl">左下</button>
+                        <button type="button" data-pos="br">右下</button>
+                    </div>
+                </div>
+                <div class="ov-row">
+                    <span class="ov-label">大きさ</span>
+                    <input type="range" id="ov-scale" min="0.5" max="2" step="0.1" value="1" style="flex:1;max-width:220px;">
+                    <span id="ov-scale-val" style="font-size:0.85rem;font-weight:800;min-width:3.2em;">×1.0</span>
+                </div>
+                <div class="ov-row">
+                    <label class="repeat-row" style="margin-top:0;">
+                        <input type="checkbox" id="ov-onscore">
+                        スコア画面（集計中・問い合わせを含む）にも重ねる
+                    </label>
+                </div>
+                <div class="ov-note">
+                    ・帯は、上（左上・右上）か下（左下・右下）の端いっぱいに出ます。<br>
+                    ・ラベルには「会場練習」設定のクラス①②が出ます（未設定なら「残り時間」）。<br>
+                    ・得点表示に重なるため、スコア画面には通常重ねません。「会場練習」画面は、タイマーが全画面で出ているため重ねません。
+                </div>
+            </div>
         </div>
     </div>
 
@@ -442,38 +549,6 @@
         </div>
     </div>
 
-    <!-- ⏱️ タイマー操作（常時表示カード） -->
-    <div class="section-title">⏱️ 会場練習タイマー</div>
-    <div class="card">
-        <div class="timer-display num" id="ctrl-timer">--:--</div>
-        <div class="timer-btns">
-            <button class="timer-btn timer-btn-start" id="timer-start-btn">▶ 開始</button>
-            <button class="timer-btn timer-btn-pause" id="timer-pause-btn" disabled>⏸ 一時停止</button>
-            <button class="timer-btn timer-btn-reset" id="timer-reset-btn">↺ リセット</button>
-        </div>
-        <div class="timer-preset">
-            <span class="preset-label">プリセット:</span>
-            <button class="preset-btn" data-min="3">3分</button>
-            <button class="preset-btn" data-min="5">5分</button>
-            <button class="preset-btn" data-min="8">8分</button>
-            <button class="preset-btn" data-min="10">10分</button>
-            <button class="preset-btn" data-min="15">15分</button>
-        </div>
-        <!-- 手入力 -->
-        <div class="timer-manual">
-            <span class="timer-manual-label">手入力:</span>
-            <div class="timer-manual-inputs">
-                <input type="number" id="timer-manual-min" class="timer-manual-input" min="0" max="99" step="1" placeholder="MM">
-                <span class="timer-manual-sep">:</span>
-                <input type="number" id="timer-manual-sec" class="timer-manual-input" min="0" max="59" step="1" placeholder="SS">
-            </div>
-            <button class="timer-manual-set" id="timer-manual-set-btn">更新</button>
-        </div>
-        <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-size:0.88rem;font-weight:700;color:var(--text-main);cursor:pointer;border-top:1px solid #f0f0f0;padding-top:12px;">
-            <input type="checkbox" id="timer-repeat" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;">
-            繰り返し（0になったら自動で再スタート）
-        </label>
-    </div>
 </div>
 
 <script type="module">
@@ -653,7 +728,9 @@
             const warmupFormPart = {
                 class1: warmup.class1, class2: warmup.class2,
                 classFontSize: warmup.classFontSize, timerFontSize: warmup.timerFontSize,
-                timerRepeat: warmup.timerRepeat
+                timerRepeat: warmup.timerRepeat,
+                overlayEnabled: warmup.overlayEnabled, overlayStyle: warmup.overlayStyle, overlayPosition: warmup.overlayPosition,
+                overlayScale: warmup.overlayScale, overlayOnScore: warmup.overlayOnScore
             };
             applyIfChanged(_screenStateSig, 'warmup', warmupFormPart, w => {
                 document.getElementById('wu-class1').value = w.class1 || '';
@@ -661,6 +738,7 @@
                 setSlider('wu-class-fs', w.classFontSize || 4.5);
                 setSlider('wu-timer-fs', w.timerFontSize || 24);
                 document.getElementById('timer-repeat').checked = !!w.timerRepeat;
+                setOverlayForm(w);
             });
         }
 
@@ -826,27 +904,12 @@
         try {
             const newRepeat = document.getElementById('timer-repeat').checked;
             const upd = {
+                ...repeatChangeFields(newRepeat),
                 'warmupSettings.class1':       document.getElementById('wu-class1').value,
                 'warmupSettings.class2':       document.getElementById('wu-class2').value,
                 'warmupSettings.classFontSize':Number(document.getElementById('wu-class-fs-val').value),
                 'warmupSettings.timerFontSize':Number(document.getElementById('wu-timer-fs-val').value),
-                'warmupSettings.timerRepeat':  newRepeat,
             };
-            // 繰り返しの切替は、残り時間の計算の仕方が変わる。動作中ならその時点の残りを新しい基準にして
-            // 表示が飛ばないようにし、すでに終わっている場合は停止状態に確定する（切替で勝手に再開しない）。
-            if (newRepeat !== !!warmupData.timerRepeat && !warmupData.timerPaused && warmupData.timerRef) {
-                const cur = warmupRem(warmupData);
-                if (cur.running) {
-                    upd['warmupSettings.timerRef']         = serverTimestamp();
-                    upd['warmupSettings.timerRemainingMs'] = cur.rem;
-                    upd['warmupSettings.timerEndMs']       = Date.now() + cur.rem;
-                } else {
-                    upd['warmupSettings.timerRemainingMs'] = 0;
-                    upd['warmupSettings.timerPaused']      = true;
-                    upd['warmupSettings.timerEndMs']       = null;
-                    upd['warmupSettings.timerRef']         = null;
-                }
-            }
             await updateDoc(doc(db,'tournaments',eventId), upd);
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
@@ -1070,6 +1133,26 @@
         });
     }
 
+    // 繰り返しの切替で書く項目。切替は残り時間の計算の仕方が変わる。動作中ならその時点の残りを新しい基準にして
+    // 表示が飛ばないようにし、すでに終わっている場合は停止状態に確定する（切替で勝手に再開しない）。
+    function repeatChangeFields(newRepeat) {
+        const upd = { 'warmupSettings.timerRepeat': newRepeat };
+        if (newRepeat !== !!warmupData.timerRepeat && !warmupData.timerPaused && warmupData.timerRef) {
+            const cur = warmupRem(warmupData);
+            if (cur.running) {
+                upd['warmupSettings.timerRef']         = serverTimestamp();
+                upd['warmupSettings.timerRemainingMs'] = cur.rem;
+                upd['warmupSettings.timerEndMs']       = Date.now() + cur.rem;
+            } else {
+                upd['warmupSettings.timerRemainingMs'] = 0;
+                upd['warmupSettings.timerPaused']      = true;
+                upd['warmupSettings.timerEndMs']       = null;
+                upd['warmupSettings.timerRef']         = null;
+            }
+        }
+        return upd;
+    }
+
     function renderCtrlTimer(el, ms, running) {
         const s = Math.ceil(ms / 1000);
         el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
@@ -1108,6 +1191,100 @@
             'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
     });
+    // ---- タイマー帯: 設定の開閉（この端末に記憶） ----
+    (function () {
+        const btn = document.getElementById('dock-toggle'), detail = document.getElementById('timer-dock-detail');
+        function setOpen(open) {
+            detail.style.display = open ? '' : 'none';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            try { localStorage.setItem('dcDockOpen', open ? '1' : '0'); } catch (e) {}
+        }
+        btn.addEventListener('click', () => setOpen(detail.style.display === 'none'));
+        let saved = false; try { saved = localStorage.getItem('dcDockOpen') === '1'; } catch (e) {}
+        setOpen(saved);
+    })();
+
+    // ---- 繰り返し: 切り替えたらすぐ保存 ----
+    document.getElementById('timer-repeat').addEventListener('change', async (e) => {
+        try { await updateDoc(doc(db, 'tournaments', eventId), repeatChangeFields(e.target.checked)); }
+        catch (err) { alert('繰り返しの保存に失敗: ' + err.message); e.target.checked = !!warmupData.timerRepeat; }
+    });
+
+    // ---- ±30秒 ----
+    // 動作中: その時点の残りを±して新しい基準にする（全端末が同じ残り時間になる）。一時停止中: 保存された残りを±する。
+    // 自然終了後は何もしない（↺ リセットで戻す）。残りは最低1秒。
+    document.querySelectorAll('.adj-btn').forEach(btn => btn.addEventListener('click', async () => {
+        const delta = Number(btn.dataset.delta);
+        const { rem, running } = warmupRem(warmupData);
+        const ref = doc(db, 'tournaments', eventId);
+        try {
+            if (running) {
+                if (rem <= 0) return;
+                const t = Math.max(1000, Math.round(rem + delta));
+                await updateDoc(ref, {
+                    'warmupSettings.timerRef': serverTimestamp(),
+                    'warmupSettings.timerRemainingMs': t,
+                    'warmupSettings.timerEndMs': Date.now() + t,
+                    'warmupSettings.timerPaused': false,
+                });
+            } else if (warmupData.timerPaused) {
+                const t = Math.max(1000, (warmupData.timerRemainingMs ?? 0) + delta);
+                await updateDoc(ref, { 'warmupSettings.timerRemainingMs': t });
+            }
+        } catch (e) { alert('失敗: ' + e.message); }
+    }));
+
+    // ---- 会場への重ね表示の設定（変更したら自動保存） ----
+    function setOverlayForm(w) {
+        document.getElementById('ov-enabled').checked = w.overlayEnabled === true;
+        document.getElementById('ov-onscore').checked = w.overlayOnScore === true;
+        const style = w.overlayStyle === 'band' ? 'band' : 'badge';
+        document.querySelectorAll('#ov-style button').forEach(b => b.classList.toggle('active', b.dataset.style === style));
+        const pos = ['tr', 'tl', 'br', 'bl'].includes(w.overlayPosition) ? w.overlayPosition : 'tr';
+        document.querySelectorAll('#ov-pos button').forEach(b => b.classList.toggle('active', b.dataset.pos === pos));
+        const sc = Number(w.overlayScale) >= 0.5 && Number(w.overlayScale) <= 2 ? Number(w.overlayScale) : 1;
+        document.getElementById('ov-scale').value = sc;
+        document.getElementById('ov-scale-val').textContent = '×' + sc.toFixed(1);
+        document.getElementById('ov-box').classList.toggle('off', w.overlayEnabled !== true);
+    }
+    function collectOverlay() {
+        return {
+            overlayEnabled:  document.getElementById('ov-enabled').checked,
+            overlayStyle:    document.querySelector('#ov-style button.active')?.dataset.style || 'badge',
+            overlayPosition: document.querySelector('#ov-pos button.active')?.dataset.pos || 'tr',
+            overlayScale:    Math.round(Number(document.getElementById('ov-scale').value) * 10) / 10,
+            overlayOnScore:  document.getElementById('ov-onscore').checked,
+        };
+    }
+    let _ovSaveTimer = null;
+    function saveOverlay() {
+        const st = document.getElementById('ov-status');
+        const o = collectOverlay();
+        document.getElementById('ov-box').classList.toggle('off', !o.overlayEnabled);
+        document.getElementById('ov-scale-val').textContent = '×' + o.overlayScale.toFixed(1);
+        st.style.color = '#888'; st.textContent = '保存中…';
+        clearTimeout(_ovSaveTimer);
+        _ovSaveTimer = setTimeout(async () => {
+            const upd = {};
+            Object.entries(o).forEach(([k, v]) => { upd['warmupSettings.' + k] = v; });
+            try {
+                await updateDoc(doc(db, 'tournaments', eventId), upd);
+                st.style.color = '#2e7d32'; st.textContent = '✓ 自動保存済み';
+            } catch (e) { st.style.color = '#c62828'; st.textContent = '❌ ' + e.message; }
+        }, 300);
+    }
+    document.getElementById('ov-enabled').addEventListener('change', saveOverlay);
+    document.getElementById('ov-onscore').addEventListener('change', saveOverlay);
+    document.getElementById('ov-scale').addEventListener('input', saveOverlay);
+    document.querySelectorAll('#ov-style button').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#ov-style button').forEach(x => x.classList.toggle('active', x === b));
+        saveOverlay();
+    }));
+    document.querySelectorAll('#ov-pos button').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#ov-pos button').forEach(x => x.classList.toggle('active', x === b));
+        saveOverlay();
+    }));
+
     // ---- タイマー手入力：onSnapshot で上書きされないよう「更新」ボタンでのみ反映 ----
     document.getElementById('timer-manual-set-btn').addEventListener('click', async () => {
         const minEl = document.getElementById('timer-manual-min');

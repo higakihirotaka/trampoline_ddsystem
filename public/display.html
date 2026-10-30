@@ -921,6 +921,26 @@
     margin:0 0 0.8cqh;
   }
   .intro-warmup-timer.warning{ color:#ff6b35; text-shadow:0 0 24px rgba(255,107,53,0.35); }
+  /* ===== 会場練習タイマーの重ね表示（どの画面にも重ねられる。設定は warmupSettings の overlay*） ===== */
+  #timer-overlay{
+    position:fixed; z-index:300; display:none; pointer-events:none;
+    font-family:var(--font-ui); color:var(--accent-gold); font-weight:900; line-height:1;
+    background:rgba(0,0,0,0.58); text-shadow:none;
+    font-size:calc(5vw * var(--tov, 1));
+  }
+  #timer-overlay.show{ display:flex; }
+  #timer-overlay .tov-lbl{ font-size:0.34em; font-weight:800; letter-spacing:0.12em; color:rgba(255,255,255,0.85); }
+  #timer-overlay.warning{ color:#ff6b35; }
+  /* バッジ: 角に小さく。ラベルと時間を縦に積む */
+  #timer-overlay.badge{ flex-direction:column; align-items:center; gap:0.25em; padding:0.35em 0.7em; border-radius:0.25em;
+    border:0.04em solid rgba(255,255,255,0.35); }
+  #timer-overlay.badge.pos-tr{ top:2vw; right:2vw; } #timer-overlay.badge.pos-tl{ top:2vw; left:2vw; }
+  #timer-overlay.badge.pos-br{ bottom:2vw; right:2vw; } #timer-overlay.badge.pos-bl{ bottom:2vw; left:2vw; }
+  /* 帯: 画面の上または下いっぱいに、ラベルと時間を横に並べる */
+  #timer-overlay.band{ left:0; right:0; flex-direction:row; align-items:baseline; justify-content:center; gap:0.6em; padding:0.25em 3vw;
+    font-size:calc(4.2vw * var(--tov, 1)); }
+  #timer-overlay.band.pos-tr, #timer-overlay.band.pos-tl{ top:0; } #timer-overlay.band.pos-br, #timer-overlay.band.pos-bl{ bottom:0; }
+  #timer-overlay.band .tov-lbl{ font-size:0.45em; }
   /* ループ開始時のタイトル画面「選手紹介」（currentIndex=-1 のとき表示） */
   .intro-title-screen{
     position:absolute; inset:0;
@@ -1126,6 +1146,7 @@
   </style>
 </head>
 <body>
+  <div id="timer-overlay"><span class="tov-lbl"></span><span class="tov-time num"></span></div>
   <div class="monitor-frame no-anim" id="monitor">
     <div class="convention-header" id="event-name-el" style="opacity:1;">---</div>
     <div class="athlete-section" style="opacity:1;">
@@ -1226,7 +1247,7 @@
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, round1, buildIntroSteps, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";
-  import { startWarmupTicker } from "./warmup_timer.js";
+  import { startWarmupTicker, overlayConfig, overlayVisible } from "./warmup_timer.js";
   import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
@@ -2504,6 +2525,7 @@
     });
   }
   function applyVenueScreen(tourData) {
+    updateTimerOverlay();   // 画面・設定が変わったら、次の秒の更新を待たずに重ね表示を出し分ける
     // 会場画面に関係する設定が変わっていなければ DOM を一切触らない。
     // （CJPの選手選択=liveState更新など無関係な更新でのちらつき・再描画を防ぐ）
     const sig = venueSig(tourData);
@@ -2905,15 +2927,41 @@
     grid.innerHTML = html;
   }
 
+  // ---- 会場練習タイマーの重ね表示（全画面共通。warmup_timer.js の overlayConfig / overlayVisible） ----
+  // 設定は warmupSettings の overlay*。出す画面・出さない画面の判定は overlayVisible に集約している。
+  let _tovLast = { rem: 0, running: false };
+  function updateTimerOverlay(state) {
+    if (state) _tovLast = state;
+    const el = document.getElementById('timer-overlay');
+    if (!el) return;
+    const t = tournamentData || {};
+    const w = t.warmupSettings || {};
+    const cfg = overlayConfig(w);
+    const ctx = {
+      screen: t.venueScreen || 'score', carousel: !!t.rankingCarousel?.active,
+      calculating: !!t.calculating, inquiry: !!t.inquiry,
+      introRoster: !!document.getElementById('intro-roster-screen')?.classList.contains('active'),
+    };
+    if (!overlayVisible(cfg, ctx, _tovLast)) { el.classList.remove('show'); return; }
+    const sec = Math.ceil(_tovLast.rem / 1000);
+    const label = [w.class1, w.class2].filter(Boolean).join(' / ') || '残り時間';
+    el.style.setProperty('--tov', String(cfg.scale));
+    el.className = `show ${cfg.style} pos-${cfg.position}${_tovLast.rem < 60000 ? ' warning' : ''}`;
+    el.querySelector('.tov-lbl').textContent = label;
+    el.querySelector('.tov-time').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+  }
+
   // 選手紹介ループ中の会場練習残り時間（右上）
   // warmupSettings を常時監視し、タイマーがカウント中のみ表示する。
   // （要素は vs-intro 内にあるため、紹介画面表示中しか見えない＝他画面には影響しない）
+  // 重ね表示がオンのときは、重ね表示（位置・大きさを操作画面で選べる）に任せて、この表示は出さない。
   startWarmupTicker(() => tournamentData?.warmupSettings || {}, ({ rem, running }) => {
+    updateTimerOverlay({ rem, running });
     const el = document.getElementById('intro-warmup-timer');
     if (!el) return;
     // クラス別・全選手の一覧ページ表示中は、一覧と重ならないよう会場練習タイマーを隠す
     const onRosterPage = document.getElementById('intro-roster-screen')?.classList.contains('active');
-    if (!running || rem <= 0 || onRosterPage) { el.style.display = 'none'; return; }
+    if (!running || rem <= 0 || onRosterPage || overlayConfig(tournamentData?.warmupSettings).enabled) { el.style.display = 'none'; return; }
     const totalSec = Math.ceil(rem / 1000);
     const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
     const ss = String(totalSec % 60).padStart(2, '0');
