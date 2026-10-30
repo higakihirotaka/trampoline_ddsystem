@@ -747,6 +747,14 @@
     color:var(--accent-cyan);
     text-shadow:0 0 80px rgba(var(--accent-rgb),0.35);
   }
+  /* お知らせ文の画面（最大3行・文字サイズ可変。タイトル画面と同じ作り） */
+  #vs-announce{ padding-bottom: 3vw; }
+  .vs-announce-line{
+    font-size:var(--vs-announce-fs,6vw); font-weight:900; line-height:1.15;
+    letter-spacing:0.03em; white-space:pre-wrap; word-break:break-word; max-width:92vw;
+    color:var(--accent-cyan);
+    text-shadow:0 0 80px rgba(var(--accent-rgb),0.35);
+  }
   .vs-cer-name{
     font-size:var(--vs-cer-name-fs,3.5vw); font-weight:800; line-height:1.2;
     color:var(--text-muted);
@@ -1157,6 +1165,14 @@
     <div class="result-section" style="opacity:1;"></div>
     <footer class="footer-credits" style="opacity:1;">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
     <div id="ranking-overlay"></div>
+  </div>
+
+  <!-- お知らせ文画面（操作画面の「お知らせ文」。announceSettings の line1〜3） -->
+  <div id="vs-announce" class="venue-screen">
+    <div class="vs-announce-line" id="vs-announce-line1"></div>
+    <div class="vs-announce-line" id="vs-announce-line2" style="display:none"></div>
+    <div class="vs-announce-line" id="vs-announce-line3" style="display:none"></div>
+    <footer class="vs-footer">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
   </div>
 
   <!-- システムロゴ画面 -->
@@ -2375,7 +2391,7 @@
     document.getElementById('vs-final-startlist')?.classList.remove('active');
     _trTargetSig = null; _trContentSig = null;
     if (eventId) {
-      updateDoc(doc(db, 'tournaments', eventId), { 'rankingCarousel.active': false }).catch(() => {});
+      if (!PREVIEW) updateDoc(doc(db, 'tournaments', eventId), { 'rankingCarousel.active': false }).catch(() => {});
     }
   }
 
@@ -2512,6 +2528,24 @@
   let _teamRankLastTarget = null;  // 表示中の団体順位表の対象（class/gender/type）。
                                     // results の onSnapshot からスコア確定時に再計算を呼ぶために保持する
                                     // （tournaments ドキュメントの venueSig は変化しないため applyVenueScreen 経由では拾えない）
+  const PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
+  let _previewOv = null;    // プレビュー指定 { screen, finalStartlistTarget? }（PREVIEW のときだけ使う）
+  function withPreviewOverride(t) {
+    if (!PREVIEW || !_previewOv) return t;
+    const ov = _previewOv;
+    const x = { ...t, venueScreen: ov.screen === 'carousel' ? 'score' : ov.screen, calculating: false, inquiry: false };
+    x.rankingCarousel = { ...(t.rankingCarousel || {}), active: ov.screen === 'carousel' };
+    if (ov.finalStartlistTarget) x.finalStartlistTarget = ov.finalStartlistTarget;
+    return x;
+  }
+  if (PREVIEW) {
+    window.addEventListener('message', ev => {
+      if (ev.origin !== location.origin || ev.data?.type !== 'venue-preview') return;
+      _previewOv = ev.data.screen ? { screen: ev.data.screen, finalStartlistTarget: ev.data.finalStartlistTarget || null } : null;
+      if (tournamentData) applyVenueScreen(tournamentData);
+    });
+    document.documentElement.style.cursor = 'default';
+  }
   let _venueSig = null;     // 直近に適用した「会場画面に関係する設定」の署名
   // 会場画面の見た目に影響する大会ドキュメント項目だけを署名化（liveState 等は含めない）
   function venueSig(t) {
@@ -2521,10 +2555,11 @@
       inq: t.inquiry || false, ia: t.inquiryAthleteId || '', ir: t.inquiryRound || '',
       tr: t.teamRankingTarget || 0, fs: t.finalStartlistTarget || 0,
       intro: t.introSettings || 0, car: t.rankingCarousel || 0,
-      ts: t.titleSettings || 0, cs: t.ceremonySettings || 0, wu: t.warmupSettings || 0
+      ts: t.titleSettings || 0, cs: t.ceremonySettings || 0, wu: t.warmupSettings || 0, an: t.announceSettings || 0
     });
   }
   function applyVenueScreen(tourData) {
+    tourData = withPreviewOverride(tourData);
     updateTimerOverlay();   // 画面・設定が変わったら、次の秒の更新を待たずに重ね表示を出し分ける
     // 会場画面に関係する設定が変わっていなければ DOM を一切触らない。
     // （CJPの選手選択=liveState更新など無関係な更新でのちらつき・再描画を防ぐ）
@@ -2550,6 +2585,15 @@
     document.documentElement.style.setProperty('--vs-cer-name-fs', (cs.nameFontSize  || 3.5) + 'vw');
     document.documentElement.style.setProperty('--vs-cer-label-fs',(cs.labelFontSize || 10)  + 'vw');
     document.documentElement.style.setProperty('--vs-class-fs',    (warmup.classFontSize || 4.5) + 'vw');
+    const an = tourData.announceSettings || {};
+    document.documentElement.style.setProperty('--vs-announce-fs', (an.fontSize || 6) + 'vw');
+    ['vs-announce-line1', 'vs-announce-line2', 'vs-announce-line3'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const text = an['line' + (i + 1)] || '';
+      el.textContent = text;
+      el.style.display = text ? '' : 'none';
+    });
     document.documentElement.style.setProperty('--vs-timer-fs',    (warmup.timerFontSize || 24)  + 'vw');
 
     // 大会名を各画面に反映
@@ -2573,7 +2617,7 @@
     document.getElementById('vs-warmup-event').textContent = tournamentName || '';
 
     // 全画面を一旦非表示（巡回中の団体画面・決勝スタートリスト画面は巡回側が管理するので保持する）
-    ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-inquiry','vs-final-startlist','vs-team-ranking'].forEach(id => {
+    ['vs-logo','vs-title','vs-announce','vs-ceremony','vs-warmup','vs-intro','vs-calculating','vs-inquiry','vs-final-startlist','vs-team-ranking'].forEach(id => {
       if (carouselActive && (id === 'vs-team-ranking' || id === 'vs-final-startlist')) return;
       document.getElementById(id)?.classList.remove('active');
     });
@@ -2696,12 +2740,15 @@
     // スコア表示中・キュー処理中は会場画面を上書きしない
     // （CJP の publish により calculating:false と results の2つの書き込みが走るため
     //   onSnapshot の発火順序によっては applyVenueScreen が後から venue 画面を再表示してしまう）
-    if (currentMode === 'score' || displayQueue.length > 0) return;
+    // （プレビューでは、復元した最新スコアが表示中でも、指定した画面を出す）
+    if (!PREVIEW && (currentMode === 'score' || displayQueue.length > 0)) return;
 
     if (screen === 'logo') {
       document.getElementById('vs-logo').classList.add('active');
     } else if (screen === 'title') {
       document.getElementById('vs-title').classList.add('active');
+    } else if (screen === 'announce') {
+      document.getElementById('vs-announce').classList.add('active');
     } else if (screen === 'ceremony') {
       document.getElementById('vs-ceremony').classList.add('active');
     } else if (screen === 'warmup') {
@@ -2934,7 +2981,7 @@
     if (state) _tovLast = state;
     const el = document.getElementById('timer-overlay');
     if (!el) return;
-    const t = tournamentData || {};
+    const t = withPreviewOverride(tournamentData || {});
     const w = t.warmupSettings || {};
     const cfg = overlayConfig(w);
     const ctx = {
@@ -3119,7 +3166,8 @@
           tryRestoreLastScore();
           return;
         }
-        // 以後: 新規追加分のみキューに入れる
+        // 以後: 新規追加分のみキューに入れる（プレビューでは流さない）
+        if (PREVIEW) return;
         snap.docChanges().forEach(change => {
           // 新規公開(added)と再公開(modified)の両方を表示
           if (change.type === 'added' || change.type === 'modified') {
@@ -3139,7 +3187,7 @@
             // （inquiry:false はCJPのpublish()側で書き込む＝venue_displayは非ログインのため不可）
             document.getElementById('vs-inquiry')?.classList.remove('active');
             // スコア確定時：全会場画面を即時非表示にし、復元しない
-            ['vs-logo','vs-title','vs-ceremony','vs-warmup','vs-intro','vs-final-startlist'].forEach(id => {
+            ['vs-logo','vs-title','vs-announce','vs-ceremony','vs-warmup','vs-intro','vs-final-startlist'].forEach(id => {
               document.getElementById(id)?.classList.remove('active');
             });
             // warmupタイマーも停止
