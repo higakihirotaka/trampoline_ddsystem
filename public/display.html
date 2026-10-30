@@ -3016,11 +3016,16 @@
     const mk = () => Math.random().toString(36).slice(2, 10);
     try { let v = sessionStorage.getItem('venuePresenceId'); if (!v) { v = mk(); sessionStorage.setItem('venuePresenceId', v); } return v; } catch (e) { return mk(); }
   })();
-  let _presenceLast = 0;
+  let _presenceLast = 0, _presenceTimer = null;
   function sendPresence(force) {
     if (PREVIEW || SCREEN_NAME === BASE_DISPLAY || !eventId) return;
     const now = Date.now();
-    if (!force && now - _presenceLast < 3000) return;
+    // 直前の送信から3秒以内の連続送信は間引くが、捨てずに、3秒たってから1回だけ送る（出している画面が古いまま残らないように）
+    const wait = 3000 - (now - _presenceLast);
+    if (!force && wait > 0) {
+      if (!_presenceTimer) _presenceTimer = setTimeout(() => { _presenceTimer = null; sendPresence(true); }, wait);
+      return;
+    }
     _presenceLast = now;
     const t = sceneTour(tournamentData || {});
     setDoc(doc(db, 'tournaments', eventId, 'venuePresence', SCREEN_NAME + '__' + PRESENCE_ID), {
