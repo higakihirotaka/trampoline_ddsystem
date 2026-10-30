@@ -160,7 +160,7 @@
             const EXCLUDE = new Set([
                 'calculating', 'calculatingAthleteId', 'calculatingRound',
                 'liveState', 'rankingCarousel', 'teamRankingTarget',
-                'finalStartlistTarget', 'venueScreen', 'venueScreenAt', 'venueDisplays', 'createdAt', 'updatedAt'
+                'finalStartlistTarget', 'venueScreen', 'venueScreenAt', 'venueDisplays', 'venueProgram', 'createdAt', 'updatedAt'
             ]);
             const newData = {};
             Object.entries(src).forEach(([k, v]) => { if (!EXCLUDE.has(k)) newData[k] = v; });

@@ -198,6 +198,30 @@
         .vc-display-box input[type="text"] { flex:1; min-width:180px; padding:6px 8px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:0.78rem; color:var(--text-sub); background:#fff; }
         .vc-display-note { font-size:0.74rem; color:var(--text-sub); line-height:1.5; margin-top:6px; }
         .vc-all-note { font-size:0.74rem; color:#e65100; margin:-4px 0 10px; line-height:1.5; }
+        /* プログラム（自動で順に切り替え） */
+        .prog-status { display:none; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; border-radius:12px; background:#e8f5e9; border:1.5px solid #a5d6a7; margin-bottom:12px; font-size:0.86rem; font-weight:700; color:#1b5e20; }
+        .prog-status.show { display:flex; }
+        .prog-status .grow { flex:1; min-width:160px; }
+        .prog-item { border:1.5px solid #e3eaf5; background:#f8fbff; border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+        .prog-item-main { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .prog-item select, .prog-item input[type="number"] { padding:7px 8px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:0.88rem; font-weight:700; background:#fff; }
+        .prog-item input[type="number"] { width:70px; text-align:center; }
+        .prog-item .ico { padding:6px 10px; border:1.5px solid #cfd8e3; background:#fff; border-radius:8px; cursor:pointer; font-weight:800; color:var(--text-sub); }
+        .prog-item .ico:hover { border-color:var(--accent); color:var(--accent); }
+        .prog-detail { margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+        .prog-detail input[type="text"] { padding:6px 8px; border:1.5px solid #cfd8dc; border-radius:8px; font-size:0.85rem; }
+        .prog-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1.5px solid #e3eaf5; border-radius:12px; background:#fff; margin-bottom:8px; flex-wrap:wrap; }
+        .prog-row .name { font-weight:900; font-size:0.92rem; min-width:7em; }
+        .prog-row .sum { flex:1; min-width:200px; font-size:0.78rem; color:var(--text-sub); line-height:1.5; }
+        .prog-btn { padding:8px 14px; border:2px solid #b0bec5; background:#fff; border-radius:10px; font-size:0.82rem; font-weight:800; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .prog-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .prog-btn.go { background:var(--green); border-color:var(--green); color:#fff; }
+        .prog-btn.go:hover { background:#1b5e20; }
+        .prog-btn.stop { background:#c62828; border-color:#c62828; color:#fff; }
+        .prog-editor { display:none; margin-top:12px; padding:14px; border:2px solid var(--accent); background:#f0f5ff; border-radius:14px; }
+        .prog-editor.show { display:block; }
+        .prog-editor .head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+        .prog-editor input[type="text"].pname { flex:1; min-width:160px; padding:8px 10px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:0.95rem; font-weight:700; }
         /* 自動保存: 各パネルの保存ボタンは隠し、状態の表示だけ残す */
         .vc-left .fs-save-row .btn-save-sm { display:none; }
         .vc-left .fs-save-row { margin-top:8px; }
@@ -584,6 +608,39 @@
     </div>
 
 
+            <div class="card" id="vc-programs">
+                <div class="section-title" style="margin-top:0;">🎞️ プログラム（自動で順に切り替え）</div>
+                <div class="vc-display-note" style="margin:-4px 0 10px;">画面を決めた秒数ずつ、順に自動で切り替えます。休憩中に、残り時間を重ねながら、ロゴ → タイトル → 順位表 …と回すときに使います。上の「操作対象」に出します。</div>
+                <div class="prog-status" id="prog-status">
+                    <span>▶</span><span class="grow" id="prog-status-text"></span>
+                    <button type="button" class="prog-btn stop" id="prog-stop">■ 止める（いまの画面のまま）</button>
+                </div>
+                <div id="prog-list"></div>
+                <button type="button" class="prog-btn" id="prog-new">＋ 新しいプログラム</button>
+                <div class="prog-editor" id="prog-editor">
+                    <div class="head">
+                        <input type="text" class="pname" id="prog-name" placeholder="プログラム名（例: 昼休み）">
+                        <label class="repeat-row" style="margin-top:0;"><input type="checkbox" id="prog-loop" checked> ぐるぐる繰り返す</label>
+                    </div>
+                    <div id="prog-items"></div>
+                    <button type="button" class="prog-btn" id="prog-add-item">＋ 項目を追加</button>
+                    <div class="divider"></div>
+                    <div class="head" style="margin-bottom:0;">
+                        <label class="repeat-row" style="margin-top:0;">
+                            <input type="checkbox" id="prog-timer-on"> 開始と同時に、会場練習タイマーを
+                        </label>
+                        <input type="number" id="prog-timer-min" min="1" max="180" value="10" style="width:64px;padding:6px;border:1.5px solid #cfd8e3;border-radius:8px;font-weight:800;text-align:center;">
+                        <span style="font-size:0.85rem;font-weight:700;">分で始めて、画面に重ねる</span>
+                    </div>
+                    <div class="vc-display-note">順位表の巡回と選手紹介は、「順位表 巡回」「選手紹介」で、クラスや選手を選んで、一度会場に出したあとの設定を使います。指定した秒数だけ出して、次の項目へ進みます。</div>
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button type="button" class="prog-btn go" id="prog-save">保存</button>
+                        <button type="button" class="prog-btn" id="prog-cancel">キャンセル</button>
+                        <span class="save-status" id="prog-save-status" style="margin:0;align-self:center;"></span>
+                    </div>
+                </div>
+            </div>
+
             <details class="vc-global" id="vc-global">
                 <summary>⚙️ 全体の設定（配色・個人スコアのアニメーション・順位表）</summary>
     <!-- タブ1: 画面表示設定 -->
@@ -693,7 +750,7 @@
     import { ensureAdmin, logout } from "./auth.js";
     import { getTournament } from "./cache.js";
     import { applyIfChanged, buildIntroSteps } from "./shared.js";
-    import { startWarmupTicker, warmupRem } from "./warmup_timer.js";
+    import { startWarmupTicker, warmupRem, serverNow } from "./warmup_timer.js";
     import { resolveScene, isValidDisplayName, DEFAULT_DISPLAY, BASE_DISPLAY } from "./venue_scene.js";
 
     const params  = new URLSearchParams(location.search);
@@ -1099,7 +1156,16 @@
 
     // ---- 操作対象（全部／会場ディスプレイごと） ----
     function displayUrl(name) { return venueUrl + '&screen=' + encodeURIComponent(name); }
+    function applyPrograms(d) {
+        const list = Array.isArray(d.venuePrograms) ? d.venuePrograms : [];
+        if (JSON.stringify(list) === JSON.stringify(programs)) return;
+        programs = list;
+        if (typeof renderPrograms === 'function') renderPrograms();
+    }
     function renderTargetUI() {
+        applyPrograms(lastDoc);
+        if (typeof renderProgramStatus === 'function') renderProgramStatus();
+        if (typeof renderPrograms === 'function') renderPrograms();
         if (target !== 'all' && !knownNames().includes(target)) target = 'all';
         const box = document.getElementById('vc-chips');
         box.innerHTML = '';
@@ -1178,6 +1244,206 @@
             }
         } catch (err) { alert('失敗: ' + err.message); renderTargetUI(); }
     });
+
+    // ---- プログラム（自動で順に切り替え）と、保存した組み合わせ ----
+    // 保存先: 大会ドキュメントの venuePrograms = [{ id, name, loop, timerMinutes, timerOverlay, items:[{ screen, durationSec, finalStartlistTarget?, announce? }] }]
+    // 開始すると、中身を実行中の記録としてコピーして書く（あとで保存済みを編集しても、実行中のものは変わらない）。
+    // 進行（いま何番目か）は、各会場ディスプレイが開始時刻から計算する。
+    const PROG_SCENES = [
+        ['logo', 'システムロゴ'], ['title', '大会タイトル'], ['announce', 'お知らせ文'], ['ceremony', '表彰式'],
+        ['carousel', '順位表 巡回'], ['intro', '選手紹介'], ['final_startlist', '決勝スタートリスト'],
+        ['warmup', '会場練習（タイマー全画面）'], ['score', 'スコア画面'],
+    ];
+    const PROG_LABEL = Object.fromEntries(PROG_SCENES);
+    const PROG_DEFAULT_SEC = { carousel: 30, intro: 30, announce: 15 };
+    let programs = [];
+    let editing = null;          // 編集中のプログラム（{ id|null, name, loop, timerMinutes, timerOverlay, items }）
+    const progList = document.getElementById('prog-list');
+
+    function programSummary(p) {
+        return (p.items || []).map(i => (PROG_LABEL[i.screen] || i.screen) + ' ' + i.durationSec + '秒').join(' → ')
+            + (p.loop ? '（繰り返し）' : '') + (p.timerMinutes > 0 ? '／タイマー ' + p.timerMinutes + '分' : '');
+    }
+    function renderPrograms() {
+        progList.innerHTML = '';
+        if (!programs.length) { progList.innerHTML = '<div class="vc-display-note" style="margin:0 0 10px;">まだプログラムがありません。「＋ 新しいプログラム」で作れます。</div>'; return; }
+        programs.forEach(p => {
+            const row = document.createElement('div'); row.className = 'prog-row';
+            const name = document.createElement('span'); name.className = 'name'; name.textContent = p.name || '(名前なし)';
+            const sum = document.createElement('span'); sum.className = 'sum'; sum.textContent = programSummary(p);
+            const go = document.createElement('button'); go.type = 'button'; go.className = 'prog-btn go';
+            go.textContent = '▶ ' + (target === 'all' ? '全部に' : target + 'に') + '出す';
+            go.addEventListener('click', () => startProgram(p));
+            const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'prog-btn'; ed.textContent = '編集';
+            ed.addEventListener('click', () => openEditor(p));
+            const del = document.createElement('button'); del.type = 'button'; del.className = 'prog-btn'; del.style.color = '#c62828'; del.textContent = '削除';
+            del.addEventListener('click', () => deleteProgram(p));
+            row.append(name, sum, go, ed, del); progList.appendChild(row);
+        });
+    }
+
+    // --- 編集 ---
+    function fslOptionsHtml(selectedKey) {
+        const src = document.getElementById('fsl-target');
+        let h = '<option value="">（クラスを選択）</option>';
+        [...(src ? src.options : [])].forEach(o => { if (o.value) h += '<option value="' + o.value.replace(/"/g, '&quot;') + '"' + (o.value === selectedKey ? ' selected' : '') + '>' + o.textContent + '</option>'; });
+        return h;
+    }
+    function renderEditorItems() {
+        const box = document.getElementById('prog-items'); box.innerHTML = '';
+        editing.items.forEach((it, i) => {
+            const row = document.createElement('div'); row.className = 'prog-item';
+            const main = document.createElement('div'); main.className = 'prog-item-main';
+            const num = document.createElement('span'); num.textContent = (i + 1) + '.'; num.style.fontWeight = '900';
+            const sel = document.createElement('select');
+            PROG_SCENES.forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === it.screen) o.selected = true; sel.appendChild(o); });
+            sel.addEventListener('change', () => { it.screen = sel.value; if (it.screen !== 'final_startlist') delete it.finalStartlistTarget; if (it.screen !== 'announce') delete it.announce; if (PROG_DEFAULT_SEC[it.screen] && !it._touchedSec) it.durationSec = PROG_DEFAULT_SEC[it.screen]; renderEditorItems(); });
+            const sec = document.createElement('input'); sec.type = 'number'; sec.min = '1'; sec.max = '3600'; sec.value = it.durationSec;
+            sec.addEventListener('input', () => { it.durationSec = Number(sec.value); it._touchedSec = true; });
+            const unit = document.createElement('span'); unit.textContent = '秒'; unit.style.fontSize = '0.85rem';
+            const up = document.createElement('button'); up.type = 'button'; up.className = 'ico'; up.textContent = '↑'; up.addEventListener('click', () => { if (i > 0) { [editing.items[i - 1], editing.items[i]] = [editing.items[i], editing.items[i - 1]]; renderEditorItems(); } });
+            const dn = document.createElement('button'); dn.type = 'button'; dn.className = 'ico'; dn.textContent = '↓'; dn.addEventListener('click', () => { if (i < editing.items.length - 1) { [editing.items[i + 1], editing.items[i]] = [editing.items[i], editing.items[i + 1]]; renderEditorItems(); } });
+            const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'ico'; rm.style.color = '#c62828'; rm.textContent = '×'; rm.addEventListener('click', () => { editing.items.splice(i, 1); renderEditorItems(); });
+            main.append(num, sel, sec, unit, up, dn, rm); row.appendChild(main);
+            if (it.screen === 'final_startlist') {
+                const d = document.createElement('div'); d.className = 'prog-detail';
+                const t = it.finalStartlistTarget; const key = t ? t.class + '|' + t.gender + '|' + t.type : '';
+                const fs = document.createElement('select'); fs.innerHTML = fslOptionsHtml(key);
+                fs.addEventListener('change', () => { if (fs.value) { const [c, g, ty] = fs.value.split('|'); it.finalStartlistTarget = { class: c, gender: g, type: ty }; } else delete it.finalStartlistTarget; });
+                d.appendChild(fs); row.appendChild(d);
+            }
+            if (it.screen === 'announce') {
+                const d = document.createElement('div'); d.className = 'prog-detail';
+                const a = it.announce || {};
+                const mkIn = (k, ph) => { const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = ph; inp.value = a[k] || ''; inp.addEventListener('input', () => { it.announce = it.announce || { line1: '', line2: '', line3: '' }; it.announce[k] = inp.value.trim(); if (!['line1', 'line2', 'line3'].some(x => it.announce[x])) delete it.announce; }); return inp; };
+                const l1 = mkIn('line1', '1行目（空欄なら、お知らせ文の設定の文を使う）'), l2 = mkIn('line2', '2行目'), l3 = mkIn('line3', '3行目');
+                const pick = document.createElement('select');
+                pick.innerHTML = '<option value="">保存した文から選ぶ…</option>' + announcePhrases.map((ph, k) => '<option value="' + k + '">' + ['line1', 'line2', 'line3'].map(x => ph[x]).filter(Boolean).join(' / ').replace(/</g, '&lt;') + '</option>').join('');
+                pick.addEventListener('change', () => { if (pick.value === '') return; const ph = announcePhrases[Number(pick.value)]; it.announce = { line1: ph.line1 || '', line2: ph.line2 || '', line3: ph.line3 || '' }; renderEditorItems(); });
+                d.append(pick, l1, l2, l3); row.appendChild(d);
+            }
+            box.appendChild(row);
+        });
+    }
+    function openEditor(p) {
+        editing = p
+            ? { id: p.id, name: p.name || '', loop: p.loop === true, timerMinutes: p.timerMinutes || 0, timerOverlay: p.timerOverlay !== false, items: JSON.parse(JSON.stringify(p.items || [])) }
+            : { id: null, name: '', loop: true, timerMinutes: 0, timerOverlay: true, items: [{ screen: 'logo', durationSec: 10 }, { screen: 'title', durationSec: 10 }] };
+        document.getElementById('prog-name').value = editing.name;
+        document.getElementById('prog-loop').checked = editing.loop;
+        document.getElementById('prog-timer-on').checked = editing.timerMinutes > 0;
+        document.getElementById('prog-timer-min').value = editing.timerMinutes > 0 ? editing.timerMinutes : 10;
+        document.getElementById('prog-save-status').textContent = '';
+        renderEditorItems();
+        document.getElementById('prog-editor').classList.add('show');
+        document.getElementById('prog-editor').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function closeEditor() { editing = null; document.getElementById('prog-editor').classList.remove('show'); }
+    document.getElementById('prog-new').addEventListener('click', () => openEditor(null));
+    document.getElementById('prog-cancel').addEventListener('click', closeEditor);
+    document.getElementById('prog-add-item').addEventListener('click', () => { if (editing.items.length >= 30) { alert('項目は30個までです'); return; } editing.items.push({ screen: 'logo', durationSec: 10 }); renderEditorItems(); });
+    // 編集中の内容を、保存できる形に（不正なら理由を返す）
+    function collectEditor() {
+        const name = document.getElementById('prog-name').value.trim();
+        if (!name) return { error: 'プログラム名を入力してください' };
+        if (!editing.items.length) return { error: '項目を1つ以上入れてください' };
+        const items = [];
+        for (const it of editing.items) {
+            const sec = Math.round(Number(it.durationSec));
+            if (!(sec >= 1 && sec <= 3600)) return { error: '秒数は1〜3600で入力してください' };
+            const o = { screen: it.screen, durationSec: sec };
+            if (it.screen === 'final_startlist') { if (!it.finalStartlistTarget) return { error: '決勝スタートリストの項目は、クラスを選んでください' }; o.finalStartlistTarget = it.finalStartlistTarget; }
+            if (it.screen === 'announce' && it.announce) o.announce = { line1: it.announce.line1 || '', line2: it.announce.line2 || '', line3: it.announce.line3 || '' };
+            items.push(o);
+        }
+        const timerOn = document.getElementById('prog-timer-on').checked;
+        const mins = Math.round(Number(document.getElementById('prog-timer-min').value));
+        if (timerOn && !(mins >= 1 && mins <= 180)) return { error: 'タイマーは1〜180分で入力してください' };
+        return { program: { id: editing.id || ('p' + Date.now().toString(36)), name, loop: document.getElementById('prog-loop').checked, timerMinutes: timerOn ? mins : 0, timerOverlay: true, items } };
+    }
+    async function savePrograms(list) { await updateDoc(doc(db, 'tournaments', eventId), { venuePrograms: list }); }
+    document.getElementById('prog-save').addEventListener('click', async () => {
+        const st = document.getElementById('prog-save-status');
+        const r = collectEditor();
+        if (r.error) { st.style.color = '#c62828'; st.textContent = r.error; return; }
+        const idx = programs.findIndex(x => x.id === r.program.id);
+        const list = idx >= 0 ? programs.map((x, i) => i === idx ? r.program : x) : [...programs, r.program];
+        if (list.length > 20) { st.style.color = '#c62828'; st.textContent = 'プログラムは20個までです'; return; }
+        try { await savePrograms(list); programs = list; renderPrograms(); closeEditor(); }
+        catch (e) { st.style.color = '#c62828'; st.textContent = '保存に失敗: ' + e.message; }
+    });
+    async function deleteProgram(p) {
+        if (!confirm('プログラム「' + p.name + '」を削除しますか？')) return;
+        const list = programs.filter(x => x.id !== p.id);
+        try { await savePrograms(list); programs = list; renderPrograms(); } catch (e) { alert('削除に失敗: ' + e.message); }
+    }
+
+    // --- 開始・停止 ---
+    // 会場練習タイマーを同時に始める組み合わせ（残り時間を画面に重ねる）
+    function timerStartFields(minutes) {
+        const ms = minutes * 60000;
+        return {
+            'warmupSettings.timerDefaultMs': ms, 'warmupSettings.timerRemainingMs': ms, 'warmupSettings.timerPaused': false,
+            'warmupSettings.timerRef': serverTimestamp(), 'warmupSettings.timerEndMs': Date.now() + ms,
+            'warmupSettings.overlayEnabled': true,
+        };
+    }
+    async function startProgram(p) {
+        const items = (p.items || []).map(i => { const o = { screen: i.screen, durationSec: i.durationSec }; if (i.finalStartlistTarget) o.finalStartlistTarget = i.finalStartlistTarget; if (i.announce) o.announce = i.announce; return o; });
+        if (!items.length) { alert('項目がありません'); return; }
+        if (items.some(i => i.screen === 'carousel') && !(lastDoc.rankingCarousel?.items?.length)) { alert('順位表巡回のクラスが、まだ設定されていません。先に「順位表 巡回」でクラスを選んで、一度会場に出してください。'); return; }
+        if (items.some(i => i.screen === 'intro') && !(lastDoc.introSettings?.athletes?.length)) { alert('選手紹介の選手が、まだ設定されていません。先に「選手紹介」で選手を選んで、一度会場に出してください。'); return; }
+        const first = items[0];
+        const run = { name: p.name || '', loop: p.loop === true, items };
+        const upd = {};
+        if (target === 'all') {
+            Object.assign(upd, {
+                venueProgram: { at: serverTimestamp(), ...run },
+                venueScreen: first.screen === 'carousel' ? 'score' : first.screen,
+                'rankingCarousel.active': false,
+                venueScreenAt: serverTimestamp(),
+            });
+            knownNames().forEach(n => {
+                const d = lastDoc.venueDisplays?.[n];
+                if (!d) return;
+                upd['venueDisplays.' + n + '.override'] = d.follow === false ? { screen: first.screen, at: serverTimestamp(), program: run } : deleteField();
+            });
+        } else {
+            upd['venueDisplays.' + target + '.override'] = { screen: first.screen, at: serverTimestamp(), program: run };
+        }
+        if (p.timerMinutes > 0) Object.assign(upd, timerStartFields(p.timerMinutes));
+        try {
+            await updateDoc(doc(db, 'tournaments', eventId), upd);
+            pendingScreen = null; document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('btn-show-screen').disabled = true; postPreview(null); refreshPreviewLabel();
+        } catch (e) { alert('開始に失敗: ' + e.message); }
+    }
+    // 止める: いま出している画面のまま固定する（プログラムは、新しい基準・上書きが書かれると終わる仕組み）
+    async function stopProgram() {
+        const r = resolveScene(lastDoc, target === 'all' ? BASE_DISPLAY : target, serverNow());
+        if (!r.program) return;
+        const scr = r.screen, extra = {}, allFields = {}, cfg = {};
+        if (scr === 'carousel') allFields['rankingCarousel.active'] = true;
+        else { allFields.venueScreen = scr; allFields['rankingCarousel.active'] = false; }
+        if (r.finalStartlistTarget) { allFields.finalStartlistTarget = r.finalStartlistTarget; extra.finalStartlistTarget = r.finalStartlistTarget; }
+        if (r.announce) ['line1', 'line2', 'line3'].forEach(k => { allFields['announceSettings.' + k] = r.announce[k] || ''; cfg['announceSettings.' + k] = r.announce[k] || ''; });
+        try { await writeScene(scr, allFields, cfg, extra); } catch (e) { alert('停止に失敗: ' + e.message); }
+    }
+    document.getElementById('prog-stop').addEventListener('click', stopProgram);
+
+    // --- 実行中の表示（毎秒） ---
+    function renderProgramStatus() {
+        const r = resolveScene(lastDoc, target === 'all' ? BASE_DISPLAY : target, serverNow());
+        const box = document.getElementById('prog-status');
+        if (!r.program) { box.classList.remove('show'); return; }
+        const pg = r.program;
+        const who = target === 'all' ? '全部' : target;
+        document.getElementById('prog-status-text').textContent = pg.ended
+            ? who + ': 「' + pg.name + '」は最後まで進みました（最後の画面のまま）'
+            : who + ': 「' + pg.name + '」を実行中 — ' + (pg.index + 1) + '/' + pg.count + ' 項目目: ' + (PROG_LABEL[r.screen] || r.screen) + '（あと ' + Math.ceil(pg.remainingMs / 1000) + '秒）';
+        box.classList.add('show');
+    }
+    setInterval(renderProgramStatus, 1000);
 
     // ---- ワンタップ切替の記憶（この端末） ----
     (function () {

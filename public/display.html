@@ -1263,7 +1263,7 @@
   import { db } from "./firebase-config.js";
   import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, round1, buildIntroSteps, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";
-  import { startWarmupTicker, overlayConfig, overlayVisible } from "./warmup_timer.js";
+  import { startWarmupTicker, overlayConfig, overlayVisible, serverNow } from "./warmup_timer.js";
   import { displayNameFromParam, effectiveTour, resolveScene } from "./venue_scene.js";
   import { getTournament, getAthletes } from "./cache.js";
 
@@ -2534,7 +2534,7 @@
   const SCREEN_NAME = displayNameFromParam(new URLSearchParams(location.search).get('screen'));
   // 大会ドキュメントに、この会場ディスプレイの画面指定（上書き・CJPに従うか）を反映したもの。
   // 上書きも「CJPに従わない」指定も無ければ、同じオブジェクトを返す＝従来と同じ動作。
-  function sceneTour(t) { return withPreviewOverride(effectiveTour(t, SCREEN_NAME)); }
+  function sceneTour(t) { return withPreviewOverride(effectiveTour(t, SCREEN_NAME, serverNow())); }
   // CJP の確定・集計中・問い合わせに従うか（従わないディスプレイは、スコアの発表も流さない）
   function followsCjp() { return resolveScene(tournamentData || {}, SCREEN_NAME).follow; }
   let _previewOv = null;    // プレビュー指定 { screen, finalStartlistTarget? }（PREVIEW のときだけ使う）
@@ -3005,6 +3005,14 @@
     el.querySelector('.tov-lbl').textContent = label;
     el.querySelector('.tov-time').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
   }
+
+  // ---- プログラム（自動で順に切り替え）の進行 ----
+  // 開始時刻（サーバー時刻）と経過時間から、いま何番目の項目かを、この画面が自分で計算する（操作画面は書き続けない）。
+  // 項目が変わったときだけ画面が切り替わる（applyVenueScreen は、画面に関係する内容が同じなら何もしない）。
+  setInterval(() => {
+    if (!tournamentData) return;
+    if (resolveScene(tournamentData, SCREEN_NAME, serverNow()).program) applyVenueScreen(tournamentData);
+  }, 500);
 
   // 選手紹介ループ中の会場練習残り時間（右上）
   // warmupSettings を常時監視し、タイマーがカウント中のみ表示する。
