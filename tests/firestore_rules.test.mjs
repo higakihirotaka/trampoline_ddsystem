@@ -32,8 +32,8 @@ const pub = { ...base, published: true, publishedAt: 't' };
 const merge = (o, p) => { const x = { ...o, ...p }; for (const k of Object.keys(x)) if (x[k] === undefined) delete x[k]; return x; };
 
 const cases = [];
-function t(name, expectation, { exist, patch, auth = false, nonAdmin = false, create = false, del = false }) {
-  const request = { method: del ? 'delete' : (create ? 'create' : 'update'), path: DOC, auth: auth ? { uid: 'u1', token: {} } : null };
+function t(name, expectation, { exist, patch, auth = false, nonAdmin = false, create = false, del = false, path = DOC }) {
+  const request = { method: del ? 'delete' : (create ? 'create' : 'update'), path, auth: auth ? { uid: 'u1', token: {} } : null };
   if (!del) request.resource = { data: create ? patch : merge(exist, patch) };
   const tc = { expectation, request, resource: create ? null : { data: exist } };
   if (auth) tc.functionMocks = [{ function: 'exists', args: [{ exactValue: '/databases/(default)/documents/admins/u1' }], result: { value: !nonAdmin } }];
@@ -75,7 +75,26 @@ t('管理者: published を立てる', 'ALLOW', { exist: base, patch: { publishe
 t('管理者: 削除', 'ALLOW', { exist: pub, del: true, auth: true });
 t('管理者でないログイン: E入力', 'DENY', { exist: base, patch: { execution: { judges: {} } }, auth: true, nonAdmin: true });
 
-test('firestore.rules: results への書き込み', { skip: enabled ? false : 'RULES_TEST=1 のときだけ実行（ネットワークと firebase login が必要）' }, async () => {
+// ---- 会場ディスプレイの接続状況（venuePresence）----
+// 注: lastSeen はサーバー時刻（request.time）でなければならず、試験APIの模擬リクエストでは時刻型の値を作れないため、
+//     「ログインなしで書ける」ケースは、本番での実通信の確認（実機確認）で見る。ここでは拒否すべきケースと、管理者の許可を見る。
+const PRES = '/databases/(default)/documents/tournaments/E1/venuePresence/Main__abc';
+const pres = { name: 'Main', instance: 'abc', screen: 'logo', follow: true, w: 1280, h: 720, lastSeen: 'x' };
+t('接続状況: 項目に余計なものを混ぜる', 'DENY', { create: true, path: PRES, patch: { ...pres, extra: 1 } });
+t('接続状況: IDと名前がずれている', 'DENY', { create: true, path: PRES, patch: { ...pres, name: 'Sub' } });
+t('接続状況: IDと端末IDがずれている', 'DENY', { create: true, path: PRES, patch: { ...pres, instance: 'zzz' } });
+t('接続状況: 名前が長すぎる', 'DENY', { create: true, path: '/databases/(default)/documents/tournaments/E1/venuePresence/' + 'N'.repeat(21) + '__abc', patch: { ...pres, name: 'N'.repeat(21) } });
+t('接続状況: 画面名が長すぎる', 'DENY', { create: true, path: PRES, patch: { ...pres, screen: 's'.repeat(31) } });
+t('接続状況: 幅が文字', 'DENY', { create: true, path: PRES, patch: { ...pres, w: 'wide' } });
+t('接続状況: 幅が大きすぎる', 'DENY', { create: true, path: PRES, patch: { ...pres, w: 99999 } });
+t('接続状況: 端末IDが無い', 'DENY', { create: true, path: PRES, patch: { name: 'Main', lastSeen: 'x' } });
+t('接続状況: lastSeen が時刻ではない（文字列）', 'DENY', { create: true, path: PRES, patch: pres });
+t('接続状況: ログインなしの削除', 'DENY', { del: true, exist: pres, path: PRES });
+t('接続状況: 管理者は書ける', 'ALLOW', { create: true, path: PRES, patch: pres, auth: true });
+t('接続状況: 管理者は削除できる', 'ALLOW', { del: true, exist: pres, path: PRES, auth: true });
+t('大会ドキュメント: ログインなしでは書けない（従来どおり）', 'DENY', { exist: { name: 'x' }, patch: { venueScreen: 'logo' }, path: '/databases/(default)/documents/tournaments/E1' });
+
+test('firestore.rules: 許可と拒否（results・会場ディスプレイの接続状況）', { skip: enabled ? false : 'RULES_TEST=1 のときだけ実行（ネットワークと firebase login が必要）' }, async () => {
   const source = fs.readFileSync(path.join(ROOT, 'firestore.rules'), 'utf8');
   const res = await fetch(`https://firebaserules.googleapis.com/v1/projects/${PROJECT}:test`, {
     method: 'POST', headers: { Authorization: 'Bearer ' + await getToken(), 'Content-Type': 'application/json' },

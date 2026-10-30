@@ -1261,10 +1261,10 @@
 
 <script type="module">
   import { db } from "./firebase-config.js";
-  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { doc, getDoc, getDocs, collection, query, where, onSnapshot, orderBy, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { normalizeClassRules, calcBonus, extractTbScores, calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, round1, buildIntroSteps, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";
   import { startWarmupTicker, overlayConfig, overlayVisible, serverNow } from "./warmup_timer.js";
-  import { displayNameFromParam, effectiveTour, resolveScene } from "./venue_scene.js";
+  import { displayNameFromParam, effectiveTour, resolveScene, BASE_DISPLAY } from "./venue_scene.js";
   import { getTournament, getAthletes } from "./cache.js";
 
   const params    = new URLSearchParams(location.search);
@@ -2574,6 +2574,7 @@
     const sig = venueSig(tourData);
     if (sig === _venueSig) return;
     _venueSig = sig;
+    sendPresence(false);
     const screen = tourData.venueScreen || 'score';
     // 選手紹介から離れたら、次に選手紹介へ戻った時は必ず（前回と同じ手順でも）
     // 描画し直す。同じ手順の間だけ登場アニメの二重発火を防ぐガード（applyIntroSlide内）
@@ -3005,6 +3006,31 @@
     el.querySelector('.tov-lbl').textContent = label;
     el.querySelector('.tov-time').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
   }
+
+  // ---- 接続状況（操作画面の「メイン 接続中」表示のための印） ----
+  // 20秒ごと、および出している画面が変わったとき（3秒以内の連続は間引く）に、tournaments/{id}/venuePresence/{名前__端末ID} へ書く。
+  // 端末ID はこのタブごと（sessionStorage）。書ける項目は firestore.rules の validPresence に限る
+  // （tests/ で、ここの項目とルールが一致していることを検査している）。プレビューと、基準を見るための名前では書かない。
+  // 書けなくても（ルール未反映・オフライン）画面の表示には影響しない。
+  const PRESENCE_ID = (() => {
+    const mk = () => Math.random().toString(36).slice(2, 10);
+    try { let v = sessionStorage.getItem('venuePresenceId'); if (!v) { v = mk(); sessionStorage.setItem('venuePresenceId', v); } return v; } catch (e) { return mk(); }
+  })();
+  let _presenceLast = 0;
+  function sendPresence(force) {
+    if (PREVIEW || SCREEN_NAME === BASE_DISPLAY || !eventId) return;
+    const now = Date.now();
+    if (!force && now - _presenceLast < 3000) return;
+    _presenceLast = now;
+    const t = sceneTour(tournamentData || {});
+    setDoc(doc(db, 'tournaments', eventId, 'venuePresence', SCREEN_NAME + '__' + PRESENCE_ID), {
+      name: SCREEN_NAME, instance: PRESENCE_ID,
+      screen: t.rankingCarousel?.active ? 'carousel' : (t.venueScreen || 'score'),
+      follow: followsCjp(), w: window.innerWidth, h: window.innerHeight,
+      lastSeen: serverTimestamp(),
+    }).catch(() => {});
+  }
+  setInterval(() => sendPresence(true), 20000);
 
   // ---- プログラム（自動で順に切り替え）の進行 ----
   // 開始時刻（サーバー時刻）と経過時間から、いま何番目の項目かを、この画面が自分で計算する（操作画面は書き続けない）。

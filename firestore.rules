@@ -24,6 +24,14 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['submissions', 'kana1', 'clubKana1', 'kana2', 'clubKana2']);
       }
+
+      // ---- 会場ディスプレイの接続状況（操作画面の「メイン 接続中」表示用） ----
+      // 会場ディスプレイは未ログインのため、決まった項目だけ書込可（validPresence）。読込は自由、削除は管理者のみ。
+      match /venuePresence/{pid} {
+        allow read: if true;
+        allow write: if isAdmin();
+        allow create, update: if request.auth == null && validPresence(pid);
+      }
     }
 
     // ---- 申請技（選手入力） ----
@@ -94,5 +102,22 @@ service cloud.firestore {
         && (resource == null
             || resource.data.get('published', false) != true
             || ch.hasOnly(['execution', 'updatedAt']));
+  }
+
+  // 会場ディスプレイの接続状況の印。書ける項目・型・大きさを限り、ドキュメントIDは「名前__端末ID」に固定する
+  // （画面が実際に書く項目は display.html の sendPresence。tests/ で、ここと一致していることを検査している）。
+  // lastSeen はサーバー時刻に限る（偽の時刻を書けないように）。
+  function validPresence(pid) {
+    let d = request.resource.data;
+    return d.keys().hasOnly(['name', 'instance', 'screen', 'follow', 'w', 'h', 'lastSeen'])
+        && d.keys().hasAll(['name', 'instance', 'lastSeen'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 20
+        && d.instance is string && d.instance.size() >= 1 && d.instance.size() <= 40
+        && pid == d.name + '__' + d.instance
+        && d.lastSeen == request.time
+        && (!('screen' in d) || (d.screen is string && d.screen.size() <= 30))
+        && (!('follow' in d) || d.follow is bool)
+        && (!('w' in d) || (d.w is number && d.w >= 0 && d.w <= 20000))
+        && (!('h' in d) || (d.h is number && d.h >= 0 && d.h <= 20000));
   }
 }

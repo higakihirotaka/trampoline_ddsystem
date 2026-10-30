@@ -77,9 +77,25 @@ function topObjectLiterals(expr) {
  * 書き込むデータの最上位キーを返す。 [{ line, keys:[...] }]
  */
 export function findResultsWrites(file) {
+  return findWrites(file, /\b(setDoc|updateDoc)\(\s*doc\(\s*db\s*,\s*(['"])results\2/g);
+}
+
+/** 会場ディスプレイの接続状況（tournaments/{id}/venuePresence/{id}）への setDoc が書く項目 */
+export function findPresenceWrites(file) {
+  return findWrites(file, /\bsetDoc\(\s*doc\(\s*db\s*,\s*'tournaments'\s*,\s*eventId\s*,\s*'venuePresence'/g);
+}
+
+/** firestore.rules の validPresence() が許す項目名 */
+export function readPresenceKeys() {
+  const rules = fs.readFileSync(path.join(ROOT, 'firestore.rules'), 'utf8');
+  const m = /function\s+validPresence[\s\S]*?hasOnly\(\[([^\]]*)\]\)/.exec(rules);
+  if (!m) throw new Error('firestore.rules に validPresence() が見つかりません');
+  return [...m[1].matchAll(/'([^']+)'|"([^"]+)"/g)].map(x => x[1] ?? x[2]);
+}
+
+function findWrites(file, re) {
   const src = fs.readFileSync(path.join(PUBLIC, file), 'utf8').replace(/\r\n/g, '\n');
   const writes = [];
-  const re = /\b(setDoc|updateDoc)\(\s*doc\(\s*db\s*,\s*(['"])results\2/g;
   let m;
   while ((m = re.exec(src))) {
     const open = src.indexOf('(', m.index);

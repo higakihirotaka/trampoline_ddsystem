@@ -198,6 +198,14 @@
         .vc-display-box input[type="text"] { flex:1; min-width:180px; padding:6px 8px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:0.78rem; color:var(--text-sub); background:#fff; }
         .vc-display-note { font-size:0.74rem; color:var(--text-sub); line-height:1.5; margin-top:6px; }
         .vc-all-note { font-size:0.74rem; color:#e65100; margin:-4px 0 10px; line-height:1.5; }
+        .vc-chip small.st { font-weight:800; }
+        .vc-chip small.st.on { color:#2e7d32; }
+        .vc-chip small.st.off { color:#e65100; }
+        .vc-presence-note { display:none; font-size:0.78rem; color:#1a73e8; background:#e8f0fe; border-radius:10px; padding:8px 12px; margin-bottom:10px; line-height:1.7; }
+        .vc-presence-note button { margin-left:6px; }
+        .vc-presence-list { font-size:0.78rem; color:var(--text-sub); line-height:1.7; margin-top:8px; }
+        .vc-presence-list .on { color:#2e7d32; font-weight:800; }
+        .vc-presence-list .off { color:#e65100; font-weight:800; }
         /* プログラム（自動で順に切り替え） */
         .prog-status { display:none; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; border-radius:12px; background:#e8f5e9; border:1.5px solid #a5d6a7; margin-bottom:12px; font-size:0.86rem; font-weight:700; color:#1b5e20; }
         .prog-status.show { display:flex; }
@@ -376,6 +384,7 @@
                 <button type="button" class="adj-btn" id="vc-add-display">＋ ディスプレイを追加</button>
             </div>
             <div class="vc-all-note" id="vc-all-note" style="display:none"></div>
+            <div class="vc-presence-note" id="vc-presence-note"></div>
             <div class="vc-display-box" id="vc-display-box" style="display:none">
                 <div class="row">
                     <span style="font-weight:800;">このディスプレイのURL</span>
@@ -383,6 +392,7 @@
                     <button type="button" class="adj-btn" id="vc-copy-url">コピー</button>
                 </div>
                 <div class="vc-display-note">会場のディスプレイ用PCで、このURLを開いてください。名前ごとに、別々の画面を出せます。</div>
+                <div class="vc-presence-list" id="vc-presence-list"></div>
                 <div class="row">
                     <label class="repeat-row" style="margin-top:0;">
                         <input type="checkbox" id="vc-follow">
@@ -746,7 +756,7 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp, deleteField, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
     import { getTournament } from "./cache.js";
     import { applyIfChanged, buildIntroSteps } from "./shared.js";
@@ -1162,27 +1172,90 @@
         programs = list;
         if (typeof renderPrograms === 'function') renderPrograms();
     }
+    // ---- 接続状況（会場ディスプレイが 20 秒ごとに書く印: tournaments/{id}/venuePresence） ----
+    // 最後の印が 75 秒以内なら「接続中」。それより古いと「応答なし（◯分前）」。印を書いたことのない名前は「未接続」。
+    const PRESENCE_LIVE_MS = 75000, PRESENCE_CLEAN_MS = 24 * 3600 * 1000;
+    let presenceDocs = [];      // [{ id, name, instance, screen, follow, w, h, lastSeenMs }]
+    function presenceOf(name) {
+        const now = serverNow();
+        const list = presenceDocs.filter(x => x.name === name);
+        const live = list.filter(x => x.lastSeenMs !== null && now - x.lastSeenMs <= PRESENCE_LIVE_MS);
+        const lastMs = list.reduce((m, x) => Math.max(m, x.lastSeenMs || 0), 0);
+        return { list, live, lastMs, now };
+    }
+    function ageText(ms) {
+        const sec = Math.max(0, Math.round(ms / 1000));
+        return sec < 60 ? sec + '秒前' : sec < 3600 ? Math.round(sec / 60) + '分前' : Math.round(sec / 3600) + '時間前';
+    }
+    // 名前ごとの状態表示: { text, on }
+    function presenceStatus(name) {
+        const r = presenceOf(name);
+        if (r.live.length) return { text: '● 接続中' + (r.live.length > 1 ? ' ' + r.live.length + '台' : ''), on: true };
+        if (r.list.length) return { text: '○ 応答なし（' + ageText(r.now - r.lastMs) + '）', on: false };
+        return { text: '未接続', on: false };
+    }
+    // 古い印（24時間より前）は、管理者として片づける（端末が増えるたびに残るため）
+    let _presenceCleaned = false;
+    function cleanOldPresence() {
+        if (_presenceCleaned) return; _presenceCleaned = true;
+        const now = serverNow();
+        presenceDocs.filter(x => x.lastSeenMs !== null && now - x.lastSeenMs > PRESENCE_CLEAN_MS).slice(0, 30)
+            .forEach(x => deleteDoc(doc(db, 'tournaments', eventId, 'venuePresence', x.id)).catch(() => {}));
+    }
+    function subscribePresence() {
+        onSnapshot(collection(db, 'tournaments', eventId, 'venuePresence'), snap => {
+            const list = [];
+            snap.forEach(d => { const v = d.data(); list.push({ id: d.id, name: v.name, instance: v.instance, screen: v.screen, follow: v.follow, w: v.w, h: v.h, lastSeenMs: v.lastSeen?.toMillis ? v.lastSeen.toMillis() : null }); });
+            presenceDocs = list;
+            cleanOldPresence();
+            renderChips();
+        }, () => { /* ルール未反映などで読めない場合は、接続状況を出さない */ });
+        setInterval(renderChips, 5000);    // 「あと何秒前」の更新・応答なしへの切り替え
+    }
+
     function renderTargetUI() {
         applyPrograms(lastDoc);
         if (typeof renderProgramStatus === 'function') renderProgramStatus();
         if (typeof renderPrograms === 'function') renderPrograms();
+        renderChips();
+    }
+    function renderChips() {
         if (target !== 'all' && !knownNames().includes(target)) target = 'all';
         const box = document.getElementById('vc-chips');
         box.innerHTML = '';
-        const mk = (key, label, sub, pinned) => {
+        const mk = (key, label, sub, pinned, st) => {
             const b = document.createElement('button'); b.type = 'button'; b.className = 'vc-chip' + (key === target ? ' active' : '');
             b.innerHTML = '';
             b.appendChild(document.createTextNode((pinned ? '📌 ' : '') + label));
+            if (st) { const t = document.createElement('small'); t.className = 'st ' + (st.on ? 'on' : 'off'); t.textContent = st.text; b.appendChild(t); }
             if (sub) { const sm = document.createElement('small'); sm.textContent = sub; b.appendChild(sm); }
             b.addEventListener('click', () => setTarget(key));
             box.appendChild(b);
         };
         const lbl = scr => (SCREEN_LABELS[scr] || scr).replace(/中$/, '').replace(/画面$/, '');
-        mk('all', '全部', lbl(resolveScene(lastDoc, BASE_DISPLAY).screen), false);
-        knownNames().forEach(n => {
+        const names = knownNames();
+        const liveTotal = presenceDocs.filter(x => presenceOf(x.name).live.some(l => l.id === x.id)).length;
+        mk('all', '全部', lbl(resolveScene(lastDoc, BASE_DISPLAY).screen), false, presenceDocs.length ? { text: (liveTotal ? '● ' : '○ ') + '接続中 ' + liveTotal + '台', on: liveTotal > 0 } : null);
+        names.forEach(n => {
             const r = resolveScene(lastDoc, n);
-            mk(n, n, lbl(r.screen), !r.follow);
+            mk(n, n, lbl(r.screen), !r.follow, presenceStatus(n));
         });
+        // 一覧にない名前で接続中のディスプレイ（URLの名前の打ち間違いなど）を知らせ、追加できるようにする
+        const unknown = [...new Set(presenceDocs.map(x => x.name))].filter(n => n && !names.includes(n) && n !== BASE_DISPLAY && presenceOf(n).live.length);
+        const pn = document.getElementById('vc-presence-note');
+        pn.innerHTML = '';
+        if (unknown.length) {
+            pn.style.display = 'block';
+            pn.appendChild(document.createTextNode('一覧にない名前で接続中のディスプレイがあります: '));
+            unknown.forEach(n => {
+                pn.appendChild(document.createTextNode('「' + n + '」'));
+                if (isValidDisplayName(n)) {
+                    const b = document.createElement('button'); b.type = 'button'; b.className = 'adj-btn'; b.textContent = '一覧に追加';
+                    b.addEventListener('click', async () => { try { await updateDoc(doc(db, 'tournaments', eventId), { venueDisplayNames: arrayUnion(n) }); } catch (e) { alert('追加に失敗: ' + e.message); } });
+                    pn.appendChild(b);
+                }
+            });
+        } else pn.style.display = 'none';
         const pinned = knownNames().filter(n => lastDoc.venueDisplays?.[n]?.follow === false);
         const note = document.getElementById('vc-all-note');
         if (target === 'all' && pinned.length) { note.style.display = ''; note.textContent = '📌 ' + pinned.join('、') + ' は、CJPに従わない設定です。「全部」に出すと、同じ画面に揃います。'; }
@@ -1193,6 +1266,19 @@
             document.getElementById('vc-display-url').value = displayUrl(target);
             document.getElementById('vc-follow').checked = lastDoc.venueDisplays?.[target]?.follow !== false;
             document.getElementById('vc-remove-display').style.display = target === DEFAULT_DISPLAY ? 'none' : '';
+            // このディスプレイの接続状況（端末ごと: 出している画面・画面の大きさ・最後の応答）
+            const pl = document.getElementById('vc-presence-list');
+            const r = presenceOf(target);
+            pl.innerHTML = '';
+            if (!r.list.length) pl.textContent = 'まだ、このURLで開かれていません。';
+            else r.list.slice().sort((a, b) => (b.lastSeenMs || 0) - (a.lastSeenMs || 0)).forEach(x => {
+                const live = x.lastSeenMs !== null && r.now - x.lastSeenMs <= PRESENCE_LIVE_MS;
+                const row = document.createElement('div');
+                const st = document.createElement('span'); st.className = live ? 'on' : 'off'; st.textContent = live ? '● 接続中' : '○ 応答なし';
+                row.appendChild(st);
+                row.appendChild(document.createTextNode('　' + (SCREEN_LABELS[x.screen] || x.screen || '-').replace(/中$/, '') + '／' + (x.w && x.h ? x.w + '×' + x.h : '-') + '／最後の応答 ' + (x.lastSeenMs ? ageText(r.now - x.lastSeenMs) : '-')));
+                pl.appendChild(row);
+            });
         }
     }
     function setTarget(t) {
@@ -2147,6 +2233,7 @@
         renderTargetUI();
 
         // リアルタイム監視
+        subscribePresence();
         onSnapshot(doc(db,'tournaments',eventId), snap => {
             if (!snap.exists()) return;
             const d = snap.data();
