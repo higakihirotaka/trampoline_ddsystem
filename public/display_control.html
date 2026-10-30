@@ -554,8 +554,13 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, setDoc, getDocs, collection, updateDoc as fsUpdateDoc, onSnapshot as fsOnSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
+    import { liveFirestore } from "./live_doc.js";
+    // 大会ドキュメントの読み書きを、分割（live_doc.js）に対応させる。既定（dual）では、従来どおり書き、live にも写す
+    const liveFs = liveFirestore({ doc, getDoc, setDoc, updateDoc: fsUpdateDoc, onSnapshot: fsOnSnapshot, serverTimestamp }, db);
+    const updateDoc = liveFs.updateDoc, onSnapshot = liveFs.onSnapshot;
+
     import { getTournament } from "./cache.js";
     import { applyIfChanged, buildIntroSteps } from "./shared.js";
     import { startWarmupTicker, warmupRem } from "./warmup_timer.js";

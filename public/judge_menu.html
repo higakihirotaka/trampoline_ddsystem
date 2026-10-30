@@ -134,7 +134,10 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, onSnapshot as fsOnSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { liveFirestore } from "./live_doc.js";
+    // 大会ドキュメントの監視だけ、分割（live_doc.js）に対応させる。既定（dual）では従来と同じ
+    const onSnapshot = liveFirestore({ doc, getDoc, onSnapshot: fsOnSnapshot }, db).onSnapshot;
     import { startWarmupTicker } from "./warmup_timer.js";
 
     const eventId = new URLSearchParams(location.search).get('event');

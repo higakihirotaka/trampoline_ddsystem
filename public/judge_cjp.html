@@ -180,7 +180,11 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, onSnapshot, getDocs, getDocFromServer, collection, query, where, setDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, onSnapshot, getDoc, getDocs, getDocFromServer, collection, query, where, setDoc as fsSetDoc, updateDoc as fsUpdateDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { liveFirestore } from "./live_doc.js";
+    // 大会ドキュメントへの書き込み（liveState・calculating など）を、分割（live_doc.js）に対応させる。既定（dual）では、従来どおり書き、live にも写す。
+    // 大会ドキュメント以外（results など）への setDoc は、そのまま通る
+    const setDoc = liveFirestore({ doc, getDoc, setDoc: fsSetDoc, updateDoc: fsUpdateDoc, onSnapshot, serverTimestamp }, db).setDoc;
     import { ensureAdmin } from "./auth.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
     import { round1, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";

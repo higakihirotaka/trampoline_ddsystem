@@ -49,6 +49,7 @@
 
 <script type="module">
     import { doc, collection, setDoc, serverTimestamp, getDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { liveFirestore } from "./live_doc.js";
     import { ensureAdmin, getTournaments } from './auth.js';
     import { db } from "./firebase-config.js";
 
@@ -154,9 +155,9 @@
         btn.textContent = '複製中…';
         try {
             // 1) 大会ドキュメント: 設定系のみコピー。ランタイム/表示状態は除外
-            const srcSnap = await getDoc(doc(db, 'tournaments', sourceId));
-            if (!srcSnap.exists()) throw new Error('複製元の大会が見つかりません');
-            const src = srcSnap.data();
+            // 設定系（classRules など）に加え、タイトル・お知らせ文などの設定も引き継ぐため、live ドキュメントの内容も含めて読む
+            const src = await liveFirestore({ doc, getDoc }, db).getTournamentMerged(sourceId);
+            if (!src) throw new Error('複製元の大会が見つかりません');
             const EXCLUDE = new Set([
                 'calculating', 'calculatingAthleteId', 'calculatingRound',
                 'liveState', 'rankingCarousel', 'teamRankingTarget',

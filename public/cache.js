@@ -11,6 +11,10 @@
 import { db } from "./firebase-config.js";
 import { doc, getDoc, getDocs, collection }
     from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { liveFirestore } from "./live_doc.js";
+
+// 大会ドキュメントの取得は、分割（live_doc.js）に対応させる。既定（dual）では、従来と同じ（tournaments/{id} だけを読む）
+const _live = liveFirestore({ doc, getDoc }, db);
 
 const SS_PREFIX = 'tsc:';
 const SS_TTL    = 10 * 60 * 1000;   // 10 分
@@ -52,8 +56,7 @@ export async function getTournament(eventId) {
     const ss = ssGet(key);
     if (ss !== undefined) { _mem.set(key, ss); return ss; }
 
-    const snap = await getDoc(doc(db, 'tournaments', eventId));
-    const data = snap.exists() ? snap.data() : null;
+    const data = await _live.getTournamentMerged(eventId);   // 存在しない場合は null
     _mem.set(key, data);
     ssSet(key, data);
     return data;
