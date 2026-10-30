@@ -62,9 +62,9 @@ const setup = (mode, initial) => {
 const wait = () => new Promise(r => setTimeout(r, 5));
 
 // ---------- 純粋な部分 ----------
-test('既定のモードは dual（従来と同じ動作）', () => {
-  assert.equal(DEFAULT_MODE, 'dual');
-  assert.equal(splitMode(), 'dual');
+test('既定のモードは live（大会ドキュメントを分割して使う）', () => {
+  assert.equal(DEFAULT_MODE, 'live');
+  assert.equal(splitMode(), 'live');
 });
 
 test('groupOf / partitionData: 会場・審判・設定に仕分ける（ドット区切りは最上位の名前で）', () => {

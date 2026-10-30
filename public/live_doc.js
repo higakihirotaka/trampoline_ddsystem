@@ -10,9 +10,9 @@
  *
  * 移行は、2つのモードで行う（切り替えは、下の DEFAULT_MODE を変えて再デプロイ。試験は ?split=live または
  * localStorage の liveSplitMode で、その端末だけ切り替えられる）:
- *   'dual'（既定）  書込は、従来の tournaments/{id} に、そのまま書き、あわせて live/* にも写す。
+ *   'dual'          書込は、従来の tournaments/{id} に、そのまま書き、あわせて live/* にも写す。
  *                   読込は、従来どおり tournaments/{id} だけを監視する（＝画面の動作は、これまでと同じ）。
- *   'live'          書込は、live/* にだけ書く（設定は tournaments/{id}）。読込は、3つを監視して、まとめて返す。
+ *   'live'（既定）  書込は、live/* にだけ書く（設定は tournaments/{id}）。読込は、3つを監視して、まとめて返す。
  *                   読み込み側の画面は、これまでと同じ形（snap.exists() / snap.data()）のまま使える。
  * live/* の先頭の書込時に、tournaments/{id} の現在の値を丸ごと写し（バックフィル）、_migratedAt の印を付ける。
  * 読込側は、この印がある live/* だけを信用する（印が無い大会は、従来どおり tournaments/{id} を使う）。
@@ -27,7 +27,7 @@ export const LIVE_VENUE_FIELDS = new Set([
 ]);
 export const LIVE_JUDGING_FIELDS = new Set(['liveState']);
 export const LIVE_MARK = '_migratedAt';
-export const DEFAULT_MODE = 'dual';
+export const DEFAULT_MODE = 'live';   // 2026-10-30 に dual から切り替え。戻すときは 'dual'（docs/venue-control-spec.md の移行手順を参照）
 
 /** いまのモード。URL の ?split=（dual|live）、無ければ localStorage の liveSplitMode、無ければ既定 */
 export function splitMode() {
