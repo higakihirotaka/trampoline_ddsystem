@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "test": "node --test \"tests/*.test.mjs\"",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:emulator": "firebase emulators:exec --only firestore --project demo-trampoline \"node --test tests/emulator/*.test.mjs\""
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,8 @@
   },
   "homepage": "https://github.com/higakihirotaka/trampoline_ddsystem#readme",
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.7.1",
     "jimp": "^1.6.0"
   }
 }
