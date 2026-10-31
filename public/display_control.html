@@ -45,6 +45,13 @@
         .unit { font-size:0.8rem; color:var(--text-sub); width:22px; }
         .timeline { background:#f8fbff; border-radius:10px; padding:12px 16px; font-size:0.83rem; color:var(--text-sub); margin-top:8px; border:1px solid #e3eaf5; }
         .timeline strong { color:var(--text-main); }
+
+        /* 色テーマ選択スウォッチ */
+        .theme-swatches { display:flex; gap:10px; flex-wrap:wrap; }
+        .theme-swatch { display:flex; align-items:center; gap:8px; padding:8px 18px; border:2px solid #e0e0e0; border-radius:10px; background:#fff; cursor:pointer; font-size:0.88rem; font-weight:700; color:var(--text-sub); transition:0.15s; }
+        .theme-swatch:hover { border-color:#ccc; }
+        .theme-swatch.active { border-color:var(--swatch-color); color:var(--text-main); background:#fafafa; }
+        .theme-swatch .swatch-dot { width:16px; height:16px; border-radius:50%; background:var(--swatch-color); box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--swatch-color); flex-shrink:0; }
         .btn-save { display:block; width:100%; padding:15px; background:var(--green); color:white; border:none; border-radius:12px; font-size:1.0rem; font-weight:700; cursor:pointer; transition:0.2s; margin-top:18px; }
         .btn-save:hover { background:#1b5e20; }
         .btn-save:disabled { background:#aaa; cursor:default; }
@@ -119,6 +126,33 @@
         .timer-manual-set { padding:6px 14px; background:var(--accent); color:white; border:none; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer; white-space:nowrap; transition:0.15s; }
         .timer-manual-set:hover { background:#1251a3; }
 
+        /* タイマー帯（ページ上部に固定。どのタブを見ていても残り時間と開始・停止を操作できる） */
+        .timer-dock { position:sticky; top:0; z-index:40; background:var(--card); border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.14); padding:10px 16px; margin-bottom:16px; }
+        .timer-dock-main { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        .timer-dock .timer-display { font-size:2.4rem; margin:0; min-width:5.2ch; }
+        .timer-dock .timer-btns { margin:0; flex:1; min-width:230px; }
+        .timer-dock .timer-btn { padding:9px 6px; }
+        .timer-adjust { display:flex; gap:6px; }
+        .adj-btn { padding:8px 10px; border:1.5px solid #b0bec5; background:white; border-radius:10px; font-size:0.78rem; font-weight:800; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .adj-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .dock-toggle { padding:8px 12px; border:1.5px solid #b0bec5; background:white; border-radius:10px; font-size:0.8rem; font-weight:800; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .dock-toggle[aria-expanded="true"] { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .timer-dock-detail { margin-top:12px; padding-top:12px; border-top:1px solid #eceff1; max-height:60vh; overflow-y:auto; }   /* 設定を開いても、帯が画面を占領しないように */
+        .repeat-row { display:flex; align-items:center; gap:10px; margin-top:12px; font-size:0.88rem; font-weight:700; color:var(--text-main); cursor:pointer; }
+        .repeat-row input { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; }
+        /* 会場への重ね表示の設定 */
+        .ov-box { margin-top:14px; padding:12px 14px; background:#f8fbff; border:1.5px solid #e3eaf5; border-radius:12px; }
+        .ov-title { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:0.9rem; font-weight:900; color:var(--accent); margin-bottom:8px; }
+        .ov-status { font-size:0.78rem; font-weight:700; color:var(--green); min-height:1.2em; }
+        .ov-row { display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
+        .ov-label { font-size:0.8rem; font-weight:700; min-width:64px; color:var(--text-main); }
+        .ov-seg { display:flex; gap:6px; flex-wrap:wrap; }
+        .ov-seg button { padding:7px 14px; border:2px solid #e0e0e0; background:white; border-radius:10px; font-size:0.82rem; font-weight:800; cursor:pointer; color:var(--text-sub); }
+        .ov-seg button.active { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .ov-pos { display:grid; grid-template-columns:repeat(2,auto); gap:6px; }
+        .ov-note { font-size:0.74rem; color:var(--text-sub); line-height:1.5; margin-top:8px; }
+        .ov-box.off .ov-row:not(.ov-main) { opacity:0.45; }
+
         /* 巡回モード */
         .carousel-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; background:#f8fbff; border:1.5px solid #e3eaf5; font-size:0.88rem; font-weight:600; color:var(--text-main); cursor:pointer; transition:0.15s; }
         .carousel-item:hover { border-color:var(--accent); background:#eef4ff; }
@@ -155,6 +189,7 @@
 
     <div class="header">
         <h1>🖥️ 大会画面コントロール</h1>
+        <a id="new-link" href="venue_control.html" style="display:inline-block;margin:4px 0 2px;font-size:0.82rem;font-weight:700;">新しい操作画面（試験中）を開く →</a>
         <div id="event-name" class="event-badge">読み込み中...</div>
     </div>
 
@@ -166,6 +201,86 @@
         </div>
     </div>
 
+    <!-- ⏱️ タイマー帯（上に固定。どのタブを見ていても、残り時間の確認と開始・停止ができる） -->
+    <div class="timer-dock" id="timer-dock">
+        <div class="timer-dock-main">
+            <div class="timer-display num" id="ctrl-timer">--:--</div>
+            <div class="timer-btns">
+                <button class="timer-btn timer-btn-start" id="timer-start-btn">▶ 開始</button>
+                <button class="timer-btn timer-btn-pause" id="timer-pause-btn" disabled>⏸ 一時停止</button>
+                <button class="timer-btn timer-btn-reset" id="timer-reset-btn">↺ リセット</button>
+            </div>
+            <div class="timer-adjust">
+                <button type="button" class="adj-btn" data-delta="-30000">−30秒</button>
+                <button type="button" class="adj-btn" data-delta="30000">＋30秒</button>
+            </div>
+            <button type="button" class="dock-toggle" id="dock-toggle" aria-expanded="false">⚙ 設定</button>
+        </div>
+        <div class="timer-dock-detail" id="timer-dock-detail" style="display:none">
+            <div class="timer-preset">
+                <span class="preset-label">プリセット:</span>
+                <button class="preset-btn" data-min="3">3分</button>
+                <button class="preset-btn" data-min="5">5分</button>
+                <button class="preset-btn" data-min="8">8分</button>
+                <button class="preset-btn" data-min="10">10分</button>
+                <button class="preset-btn" data-min="15">15分</button>
+            </div>
+            <div class="timer-manual">
+                <span class="timer-manual-label">手入力:</span>
+                <div class="timer-manual-inputs">
+                    <input type="number" id="timer-manual-min" class="timer-manual-input" min="0" max="99" step="1" placeholder="MM">
+                    <span class="timer-manual-sep">:</span>
+                    <input type="number" id="timer-manual-sec" class="timer-manual-input" min="0" max="59" step="1" placeholder="SS">
+                </div>
+                <button class="timer-manual-set" id="timer-manual-set-btn">更新</button>
+            </div>
+            <label class="repeat-row">
+                <input type="checkbox" id="timer-repeat">
+                繰り返し（0になったら自動で再スタート）
+            </label>
+
+            <div class="ov-box" id="ov-box">
+                <div class="ov-title"><span>📺 会場に重ねて表示</span><span class="ov-status" id="ov-status"></span></div>
+                <label class="repeat-row ov-main" style="margin-top:0;">
+                    <input type="checkbox" id="ov-enabled">
+                    どの画面にも残り時間を重ねて出す（全ディスプレイ共通）
+                </label>
+                <div class="ov-row">
+                    <span class="ov-label">見せ方</span>
+                    <div class="ov-seg" id="ov-style">
+                        <button type="button" data-style="badge">角のバッジ</button>
+                        <button type="button" data-style="band">上／下の帯</button>
+                    </div>
+                </div>
+                <div class="ov-row">
+                    <span class="ov-label">位置</span>
+                    <div class="ov-seg ov-pos" id="ov-pos">
+                        <button type="button" data-pos="tl">左上</button>
+                        <button type="button" data-pos="tr">右上</button>
+                        <button type="button" data-pos="bl">左下</button>
+                        <button type="button" data-pos="br">右下</button>
+                    </div>
+                </div>
+                <div class="ov-row">
+                    <span class="ov-label">大きさ</span>
+                    <input type="range" id="ov-scale" min="0.5" max="2" step="0.1" value="1" style="flex:1;max-width:220px;">
+                    <span id="ov-scale-val" style="font-size:0.85rem;font-weight:800;min-width:3.2em;">×1.0</span>
+                </div>
+                <div class="ov-row">
+                    <label class="repeat-row" style="margin-top:0;">
+                        <input type="checkbox" id="ov-onscore">
+                        スコア画面（集計中・問い合わせを含む）にも重ねる
+                    </label>
+                </div>
+                <div class="ov-note">
+                    ・帯は、上（左上・右上）か下（左下・右下）の端いっぱいに出ます。<br>
+                    ・ラベルには「会場練習」設定のクラス①②が出ます（未設定なら「残り時間」）。<br>
+                    ・得点表示に重なるため、スコア画面には通常重ねません。「会場練習」画面は、タイマーが全画面で出ているため重ねません。
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="tabs">
         <button class="tab-btn active" data-tab="display">⚙️ 画面表示設定</button>
         <button class="tab-btn" data-tab="switch">🎬 画面切り替え</button>
@@ -173,6 +288,24 @@
 
     <!-- タブ1: 画面表示設定 -->
     <div id="tab-display" class="tab-panel active">
+        <div class="section-title">🎨 色テーマ</div>
+        <div class="card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>会場ディスプレイの配色</strong>
+                    <span>会場ディスプレイ（すべての画面）の配色を切り替えます</span>
+                </div>
+                <div class="setting-control theme-swatches" id="theme-swatches">
+                    <button type="button" class="theme-swatch active" data-theme="blue" style="--swatch-color:#00f2ff;">
+                        <span class="swatch-dot"></span>青パターン
+                    </button>
+                    <button type="button" class="theme-swatch" data-theme="red" style="--swatch-color:#e63a54;">
+                        <span class="swatch-dot"></span>赤パターン
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="section-title">📊 個人スコア表示</div>
         <div class="card">
             <div class="setting-row">
@@ -220,7 +353,7 @@
                 </div>
                 <div class="setting-control">
                     <input type="range" id="range-rankingPageSec" min="3" max="30" step="1" value="8">
-                    <input type="number" id="val-rankingPageSec" class="val-box" min="3" max="30" value="8">
+                    <input type="number" id="val-rankingPageSec" class="val-box" min="3" max="2000" value="8">
                     <span class="unit">秒</span>
                 </div>
             </div>
@@ -392,6 +525,14 @@
                     <input type="number" id="intro-duration-val" class="val-box" min="3" max="30" value="5">
                     <span class="unit">秒</span>
                 </div>
+                <label style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:0.85rem;font-weight:700;color:var(--text-main);cursor:pointer;">
+                    <input type="checkbox" id="intro-show-roster" checked style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+                    ループの最後に選手一覧ページを表示
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:0.85rem;font-weight:700;color:var(--text-main);cursor:pointer;">
+                    <input type="checkbox" id="intro-show-per-class-roster" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+                    クラスの紹介が終わるたびに、そのクラスの一覧ページを挟む
+                </label>
                 <div class="intro-mode-wrap">
                     <button class="intro-mode-btn active" data-mode="qualifying">予選試技順</button>
                     <button class="intro-mode-btn" data-mode="final">決勝試技順</button>
@@ -409,49 +550,26 @@
         </div>
     </div>
 
-    <!-- ⏱️ タイマー操作（常時表示カード） -->
-    <div class="section-title">⏱️ 会場練習タイマー</div>
-    <div class="card">
-        <div class="timer-display num" id="ctrl-timer">--:--</div>
-        <div class="timer-btns">
-            <button class="timer-btn timer-btn-start" id="timer-start-btn">▶ 開始</button>
-            <button class="timer-btn timer-btn-pause" id="timer-pause-btn" disabled>⏸ 一時停止</button>
-            <button class="timer-btn timer-btn-reset" id="timer-reset-btn">↺ リセット</button>
-        </div>
-        <div class="timer-preset">
-            <span class="preset-label">プリセット:</span>
-            <button class="preset-btn" data-min="3">3分</button>
-            <button class="preset-btn" data-min="5">5分</button>
-            <button class="preset-btn" data-min="8">8分</button>
-            <button class="preset-btn" data-min="10">10分</button>
-            <button class="preset-btn" data-min="15">15分</button>
-        </div>
-        <!-- 手入力 -->
-        <div class="timer-manual">
-            <span class="timer-manual-label">手入力:</span>
-            <div class="timer-manual-inputs">
-                <input type="number" id="timer-manual-min" class="timer-manual-input" min="0" max="99" step="1" placeholder="MM">
-                <span class="timer-manual-sep">:</span>
-                <input type="number" id="timer-manual-sec" class="timer-manual-input" min="0" max="59" step="1" placeholder="SS">
-            </div>
-            <button class="timer-manual-set" id="timer-manual-set-btn">更新</button>
-        </div>
-        <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-size:0.88rem;font-weight:700;color:var(--text-main);cursor:pointer;border-top:1px solid #f0f0f0;padding-top:12px;">
-            <input type="checkbox" id="timer-repeat" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;">
-            繰り返し（0になったら自動で再スタート）
-        </label>
-    </div>
 </div>
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { doc, getDoc, getDocs, collection, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, setDoc, getDocs, collection, updateDoc as fsUpdateDoc, onSnapshot as fsOnSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
+    import { liveFirestore } from "./live_doc.js";
+    // 大会ドキュメントの読み書きを、分割（live_doc.js）に対応させる。既定（dual）では、従来どおり書き、live にも写す
+    const liveFs = liveFirestore({ doc, getDoc, setDoc, updateDoc: fsUpdateDoc, onSnapshot: fsOnSnapshot, serverTimestamp }, db);
+    const updateDoc = liveFs.updateDoc, onSnapshot = liveFs.onSnapshot;
+
+    import { getTournament } from "./cache.js";
+    import { applyIfChanged, buildIntroSteps } from "./shared.js";
+    import { startWarmupTicker, warmupRem } from "./warmup_timer.js";
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
     document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+    document.getElementById('new-link').href = `venue_control.html?event=${eventId}`;
     const venueUrl = `${location.origin}/display.html?event=${eventId}`;
     const venueLink = document.getElementById('venue-link');
     venueLink.href = venueUrl;
@@ -470,6 +588,15 @@
     // ---- タブ1: 画面表示設定 ----
     const DISP_KEYS = ['animTotalSec','holdSec','rankingRows','rankingPageSec'];
     const DISP_DEF  = { animTotalSec:10, holdSec:3, rankingRows:12, rankingPageSec:8 };
+
+    // 色テーマ（スライダー類とは別枠。selectedColorThemeを readDispSettings() で拾う）
+    let selectedColorTheme = 'blue';
+    document.querySelectorAll('.theme-swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectedColorTheme = btn.dataset.theme;
+            document.querySelectorAll('.theme-swatch').forEach(b => b.classList.toggle('active', b === btn));
+        });
+    });
 
     function updateTimeline() {
         const a = Number(document.getElementById('val-animTotalSec').value);
@@ -494,9 +621,11 @@
             if (r) r.value = v; if (i) i.value = v;
         });
         updateTimeline();
+        selectedColorTheme = s.colorTheme === 'red' ? 'red' : 'blue';
+        document.querySelectorAll('.theme-swatch').forEach(b => b.classList.toggle('active', b.dataset.theme === selectedColorTheme));
     }
     function readDispSettings() {
-        const o = {};
+        const o = { colorTheme: selectedColorTheme };
         DISP_KEYS.forEach(k => { o[k] = Number(document.getElementById(`val-${k}`).value); });
         return o;
     }
@@ -531,7 +660,7 @@
     let currentScreen  = 'score';
     let warmupData     = {};
     let classCombos    = [];  // 既存クラス一覧
-    let ctrlTimerInterval = null;
+    let stopCtrlTimer = null;
 
     const SCREEN_LABELS = {
         score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
@@ -558,6 +687,10 @@
         });
     }
 
+    // applyScreenState() のフォーム反映部分だけに使うシグネチャキャッシュ（applyIfChanged用）。
+    // 画面選択状態（badge/screen-btn/パネル切替）は毎回反映する必要があるので対象外にする。
+    const _screenStateSig = {};
+
     function applyScreenState(screen, warmup, ts, cs, carousel) {
         currentScreen = screen;
         warmupData    = warmup || {};
@@ -570,8 +703,16 @@
         // 選択中（pending）でないときのみパネルをスナップショット側で切り替える
         if (!pendingScreen) showScreenPanel(effectiveScreen);
 
-        // 各画面の設定値を反映
-        if (ts) {
+        // 選手紹介から離れたら、どの経路（このパネルのボタン操作／CJPの強制切替／別オペレーター）で
+        // 離れたのかによらず、確定状態（screen）を唯一の正として内部タイマーを必ず止める。
+        // 各切替ボタンのハンドラ側で個別に止める呼び忘れがあると、無関係な画面に切り替わった後も
+        // 選手紹介の進行がバックグラウンドで動き続け、Firestoreへの無駄な書き込みが延々と続いてしまう。
+        if (screen !== 'intro' && introTimerItv) stopIntroSequence();
+
+        // 各画面の設定値を反映。無関係なドキュメント更新（CJPのスコア確定等）でもこの関数は
+        // 毎回呼ばれるため、該当サブフィールドが実際に変化した時だけ反映してオペレーターが
+        // 入力中の値を保存済みの値で上書きしないようにする（applyIfChanged）。
+        if (ts) applyIfChanged(_screenStateSig, 'title', ts, ts => {
             const r = document.getElementById('title-fs');
             const v = document.getElementById('title-fs-val');
             if (r) r.value = ts.fontSize || 6.5;
@@ -582,33 +723,51 @@
             if (l1) l1.value = ts.line1 || '';
             if (l2) l2.value = ts.line2 || '';
             if (l3) l3.value = ts.line3 || '';
-        }
-        if (cs) {
+        });
+        if (cs) applyIfChanged(_screenStateSig, 'ceremony', cs, cs => {
             setSlider('cer-name-fs', cs.nameFontSize  || 3.5);
             setSlider('cer-label-fs', cs.labelFontSize || 10);
-        }
+        });
         if (warmup) {
-            document.getElementById('wu-class1').value = warmup.class1 || '';
-            document.getElementById('wu-class2').value = warmup.class2 || '';
-            setSlider('wu-class-fs', warmup.classFontSize || 4.5);
-            setSlider('wu-timer-fs', warmup.timerFontSize || 24);
-            document.getElementById('timer-repeat').checked = !!warmup.timerRepeat;
+            // warmup には timerRef 等の常時変化するタイマー実行中フィールドも同居しているため、
+            // シグネチャ比較はフォームに反映する項目だけの部分集合で行う
+            // （そうしないとカウントダウンのたびに「変化した」と判定されガードが効かなくなる）。
+            const warmupFormPart = {
+                class1: warmup.class1, class2: warmup.class2,
+                classFontSize: warmup.classFontSize, timerFontSize: warmup.timerFontSize,
+                timerRepeat: warmup.timerRepeat,
+                overlayEnabled: warmup.overlayEnabled, overlayStyle: warmup.overlayStyle, overlayPosition: warmup.overlayPosition,
+                overlayScale: warmup.overlayScale, overlayOnScore: warmup.overlayOnScore
+            };
+            applyIfChanged(_screenStateSig, 'warmup', warmupFormPart, w => {
+                document.getElementById('wu-class1').value = w.class1 || '';
+                document.getElementById('wu-class2').value = w.class2 || '';
+                setSlider('wu-class-fs', w.classFontSize || 4.5);
+                setSlider('wu-timer-fs', w.timerFontSize || 24);
+                document.getElementById('timer-repeat').checked = !!w.timerRepeat;
+                setOverlayForm(w);
+            });
         }
 
         // 巡回チェックボックス復元（巡回停止中のみ上書き）
         if (carousel && !carousel.active && carousel.items) {
-            document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
-            (carousel.items || []).forEach(item => {
-                const idx = carouselCombos.findIndex(
-                    c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type);
-                if (idx >= 0) {
-                    const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
-                    if (cb) cb.checked = true;
-                }
+            applyIfChanged(_screenStateSig, 'carouselItems', carousel.items, items => {
+                document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
+                (items || []).forEach(item => {
+                    const idx = carouselCombos.findIndex(
+                        c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type &&
+                             (c.mode || '') === (item.mode || '') && (c.round || '') === (item.round || ''));
+                    if (idx >= 0) {
+                        const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
+                        if (cb) cb.checked = true;
+                    }
+                });
             });
         }
         if (carousel) {
-            document.getElementById('carousel-show-logo').checked = !!carousel.showLogo;
+            applyIfChanged(_screenStateSig, 'carouselShowLogo', !!carousel.showLogo, showLogo => {
+                document.getElementById('carousel-show-logo').checked = showLogo;
+            });
         }
 
         syncCtrlTimer();
@@ -654,23 +813,30 @@
                 if (checked.length === 0) { alert('表示するクラスを選択してください'); return; }
                 const showLogo = document.getElementById('carousel-show-logo').checked;
                 await updateDoc(doc(db,'tournaments',eventId), {
+                    venueScreenAt: serverTimestamp(),
                     'rankingCarousel.active':   true,
-                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type })),
+                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type, ...(c.mode ? { mode: c.mode } : {}), ...(c.round ? { round: c.round } : {}) })),
                     'rankingCarousel.showLogo': showLogo
                 });
             } else if (pendingScreen === 'intro') {
                 const sel = getSelectedIntroAthletes();
                 if (sel.length === 0) { alert('表示する選手を選択してください'); return; }
                 const durMs = Number(document.getElementById('intro-duration-val').value) * 1000;
+                const showRoster = document.getElementById('intro-show-roster')?.checked ?? true;
+                const showPerClassRoster = document.getElementById('intro-show-per-class-roster')?.checked ?? false;
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: 'intro',
+                    venueScreenAt: serverTimestamp(),
                     'rankingCarousel.active': false,
                     'introSettings.athletes': sel,
                     'introSettings.durationMs': durMs,
-                    'introSettings.currentIndex': 0,
+                    'introSettings.currentIndex': -1,  // -1 = ループ開始時の「選手紹介」タイトル画面
+                    'introSettings.showRoster': showRoster,
+                    'introSettings.showPerClassRoster': showPerClassRoster,
+                    'introSettings.startedAt': serverTimestamp(),  // 進行は会場ディスプレイ側がこの時刻から計算する
                     'introSettings.isRunning': true
                 });
-                startIntroSequence(sel, durMs);
+                startIntroSequence(sel, durMs, showRoster, showPerClassRoster);
             } else if (pendingScreen === 'final_startlist') {
                 const target = document.getElementById('fsl-target')?.value || '';
                 if (!target) {
@@ -681,6 +847,7 @@
                 const [cls, gender, type] = target.split('|');
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: 'final_startlist',
+                    venueScreenAt: serverTimestamp(),
                     'rankingCarousel.active': false,
                     'finalStartlistTarget': { class: cls, gender, type }
                 });
@@ -690,6 +857,7 @@
                 // → warmup に戻った際は timerEndTime から残り時間を再計算して表示
                 await updateDoc(doc(db,'tournaments',eventId), {
                     venueScreen: pendingScreen,
+                    venueScreenAt: serverTimestamp(),
                     'rankingCarousel.active': false   // 巡回中でも画面切り替えで停止
                 });
             }
@@ -709,8 +877,9 @@
 
     // ---- タイトル保存 ----
     document.getElementById('save-title-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-title-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-title-btn');
+        const st  = document.getElementById('save-title-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
                 'titleSettings.fontSize': Number(document.getElementById('title-fs-val').value),
@@ -720,12 +889,14 @@
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 表彰式保存 ----
     document.getElementById('save-ceremony-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-ceremony-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-ceremony-btn');
+        const st  = document.getElementById('save-ceremony-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
             await updateDoc(doc(db,'tournaments',eventId), {
                 'ceremonySettings.nameFontSize':  Number(document.getElementById('cer-name-fs-val').value),
@@ -733,22 +904,27 @@
             });
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 会場練習保存（クラス名＋文字サイズ） ----
     document.getElementById('save-warmup-btn').addEventListener('click', async () => {
-        const st = document.getElementById('save-warmup-status');
-        st.textContent = '保存中...'; st.style.color = '#888';
+        const btn = document.getElementById('save-warmup-btn');
+        const st  = document.getElementById('save-warmup-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
         try {
-            await updateDoc(doc(db,'tournaments',eventId), {
+            const newRepeat = document.getElementById('timer-repeat').checked;
+            const upd = {
+                ...repeatChangeFields(newRepeat),
                 'warmupSettings.class1':       document.getElementById('wu-class1').value,
                 'warmupSettings.class2':       document.getElementById('wu-class2').value,
                 'warmupSettings.classFontSize':Number(document.getElementById('wu-class-fs-val').value),
                 'warmupSettings.timerFontSize':Number(document.getElementById('wu-timer-fs-val').value),
-                'warmupSettings.timerRepeat':  document.getElementById('timer-repeat').checked,
-            });
+            };
+            await updateDoc(doc(db,'tournaments',eventId), upd);
             st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
         } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
     });
 
     // ---- 順位表 巡回モード ----
@@ -772,6 +948,7 @@
     let introAthletes   = [];
     let introTimerItv   = null;
     let introCurIdx     = 0;
+    let introShowRoster = false;   // ループ最後に選手一覧ページを挟むか
     let introAthList    = [];
     let introClassDefs  = [];
     let introFilterKey  = '';          // '' = 全員, 'class|gender|type' = 絞り込み
@@ -897,10 +1074,18 @@
         return getIntroSorted().filter(a => introCheckedIds.has(a.id));
     }
 
-    function updateIntroStatus(idx, total) {
+    // steps: 選手紹介ループの実際の手順（選手＋任意でクラス一覧ページ）。buildIntroSteps()参照
+    function updateIntroStatus(idx, steps) {
         const st = document.getElementById('intro-run-status');
         if (!st) return;
-        st.textContent = `紹介中: ${idx + 1} / ${total} 人目`;
+        const step = idx >= 0 ? steps[idx] : null;
+        st.textContent = idx < 0
+            ? '「選手紹介」タイトル表示中…'
+            : idx >= steps.length
+              ? '選手一覧ページ表示中…'
+              : step.type === 'classRoster'
+                ? `${step.className || ''} 一覧ページ表示中…`
+                : `紹介中: ${idx + 1} / ${steps.length} 手順目`;
         st.className = 'intro-run-status running';
     }
 
@@ -912,21 +1097,25 @@
         if (stopBtn) stopBtn.style.display = 'none';
     }
 
-    function startIntroSequence(athletes, durationMs) {
+    function startIntroSequence(athletes, durationMs, showRoster, showPerClassRoster) {
         stopIntroSequence();
-        introAthList = athletes;
-        introCurIdx  = 0;
-        updateIntroStatus(0, athletes.length);
+        introAthList    = athletes;
+        introShowRoster = !!showRoster;
+        // クラス一覧ページを挟んだ手順（display.html側のapplyIntroSlide()と同じ組み立て方をする
+        // ことで、currentIndexの意味を両者で一致させる）
+        const steps = buildIntroSteps(athletes, !!showPerClassRoster);
+        introCurIdx     = -1;  // タイトル画面から開始（最初の刻みで1人目へ）
+        updateIntroStatus(-1, steps);
         document.getElementById('intro-stop-btn').style.display = '';
         introTimerItv = setInterval(async () => {
             introCurIdx++;
-            if (introCurIdx >= introAthList.length) {
-                introCurIdx = 0; // ループ: 先頭に戻る
+            // 末尾: 一覧ONなら 手順数（=一覧ページ）まで進み、超えたらタイトル(-1)へ戻る（毎周）
+            const maxIdx = steps.length - 1 + (introShowRoster ? 1 : 0);
+            if (introCurIdx > maxIdx) {
+                introCurIdx = -1; // 一周 → 毎回「選手紹介」タイトルから
             }
-            await updateDoc(doc(db,'tournaments',eventId), {
-                'introSettings.currentIndex': introCurIdx
-            }).catch(() => {});
-            updateIntroStatus(introCurIdx, introAthList.length);
+            // currentIndex の書き込みは廃止（会場ディスプレイが startedAt から自分で進める）。ここは操作画面の表示用のみ。
+            updateIntroStatus(introCurIdx, steps);
         }, durationMs);
     }
 
@@ -934,55 +1123,46 @@
         stopIntroSequence();
         await updateDoc(doc(db,'tournaments',eventId), {
             'introSettings.isRunning': false,
-            venueScreen: 'score'
+            venueScreen: 'score',
+            venueScreenAt: serverTimestamp()
         }).catch(e => alert('失敗: ' + e.message));
     });
 
     // ---- タイマー制御 ----
-    // timerRef（Firestore serverTimestamp）+ timerRemainingMs から終了時刻を計算。
-    // クライアント側の _serverOffset を使わないため、どのデバイス・どのタイミングでも一致する。
+    // 書き込みは「開始・一時停止・リセット・時間設定」を押した瞬間の1回だけ。
+    // 残り時間の計算と繰り返しの自動再スタートは warmup_timer.js が各端末で計算するため、
+    // この画面を開いていなくても（別ページ・裏タブ・閉じても）会場ディスプレイのタイマーは止まらない。
     function syncCtrlTimer() {
-        clearInterval(ctrlTimerInterval); ctrlTimerInterval = null;
+        if (stopCtrlTimer) stopCtrlTimer();
         const timerEl  = document.getElementById('ctrl-timer');
         const startBtn = document.getElementById('timer-start-btn');
         const pauseBtn = document.getElementById('timer-pause-btn');
-
-        function tick() {
-            const wu = warmupData;
-            // timerEndMs（開始時に Date.now()+残り時間 で確定した絶対終了時刻）を使用。
-            // 全デバイスが同一の timerEndMs を Firestore から読み、Date.now() で引くだけ。
-            const running = !wu.timerPaused && wu.timerEndMs != null;
-            let rem;
-            if (running) {
-                rem = Math.max(0, wu.timerEndMs - Date.now());
-            } else {
-                rem = wu.timerRemainingMs ?? 0;
-            }
+        stopCtrlTimer = startWarmupTicker(() => warmupData, ({ rem, running }) => {
             renderCtrlTimer(timerEl, rem, running);
             startBtn.textContent = '▶ 開始';
             startBtn.disabled = running || rem === 0;
             pauseBtn.disabled = !running;
+        });
+    }
 
-            if (rem === 0 && running) {
-                clearInterval(ctrlTimerInterval); ctrlTimerInterval = null;
-                // 繰り返し設定: 自動で再スタート
-                if (wu.timerRepeat) {
-                    const defaultMs = wu.timerDefaultMs ?? 5 * 60 * 1000;
-                    setTimeout(async () => {
-                        await updateDoc(doc(db,'tournaments',eventId), {
-                            'warmupSettings.timerEndMs':      Date.now() + defaultMs,
-                            'warmupSettings.timerRemainingMs':defaultMs,
-                            'warmupSettings.timerPaused':     false,
-                        }).catch(() => {});
-                    }, 1500); // 1.5秒後に再スタート
-                }
+    // 繰り返しの切替で書く項目。切替は残り時間の計算の仕方が変わる。動作中ならその時点の残りを新しい基準にして
+    // 表示が飛ばないようにし、すでに終わっている場合は停止状態に確定する（切替で勝手に再開しない）。
+    function repeatChangeFields(newRepeat) {
+        const upd = { 'warmupSettings.timerRepeat': newRepeat };
+        if (newRepeat !== !!warmupData.timerRepeat && !warmupData.timerPaused && warmupData.timerRef) {
+            const cur = warmupRem(warmupData);
+            if (cur.running) {
+                upd['warmupSettings.timerRef']         = serverTimestamp();
+                upd['warmupSettings.timerRemainingMs'] = cur.rem;
+                upd['warmupSettings.timerEndMs']       = Date.now() + cur.rem;
+            } else {
+                upd['warmupSettings.timerRemainingMs'] = 0;
+                upd['warmupSettings.timerPaused']      = true;
+                upd['warmupSettings.timerEndMs']       = null;
+                upd['warmupSettings.timerRef']         = null;
             }
         }
-        tick();
-        const wu = warmupData;
-        if (!wu.timerPaused && wu.timerEndMs != null) {
-            ctrlTimerInterval = setInterval(tick, 500);
-        }
+        return upd;
     }
 
     function renderCtrlTimer(el, ms, running) {
@@ -994,22 +1174,24 @@
     document.getElementById('timer-start-btn').addEventListener('click', async () => {
         const rem = warmupData.timerRemainingMs ?? 0;
         if (rem <= 0) return;
-        // Date.now() + 残り時間 = 絶対終了時刻をその場で計算して書き込む。
-        // serverTimestamp を待たないので開始と同時に正確な残り時間を表示できる。
+        // timerRef=serverTimestamp を全PC共通の時刻基準にする。
+        // timerEndMs は timerRef 確定までの一瞬、この操作PC自身の即時表示に使うフォールバック。
         await updateDoc(doc(db,'tournaments',eventId), {
+            'warmupSettings.timerRef':        serverTimestamp(),
             'warmupSettings.timerEndMs':      Date.now() + rem,
             'warmupSettings.timerRemainingMs':rem,
             'warmupSettings.timerPaused':     false,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-pause-btn').addEventListener('click', async () => {
-        const wu = warmupData;
-        if (wu.timerEndMs == null) return;
-        const rem = Math.max(0, wu.timerEndMs - Date.now());
+        // サーバー時刻補正込みで残りを確定してから固定値として保存（どのPCで押しても同じ結果）。
+        const { rem, running } = warmupRem(warmupData);
+        if (!running) return;
         await updateDoc(doc(db,'tournaments',eventId), {
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
     });
     document.getElementById('timer-reset-btn').addEventListener('click', async () => {
@@ -1018,8 +1200,105 @@
             'warmupSettings.timerRemainingMs': rem,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
     });
+    // ---- タイマー帯: 設定の開閉（この端末に記憶） ----
+    (function () {
+        const btn = document.getElementById('dock-toggle'), detail = document.getElementById('timer-dock-detail');
+        function setOpen(open) {
+            detail.style.display = open ? '' : 'none';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            try { localStorage.setItem('dcDockOpen', open ? '1' : '0'); } catch (e) {}
+        }
+        btn.addEventListener('click', () => setOpen(detail.style.display === 'none'));
+        let saved = false; try { saved = localStorage.getItem('dcDockOpen') === '1'; } catch (e) {}
+        setOpen(saved);
+    })();
+
+    // ---- 繰り返し: 切り替えたらすぐ保存 ----
+    document.getElementById('timer-repeat').addEventListener('change', async (e) => {
+        try { await updateDoc(doc(db, 'tournaments', eventId), repeatChangeFields(e.target.checked)); }
+        catch (err) { alert('繰り返しの保存に失敗: ' + err.message); e.target.checked = !!warmupData.timerRepeat; }
+    });
+
+    // ---- ±30秒 ----
+    // 動作中: その時点の残りを±して新しい基準にする（全端末が同じ残り時間になる）。一時停止中: 保存された残りを±する。
+    // 自然終了後は何もしない（↺ リセットで戻す）。残りは最低1秒。
+    // data-delta を持つボタン（±30秒）だけが対象。同じ見た目の他のボタン（追加・コピー・保存など）では動かさない
+    document.querySelectorAll('.adj-btn[data-delta]').forEach(btn => btn.addEventListener('click', async () => {
+        const delta = Number(btn.dataset.delta);
+        if (!Number.isFinite(delta)) return;   // 万一でも、不正な値（NaN）を残り時間に書かない
+        const { rem, running } = warmupRem(warmupData);
+        const ref = doc(db, 'tournaments', eventId);
+        try {
+            if (running) {
+                if (rem <= 0) return;
+                const t = Math.max(1000, Math.round(rem + delta));
+                await updateDoc(ref, {
+                    'warmupSettings.timerRef': serverTimestamp(),
+                    'warmupSettings.timerRemainingMs': t,
+                    'warmupSettings.timerEndMs': Date.now() + t,
+                    'warmupSettings.timerPaused': false,
+                });
+            } else if (warmupData.timerPaused) {
+                const t = Math.max(1000, (warmupData.timerRemainingMs ?? 0) + delta);
+                await updateDoc(ref, { 'warmupSettings.timerRemainingMs': t });
+            }
+        } catch (e) { alert('失敗: ' + e.message); }
+    }));
+
+    // ---- 会場への重ね表示の設定（変更したら自動保存） ----
+    function setOverlayForm(w) {
+        document.getElementById('ov-enabled').checked = w.overlayEnabled === true;
+        document.getElementById('ov-onscore').checked = w.overlayOnScore === true;
+        const style = w.overlayStyle === 'band' ? 'band' : 'badge';
+        document.querySelectorAll('#ov-style button').forEach(b => b.classList.toggle('active', b.dataset.style === style));
+        const pos = ['tr', 'tl', 'br', 'bl'].includes(w.overlayPosition) ? w.overlayPosition : 'tr';
+        document.querySelectorAll('#ov-pos button').forEach(b => b.classList.toggle('active', b.dataset.pos === pos));
+        const sc = Number(w.overlayScale) >= 0.5 && Number(w.overlayScale) <= 2 ? Number(w.overlayScale) : 1;
+        document.getElementById('ov-scale').value = sc;
+        document.getElementById('ov-scale-val').textContent = '×' + sc.toFixed(1);
+        document.getElementById('ov-box').classList.toggle('off', w.overlayEnabled !== true);
+    }
+    function collectOverlay() {
+        return {
+            overlayEnabled:  document.getElementById('ov-enabled').checked,
+            overlayStyle:    document.querySelector('#ov-style button.active')?.dataset.style || 'badge',
+            overlayPosition: document.querySelector('#ov-pos button.active')?.dataset.pos || 'tr',
+            overlayScale:    Math.round(Number(document.getElementById('ov-scale').value) * 10) / 10,
+            overlayOnScore:  document.getElementById('ov-onscore').checked,
+        };
+    }
+    let _ovSaveTimer = null;
+    function saveOverlay() {
+        const st = document.getElementById('ov-status');
+        const o = collectOverlay();
+        document.getElementById('ov-box').classList.toggle('off', !o.overlayEnabled);
+        document.getElementById('ov-scale-val').textContent = '×' + o.overlayScale.toFixed(1);
+        st.style.color = '#888'; st.textContent = '保存中…';
+        clearTimeout(_ovSaveTimer);
+        _ovSaveTimer = setTimeout(async () => {
+            const upd = {};
+            Object.entries(o).forEach(([k, v]) => { upd['warmupSettings.' + k] = v; });
+            try {
+                await updateDoc(doc(db, 'tournaments', eventId), upd);
+                st.style.color = '#2e7d32'; st.textContent = '✓ 自動保存済み';
+            } catch (e) { st.style.color = '#c62828'; st.textContent = '❌ ' + e.message; }
+        }, 300);
+    }
+    document.getElementById('ov-enabled').addEventListener('change', saveOverlay);
+    document.getElementById('ov-onscore').addEventListener('change', saveOverlay);
+    document.getElementById('ov-scale').addEventListener('input', saveOverlay);
+    document.querySelectorAll('#ov-style button').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#ov-style button').forEach(x => x.classList.toggle('active', x === b));
+        saveOverlay();
+    }));
+    document.querySelectorAll('#ov-pos button').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#ov-pos button').forEach(x => x.classList.toggle('active', x === b));
+        saveOverlay();
+    }));
+
     // ---- タイマー手入力：onSnapshot で上書きされないよう「更新」ボタンでのみ反映 ----
     document.getElementById('timer-manual-set-btn').addEventListener('click', async () => {
         const minEl = document.getElementById('timer-manual-min');
@@ -1036,6 +1315,7 @@
             'warmupSettings.timerRemainingMs': ms,
             'warmupSettings.timerPaused':      true,
             'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
         }).catch(e => alert('失敗: '+e.message));
         // 入力欄をクリア
         minEl.value = ''; secEl.value = '';
@@ -1058,6 +1338,7 @@
                 'warmupSettings.timerRemainingMs': ms,
                 'warmupSettings.timerPaused':      true,
                 'warmupSettings.timerEndMs':       null,
+                'warmupSettings.timerRef':         null,
             }).catch(e => alert('失敗: '+e.message));
         });
     });
@@ -1070,10 +1351,8 @@
 
         if (!eventId) { document.getElementById('event-name').textContent = 'URLにeventパラメータがありません'; return; }
 
-        const tourSnap = await getDoc(doc(db,'tournaments',eventId));
-        if (!tourSnap.exists()) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
-
-        const tourData = tourSnap.data();
+        const tourData = await getTournament(eventId);
+        if (!tourData) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
         const tournamentName = tourData.name || '';
         document.getElementById('event-name').textContent = tournamentName || eventId;
         document.getElementById('btn-autofill-name').addEventListener('click', () => {
@@ -1091,6 +1370,7 @@
         const athSnap = await getDocs(collection(db,'tournaments',eventId,'athletes'));
         const comboSet = new Set();
         const carouselSet = new Set();
+        const catType = {};   // `${cls}|${gender}` → 個人/シンクロ（団体の基礎タイプ推定用）
         athSnap.forEach(d => {
             const a = d.data();
             const typeRaw = a.type || 'individual';
@@ -1098,14 +1378,49 @@
             const gender = a.gender || '';
             const cls    = a.class  || '';
             if (cls) {
+                if (!catType[`${cls}|${gender}`]) catType[`${cls}|${gender}`] = typeRaw;
                 comboSet.add(`${cls} ${gender}（${typeLabel}）`);
                 const key = `${cls}|${gender}|${typeRaw}`;
                 if (!carouselSet.has(key)) {
                     carouselSet.add(key);
-                    carouselCombos.push({ classVal: cls, gender, type: typeRaw,
-                        label: `${cls} ${gender}（${typeLabel}）` });
+                    // 予選・決勝を別々の巡回候補として選べるようにする
+                    carouselCombos.push({ classVal: cls, gender, type: typeRaw, round: 'qualifying',
+                        label: `${cls} ${gender}（${typeLabel}）予選` });
+                    carouselCombos.push({ classVal: cls, gender, type: typeRaw, round: 'final',
+                        label: `${cls} ${gender}（${typeLabel}）決勝` });
                 }
             }
+        });
+        // 団体（team）: チーム登録のある class|gender を巡回候補に追加（基礎タイプは選手から推定）
+        try {
+            const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
+            const teamSet = new Set();
+            teamSnap.forEach(d => {
+                const t = d.data();
+                const cls = t.class || '', gender = t.gender || '';
+                if (!cls) return;
+                const catKey = `${cls}|${gender}`;
+                if (teamSet.has(catKey)) return;
+                teamSet.add(catKey);
+                carouselCombos.push({ classVal: cls, gender, type: catType[catKey] || 'individual',
+                    mode: 'team', label: `${cls} ${gender}（団体）` });
+            });
+        } catch (e) { console.warn('団体（teams）取得失敗', e); }
+        // 決勝スタートリスト: isInFinal の選手がいるクラス組み合わせを巡回候補に追加
+        // （下の fsl-target 用ループと条件は同じだが、あちらは単一選択のプルダウン用、
+        //   こちらは巡回チェックリストへの追加なので別々に列挙する）
+        const fslCarouselSet = new Set();
+        athSnap.forEach(d => {
+            const a = d.data();
+            if (!a.isInFinal || !a.class) return;
+            const typeRaw   = a.type || 'individual';
+            const typeLabel = typeRaw === 'synchro' ? 'シンクロ' : '個人';
+            const gender    = a.gender || '';
+            const key = `${a.class}|${gender}|${typeRaw}`;
+            if (fslCarouselSet.has(key)) return;
+            fslCarouselSet.add(key);
+            carouselCombos.push({ classVal: a.class, gender, type: typeRaw,
+                mode: 'final_startlist', label: `${a.class} ${gender}（${typeLabel}）決勝スタートリスト` });
         });
         classCombos = [...comboSet].sort();
         carouselCombos.sort((a, b) => a.label.localeCompare(b.label, 'ja'));
@@ -1138,12 +1453,22 @@
                 kana1: a.kana1||'', kana2: a.kana2||'',
                 club1: a.club1||'', club2: a.club2||'',
                 type: a.type||'individual', class: a.class||'',
-                gender: a.gender||'', order: a.order||''
+                gender: a.gender||'', order: a.order||'',
+                finalOrder: a.finalOrder ?? null // 「決勝試技順」モード（getIntroSorted）の絞り込みに必要
             });
         });
         introAthletes.forEach(a => introCheckedIds.add(a.id));
         buildIntroFilterBtns();
         applyIntroFilter();
+
+        // 初期画面状態を即座に反映（onSnapshot 到着前にタイマーを表示する）
+        applyScreenState(
+            tourData.venueScreen      || 'score',
+            tourData.warmupSettings   || {},
+            tourData.titleSettings    || {},
+            tourData.ceremonySettings || {},
+            tourData.rankingCarousel  || {}
+        );
 
         // リアルタイム監視
         onSnapshot(doc(db,'tournaments',eventId), snap => {

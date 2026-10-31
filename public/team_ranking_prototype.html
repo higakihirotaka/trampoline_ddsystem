@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>団体順位表 プロトタイプ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Regular.woff2") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-SemiBold.woff2") format("woff2"); font-weight:600; font-style:normal; font-display:swap; }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Bold.woff2") format("woff2"); font-weight:700; font-style:normal; font-display:swap; }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-ExtraBold.woff2") format("woff2"); font-weight:800; font-style:normal; font-display:swap; }
+    @font-face { font-family:"DIN 2014"; src:url("./fonts/DIN2014-Black.woff2") format("woff2"); font-weight:900; font-style:normal; font-display:swap; }
+
+    :root{
+      --bg-dark: #000c1a;
+      --bg-panel: rgba(255,255,255,0.06);
+      --accent-gold: #ffd700;
+      --accent-cyan: #00f2ff;
+      --text-white: #ffffff;
+      --text-muted: #cbd5e0;
+      --border-ui: rgba(0,242,255,0.2);
+      --silver: #d6e0ea;
+      --bronze: #e8a06a;
+      --font-ui: "DIN 2014","DIN 2014 Demi","DIN 2014 Bold","DIN Alternate","DIN Condensed",
+                 "Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",
+                 system-ui,-apple-system,"Segoe UI",sans-serif;
+      --frame-pad-x: 3cqw;
+    }
+
+    html, body{
+      margin:0; padding:0; height:100%; width:100%;
+      background:#111; color:var(--text-white);
+      font-family:var(--font-ui);
+      overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+    }
+    *{ box-sizing:border-box; }
+    .num{ font-variant-numeric: tabular-nums; font-feature-settings:"tnum" 1,"lnum" 1; }
+
+    /* ===== メインフレーム ===== */
+    .monitor-frame{
+      aspect-ratio: 16 / 9;
+      width:100%; height:auto; max-width:100%; max-height:100%;
+      background: radial-gradient(circle at 50% 0%, #001e3d 0%, #000810 100%);
+      display:grid;
+      grid-template-rows: 7% 11.5% 77.5% 4%;
+      padding: 0 var(--frame-pad-x);
+      border: 1px solid rgba(0,242,255,0.1);
+      container-type: inline-size;
+    }
+
+    /* ===== アニメーション ===== */
+    @keyframes enter { from{opacity:0; transform:translateY(1.2cqh); filter:blur(2px);} to{opacity:1; transform:translateY(0); filter:blur(0);} }
+    .conv-header,.cat-header,.team-row,.footer-credits{ opacity:0; animation: enter var(--anim-duration,900ms) ease-out forwards; }
+    .conv-header{ animation-delay:0ms; }
+    .cat-header { animation-delay:120ms; }
+    .footer-credits{ animation-delay:200ms; }
+    .monitor-frame.no-anim .conv-header,
+    .monitor-frame.no-anim .cat-header,
+    .monitor-frame.no-anim .team-row,
+    .monitor-frame.no-anim .footer-credits{ animation:none !important; opacity:1 !important; }
+    @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } .conv-header,.cat-header,.team-row,.footer-credits{ opacity:1 !important; } }
+
+    /* ===== 1. 大会名 ===== */
+    .conv-header{
+      border-bottom: 1.5px solid var(--border-ui);
+      display:flex; align-items:center; justify-content:center;
+      font-size: 1.1cqw; font-weight:700; letter-spacing:0.8cqw; text-transform:uppercase;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+
+    /* ===== 2. カテゴリー見出し ===== */
+    .cat-header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 0.6cqh 0.2cqw 0.2cqh;
+    }
+    .cat-title{ font-size:2.6cqw; font-weight:900; letter-spacing:-0.5px; line-height:1; }
+    .cat-title .cat-disc{ color:var(--accent-cyan); margin-left:0.6cqw; }
+    .cat-right{ text-align:right; line-height:1.25; }
+    .cat-sub{ font-size:1.35cqw; font-weight:800; color:var(--accent-gold); }
+    .cat-note{ font-size:0.85cqw; font-weight:700; color:var(--text-muted); letter-spacing:0.05cqw; }
+
+    /* ===== 3. 順位リスト ===== */
+    .rank-list{
+      display:grid; grid-auto-rows: 1fr; row-gap: 0.7cqh;
+      padding: 0.6cqh 0; min-height:0;
+    }
+    .team-row{
+      display:grid;
+      grid-template-columns: 5.2cqw 22cqw 1fr 12cqw;
+      align-items:center; column-gap: 1.2cqw;
+      background: var(--bg-panel);
+      border: 1.5px solid var(--border-ui);
+      border-left: 4px solid rgba(0,242,255,0.35);
+      border-radius: 6px;
+      padding: 0 1.2cqw;
+      min-height:0;
+      box-shadow: inset 0 0 20px rgba(0,242,255,0.03);
+    }
+
+    /* 順位バッジ */
+    .rank-badge{ display:flex; align-items:center; justify-content:center; }
+    .rank-num{ font-size:3cqw; font-weight:900; line-height:1; color:var(--text-white); letter-spacing:-1px; }
+    .rank-badge .rank-sub{ font-size:0.8cqw; color:var(--text-muted); margin-left:0.25cqw; align-self:flex-end; padding-bottom:0.4cqw; }
+
+    /* チーム情報 */
+    .team-info{ min-width:0; }
+    .team-name{ font-size:1.9cqw; font-weight:900; line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      text-shadow: 0 0 22px rgba(0,242,255,0.15); }
+    .team-club{ font-size:1cqw; font-weight:700; color:var(--text-muted); margin-top:0.3cqh; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* メンバー */
+    .members{ display:flex; gap:0.7cqw; justify-content:flex-end; }
+    .member{
+      flex:0 0 auto; min-width:6.6cqw;
+      background: rgba(0,0,0,0.28);
+      border:1px solid var(--border-ui);
+      border-radius:5px;
+      padding:0.5cqh 0.7cqw;
+      display:flex; flex-direction:column; align-items:center; gap:0.15cqh;
+    }
+    .member.counted{ border-color: rgba(0,242,255,0.55); background: rgba(0,242,255,0.09); box-shadow: inset 0 0 12px rgba(0,242,255,0.06); }
+    .member.dropped{ opacity:0.45; }
+    .m-name{ font-size:0.92cqw; font-weight:800; color:var(--text-white); white-space:nowrap; }
+    .member.dropped .m-name{ color:var(--text-muted); }
+    .m-score{ font-size:1.5cqw; font-weight:900; line-height:1; color:var(--accent-cyan); }
+    .member.counted .m-score{ color:var(--text-white); }
+    .member.dropped .m-score{ color:var(--text-muted); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+    .m-tag{ font-size:0.62cqw; font-weight:800; letter-spacing:0.05cqw; text-transform:uppercase; color:var(--accent-cyan); opacity:0.85; }
+    .member.dropped .m-tag{ color:var(--text-muted); }
+
+    /* 合計 */
+    .team-total{ text-align:right; }
+    .team-total label{ display:block; font-size:0.8cqw; font-weight:800; color:var(--text-muted); letter-spacing:0.12cqw; text-transform:uppercase; margin-bottom:0.2cqh; }
+    .total-num{ font-size:3cqw; font-weight:900; line-height:1; letter-spacing:-1.5px; color:var(--text-white); }
+
+    /* メダル配色 */
+    .team-row.rank-1{ border-color: rgba(255,215,0,0.55); border-left-color: var(--accent-gold); background: rgba(255,215,0,0.06); }
+    .team-row.rank-1 .rank-num, .team-row.rank-1 .total-num{ color: var(--accent-gold); text-shadow: 0 0 16px rgba(255,215,0,0.25); }
+    .team-row.rank-2{ border-left-color: var(--silver); }
+    .team-row.rank-2 .rank-num{ color: var(--silver); }
+    .team-row.rank-3{ border-left-color: var(--bronze); }
+    .team-row.rank-3 .rank-num{ color: var(--bronze); }
+
+    /* ===== 4. クレジット ===== */
+    .footer-credits{
+      display:flex; justify-content:flex-end; align-items:center;
+      font-size:0.8cqw; color:rgba(255,255,255,0.2);
+      letter-spacing:0.2cqw; font-weight:700; text-transform:uppercase; min-height:0;
+    }
+
+    /* ===== 検討用UI ===== */
+    #proto-ui{ position:fixed; top:14px; right:14px; z-index:999; display:flex; gap:8px; align-items:center; }
+    #proto-ui button{ padding:8px 16px; border-radius:6px; border:none; cursor:pointer; font-size:0.82rem; font-weight:700; font-family:var(--font-ui); transition:0.15s; }
+    .btn-replay{ background:#1a73e8; color:#fff; }
+    .btn-replay:hover{ background:#1557b0; }
+    .btn-noanim{ background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.8); border:1px solid rgba(255,255,255,0.2) !important; }
+    .btn-noanim:hover{ background:rgba(255,255,255,0.2); }
+    .btn-noanim.active{ background:rgba(255,215,0,0.2); color:#ffd700; border-color:rgba(255,215,0,0.4) !important; }
+  </style>
+</head>
+<body>
+
+  <div id="proto-ui">
+    <button class="btn-noanim" id="btn-noanim" onclick="toggleNoAnim()">アニメOFF</button>
+    <button class="btn-replay" onclick="replayAnim()">▶ アニメ再生</button>
+  </div>
+
+  <div class="monitor-frame" id="monitor">
+    <div class="conv-header">第59回東日本学生トランポリン競技選手権大会</div>
+
+    <div class="cat-header">
+      <div class="cat-title">団体競技<span class="cat-disc">TRA</span></div>
+      <div class="cat-right">
+        <div class="cat-sub">中学生 男子 ・ 予選</div>
+        <div class="cat-note">ベストスコア上位3名の合計</div>
+      </div>
+    </div>
+
+    <div class="rank-list" id="rank-list"></div>
+
+    <footer class="footer-credits">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
+  </div>
+
+  <script>
+    // ==== ルール ====
+    // ・各選手の得点 = 予選2演技のベスト（max）
+    // ・団体得点 = メンバー(3〜4名)のうち上位3名の合計（4名は最低点を除外）
+    // ・団体得点の降順で順位付け（男女別・クラス別）
+    const teams = [
+      { name:"早稲田大学 A", club:"早稲田大学", members:[
+        {name:"河江 公庸", r1:57.51, r2:58.37},
+        {name:"井上 大輝", r1:31.55, r2:48.55},
+        {name:"斉藤 隼人", r1:54.56, r2:44.55},
+        {name:"高橋 蓮",   r1:59.23, r2:58.20},
+      ]},
+      { name:"日本体育大学", club:"日本体育大学", members:[
+        {name:"森田 光",   r1:55.10, r2:57.02},
+        {name:"中村 陽",   r1:56.88, r2:53.40},
+        {name:"小林 涼太", r1:52.31, r2:55.77},
+      ]},
+      { name:"筑波大学 B", club:"筑波大学", members:[
+        {name:"渡辺 悠斗", r1:58.90, r2:56.12},
+        {name:"藤井 樹",   r1:50.05, r2:54.63},
+        {name:"岡田 蒼",   r1:53.20, r2:53.98},
+        {name:"松本 陸",   r1:49.11, r2:47.80},
+      ]},
+      { name:"順天堂大学", club:"順天堂大学", members:[
+        {name:"清水 直樹", r1:54.44, r2:56.30},
+        {name:"橋本 湊",   r1:51.90, r2:52.77},
+        {name:"石川 慶",   r1:55.02, r2:50.15},
+      ]},
+      { name:"法政大学 A", club:"法政大学", members:[
+        {name:"田中 一真", r1:52.10, r2:53.66},
+        {name:"山口 颯",   r1:50.40, r2:51.88},
+        {name:"内田 蒼真", r1:48.75, r2:54.02},
+        {name:"三浦 大和", r1:46.30, r2:49.10},
+      ]},
+      { name:"中央大学",   club:"中央大学", members:[
+        {name:"福田 律",   r1:51.20, r2:50.05},
+        {name:"原田 岳",   r1:49.88, r2:52.40},
+        {name:"武田 隼",   r1:48.60, r2:50.71},
+      ]},
+      { name:"明治大学 C", club:"明治大学", members:[
+        {name:"上田 隼平", r1:47.30, r2:49.95},
+        {name:"新井 蓮",   r1:50.11, r2:48.02},
+        {name:"大野 湊斗", r1:46.90, r2:49.44},
+        {name:"金子 樹",   r1:44.10, r2:45.60},
+      ]},
+      { name:"東京学芸大学", club:"東京学芸大学", members:[
+        {name:"平野 陽向", r1:45.50, r2:47.88},
+        {name:"菊池 大翔", r1:46.02, r2:44.30},
+        {name:"服部 颯真", r1:43.75, r2:46.90},
+      ]},
+    ];
+
+    // ==== 計算 ====
+    teams.forEach(t => {
+      t.members.forEach(m => { m.best = Math.max(m.r1, m.r2); });
+      // ベストスコア降順に並べ、上位3名を counted
+      t.ranked = [...t.members].sort((a, b) => b.best - a.best);
+      t.ranked.forEach((m, i) => { m.counted = i < 3; });
+      t.total = t.ranked.slice(0, 3).reduce((s, m) => s + m.best, 0);
+    });
+    teams.sort((a, b) => b.total - a.total);
+
+    // ==== 描画 ====
+    const listEl = document.getElementById('rank-list');
+    listEl.innerHTML = teams.map((t, idx) => {
+      const rank = idx + 1;
+      const membersHtml = t.ranked.map(m => `
+        <div class="member ${m.counted ? 'counted' : 'dropped'}">
+          <span class="m-name">${m.name}</span>
+          <span class="m-score num">${m.best.toFixed(2)}</span>
+          <span class="m-tag">${m.counted ? 'COUNT' : '除外'}</span>
+        </div>`).join('');
+      return `
+        <div class="team-row rank-${rank}" style="animation-delay:${260 + idx * 90}ms">
+          <div class="rank-badge"><span class="rank-num num">${rank}</span></div>
+          <div class="team-info">
+            <div class="team-name">${t.name}</div>
+            <div class="team-club">${t.club}</div>
+          </div>
+          <div class="members">${membersHtml}</div>
+          <div class="team-total">
+            <label>Total</label>
+            <span class="total-num num">${t.total.toFixed(2)}</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    // ==== 検討用UI ====
+    const monitor = document.getElementById('monitor');
+    const btnNoAnim = document.getElementById('btn-noanim');
+    let noAnimMode = false;
+    function replayAnim() {
+      if (noAnimMode) return;
+      const targets = monitor.querySelectorAll('.conv-header,.cat-header,.team-row,.footer-credits');
+      targets.forEach(el => { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+    }
+    function toggleNoAnim() {
+      noAnimMode = !noAnimMode;
+      monitor.classList.toggle('no-anim', noAnimMode);
+      btnNoAnim.textContent = noAnimMode ? 'アニメON' : 'アニメOFF';
+      btnNoAnim.classList.toggle('active', noAnimMode);
+    }
+  </script>
+</body>
+</html>

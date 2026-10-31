@@ -1,6 +1,8 @@
-import { db, auth, isLocalDev } from "./firebase-config.js";
+import { db, isLocalDev } from "./firebase-config.js";
+import { auth } from "./firebase-auth-config.js";
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, getDoc, collection, getDocs, writeBatch, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getTournament } from "./cache.js";
 
 // --- Auth Functions ---
 
@@ -54,6 +56,16 @@ export function ensureAdmin(callback) {
     });
 }
 
+// ensureAdmin()と違い、管理者でなくてもログイン画面へリダイレクトしない版。
+// event.html等、通常は選手（未ログイン）が見るページで、from=admin等の
+// パラメータがある時だけ管理者向けUIを追加で出したい場合に使う。
+export function checkIfAdmin(callback) {
+    if (isLocalDev) { callback(true); return; }
+    onAuthStateChanged(auth, async (user) => {
+        callback(!!(user && await checkAdminStatus(user)));
+    });
+}
+
 // --- Firestore & Data Functions ---
 
 export async function getTournaments() {
@@ -74,24 +86,46 @@ export async function getTournaments() {
 
 export async function getTournamentDetails(tournamentId) {
     if (!tournamentId) return null;
-    const tourDoc = await getDoc(doc(db, "tournaments", tournamentId));
-    return tourDoc.exists() ? { id: tourDoc.id, ...tourDoc.data() } : null;
+    // cache.js 経由（メモリ + sessionStorage 10分TTL）
+    return await getTournament(tournamentId);
+}
+
+// Firestore writeBatch は1コミット500件上限のため、450件ずつ分割してコミット
+async function commitInChunks(ops) {
+    const CHUNK = 450;
+    for (let i = 0; i < ops.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        ops.slice(i, i + CHUNK).forEach(fn => fn(batch));
+        await batch.commit();
+    }
 }
 
 export async function bulkSaveSubmissions(eventId, submissions, skillIds) {
     if (!eventId || !submissions?.length || !skillIds?.length) {
         return { success: false, message: "データが不足しています。" };
     }
-    const batch = writeBatch(db);
-    submissions.forEach(sub => {
+    // 1件のsubmissionにつき書込は2つ（submissionsドキュメント＋選手ドキュメントの済フラグ）
+    // なので、1closure=1書込になるようflatMapする（commitInChunksの450件チャンクが
+    // Firestoreの1バッチ500書込上限を超えないようにするため）。
+    const ops = submissions.flatMap(sub => {
         const subId = `${eventId}_${sub.athleteId}_${sub.round}`;
-        batch.set(doc(db, "submissions", subId), {
-            eventId, athleteId: sub.athleteId, round: sub.round, skills: skillIds,
-            checkStatus: 0, updatedAt: serverTimestamp()
-        }, { merge: true });
+        return [
+            batch => batch.set(doc(db, "submissions", subId), {
+                eventId, athleteId: sub.athleteId, round: sub.round, skills: skillIds,
+                checkStatus: 0, updatedAt: serverTimestamp()
+            }, { merge: true }),
+            // entry.html の submitRoutine() と同じく選手ドキュメント側にも済フラグを反映する。
+            // event.html等の一覧が submissions コレクション全件取得ではなくこのフラグだけを見て
+            // 済/未判定できるようにするため。revisionCount は書かないので、card_history.html の
+            // 「一括/旧」判定（revisionCountの有無で一括登録か選手本人の提出かを見分ける仕組み）
+            // には影響しない。
+            batch => batch.update(doc(db, "tournaments", eventId, "athletes", sub.athleteId), {
+                [`submissions.${sub.round}`]: 0
+            })
+        ];
     });
     try {
-        await batch.commit();
+        await commitInChunks(ops);
         return { success: true, message: `${submissions.length}件の構成を一括登録しました。` };
     } catch (e) {
         return { success: false, message: `一括登録中にエラー: ${e.message}` };
@@ -102,13 +136,17 @@ export async function bulkClearSubmissions(eventId, submissions) {
     if (!eventId || !submissions?.length) {
         return { success: false, message: "削除対象がありません。" };
     }
-    const batch = writeBatch(db);
-    submissions.forEach(sub => {
+    const ops = submissions.flatMap(sub => {
         const subId = `${eventId}_${sub.athleteId}_${sub.round}`;
-        batch.delete(doc(db, "submissions", subId));
+        return [
+            batch => batch.delete(doc(db, "submissions", subId)),
+            batch => batch.update(doc(db, "tournaments", eventId, "athletes", sub.athleteId), {
+                [`submissions.${sub.round}`]: deleteField()
+            })
+        ];
     });
     try {
-        await batch.commit();
+        await commitInChunks(ops);
         return { success: true, message: `${submissions.length}件の構成を削除しました。` };
     } catch (e) {
         return { success: false, message: `削除中にエラー: ${e.message}` };

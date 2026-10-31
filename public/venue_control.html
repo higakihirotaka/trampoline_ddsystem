@@ -1,0 +1,2260 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大会画面コントロール（新）</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --accent:#1a73e8; --bg:#f0f2f5; --card:#ffffff;
+            --green:#2e7d32; --text-main:#263238; --text-sub:#546e7a;
+            --gold:#f9a825;
+        }
+        body { font-family:'Inter',sans-serif; background:var(--bg); margin:0; padding:20px; color:var(--text-main); }
+        .container { max-width:1200px; margin:0 auto; }
+        .header-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+        .btn-back { text-decoration:none; color:var(--text-sub); font-size:0.9rem; border:1px solid #ccc; padding:8px 20px; border-radius:8px; }
+        .auth-info { font-size:0.85em; color:#999; display:none; align-items:center; }
+        .auth-info span { font-weight:bold; color:var(--text-main); }
+        .logout-btn { background:none; border:1px solid #ccc; border-radius:5px; color:var(--accent); cursor:pointer; font-size:0.9em; margin-left:12px; padding:3px 8px; }
+        .header { text-align:center; margin-bottom:20px; }
+        .event-badge { display:inline-block; padding:6px 16px; background:var(--accent); color:white; border-radius:20px; font-weight:bold; margin-top:8px; }
+        h1 { margin:0 0 8px; }
+
+        /* tabs */
+        .tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid #e0e0e0; }
+        .tab-btn { padding:10px 24px; border:none; background:none; cursor:pointer; font-size:0.95rem; font-weight:700; color:var(--text-sub); border-bottom:3px solid transparent; margin-bottom:-2px; transition:0.15s; }
+        .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
+
+        /* cards */
+        .section-title { font-size:1.0rem; font-weight:900; margin:24px 0 10px; display:flex; align-items:center; gap:10px; border-left:5px solid var(--accent); padding-left:14px; }
+        .card { background:var(--card); border-radius:16px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.07); margin-bottom:14px; }
+
+        /* setting rows */
+        .setting-row { display:flex; align-items:center; gap:16px; padding:14px 0; border-bottom:1px solid #f0f0f0; }
+        .setting-row:last-child { border-bottom:none; padding-bottom:0; }
+        .setting-label { flex:1; }
+        .setting-label strong { display:block; font-size:0.93rem; }
+        .setting-label span { font-size:0.78rem; color:var(--text-sub); }
+        .setting-control { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+        input[type="range"] { width:120px; accent-color:var(--accent); }
+        .val-box { width:50px; text-align:center; font-size:1.05rem; font-weight:700; border:2px solid #e0e0e0; border-radius:8px; padding:4px; background:#f8fbff; }
+        .unit { font-size:0.8rem; color:var(--text-sub); width:22px; }
+        .timeline { background:#f8fbff; border-radius:10px; padding:12px 16px; font-size:0.83rem; color:var(--text-sub); margin-top:8px; border:1px solid #e3eaf5; }
+        .timeline strong { color:var(--text-main); }
+
+        /* 色テーマ選択スウォッチ */
+        .theme-swatches { display:flex; gap:10px; flex-wrap:wrap; }
+        .theme-swatch { display:flex; align-items:center; gap:8px; padding:8px 18px; border:2px solid #e0e0e0; border-radius:10px; background:#fff; cursor:pointer; font-size:0.88rem; font-weight:700; color:var(--text-sub); transition:0.15s; }
+        .theme-swatch:hover { border-color:#ccc; }
+        .theme-swatch.active { border-color:var(--swatch-color); color:var(--text-main); background:#fafafa; }
+        .theme-swatch .swatch-dot { width:16px; height:16px; border-radius:50%; background:var(--swatch-color); box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--swatch-color); flex-shrink:0; }
+        .btn-save { display:block; width:100%; padding:15px; background:var(--green); color:white; border:none; border-radius:12px; font-size:1.0rem; font-weight:700; cursor:pointer; transition:0.2s; margin-top:18px; }
+        .btn-save:hover { background:#1b5e20; }
+        .btn-save:disabled { background:#aaa; cursor:default; }
+        .btn-save-sm { padding:9px 20px; border:none; border-radius:8px; background:var(--green); color:white; font-size:0.88rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+        .btn-save-sm:hover { background:#1b5e20; }
+        .save-status { text-align:center; font-size:0.85rem; margin-top:6px; min-height:1.3em; color:var(--green); font-weight:600; }
+
+        /* display link */
+        .display-link-card { background:#e8f5e9; border-radius:14px; padding:16px 22px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:18px; display:flex; align-items:center; gap:12px; }
+        .display-link-card .icon { font-size:1.8rem; }
+        .display-link-card a { color:var(--green); font-weight:700; text-decoration:none; font-size:0.85rem; word-break:break-all; }
+        .display-link-card p { margin:3px 0 0; font-size:0.76rem; color:var(--text-sub); }
+
+        /* screen switcher */
+        .current-screen-badge { display:inline-block; padding:5px 14px; border-radius:20px; font-size:0.82rem; font-weight:700; margin-bottom:14px; background:#e3f2fd; color:var(--accent); }
+        .screen-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .screen-btn { padding:16px 10px; border:2px solid #e0e0e0; background:white; border-radius:14px; cursor:pointer; text-align:center; font-size:0.88rem; font-weight:700; color:var(--text-sub); transition:0.2s; }
+        .screen-btn .btn-icon { font-size:1.8rem; display:block; margin-bottom:5px; }
+        .screen-btn:hover { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        /* active = 現在会場に表示中、selected = 選択中（未確定） */
+        .screen-btn.active { border-color:#2e7d32; background:#2e7d32; color:white; }
+        .screen-btn.active .btn-sub { color:rgba(255,255,255,0.8); }
+        .screen-btn.selected:not(.active) { border-color:var(--accent); color:var(--accent); background:#f0f5ff; outline: 2px dashed var(--accent); outline-offset:2px; }
+        .btn-sub { font-size:0.7rem; font-weight:400; display:block; margin-top:3px; color:var(--text-sub); }
+        .btn-show-screen { width:100%; margin-top:14px; padding:14px; border:none; border-radius:12px; background:var(--accent); color:white; font-size:1rem; font-weight:800; cursor:pointer; transition:0.15s; letter-spacing:0.05em; }
+        .btn-show-screen:hover { background:#1558b0; }
+        .btn-show-screen:disabled { background:#b0bec5; cursor:default; }
+
+        /* per-screen settings panels */
+        .screen-panel { margin-top:14px; border:2px solid var(--accent); border-radius:14px; padding:20px 22px; background:#f0f5ff; display:none; }
+        .screen-panel.active { display:block; }
+        .panel-title { font-size:0.9rem; font-weight:900; color:var(--accent); margin-bottom:14px; }
+        .panel-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+        .panel-row:last-child { margin-bottom:0; }
+        .panel-label { font-size:0.83rem; font-weight:700; min-width:100px; color:var(--text-main); flex-shrink:0; }
+        .panel-select { flex:1; padding:8px 10px; border:2px solid #e0e0e0; border-radius:8px; font-size:0.88rem; font-weight:600; background:white; }
+        .panel-select:focus { outline:none; border-color:var(--accent); }
+        .divider { height:1px; background:#c5cae9; margin:14px 0; }
+
+        /* font size row */
+        .fs-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+        .fs-row:last-of-type { margin-bottom:0; }
+        .fs-label { font-size:0.8rem; font-weight:700; min-width:100px; color:var(--text-main); }
+        .fs-save-row { display:flex; align-items:center; gap:10px; margin-top:14px; }
+
+        /* timer */
+        .timer-display { font-size:3.2rem; font-weight:900; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; color:var(--text-main); text-align:center; margin:12px 0 8px; line-height:1; }
+        .timer-display.running { color:var(--green); }
+        .timer-display.warning { color:#e65100; }
+        .timer-display.done    { color:var(--gold); }
+        .timer-btns { display:flex; gap:8px; margin-bottom:10px; }
+        .timer-btn { flex:1; padding:10px; border:none; border-radius:10px; font-size:0.85rem; font-weight:700; cursor:pointer; transition:0.15s; }
+        .timer-btn-start  { background:var(--green); color:white; }
+        .timer-btn-start:hover  { background:#1b5e20; }
+        .timer-btn-start:disabled { background:#aaa; cursor:default; }
+        .timer-btn-pause  { background:#e65100; color:white; }
+        .timer-btn-pause:hover  { background:#bf360c; }
+        .timer-btn-pause:disabled { background:#aaa; cursor:default; }
+        .timer-btn-reset  { background:#546e7a; color:white; }
+        .timer-btn-reset:hover  { background:#37474f; }
+        .timer-preset { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+        .preset-btn { padding:5px 12px; border:1.5px solid #b0bec5; background:white; border-radius:20px; font-size:0.78rem; font-weight:700; cursor:pointer; color:var(--text-sub); }
+        .preset-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .preset-label { font-size:0.78rem; font-weight:700; color:var(--text-sub); }
+        /* 手入力エリア */
+        .timer-manual { display:flex; align-items:center; gap:8px; margin-top:10px; padding:10px 12px; background:#f5f7fa; border-radius:10px; border:1.5px solid #e0e6ef; }
+        .timer-manual-label { font-size:0.78rem; font-weight:700; color:var(--text-sub); white-space:nowrap; }
+        .timer-manual-inputs { display:flex; align-items:center; gap:4px; flex:1; }
+        .timer-manual-input { width:52px; padding:5px 6px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:1.1rem; font-weight:800; font-variant-numeric:tabular-nums; text-align:center; color:var(--text-main); background:white; outline:none; }
+        .timer-manual-input:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(25,118,210,0.12); }
+        .timer-manual-sep { font-size:1.2rem; font-weight:900; color:var(--text-sub); line-height:1; }
+        .timer-manual-set { padding:6px 14px; background:var(--accent); color:white; border:none; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer; white-space:nowrap; transition:0.15s; }
+        .timer-manual-set:hover { background:#1251a3; }
+
+        /* タイマー帯（ページ上部に固定。どのタブを見ていても残り時間と開始・停止を操作できる） */
+        .timer-dock { position:sticky; top:0; z-index:40; background:var(--card); border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.14); padding:10px 16px; margin-bottom:16px; }
+        .timer-dock-main { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        .timer-dock .timer-display { font-size:2.4rem; margin:0; min-width:5.2ch; }
+        .timer-dock .timer-btns { margin:0; flex:1; min-width:230px; }
+        .timer-dock .timer-btn { padding:9px 6px; }
+        .timer-adjust { display:flex; gap:6px; }
+        .adj-btn { padding:8px 10px; border:1.5px solid #b0bec5; background:white; border-radius:10px; font-size:0.78rem; font-weight:800; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .adj-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .dock-toggle { padding:8px 12px; border:1.5px solid #b0bec5; background:white; border-radius:10px; font-size:0.8rem; font-weight:800; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .dock-toggle[aria-expanded="true"] { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .timer-dock-detail { margin-top:12px; padding-top:12px; border-top:1px solid #eceff1; max-height:60vh; overflow-y:auto; }   /* 設定を開いても、帯が画面を占領しないように */
+        .repeat-row { display:flex; align-items:center; gap:10px; margin-top:12px; font-size:0.88rem; font-weight:700; color:var(--text-main); cursor:pointer; }
+        .repeat-row input { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; }
+        /* 会場への重ね表示の設定 */
+        .ov-box { margin-top:14px; padding:12px 14px; background:#f8fbff; border:1.5px solid #e3eaf5; border-radius:12px; }
+        .ov-title { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:0.9rem; font-weight:900; color:var(--accent); margin-bottom:8px; }
+        .ov-status { font-size:0.78rem; font-weight:700; color:var(--green); min-height:1.2em; }
+        .ov-row { display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
+        .ov-label { font-size:0.8rem; font-weight:700; min-width:64px; color:var(--text-main); }
+        .ov-seg { display:flex; gap:6px; flex-wrap:wrap; }
+        .ov-seg button { padding:7px 14px; border:2px solid #e0e0e0; background:white; border-radius:10px; font-size:0.82rem; font-weight:800; cursor:pointer; color:var(--text-sub); }
+        .ov-seg button.active { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .ov-pos { display:grid; grid-template-columns:repeat(2,auto); gap:6px; }
+        .ov-note { font-size:0.74rem; color:var(--text-sub); line-height:1.5; margin-top:8px; }
+        .ov-box.off .ov-row:not(.ov-main) { opacity:0.45; }
+
+        /* ===== 新しい操作画面: 配置 ===== */
+        .vc-beta { font-size:0.7rem; font-weight:800; background:#fff3e0; color:#e65100; border-radius:10px; padding:2px 10px; vertical-align:middle; }
+        .vc-old-link { display:inline-block; margin-top:6px; font-size:0.8rem; color:var(--text-sub); }
+        .vc-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; align-items:start; }
+        .vc-right { position:sticky; top:calc(var(--dock-h, 80px) + 22px); }
+        @media (max-width: 960px) {
+            .vc-grid { grid-template-columns:minmax(0,1fr); }
+            .vc-right { position:static; order:-1; }
+        }
+        .vc-left .tab-panel { display:block; }
+        .vc-group-title { font-size:0.78rem; font-weight:900; color:var(--text-sub); letter-spacing:0.08em; margin:16px 0 8px; }
+        .vc-group-title:first-of-type { margin-top:6px; }
+        .screen-btns { grid-template-columns:repeat(3, minmax(0,1fr)); }
+        .screen-btn { padding:14px 6px; min-height:84px; }
+        @media (max-width: 960px) { .screen-btn { padding:18px 8px; min-height:96px; font-size:0.95rem; } .vc-preview-frame { max-width:460px; margin:0 auto; } .vc-onetap-note { display:none; } }
+        .screen-btn .btn-icon { font-size:1.6rem; }
+        /* プレビュー */
+        .vc-preview-card { background:var(--card); border-radius:16px; padding:14px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+        .vc-preview-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+        .vc-preview-label { font-size:0.85rem; font-weight:800; color:var(--text-sub); }
+        .vc-preview-label.pending { color:var(--accent); }
+        .vc-preview-frame { position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; overflow:hidden; }
+        .vc-preview-frame iframe { position:absolute; left:0; top:0; width:1280px; height:720px; border:0; transform-origin:0 0; pointer-events:none; }
+        .vc-take-row { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+        .vc-take-row .btn-show-screen { flex:1; min-width:160px; margin-top:0; padding:14px; }
+        .vc-back-btn { padding:12px 16px; border:2px solid #b0bec5; background:white; border-radius:12px; font-size:0.9rem; font-weight:800; color:var(--text-sub); cursor:pointer; }
+        .vc-back-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+        .vc-back-btn:disabled { opacity:0.45; cursor:default; }
+        .vc-onetap { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:0.84rem; font-weight:700; color:var(--text-main); cursor:pointer; }
+        .vc-onetap input { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; }
+        .vc-onetap-note { font-size:0.74rem; color:var(--text-sub); margin:2px 0 0 25px; line-height:1.5; }
+        /* 操作対象（会場ディスプレイごとの切り替え） */
+        .vc-target { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+        .vc-target-label { font-size:0.78rem; font-weight:900; color:var(--text-sub); letter-spacing:0.06em; }
+        .vc-chips { display:flex; gap:6px; flex-wrap:wrap; }
+        .vc-chip { padding:7px 14px; border:2px solid #e0e0e0; background:#fff; border-radius:18px; font-size:0.85rem; font-weight:800; color:var(--text-sub); cursor:pointer; text-align:left; line-height:1.25; }
+        .vc-chip small { display:block; font-size:0.68rem; font-weight:600; color:var(--text-sub); }
+        .vc-chip:hover { border-color:var(--accent); }
+        .vc-chip.active { border-color:var(--accent); color:var(--accent); background:#f0f5ff; }
+        .vc-display-box { background:#f8fbff; border:1.5px solid #e3eaf5; border-radius:12px; padding:10px 12px; margin-bottom:12px; font-size:0.82rem; }
+        .vc-display-box .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+        .vc-display-box .row:first-child { margin-top:0; }
+        .vc-display-box input[type="text"] { flex:1; min-width:180px; padding:6px 8px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:0.78rem; color:var(--text-sub); background:#fff; }
+        .vc-display-note { font-size:0.74rem; color:var(--text-sub); line-height:1.5; margin-top:6px; }
+        .vc-all-note { font-size:0.74rem; color:#e65100; margin:-4px 0 10px; line-height:1.5; }
+        .vc-chip small.st { font-weight:800; }
+        .vc-chip small.st.on { color:#2e7d32; }
+        .vc-chip small.st.off { color:#e65100; }
+        .vc-presence-note { display:none; font-size:0.78rem; color:#1a73e8; background:#e8f0fe; border-radius:10px; padding:8px 12px; margin-bottom:10px; line-height:1.7; }
+        .vc-presence-note button { margin-left:6px; }
+        .vc-presence-list { font-size:0.78rem; color:var(--text-sub); line-height:1.7; margin-top:8px; }
+        .vc-presence-list .on { color:#2e7d32; font-weight:800; }
+        .vc-presence-list .off { color:#e65100; font-weight:800; }
+        /* プログラム（自動で順に切り替え） */
+        .prog-status { display:none; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; border-radius:12px; background:#e8f5e9; border:1.5px solid #a5d6a7; margin-bottom:12px; font-size:0.86rem; font-weight:700; color:#1b5e20; }
+        .prog-status.show { display:flex; }
+        .prog-status .grow { flex:1; min-width:160px; }
+        .prog-item { border:1.5px solid #e3eaf5; background:#f8fbff; border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+        .prog-item-main { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .prog-item select, .prog-item input[type="number"] { padding:7px 8px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:0.88rem; font-weight:700; background:#fff; }
+        .prog-item input[type="number"] { width:70px; text-align:center; }
+        .prog-item .ico { padding:6px 10px; border:1.5px solid #cfd8e3; background:#fff; border-radius:8px; cursor:pointer; font-weight:800; color:var(--text-sub); }
+        .prog-item .ico:hover { border-color:var(--accent); color:var(--accent); }
+        .prog-detail { margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+        .prog-detail input[type="text"] { padding:6px 8px; border:1.5px solid #cfd8dc; border-radius:8px; font-size:0.85rem; }
+        .prog-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1.5px solid #e3eaf5; border-radius:12px; background:#fff; margin-bottom:8px; flex-wrap:wrap; }
+        .prog-row .name { font-weight:900; font-size:0.92rem; min-width:7em; }
+        .prog-row .sum { flex:1; min-width:200px; font-size:0.78rem; color:var(--text-sub); line-height:1.5; }
+        .prog-btn { padding:8px 14px; border:2px solid #b0bec5; background:#fff; border-radius:10px; font-size:0.82rem; font-weight:800; cursor:pointer; color:var(--text-sub); white-space:nowrap; }
+        .prog-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .prog-btn.go { background:var(--green); border-color:var(--green); color:#fff; }
+        .prog-btn.go:hover { background:#1b5e20; }
+        .prog-btn.stop { background:#c62828; border-color:#c62828; color:#fff; }
+        .prog-editor { display:none; margin-top:12px; padding:14px; border:2px solid var(--accent); background:#f0f5ff; border-radius:14px; }
+        .prog-editor.show { display:block; }
+        .prog-editor .head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+        .prog-editor input[type="text"].pname { flex:1; min-width:160px; padding:8px 10px; border:1.5px solid #cfd8e3; border-radius:8px; font-size:0.95rem; font-weight:700; }
+        /* 自動保存: 各パネルの保存ボタンは隠し、状態の表示だけ残す */
+        .vc-left .fs-save-row .btn-save-sm { display:none; }
+        .vc-left .fs-save-row { margin-top:8px; }
+        #save-settings-btn { display:none; }
+        details.vc-global { background:var(--card); border-radius:16px; box-shadow:0 2px 8px rgba(0,0,0,0.07); padding:4px 22px 6px; margin-top:16px; }
+        details.vc-global > summary { cursor:pointer; font-weight:900; font-size:0.95rem; padding:14px 0; list-style-position:inside; }
+        details.vc-global .section-title:first-child { margin-top:6px; }
+        /* お知らせ文 */
+        .an-phrase { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+        .an-phrase button.load { flex:1; text-align:left; padding:8px 12px; border:1.5px solid #cfd8e3; background:white; border-radius:10px; cursor:pointer; font-size:0.85rem; font-weight:700; color:var(--text-main); white-space:pre-line; }
+        .an-phrase button.load:hover { border-color:var(--accent); background:#f0f5ff; }
+        .an-phrase button.del { padding:6px 10px; border:1.5px solid #e0e0e0; background:white; border-radius:8px; cursor:pointer; color:#c62828; font-weight:800; }
+        .an-input { flex:1; padding:8px 10px; border:1.5px solid #cfd8dc; border-radius:8px; font-size:0.95rem; }
+
+        /* 巡回モード */
+        .carousel-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; background:#f8fbff; border:1.5px solid #e3eaf5; font-size:0.88rem; font-weight:600; color:var(--text-main); cursor:pointer; transition:0.15s; }
+        .carousel-item:hover { border-color:var(--accent); background:#eef4ff; }
+        .carousel-item input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); flex-shrink:0; cursor:pointer; }
+        .carousel-logo-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-top:1.5px solid #e0e0e0; margin-top:4px; font-size:0.88rem; font-weight:600; color:var(--text-main); cursor:pointer; }
+        .carousel-logo-row input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; }
+        /* 選手紹介パネル */
+        .intro-athlete-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:10px; background:#f8fbff; border:1.5px solid #e3eaf5; font-size:0.85rem; font-weight:600; color:var(--text-main); cursor:pointer; transition:0.15s; }
+        .intro-athlete-item:hover { border-color:var(--accent); background:#eef4ff; }
+        .intro-athlete-item input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); flex-shrink:0; cursor:pointer; }
+        .intro-class-header { font-size:0.78rem; font-weight:900; color:var(--text-sub); letter-spacing:0.06em; padding:8px 4px 4px; border-top:1px solid #e0e0e0; margin-top:4px; }
+        .intro-class-header:first-child { border-top:none; margin-top:0; padding-top:0; }
+        .intro-run-status { text-align:center; font-size:0.85rem; font-weight:700; color:var(--text-sub); padding:6px 0; min-height:1.4em; }
+        .intro-run-status.running { color:var(--green); }
+        .intro-mode-wrap { display:flex; gap:5px; margin:0 0 8px; }
+        .intro-mode-btn { flex:1; padding:6px 0; border:1.5px solid #b0bec5; border-radius:8px; background:white; font-size:0.78rem; font-weight:700; cursor:pointer; color:var(--text-sub); transition:0.15s; }
+        .intro-mode-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .intro-mode-btn.active { border-color:var(--accent); background:var(--accent); color:white; }
+        .intro-filter-wrap { display:flex; flex-wrap:wrap; gap:5px; margin:0 0 10px; }
+        .intro-filter-btn { padding:5px 14px; border:1.5px solid #b0bec5; border-radius:8px; background:white; font-size:0.8rem; font-weight:700; cursor:pointer; color:var(--text-sub); transition:0.15s; white-space:nowrap; }
+        .intro-filter-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .intro-filter-btn.active { border-color:var(--accent); background:var(--accent); color:white; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-bar">
+        <a id="back-link" href="admin_menu.html" class="btn-back">← メニューに戻る</a>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <h1>🖥️ 大会画面コントロール <span class="vc-beta">新・試験中</span></h1>
+        <a id="old-link" class="vc-old-link" href="display_control.html">← 従来の操作画面に戻る</a>
+        <div id="event-name" class="event-badge">読み込み中...</div>
+    </div>
+
+    <div class="display-link-card">
+        <div class="icon">📺</div>
+        <div>
+            <a id="venue-link" href="#" target="_blank">会場ディスプレイを開く</a>
+            <p>会場表示用PCのブラウザでこのURLを開いてください</p>
+        </div>
+    </div>
+
+    <!-- ⏱️ タイマー帯（上に固定。どのタブを見ていても、残り時間の確認と開始・停止ができる） -->
+    <div class="timer-dock" id="timer-dock">
+        <div class="timer-dock-main">
+            <div class="timer-display num" id="ctrl-timer">--:--</div>
+            <div class="timer-btns">
+                <button class="timer-btn timer-btn-start" id="timer-start-btn">▶ 開始</button>
+                <button class="timer-btn timer-btn-pause" id="timer-pause-btn" disabled>⏸ 一時停止</button>
+                <button class="timer-btn timer-btn-reset" id="timer-reset-btn">↺ リセット</button>
+            </div>
+            <div class="timer-adjust">
+                <button type="button" class="adj-btn" data-delta="-30000">−30秒</button>
+                <button type="button" class="adj-btn" data-delta="30000">＋30秒</button>
+            </div>
+            <button type="button" class="dock-toggle" id="dock-toggle" aria-expanded="false">⚙ 設定</button>
+        </div>
+        <div class="timer-dock-detail" id="timer-dock-detail" style="display:none">
+            <div class="timer-preset">
+                <span class="preset-label">プリセット:</span>
+                <button class="preset-btn" data-min="3">3分</button>
+                <button class="preset-btn" data-min="5">5分</button>
+                <button class="preset-btn" data-min="8">8分</button>
+                <button class="preset-btn" data-min="10">10分</button>
+                <button class="preset-btn" data-min="15">15分</button>
+            </div>
+            <div class="timer-manual">
+                <span class="timer-manual-label">手入力:</span>
+                <div class="timer-manual-inputs">
+                    <input type="number" id="timer-manual-min" class="timer-manual-input" min="0" max="99" step="1" placeholder="MM">
+                    <span class="timer-manual-sep">:</span>
+                    <input type="number" id="timer-manual-sec" class="timer-manual-input" min="0" max="59" step="1" placeholder="SS">
+                </div>
+                <button class="timer-manual-set" id="timer-manual-set-btn">更新</button>
+            </div>
+            <label class="repeat-row">
+                <input type="checkbox" id="timer-repeat">
+                繰り返し（0になったら自動で再スタート）
+            </label>
+
+            <div class="ov-box" id="ov-box">
+                <div class="ov-title"><span>📺 会場に重ねて表示</span><span class="ov-status" id="ov-status"></span></div>
+                <label class="repeat-row ov-main" style="margin-top:0;">
+                    <input type="checkbox" id="ov-enabled">
+                    どの画面にも残り時間を重ねて出す（全ディスプレイ共通）
+                </label>
+                <div class="ov-row">
+                    <span class="ov-label">見せ方</span>
+                    <div class="ov-seg" id="ov-style">
+                        <button type="button" data-style="badge">角のバッジ</button>
+                        <button type="button" data-style="band">上／下の帯</button>
+                    </div>
+                </div>
+                <div class="ov-row">
+                    <span class="ov-label">位置</span>
+                    <div class="ov-seg ov-pos" id="ov-pos">
+                        <button type="button" data-pos="tl">左上</button>
+                        <button type="button" data-pos="tr">右上</button>
+                        <button type="button" data-pos="bl">左下</button>
+                        <button type="button" data-pos="br">右下</button>
+                    </div>
+                </div>
+                <div class="ov-row">
+                    <span class="ov-label">大きさ</span>
+                    <input type="range" id="ov-scale" min="0.5" max="2" step="0.1" value="1" style="flex:1;max-width:220px;">
+                    <span id="ov-scale-val" style="font-size:0.85rem;font-weight:800;min-width:3.2em;">×1.0</span>
+                </div>
+                <div class="ov-row">
+                    <label class="repeat-row" style="margin-top:0;">
+                        <input type="checkbox" id="ov-onscore">
+                        スコア画面（集計中・問い合わせを含む）にも重ねる
+                    </label>
+                </div>
+                <div class="ov-note">
+                    ・帯は、上（左上・右上）か下（左下・右下）の端いっぱいに出ます。<br>
+                    ・ラベルには「会場練習」設定のクラス①②が出ます（未設定なら「残り時間」）。<br>
+                    ・得点表示に重なるため、スコア画面には通常重ねません。「会場練習」画面は、タイマーが全画面で出ているため重ねません。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="vc-grid">
+        <div class="vc-left">
+    <!-- タブ2: 画面切り替え -->
+    <div id="tab-switch" class="tab-panel active">
+        <div class="card">
+
+            <div class="vc-target">
+                <span class="vc-target-label">操作対象</span>
+                <div class="vc-chips" id="vc-chips"></div>
+                <button type="button" class="adj-btn" id="vc-add-display">＋ ディスプレイを追加</button>
+            </div>
+            <div class="vc-all-note" id="vc-all-note" style="display:none"></div>
+            <div class="vc-presence-note" id="vc-presence-note"></div>
+            <div class="vc-display-box" id="vc-display-box" style="display:none">
+                <div class="row">
+                    <span style="font-weight:800;">このディスプレイのURL</span>
+                    <input type="text" id="vc-display-url" readonly>
+                    <button type="button" class="adj-btn" id="vc-copy-url">コピー</button>
+                </div>
+                <div class="vc-display-note">会場のディスプレイ用PCで、このURLを開いてください。名前ごとに、別々の画面を出せます。</div>
+                <div class="vc-presence-list" id="vc-presence-list"></div>
+                <div class="row">
+                    <label class="repeat-row" style="margin-top:0;">
+                        <input type="checkbox" id="vc-follow">
+                        CJP の確定・集計中・問い合わせに従う
+                    </label>
+                </div>
+                <div class="vc-display-note">オフにすると、このディスプレイは、ここで選んだ画面を保ち、スコアの発表も出しません（サブをタイマーやお知らせに固定したいときに使います）。オフのままだと、このディスプレイではスコアが発表されません。</div>
+                <div class="row"><button type="button" class="adj-btn" id="vc-remove-display" style="color:#c62828;">この名前を削除</button></div>
+            </div>
+
+            <div class="vc-group-title">競技</div>
+            <div class="screen-btns">
+                <button class="screen-btn" data-screen="score">
+                    <span class="btn-icon">📊</span>スコア表示
+                    <span class="btn-sub">通常の採点・順位表示</span>
+                </button>
+                <button class="screen-btn" data-screen="carousel">
+                    <span class="btn-icon">🔄</span>順位表 巡回
+                    <span class="btn-sub">クラス順に順位表を表示</span>
+                </button>
+            </div>
+            <div class="vc-group-title">進行・式典</div>
+            <div class="screen-btns">
+                <button class="screen-btn" data-screen="title">
+                    <span class="btn-icon">🏟️</span>大会タイトル
+                    <span class="btn-sub">大会名を全画面表示</span>
+                </button>
+                <button class="screen-btn" data-screen="intro">
+                    <span class="btn-icon">👤</span>選手紹介
+                    <span class="btn-sub">選手を順番に紹介</span>
+                </button>
+                <button class="screen-btn" data-screen="final_startlist">
+                    <span class="btn-icon">📋</span>決勝スタートリスト
+                    <span class="btn-sub">決勝試技順を全画面表示</span>
+                </button>
+                <button class="screen-btn" data-screen="ceremony">
+                    <span class="btn-icon">🏅</span>表彰式
+                    <span class="btn-sub">大会名 + 表彰式</span>
+                </button>
+                <button class="screen-btn" data-screen="announce">
+                    <span class="btn-icon">📢</span>お知らせ文
+                    <span class="btn-sub">自由な文を全画面表示</span>
+                </button>
+            </div>
+            <div class="vc-group-title">休憩・つなぎ</div>
+            <div class="screen-btns">
+                <button class="screen-btn" data-screen="logo">
+                    <span class="btn-icon">💠</span>システムロゴ
+                    <span class="btn-sub">D&amp;D System ロゴ</span>
+                </button>
+                <button class="screen-btn" data-screen="warmup">
+                    <span class="btn-icon">🏃</span>会場練習
+                    <span class="btn-sub">クラス名 + タイマー（全画面）</span>
+                </button>
+            </div>
+
+            <!-- スコア設定（なし） -->
+            <div id="panel-score" class="screen-panel"></div>
+            <!-- ロゴ設定（なし） -->
+            <div id="panel-logo" class="screen-panel"></div>
+            <!-- 決勝スタートリスト設定 -->
+            <div id="panel-final_startlist" class="screen-panel">
+                <div class="panel-title">📋 決勝スタートリスト — クラス選択</div>
+                <div class="panel-row">
+                    <span class="panel-label">クラス</span>
+                    <select id="fsl-target" class="panel-select">
+                        <option value="">（選択してください）</option>
+                    </select>
+                </div>
+                <div style="font-size:0.76rem;color:var(--text-sub);margin-top:6px;line-height:1.5;">
+                    ※ 決勝試技順処理で確定済みのクラスが表示されます
+                </div>
+            </div>
+
+            <!-- タイトル設定 -->
+            <div id="panel-title" class="screen-panel">
+                <div class="panel-title">🏟️ タイトル画面</div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#90a4ae;min-width:40px;">1行目</span>
+                        <input type="text" id="title-line1" placeholder="（未入力なら大会名を使用）" style="flex:1;padding:8px 10px;border:1.5px solid #cfd8dc;border-radius:8px;font-size:0.9rem;">
+                        <button id="btn-autofill-name" style="white-space:nowrap;padding:7px 12px;border:1.5px solid #b0bec5;border-radius:8px;background:#f5f5f5;font-size:0.75rem;font-weight:700;cursor:pointer;color:#546e7a;">大会名を入力</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#90a4ae;min-width:40px;">2行目</span>
+                        <input type="text" id="title-line2" placeholder="（空白=非表示）" style="flex:1;padding:8px 10px;border:1.5px solid #cfd8dc;border-radius:8px;font-size:0.9rem;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:0.72rem;font-weight:700;color:#90a4ae;min-width:40px;">3行目</span>
+                        <input type="text" id="title-line3" placeholder="（空白=非表示）" style="flex:1;padding:8px 10px;border:1.5px solid #cfd8dc;border-radius:8px;font-size:0.9rem;">
+                    </div>
+                </div>
+                <div class="fs-row">
+                    <span class="fs-label">文字サイズ</span>
+                    <input type="range" id="title-fs" min="2" max="16" step="0.5" value="6.5">
+                    <input type="number" id="title-fs-val" class="val-box" min="2" max="16" step="0.5" value="6.5">
+                    <span class="unit">vw</span>
+                </div>
+                <div class="fs-save-row">
+                    <button class="btn-save-sm" id="save-title-btn">保存</button>
+                    <span class="save-status" id="save-title-status" style="text-align:left;"></span>
+                </div>
+            </div>
+
+            <!-- 表彰式設定 -->
+            <div id="panel-ceremony" class="screen-panel">
+                <div class="panel-title">🏅 表彰式画面 — 文字サイズ</div>
+                <div class="fs-row">
+                    <span class="fs-label">大会名</span>
+                    <input type="range" id="cer-name-fs" min="1.5" max="10" step="0.5" value="3.5">
+                    <input type="number" id="cer-name-fs-val" class="val-box" min="1.5" max="10" step="0.5" value="3.5">
+                    <span class="unit">vw</span>
+                </div>
+                <div class="fs-row">
+                    <span class="fs-label">「表彰式」</span>
+                    <input type="range" id="cer-label-fs" min="4" max="22" step="0.5" value="10">
+                    <input type="number" id="cer-label-fs-val" class="val-box" min="4" max="22" step="0.5" value="10">
+                    <span class="unit">vw</span>
+                </div>
+                <div class="fs-save-row">
+                    <button class="btn-save-sm" id="save-ceremony-btn">保存</button>
+                    <span class="save-status" id="save-ceremony-status" style="text-align:left;"></span>
+                </div>
+            </div>
+
+            <!-- お知らせ文設定 -->
+            <div id="panel-announce" class="screen-panel">
+                <div class="panel-title">📢 お知らせ文（最大3行）</div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:8px;"><span class="panel-label" style="min-width:44px;">1行目</span><input type="text" id="announce-line1" class="an-input" placeholder="例: 休憩中です"></div>
+                    <div style="display:flex;align-items:center;gap:8px;"><span class="panel-label" style="min-width:44px;">2行目</span><input type="text" id="announce-line2" class="an-input" placeholder="（空白=非表示）"></div>
+                    <div style="display:flex;align-items:center;gap:8px;"><span class="panel-label" style="min-width:44px;">3行目</span><input type="text" id="announce-line3" class="an-input" placeholder="（空白=非表示）"></div>
+                </div>
+                <div class="fs-row">
+                    <span class="fs-label">文字サイズ</span>
+                    <input type="range" id="announce-fs" min="2" max="14" step="0.5" value="6">
+                    <input type="number" id="announce-fs-val" class="val-box" min="2" max="14" step="0.5" value="6">
+                    <span class="unit">vw</span>
+                </div>
+                <div class="fs-save-row">
+                    <button class="btn-save-sm" id="save-announce-btn">保存</button>
+                    <span class="save-status" id="save-announce-status" style="text-align:left;"></span>
+                </div>
+                <div class="divider"></div>
+                <div class="panel-title" style="margin-bottom:8px;">保存した文（クリックで入力欄に読み込み）</div>
+                <div id="announce-phrases"></div>
+                <button type="button" id="announce-save-phrase" class="adj-btn" style="margin-top:6px;">＋ いまの文を保存する</button>
+            </div>
+
+            <!-- 会場練習設定 -->
+            <div id="panel-warmup" class="screen-panel">
+                <div class="panel-title">🏃 会場練習 — クラス設定</div>
+                <div class="panel-row">
+                    <span class="panel-label">クラス①</span>
+                    <select id="wu-class1" class="panel-select"><option value="">（表示なし）</option></select>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">クラス②</span>
+                    <select id="wu-class2" class="panel-select"><option value="">（表示なし）</option></select>
+                </div>
+                <div class="divider"></div>
+                <div class="panel-title" style="margin-bottom:10px;">文字サイズ</div>
+                <div class="fs-row">
+                    <span class="fs-label">クラス名</span>
+                    <input type="range" id="wu-class-fs" min="2" max="10" step="0.5" value="4.5">
+                    <input type="number" id="wu-class-fs-val" class="val-box" min="2" max="10" step="0.5" value="4.5">
+                    <span class="unit">vw</span>
+                </div>
+                <div class="fs-row">
+                    <span class="fs-label">タイマー</span>
+                    <input type="range" id="wu-timer-fs" min="6" max="36" step="1" value="24">
+                    <input type="number" id="wu-timer-fs-val" class="val-box" min="6" max="36" step="1" value="24">
+                    <span class="unit">vw</span>
+                </div>
+                <div class="fs-save-row">
+                    <button class="btn-save-sm" id="save-warmup-btn">保存</button>
+                    <span class="save-status" id="save-warmup-status" style="text-align:left;"></span>
+                </div>
+            </div>
+
+            <!-- 順位表 巡回設定 -->
+            <div id="panel-carousel" class="screen-panel">
+                <div class="panel-title">🔄 順位表 巡回 — 表示するクラスを選択</div>
+                <div id="carousel-class-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:4px;"></div>
+                <label class="carousel-logo-row">
+                    <input type="checkbox" id="carousel-show-logo">
+                    全クラス終了後にシステムロゴ画面を差し込む
+                </label>
+            </div>
+
+            <!-- 選手紹介設定 -->
+            <div id="panel-intro" class="screen-panel">
+                <div class="panel-title">👤 選手紹介 — 設定</div>
+                <div class="panel-row">
+                    <span class="panel-label">表示時間</span>
+                    <input type="range" id="intro-duration" min="3" max="30" step="1" value="5" style="flex:1;accent-color:var(--accent);">
+                    <input type="number" id="intro-duration-val" class="val-box" min="3" max="30" value="5">
+                    <span class="unit">秒</span>
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:0.85rem;font-weight:700;color:var(--text-main);cursor:pointer;">
+                    <input type="checkbox" id="intro-show-roster" checked style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+                    ループの最後に選手一覧ページを表示
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:0.85rem;font-weight:700;color:var(--text-main);cursor:pointer;">
+                    <input type="checkbox" id="intro-show-per-class-roster" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+                    クラスの紹介が終わるたびに、そのクラスの一覧ページを挟む
+                </label>
+                <div class="intro-mode-wrap">
+                    <button class="intro-mode-btn active" data-mode="qualifying">予選試技順</button>
+                    <button class="intro-mode-btn" data-mode="final">決勝試技順</button>
+                </div>
+                <div style="display:flex;gap:8px;margin:8px 0;">
+                    <button id="intro-select-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">表示中を全選択</button>
+                    <button id="intro-clear-all" style="flex:1;padding:6px;border:1.5px solid #b0bec5;border-radius:8px;background:white;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text-sub);">全てクリア</button>
+                </div>
+                <div id="intro-filter-wrap" class="intro-filter-wrap"></div>
+                <div id="intro-athlete-list" style="display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto;margin-bottom:8px;"></div>
+                <div class="intro-run-status" id="intro-run-status"></div>
+                <button id="intro-stop-btn" style="display:none;width:100%;padding:10px;border:none;border-radius:10px;background:#c62828;color:white;font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:4px;">■ 紹介を停止</button>
+            </div>
+
+        </div>
+    </div>
+
+
+            <div class="card" id="vc-programs">
+                <div class="section-title" style="margin-top:0;">🎞️ プログラム（自動で順に切り替え）</div>
+                <div class="vc-display-note" style="margin:-4px 0 10px;">画面を決めた秒数ずつ、順に自動で切り替えます。休憩中に、残り時間を重ねながら、ロゴ → タイトル → 順位表 …と回すときに使います。上の「操作対象」に出します。</div>
+                <div class="prog-status" id="prog-status">
+                    <span>▶</span><span class="grow" id="prog-status-text"></span>
+                    <button type="button" class="prog-btn stop" id="prog-stop">■ 止める（いまの画面のまま）</button>
+                </div>
+                <div id="prog-list"></div>
+                <button type="button" class="prog-btn" id="prog-new">＋ 新しいプログラム</button>
+                <div class="prog-editor" id="prog-editor">
+                    <div class="head">
+                        <input type="text" class="pname" id="prog-name" placeholder="プログラム名（例: 昼休み）">
+                        <label class="repeat-row" style="margin-top:0;"><input type="checkbox" id="prog-loop" checked> ぐるぐる繰り返す</label>
+                    </div>
+                    <div id="prog-items"></div>
+                    <button type="button" class="prog-btn" id="prog-add-item">＋ 項目を追加</button>
+                    <div class="divider"></div>
+                    <div class="head" style="margin-bottom:0;">
+                        <label class="repeat-row" style="margin-top:0;">
+                            <input type="checkbox" id="prog-timer-on"> 開始と同時に、会場練習タイマーを
+                        </label>
+                        <input type="number" id="prog-timer-min" min="1" max="180" value="10" style="width:64px;padding:6px;border:1.5px solid #cfd8e3;border-radius:8px;font-weight:800;text-align:center;">
+                        <span style="font-size:0.85rem;font-weight:700;">分で始めて、画面に重ねる</span>
+                    </div>
+                    <div class="vc-display-note">順位表の巡回と選手紹介は、「順位表 巡回」「選手紹介」で、クラスや選手を選んで、一度会場に出したあとの設定を使います。指定した秒数だけ出して、次の項目へ進みます。</div>
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button type="button" class="prog-btn go" id="prog-save">保存</button>
+                        <button type="button" class="prog-btn" id="prog-cancel">キャンセル</button>
+                        <span class="save-status" id="prog-save-status" style="margin:0;align-self:center;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <details class="vc-global" id="vc-global">
+                <summary>⚙️ 全体の設定（配色・個人スコアのアニメーション・順位表）</summary>
+    <!-- タブ1: 画面表示設定 -->
+    <div id="tab-display" class="tab-panel active">
+        <div class="section-title">🎨 色テーマ</div>
+        <div class="card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>会場ディスプレイの配色</strong>
+                    <span>会場ディスプレイ（すべての画面）の配色を切り替えます</span>
+                </div>
+                <div class="setting-control theme-swatches" id="theme-swatches">
+                    <button type="button" class="theme-swatch active" data-theme="blue" style="--swatch-color:#00f2ff;">
+                        <span class="swatch-dot"></span>青パターン
+                    </button>
+                    <button type="button" class="theme-swatch" data-theme="red" style="--swatch-color:#e63a54;">
+                        <span class="swatch-dot"></span>赤パターン
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">📊 個人スコア表示</div>
+        <div class="card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>アニメーション時間</strong>
+                    <span>スコアが登場しアニメーションが完了するまでの秒数</span>
+                </div>
+                <div class="setting-control">
+                    <input type="range" id="range-animTotalSec" min="3" max="20" step="1" value="10">
+                    <input type="number" id="val-animTotalSec" class="val-box" min="3" max="20" value="10">
+                    <span class="unit">秒</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>アニメーション後の保持時間</strong>
+                    <span>アニメーション完了後、順位表に切り替わるまで表示し続ける秒数</span>
+                </div>
+                <div class="setting-control">
+                    <input type="range" id="range-holdSec" min="0" max="20" step="1" value="3">
+                    <input type="number" id="val-holdSec" class="val-box" min="0" max="20" value="3">
+                    <span class="unit">秒</span>
+                </div>
+            </div>
+            <div class="timeline" id="timeline-preview"></div>
+        </div>
+
+        <div class="section-title">🏆 順位表</div>
+        <div class="card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>1ページの表示人数</strong>
+                    <span>人数が多い場合は自動でページ送りされます</span>
+                </div>
+                <div class="setting-control">
+                    <input type="range" id="range-rankingRows" min="4" max="20" step="1" value="12">
+                    <input type="number" id="val-rankingRows" class="val-box" min="4" max="20" value="12">
+                    <span class="unit">人</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <strong>ページ送りの間隔</strong>
+                    <span>次のページに自動で切り替わるまでの秒数</span>
+                </div>
+                <div class="setting-control">
+                    <input type="range" id="range-rankingPageSec" min="3" max="30" step="1" value="8">
+                    <input type="number" id="val-rankingPageSec" class="val-box" min="3" max="2000" value="8">
+                    <span class="unit">秒</span>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-save" id="save-settings-btn" disabled>保存する</button>
+        <div class="save-status" id="save-settings-status"></div>
+    </div>
+
+
+            </details>
+        </div>
+        <aside class="vc-right">
+            <div class="vc-preview-card">
+                <div class="vc-preview-head">
+                    <span class="vc-preview-label" id="vc-preview-label">現在の会場の表示</span>
+                    <span id="current-screen-badge" class="current-screen-badge" style="margin:0;">読み込み中...</span>
+                </div>
+                <div class="vc-preview-frame" id="vc-preview-frame">
+                    <iframe id="vc-preview" title="プレビュー" loading="lazy"></iframe>
+                </div>
+                <div class="vc-take-row">
+                    <button class="btn-show-screen" id="btn-show-screen" disabled>会場に出す</button>
+                    <button type="button" class="vc-back-btn" id="btn-back-screen" disabled>↩ 前の画面に戻す</button>
+                </div>
+                <div id="show-screen-err" style="font-size:0.82rem;font-weight:700;color:#c62828;min-height:1.2em;margin-top:6px;text-align:center;"></div>
+                <label class="vc-onetap"><input type="checkbox" id="vc-onetap"> ワンタップ切替（タイルを押したらすぐ会場に出す）</label>
+                <div class="vc-onetap-note">スコア・ロゴ・タイトル・表彰式・お知らせ文・会場練習が対象です。順位表巡回・選手紹介・決勝スタートリストは、クラスや選手を選ぶため、「会場に出す」を押します。</div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc, setDoc, getDocs, collection, updateDoc as fsUpdateDoc, onSnapshot as fsOnSnapshot, serverTimestamp, deleteField, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from "./auth.js";
+    import { liveFirestore } from "./live_doc.js";
+    // 大会ドキュメントの読み書きを、分割（live_doc.js）に対応させる。既定（dual）では、従来どおり書き、live にも写す
+    const liveFs = liveFirestore({ doc, getDoc, setDoc, updateDoc: fsUpdateDoc, onSnapshot: fsOnSnapshot, serverTimestamp }, db);
+    const updateDoc = liveFs.updateDoc, onSnapshot = liveFs.onSnapshot;
+
+    import { getTournament } from "./cache.js";
+    import { applyIfChanged, buildIntroSteps } from "./shared.js";
+    import { startWarmupTicker, warmupRem, serverNow } from "./warmup_timer.js";
+    import { resolveScene, isValidDisplayName, DEFAULT_DISPLAY, BASE_DISPLAY } from "./venue_scene.js";
+
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+
+    document.getElementById('back-link').href = `admin_menu.html?event=${eventId}`;
+    document.getElementById('old-link').href = `display_control.html?event=${eventId}`;
+    const venueUrl = `${location.origin}/display.html?event=${eventId}`;
+    const venueLink = document.getElementById('venue-link');
+    venueLink.href = venueUrl;
+    venueLink.textContent = venueUrl;
+
+    // ---- タブ切り替え ----
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // ---- タブ1: 画面表示設定 ----
+    const DISP_KEYS = ['animTotalSec','holdSec','rankingRows','rankingPageSec'];
+    const DISP_DEF  = { animTotalSec:10, holdSec:3, rankingRows:12, rankingPageSec:8 };
+
+    // 色テーマ（スライダー類とは別枠。selectedColorThemeを readDispSettings() で拾う）
+    let selectedColorTheme = 'blue';
+    document.querySelectorAll('.theme-swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectedColorTheme = btn.dataset.theme;
+            document.querySelectorAll('.theme-swatch').forEach(b => b.classList.toggle('active', b === btn));
+        });
+    });
+
+    function updateTimeline() {
+        const a = Number(document.getElementById('val-animTotalSec').value);
+        const h = Number(document.getElementById('val-holdSec').value);
+        document.getElementById('timeline-preview').innerHTML =
+            `スコア表示 → <strong>${a}秒</strong>でアニメーション完了 → さらに<strong>${h}秒</strong>保持 → 順位表へ（合計 <strong>${a+h}秒</strong>）`;
+    }
+    DISP_KEYS.forEach(key => {
+        const r = document.getElementById(`range-${key}`);
+        const v = document.getElementById(`val-${key}`);
+        if (!r || !v) return;
+        r.addEventListener('input', () => { v.value = r.value; updateTimeline(); });
+        v.addEventListener('input', () => { r.value = v.value; updateTimeline(); });
+    });
+    updateTimeline();
+
+    function applyDispToUI(s) {
+        DISP_KEYS.forEach(k => {
+            const v = s[k] ?? DISP_DEF[k];
+            const r = document.getElementById(`range-${k}`);
+            const i = document.getElementById(`val-${k}`);
+            if (r) r.value = v; if (i) i.value = v;
+        });
+        updateTimeline();
+        selectedColorTheme = s.colorTheme === 'red' ? 'red' : 'blue';
+        document.querySelectorAll('.theme-swatch').forEach(b => b.classList.toggle('active', b.dataset.theme === selectedColorTheme));
+    }
+    function readDispSettings() {
+        const o = { colorTheme: selectedColorTheme };
+        DISP_KEYS.forEach(k => { o[k] = Number(document.getElementById(`val-${k}`).value); });
+        return o;
+    }
+
+    document.getElementById('save-settings-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('save-settings-btn');
+        const st  = document.getElementById('save-settings-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
+        try {
+            await updateDoc(doc(db,'tournaments',eventId), { displaySettings: readDispSettings() });
+            st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
+        } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
+    });
+
+    // ---- スライダー↔数値ボックス 汎用連動 ----
+    function linkSlider(rangeId, valId) {
+        const r = document.getElementById(rangeId);
+        const v = document.getElementById(valId);
+        if (!r || !v) return;
+        r.addEventListener('input', () => { v.value = r.value; });
+        v.addEventListener('input', () => { r.value = v.value; });
+    }
+    linkSlider('title-fs','title-fs-val');
+    linkSlider('cer-name-fs','cer-name-fs-val');
+    linkSlider('cer-label-fs','cer-label-fs-val');
+    linkSlider('wu-class-fs','wu-class-fs-val');
+    linkSlider('wu-timer-fs','wu-timer-fs-val');
+    linkSlider('intro-duration','intro-duration-val');
+
+    // ---- タブ2: 画面切り替え ----
+    let currentScreen  = 'score';
+    let warmupData     = {};
+    let classCombos    = [];  // 既存クラス一覧
+    let stopCtrlTimer = null;
+    let liveScreen = null;      // いま会場に出ている画面（巡回中は 'carousel'）
+    let backScreen = null;      // 直前に会場に出していた画面（「前の画面に戻す」用。対象ごとに backMap に保存）
+    let target = 'all';         // 操作対象: 'all'（全部）または会場ディスプレイの名前
+    let lastDoc = {};           // 最新の大会ドキュメント
+    const backMap = {};         // 対象ごとの「前の画面」
+    // 操作画面に並べる会場ディスプレイの名前（「メイン」は常に。追加した名前と、画面指定を持つ名前）
+    function knownNames() {
+        const set = new Set([DEFAULT_DISPLAY]);
+        (lastDoc.venueDisplayNames || []).forEach(n => set.add(n));
+        Object.keys(lastDoc.venueDisplays || {}).forEach(n => set.add(n));
+        return [...set];
+    }
+    // 操作対象がいま出している画面（全部＝基準の画面。巡回中は 'carousel'）
+    function liveScreenForTarget() {
+        return resolveScene(lastDoc, target === 'all' ? BASE_DISPLAY : target).screen;
+    }
+
+    const SCREEN_LABELS = {
+        score:'📊 スコア表示中', logo:'💠 システムロゴ画面',
+        title:'🏟️ 大会タイトル画面',
+        ceremony:'🏅 表彰式画面', warmup:'🏃 会場練習画面',
+        carousel:'🔄 巡回表示中',
+        announce:'📢 お知らせ文',
+        intro:'👤 選手紹介中',
+        final_startlist:'📋 決勝スタートリスト表示中'
+    };
+
+    // クラス一覧をselect要素に追加
+    function buildClassOptions(combos) {
+        ['wu-class1','wu-class2'].forEach(id => {
+            const sel = document.getElementById(id);
+            const cur = sel.value;
+            // 既存オプション（選択なし以外）を削除
+            while (sel.options.length > 1) sel.remove(1);
+            combos.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                sel.appendChild(o);
+            });
+            if (cur) sel.value = cur;
+        });
+    }
+
+    // applyScreenState() のフォーム反映部分だけに使うシグネチャキャッシュ（applyIfChanged用）。
+    // 画面選択状態（badge/screen-btn/パネル切替）は毎回反映する必要があるので対象外にする。
+    const _screenStateSig = {};
+
+    function applyScreenState(screen, warmup, ts, cs, carousel) {
+        currentScreen = screen;
+        warmupData    = warmup || {};
+
+        // 巡回が有効な場合はcarouselボタンをアクティブとして扱う
+        const effectiveScreen = liveScreenForTarget();
+        document.getElementById('current-screen-badge').textContent = SCREEN_LABELS[effectiveScreen] || effectiveScreen;
+        liveScreen = effectiveScreen;
+        if (typeof refreshPreviewLabel === 'function') refreshPreviewLabel();
+        // active = 現在会場に表示中（緑）
+        document.querySelectorAll('.screen-btn').forEach(b => b.classList.toggle('active', b.dataset.screen === effectiveScreen));
+        // 選択中（pending）でないときのみパネルをスナップショット側で切り替える
+        if (!pendingScreen) showScreenPanel(effectiveScreen);
+
+        // 選手紹介から離れたら、どの経路（このパネルのボタン操作／CJPの強制切替／別オペレーター）で
+        // 離れたのかによらず、確定状態（screen）を唯一の正として内部タイマーを必ず止める。
+        // 各切替ボタンのハンドラ側で個別に止める呼び忘れがあると、無関係な画面に切り替わった後も
+        // 選手紹介の進行がバックグラウンドで動き続け、Firestoreへの無駄な書き込みが延々と続いてしまう。
+        if (screen !== 'intro' && introTimerItv) stopIntroSequence();
+
+        // 各画面の設定値を反映。無関係なドキュメント更新（CJPのスコア確定等）でもこの関数は
+        // 毎回呼ばれるため、該当サブフィールドが実際に変化した時だけ反映してオペレーターが
+        // 入力中の値を保存済みの値で上書きしないようにする（applyIfChanged）。
+        if (ts) applyIfChanged(_screenStateSig, 'title', ts, ts => {
+            const r = document.getElementById('title-fs');
+            const v = document.getElementById('title-fs-val');
+            if (r) r.value = ts.fontSize || 6.5;
+            if (v) v.value = ts.fontSize || 6.5;
+            const l1 = document.getElementById('title-line1');
+            const l2 = document.getElementById('title-line2');
+            const l3 = document.getElementById('title-line3');
+            if (l1) l1.value = ts.line1 || '';
+            if (l2) l2.value = ts.line2 || '';
+            if (l3) l3.value = ts.line3 || '';
+        });
+        if (cs) applyIfChanged(_screenStateSig, 'ceremony', cs, cs => {
+            setSlider('cer-name-fs', cs.nameFontSize  || 3.5);
+            setSlider('cer-label-fs', cs.labelFontSize || 10);
+        });
+        if (warmup) {
+            // warmup には timerRef 等の常時変化するタイマー実行中フィールドも同居しているため、
+            // シグネチャ比較はフォームに反映する項目だけの部分集合で行う
+            // （そうしないとカウントダウンのたびに「変化した」と判定されガードが効かなくなる）。
+            const warmupFormPart = {
+                class1: warmup.class1, class2: warmup.class2,
+                classFontSize: warmup.classFontSize, timerFontSize: warmup.timerFontSize,
+                timerRepeat: warmup.timerRepeat,
+                overlayEnabled: warmup.overlayEnabled, overlayStyle: warmup.overlayStyle, overlayPosition: warmup.overlayPosition,
+                overlayScale: warmup.overlayScale, overlayOnScore: warmup.overlayOnScore
+            };
+            applyIfChanged(_screenStateSig, 'warmup', warmupFormPart, w => {
+                document.getElementById('wu-class1').value = w.class1 || '';
+                document.getElementById('wu-class2').value = w.class2 || '';
+                setSlider('wu-class-fs', w.classFontSize || 4.5);
+                setSlider('wu-timer-fs', w.timerFontSize || 24);
+                document.getElementById('timer-repeat').checked = !!w.timerRepeat;
+                setOverlayForm(w);
+            });
+        }
+
+        // 巡回チェックボックス復元（巡回停止中のみ上書き）
+        if (carousel && !carousel.active && carousel.items) {
+            applyIfChanged(_screenStateSig, 'carouselItems', carousel.items, items => {
+                document.querySelectorAll('#carousel-class-list input').forEach(cb => cb.checked = false);
+                (items || []).forEach(item => {
+                    const idx = carouselCombos.findIndex(
+                        c => c.classVal === item.classVal && c.gender === item.gender && c.type === item.type &&
+                             (c.mode || '') === (item.mode || '') && (c.round || '') === (item.round || ''));
+                    if (idx >= 0) {
+                        const cb = document.querySelector(`#carousel-class-list input[data-idx="${idx}"]`);
+                        if (cb) cb.checked = true;
+                    }
+                });
+            });
+        }
+        if (carousel) {
+            applyIfChanged(_screenStateSig, 'carouselShowLogo', !!carousel.showLogo, showLogo => {
+                document.getElementById('carousel-show-logo').checked = showLogo;
+            });
+        }
+
+        syncCtrlTimer();
+    }
+
+    function setSlider(rangeId, val) {
+        const r = document.getElementById(rangeId);
+        const v = document.getElementById(rangeId + '-val');
+        if (r) r.value = val; if (v) v.value = val;
+    }
+
+    // サブパネルだけ切り替える（Firestoreへの書き込みなし）
+    function showScreenPanel(screen) {
+        document.querySelectorAll('.screen-panel').forEach(p => p.classList.remove('active'));
+        const panel = document.getElementById('panel-' + screen);
+        if (panel) panel.classList.add('active');
+    }
+
+    // 画面切り替え: 選択→「表示する」で確定の2ステップ
+    let pendingScreen = null;
+
+    const ONE_TAP_OK = new Set(['score', 'logo', 'title', 'ceremony', 'announce', 'warmup']);
+    document.querySelectorAll('.screen-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            pendingScreen = btn.dataset.screen;
+            // selected クラスを付け替え（active=現在表示中 は触らない）
+            document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            document.getElementById('btn-show-screen').disabled = false;
+            // 選択に応じてサブパネルを開く
+            showScreenPanel(pendingScreen);
+            // プレビューに、会場に出す前の画面を表示
+            postPreview(pendingScreen);
+            refreshPreviewLabel();
+            // ワンタップ切替: 選択が不要な画面は、そのまま会場に出す
+            if (document.getElementById('vc-onetap').checked && ONE_TAP_OK.has(pendingScreen)) {
+                document.getElementById('btn-show-screen').click();
+            }
+        });
+    });
+
+    // 画面を切り替える書き込み。
+    //   全部: 全体の基準（venueScreen など＋書き込み時刻）を更新。ディスプレイごとの上書きは、追従中のものは消し、
+    //         固定中（CJPに従わない）のものは同じ画面に揃える。
+    //   ディスプレイ名: その名前の上書きだけを書く（ほかのディスプレイは変わらない）。巡回・選手紹介の設定は共通。
+    async function writeScene(screen, allFields, cfgFields = {}, extra = {}) {
+        const upd = {};
+        if (target === 'all') {
+            Object.assign(upd, allFields, { venueScreenAt: serverTimestamp() });
+            knownNames().forEach(n => {
+                const d = lastDoc.venueDisplays?.[n];
+                if (!d) return;
+                upd['venueDisplays.' + n + '.override'] = d.follow === false ? { screen, at: serverTimestamp(), ...extra } : deleteField();
+            });
+        } else {
+            Object.assign(upd, cfgFields, { ['venueDisplays.' + target + '.override']: { screen, at: serverTimestamp(), ...extra } });
+        }
+        await updateDoc(doc(db, 'tournaments', eventId), upd);
+    }
+
+    document.getElementById('btn-show-screen').addEventListener('click', async () => {
+        if (!pendingScreen) return;
+        const shown = pendingScreen, before = liveScreen;
+        try {
+            if (pendingScreen === 'carousel') {
+                // 巡回開始: 選択中のクラスと設定を書き込む
+                const checked = carouselCombos.filter((_, i) => {
+                    const cb = document.querySelector(`#carousel-class-list input[data-idx="${i}"]`);
+                    return cb?.checked;
+                });
+                if (checked.length === 0) { alert('表示するクラスを選択してください'); return; }
+                const showLogo = document.getElementById('carousel-show-logo').checked;
+                const carouselCfg = {
+                    'rankingCarousel.items':    checked.map(c => ({ classVal: c.classVal, gender: c.gender, type: c.type, ...(c.mode ? { mode: c.mode } : {}), ...(c.round ? { round: c.round } : {}) })),
+                    'rankingCarousel.showLogo': showLogo
+                };
+                await writeScene('carousel', { 'rankingCarousel.active': true, ...carouselCfg }, carouselCfg);
+            } else if (pendingScreen === 'intro') {
+                const sel = getSelectedIntroAthletes();
+                if (sel.length === 0) { alert('表示する選手を選択してください'); return; }
+                const durMs = Number(document.getElementById('intro-duration-val').value) * 1000;
+                const showRoster = document.getElementById('intro-show-roster')?.checked ?? true;
+                const showPerClassRoster = document.getElementById('intro-show-per-class-roster')?.checked ?? false;
+                // 選手紹介の中身（選手・間隔・開始時刻）は全ディスプレイ共通。始め直すと、紹介中の全ディスプレイが最初に戻る
+                const introCfg = {
+                    'introSettings.athletes': sel,
+                    'introSettings.durationMs': durMs,
+                    'introSettings.currentIndex': -1,  // -1 = ループ開始時の「選手紹介」タイトル画面
+                    'introSettings.showRoster': showRoster,
+                    'introSettings.showPerClassRoster': showPerClassRoster,
+                    'introSettings.startedAt': serverTimestamp(),  // 進行は会場ディスプレイ側がこの時刻から計算する
+                    'introSettings.isRunning': true
+                };
+                await writeScene('intro', { venueScreen: 'intro', 'rankingCarousel.active': false, ...introCfg }, introCfg);
+                startIntroSequence(sel, durMs, showRoster, showPerClassRoster);
+            } else if (pendingScreen === 'final_startlist') {
+                const target = document.getElementById('fsl-target')?.value || '';
+                if (!target) {
+                    document.getElementById('show-screen-err').textContent = 'クラスを選択してください';
+                    setTimeout(() => { document.getElementById('show-screen-err').textContent = ''; }, 3000);
+                    return;
+                }
+                const [cls, gender, type] = target.split('|');
+                const fslTarget = { class: cls, gender, type };
+                await writeScene('final_startlist', { venueScreen: 'final_startlist', 'rankingCarousel.active': false, finalStartlistTarget: fslTarget }, {}, { finalStartlistTarget: fslTarget });
+            } else {
+                // warmupSettings のタイマーフィールドには触れない
+                // → 他画面表示中もバックグラウンドでカウントダウン継続
+                // → warmup に戻った際は timerEndTime から残り時間を再計算して表示
+                await writeScene(shown, {
+                    venueScreen: shown,
+                    'rankingCarousel.active': false   // 巡回中でも画面切り替えで停止
+                });
+            }
+            // 確定後は selected を外す（active がスナップショット経由で更新される）
+            document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('btn-show-screen').disabled = true;
+            pendingScreen = null;
+            if (before && before !== shown) backScreen = before;
+            backMap[target] = backScreen;
+            updateBackBtn(); postPreview(null); refreshPreviewLabel();
+        } catch(e) {
+            pendingScreen = null;
+            postPreview(null); refreshPreviewLabel();
+            document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('btn-show-screen').disabled = true;
+            const errEl = document.getElementById('show-screen-err');
+            errEl.textContent = '切り替え失敗: ' + e.message;
+            setTimeout(() => { errEl.textContent = ''; }, 5000);
+        }
+    });
+
+    // ---- プレビュー（会場ディスプレイを読み取り専用モードで埋め込み、会場に出す前の画面を確認する） ----
+    const previewFrame = document.getElementById('vc-preview');
+    const previewBox = document.getElementById('vc-preview-frame');
+    // 操作対象（全部＝基準そのもの／ディスプレイ名＝そのディスプレイの出す画面）の状態を映す
+    function previewUrlFor(t) { return venueUrl + '&screen=' + encodeURIComponent(t === 'all' ? BASE_DISPLAY : t) + '&preview=1'; }
+    previewFrame.src = previewUrlFor(target);
+    function fitPreview() { previewFrame.style.transform = 'scale(' + (previewBox.clientWidth / 1280) + ')'; }
+    new ResizeObserver(fitPreview).observe(previewBox);
+    fitPreview();
+    function previewPayload(screen) {
+        if (!screen) return { type: 'venue-preview', screen: null };
+        const p = { type: 'venue-preview', screen };
+        if (screen === 'final_startlist') {
+            const t = document.getElementById('fsl-target')?.value || '';
+            if (t) { const [cls, gender, type] = t.split('|'); p.finalStartlistTarget = { class: cls, gender, type }; }
+        }
+        return p;
+    }
+    function postPreview(screen) {
+        try { previewFrame.contentWindow?.postMessage(previewPayload(screen), location.origin); } catch (e) {}
+    }
+    previewFrame.addEventListener('load', () => postPreview(pendingScreen));
+    document.getElementById('fsl-target')?.addEventListener('change', () => { if (pendingScreen === 'final_startlist') postPreview(pendingScreen); });
+    function refreshPreviewLabel() {
+        const el = document.getElementById('vc-preview-label');
+        if (!el) return;
+        if (pendingScreen) { el.textContent = 'プレビュー: ' + (SCREEN_LABELS[pendingScreen] || pendingScreen).replace(/中$/, '') + '（まだ会場には出ていません）'; el.classList.add('pending'); }
+        else { el.textContent = '現在の会場の表示'; el.classList.remove('pending'); }
+    }
+
+    // ---- 前の画面に戻す ----
+    function updateBackBtn() {
+        const b = document.getElementById('btn-back-screen');
+        // 選手紹介は、選んだ選手の情報が残らないため戻せない
+        const ok = backScreen && backScreen !== 'intro';
+        b.disabled = !ok;
+        b.title = ok ? (SCREEN_LABELS[backScreen] || backScreen) + ' に戻します' : (backScreen === 'intro' ? '選手紹介へは、選手を選んで「会場に出す」で戻してください' : '戻せる画面がありません');
+    }
+    document.getElementById('btn-back-screen').addEventListener('click', () => {
+        if (!backScreen || backScreen === 'intro') return;
+        const btn = document.querySelector('.screen-btn[data-screen="' + backScreen + '"]');
+        if (!btn) return;
+        btn.click();                                           // 選択 → プレビュー表示
+        document.getElementById('btn-show-screen').click();    // 会場に出す
+    });
+    updateBackBtn();
+
+    // ---- 操作対象（全部／会場ディスプレイごと） ----
+    function displayUrl(name) { return venueUrl + '&screen=' + encodeURIComponent(name); }
+    function applyPrograms(d) {
+        const list = Array.isArray(d.venuePrograms) ? d.venuePrograms : [];
+        if (JSON.stringify(list) === JSON.stringify(programs)) return;
+        programs = list;
+        if (typeof renderPrograms === 'function') renderPrograms();
+    }
+    // ---- 接続状況（会場ディスプレイが 20 秒ごとに書く印: tournaments/{id}/venuePresence） ----
+    // 最後の印が 75 秒以内なら「接続中」。それより古いと「応答なし（◯分前）」。印を書いたことのない名前は「未接続」。
+    const PRESENCE_LIVE_MS = 75000, PRESENCE_CLEAN_MS = 24 * 3600 * 1000;
+    let presenceDocs = [];      // [{ id, name, instance, screen, follow, w, h, lastSeenMs }]
+    function presenceOf(name) {
+        const now = serverNow();
+        const list = presenceDocs.filter(x => x.name === name);
+        const live = list.filter(x => x.lastSeenMs !== null && now - x.lastSeenMs <= PRESENCE_LIVE_MS);
+        const lastMs = list.reduce((m, x) => Math.max(m, x.lastSeenMs || 0), 0);
+        return { list, live, lastMs, now };
+    }
+    function ageText(ms) {
+        const sec = Math.max(0, Math.round(ms / 1000));
+        return sec < 60 ? sec + '秒前' : sec < 3600 ? Math.round(sec / 60) + '分前' : Math.round(sec / 3600) + '時間前';
+    }
+    // 名前ごとの状態表示: { text, on }
+    function presenceStatus(name) {
+        const r = presenceOf(name);
+        if (r.live.length) return { text: '● 接続中' + (r.live.length > 1 ? ' ' + r.live.length + '台' : ''), on: true };
+        if (r.list.length) return { text: '○ 応答なし（' + ageText(r.now - r.lastMs) + '）', on: false };
+        return { text: '未接続', on: false };
+    }
+    // 古い印（24時間より前）は、管理者として片づける（端末が増えるたびに残るため）
+    let _presenceCleaned = false;
+    function cleanOldPresence() {
+        if (_presenceCleaned) return; _presenceCleaned = true;
+        const now = serverNow();
+        presenceDocs.filter(x => x.lastSeenMs !== null && now - x.lastSeenMs > PRESENCE_CLEAN_MS).slice(0, 30)
+            .forEach(x => deleteDoc(doc(db, 'tournaments', eventId, 'venuePresence', x.id)).catch(() => {}));
+    }
+    function subscribePresence() {
+        onSnapshot(collection(db, 'tournaments', eventId, 'venuePresence'), snap => {
+            const list = [];
+            snap.forEach(d => { const v = d.data(); list.push({ id: d.id, name: v.name, instance: v.instance, screen: v.screen, follow: v.follow, w: v.w, h: v.h, lastSeenMs: v.lastSeen?.toMillis ? v.lastSeen.toMillis() : null }); });
+            presenceDocs = list;
+            cleanOldPresence();
+            renderChips();
+        }, () => { /* ルール未反映などで読めない場合は、接続状況を出さない */ });
+        setInterval(renderChips, 5000);    // 「あと何秒前」の更新・応答なしへの切り替え
+    }
+
+    function renderTargetUI() {
+        applyPrograms(lastDoc);
+        if (typeof renderProgramStatus === 'function') renderProgramStatus();
+        if (typeof renderPrograms === 'function') renderPrograms();
+        renderChips();
+    }
+    function renderChips() {
+        if (target !== 'all' && !knownNames().includes(target)) target = 'all';
+        const box = document.getElementById('vc-chips');
+        box.innerHTML = '';
+        const mk = (key, label, sub, pinned, st) => {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'vc-chip' + (key === target ? ' active' : '');
+            b.innerHTML = '';
+            b.appendChild(document.createTextNode((pinned ? '📌 ' : '') + label));
+            if (st) { const t = document.createElement('small'); t.className = 'st ' + (st.on ? 'on' : 'off'); t.textContent = st.text; b.appendChild(t); }
+            if (sub) { const sm = document.createElement('small'); sm.textContent = sub; b.appendChild(sm); }
+            b.addEventListener('click', () => setTarget(key));
+            box.appendChild(b);
+        };
+        const lbl = scr => (SCREEN_LABELS[scr] || scr).replace(/中$/, '').replace(/画面$/, '');
+        const names = knownNames();
+        const liveTotal = presenceDocs.filter(x => presenceOf(x.name).live.some(l => l.id === x.id)).length;
+        mk('all', '全部', lbl(resolveScene(lastDoc, BASE_DISPLAY).screen), false, presenceDocs.length ? { text: (liveTotal ? '● ' : '○ ') + '接続中 ' + liveTotal + '台', on: liveTotal > 0 } : null);
+        names.forEach(n => {
+            const r = resolveScene(lastDoc, n);
+            mk(n, n, lbl(r.screen), !r.follow, presenceStatus(n));
+        });
+        // 一覧にない名前で接続中のディスプレイ（URLの名前の打ち間違いなど）を知らせ、追加できるようにする
+        const unknown = [...new Set(presenceDocs.map(x => x.name))].filter(n => n && !names.includes(n) && n !== BASE_DISPLAY && presenceOf(n).live.length);
+        const pn = document.getElementById('vc-presence-note');
+        pn.innerHTML = '';
+        if (unknown.length) {
+            pn.style.display = 'block';
+            pn.appendChild(document.createTextNode('一覧にない名前で接続中のディスプレイがあります: '));
+            unknown.forEach(n => {
+                pn.appendChild(document.createTextNode('「' + n + '」'));
+                if (isValidDisplayName(n)) {
+                    const b = document.createElement('button'); b.type = 'button'; b.className = 'adj-btn'; b.textContent = '一覧に追加';
+                    b.addEventListener('click', async () => { try { await updateDoc(doc(db, 'tournaments', eventId), { venueDisplayNames: arrayUnion(n) }); } catch (e) { alert('追加に失敗: ' + e.message); } });
+                    pn.appendChild(b);
+                }
+            });
+        } else pn.style.display = 'none';
+        const pinned = knownNames().filter(n => lastDoc.venueDisplays?.[n]?.follow === false);
+        const note = document.getElementById('vc-all-note');
+        if (target === 'all' && pinned.length) { note.style.display = ''; note.textContent = '📌 ' + pinned.join('、') + ' は、CJPに従わない設定です。「全部」に出すと、同じ画面に揃います。'; }
+        else note.style.display = 'none';
+        const dbox = document.getElementById('vc-display-box');
+        dbox.style.display = target === 'all' ? 'none' : '';
+        if (target !== 'all') {
+            document.getElementById('vc-display-url').value = displayUrl(target);
+            document.getElementById('vc-follow').checked = lastDoc.venueDisplays?.[target]?.follow !== false;
+            document.getElementById('vc-remove-display').style.display = target === DEFAULT_DISPLAY ? 'none' : '';
+            // このディスプレイの接続状況（端末ごと: 出している画面・画面の大きさ・最後の応答）
+            const pl = document.getElementById('vc-presence-list');
+            const r = presenceOf(target);
+            pl.innerHTML = '';
+            if (!r.list.length) pl.textContent = 'まだ、このURLで開かれていません。';
+            else r.list.slice().sort((a, b) => (b.lastSeenMs || 0) - (a.lastSeenMs || 0)).forEach(x => {
+                const live = x.lastSeenMs !== null && r.now - x.lastSeenMs <= PRESENCE_LIVE_MS;
+                const row = document.createElement('div');
+                const st = document.createElement('span'); st.className = live ? 'on' : 'off'; st.textContent = live ? '● 接続中' : '○ 応答なし';
+                row.appendChild(st);
+                row.appendChild(document.createTextNode('　' + (SCREEN_LABELS[x.screen] || x.screen || '-').replace(/中$/, '') + '／' + (x.w && x.h ? x.w + '×' + x.h : '-') + '／最後の応答 ' + (x.lastSeenMs ? ageText(r.now - x.lastSeenMs) : '-')));
+                pl.appendChild(row);
+            });
+        }
+    }
+    function setTarget(t) {
+        if (t === target) return;
+        backMap[target] = backScreen;
+        target = t; backScreen = backMap[t] || null;
+        pendingScreen = null;
+        document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById('btn-show-screen').disabled = true;
+        previewFrame.src = previewUrlFor(t);
+        applyScreenState(lastDoc.venueScreen || 'score', lastDoc.warmupSettings || {}, lastDoc.titleSettings || {}, lastDoc.ceremonySettings || {}, lastDoc.rankingCarousel || {});
+        renderTargetUI(); updateBackBtn(); refreshPreviewLabel();
+    }
+    document.getElementById('vc-add-display').addEventListener('click', async () => {
+        const name = (prompt('ディスプレイの名前を入力してください（例: サブ）') || '').trim();
+        if (!name) return;
+        if (!isValidDisplayName(name)) { alert('その名前は使えません。1〜20文字で、「. / [ ] * ~」とバッククォートは使えません。'); return; }
+        if (knownNames().includes(name)) { setTarget(name); return; }
+        try { await updateDoc(doc(db, 'tournaments', eventId), { venueDisplayNames: arrayUnion(name) }); lastDoc = { ...lastDoc, venueDisplayNames: [...(lastDoc.venueDisplayNames || []), name] }; setTarget(name); renderTargetUI(); }
+        catch (e) { alert('追加に失敗: ' + e.message); }
+    });
+    document.getElementById('vc-remove-display').addEventListener('click', async () => {
+        const n = target; if (n === 'all' || n === DEFAULT_DISPLAY) return;
+        if (!confirm('「' + n + '」を一覧から削除します（そのディスプレイの画面指定も消えます）。よろしいですか？')) return;
+        try {
+            await updateDoc(doc(db, 'tournaments', eventId), { venueDisplayNames: arrayRemove(n), ['venueDisplays.' + n]: deleteField() });
+            setTarget('all');
+        } catch (e) { alert('削除に失敗: ' + e.message); }
+    });
+    document.getElementById('vc-copy-url').addEventListener('click', async () => {
+        const inp = document.getElementById('vc-display-url'), btn = document.getElementById('vc-copy-url');
+        try { await navigator.clipboard.writeText(inp.value); } catch (e) { inp.select(); document.execCommand('copy'); }
+        btn.textContent = 'コピーしました'; setTimeout(() => { btn.textContent = 'コピー'; }, 1500);
+    });
+    // CJPに従う: オフにするとき、いまの画面を上書きとして保つ。オンに戻すとき、上書きを消す
+    document.getElementById('vc-follow').addEventListener('change', async e => {
+        const n = target; if (n === 'all') return;
+        const ref = doc(db, 'tournaments', eventId);
+        try {
+            if (e.target.checked) {
+                await updateDoc(ref, { ['venueDisplays.' + n + '.follow']: true, ['venueDisplays.' + n + '.override']: deleteField() });
+            } else {
+                const r = resolveScene(lastDoc, n);
+                const fsl = r.screen === 'final_startlist' ? (r.finalStartlistTarget || lastDoc.finalStartlistTarget || null) : null;
+                await updateDoc(ref, {
+                    ['venueDisplays.' + n + '.follow']: false,
+                    ['venueDisplays.' + n + '.override']: { screen: r.screen, at: serverTimestamp(), ...(fsl ? { finalStartlistTarget: fsl } : {}) },
+                });
+            }
+        } catch (err) { alert('失敗: ' + err.message); renderTargetUI(); }
+    });
+
+    // ---- プログラム（自動で順に切り替え）と、保存した組み合わせ ----
+    // 保存先: 大会ドキュメントの venuePrograms = [{ id, name, loop, timerMinutes, timerOverlay, items:[{ screen, durationSec, finalStartlistTarget?, announce? }] }]
+    // 開始すると、中身を実行中の記録としてコピーして書く（あとで保存済みを編集しても、実行中のものは変わらない）。
+    // 進行（いま何番目か）は、各会場ディスプレイが開始時刻から計算する。
+    const PROG_SCENES = [
+        ['logo', 'システムロゴ'], ['title', '大会タイトル'], ['announce', 'お知らせ文'], ['ceremony', '表彰式'],
+        ['carousel', '順位表 巡回'], ['intro', '選手紹介'], ['final_startlist', '決勝スタートリスト'],
+        ['warmup', '会場練習（タイマー全画面）'], ['score', 'スコア画面'],
+    ];
+    const PROG_LABEL = Object.fromEntries(PROG_SCENES);
+    const PROG_DEFAULT_SEC = { carousel: 30, intro: 30, announce: 15 };
+    let programs = [];
+    let editing = null;          // 編集中のプログラム（{ id|null, name, loop, timerMinutes, timerOverlay, items }）
+    const progList = document.getElementById('prog-list');
+
+    function programSummary(p) {
+        return (p.items || []).map(i => (PROG_LABEL[i.screen] || i.screen) + ' ' + i.durationSec + '秒').join(' → ')
+            + (p.loop ? '（繰り返し）' : '') + (p.timerMinutes > 0 ? '／タイマー ' + p.timerMinutes + '分' : '');
+    }
+    function renderPrograms() {
+        progList.innerHTML = '';
+        if (!programs.length) { progList.innerHTML = '<div class="vc-display-note" style="margin:0 0 10px;">まだプログラムがありません。「＋ 新しいプログラム」で作れます。</div>'; return; }
+        programs.forEach(p => {
+            const row = document.createElement('div'); row.className = 'prog-row';
+            const name = document.createElement('span'); name.className = 'name'; name.textContent = p.name || '(名前なし)';
+            const sum = document.createElement('span'); sum.className = 'sum'; sum.textContent = programSummary(p);
+            const go = document.createElement('button'); go.type = 'button'; go.className = 'prog-btn go';
+            go.textContent = '▶ ' + (target === 'all' ? '全部に' : target + 'に') + '出す';
+            go.addEventListener('click', () => startProgram(p));
+            const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'prog-btn'; ed.textContent = '編集';
+            ed.addEventListener('click', () => openEditor(p));
+            const del = document.createElement('button'); del.type = 'button'; del.className = 'prog-btn'; del.style.color = '#c62828'; del.textContent = '削除';
+            del.addEventListener('click', () => deleteProgram(p));
+            row.append(name, sum, go, ed, del); progList.appendChild(row);
+        });
+    }
+
+    // --- 編集 ---
+    function fslOptionsHtml(selectedKey) {
+        const src = document.getElementById('fsl-target');
+        let h = '<option value="">（クラスを選択）</option>';
+        [...(src ? src.options : [])].forEach(o => { if (o.value) h += '<option value="' + o.value.replace(/"/g, '&quot;') + '"' + (o.value === selectedKey ? ' selected' : '') + '>' + o.textContent + '</option>'; });
+        return h;
+    }
+    function renderEditorItems() {
+        const box = document.getElementById('prog-items'); box.innerHTML = '';
+        editing.items.forEach((it, i) => {
+            const row = document.createElement('div'); row.className = 'prog-item';
+            const main = document.createElement('div'); main.className = 'prog-item-main';
+            const num = document.createElement('span'); num.textContent = (i + 1) + '.'; num.style.fontWeight = '900';
+            const sel = document.createElement('select');
+            PROG_SCENES.forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === it.screen) o.selected = true; sel.appendChild(o); });
+            sel.addEventListener('change', () => { it.screen = sel.value; if (it.screen !== 'final_startlist') delete it.finalStartlistTarget; if (it.screen !== 'announce') delete it.announce; if (PROG_DEFAULT_SEC[it.screen] && !it._touchedSec) it.durationSec = PROG_DEFAULT_SEC[it.screen]; renderEditorItems(); });
+            const sec = document.createElement('input'); sec.type = 'number'; sec.min = '1'; sec.max = '3600'; sec.value = it.durationSec;
+            sec.addEventListener('input', () => { it.durationSec = Number(sec.value); it._touchedSec = true; });
+            const unit = document.createElement('span'); unit.textContent = '秒'; unit.style.fontSize = '0.85rem';
+            const up = document.createElement('button'); up.type = 'button'; up.className = 'ico'; up.textContent = '↑'; up.addEventListener('click', () => { if (i > 0) { [editing.items[i - 1], editing.items[i]] = [editing.items[i], editing.items[i - 1]]; renderEditorItems(); } });
+            const dn = document.createElement('button'); dn.type = 'button'; dn.className = 'ico'; dn.textContent = '↓'; dn.addEventListener('click', () => { if (i < editing.items.length - 1) { [editing.items[i + 1], editing.items[i]] = [editing.items[i], editing.items[i + 1]]; renderEditorItems(); } });
+            const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'ico'; rm.style.color = '#c62828'; rm.textContent = '×'; rm.addEventListener('click', () => { editing.items.splice(i, 1); renderEditorItems(); });
+            main.append(num, sel, sec, unit, up, dn, rm); row.appendChild(main);
+            if (it.screen === 'final_startlist') {
+                const d = document.createElement('div'); d.className = 'prog-detail';
+                const t = it.finalStartlistTarget; const key = t ? t.class + '|' + t.gender + '|' + t.type : '';
+                const fs = document.createElement('select'); fs.innerHTML = fslOptionsHtml(key);
+                fs.addEventListener('change', () => { if (fs.value) { const [c, g, ty] = fs.value.split('|'); it.finalStartlistTarget = { class: c, gender: g, type: ty }; } else delete it.finalStartlistTarget; });
+                d.appendChild(fs); row.appendChild(d);
+            }
+            if (it.screen === 'announce') {
+                const d = document.createElement('div'); d.className = 'prog-detail';
+                const a = it.announce || {};
+                const mkIn = (k, ph) => { const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = ph; inp.value = a[k] || ''; inp.addEventListener('input', () => { it.announce = it.announce || { line1: '', line2: '', line3: '' }; it.announce[k] = inp.value.trim(); if (!['line1', 'line2', 'line3'].some(x => it.announce[x])) delete it.announce; }); return inp; };
+                const l1 = mkIn('line1', '1行目（空欄なら、お知らせ文の設定の文を使う）'), l2 = mkIn('line2', '2行目'), l3 = mkIn('line3', '3行目');
+                const pick = document.createElement('select');
+                pick.innerHTML = '<option value="">保存した文から選ぶ…</option>' + announcePhrases.map((ph, k) => '<option value="' + k + '">' + ['line1', 'line2', 'line3'].map(x => ph[x]).filter(Boolean).join(' / ').replace(/</g, '&lt;') + '</option>').join('');
+                pick.addEventListener('change', () => { if (pick.value === '') return; const ph = announcePhrases[Number(pick.value)]; it.announce = { line1: ph.line1 || '', line2: ph.line2 || '', line3: ph.line3 || '' }; renderEditorItems(); });
+                d.append(pick, l1, l2, l3); row.appendChild(d);
+            }
+            box.appendChild(row);
+        });
+    }
+    function openEditor(p) {
+        editing = p
+            ? { id: p.id, name: p.name || '', loop: p.loop === true, timerMinutes: p.timerMinutes || 0, timerOverlay: p.timerOverlay !== false, items: JSON.parse(JSON.stringify(p.items || [])) }
+            : { id: null, name: '', loop: true, timerMinutes: 0, timerOverlay: true, items: [{ screen: 'logo', durationSec: 10 }, { screen: 'title', durationSec: 10 }] };
+        document.getElementById('prog-name').value = editing.name;
+        document.getElementById('prog-loop').checked = editing.loop;
+        document.getElementById('prog-timer-on').checked = editing.timerMinutes > 0;
+        document.getElementById('prog-timer-min').value = editing.timerMinutes > 0 ? editing.timerMinutes : 10;
+        document.getElementById('prog-save-status').textContent = '';
+        renderEditorItems();
+        document.getElementById('prog-editor').classList.add('show');
+        document.getElementById('prog-editor').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function closeEditor() { editing = null; document.getElementById('prog-editor').classList.remove('show'); }
+    document.getElementById('prog-new').addEventListener('click', () => openEditor(null));
+    document.getElementById('prog-cancel').addEventListener('click', closeEditor);
+    document.getElementById('prog-add-item').addEventListener('click', () => { if (editing.items.length >= 30) { alert('項目は30個までです'); return; } editing.items.push({ screen: 'logo', durationSec: 10 }); renderEditorItems(); });
+    // 編集中の内容を、保存できる形に（不正なら理由を返す）
+    function collectEditor() {
+        const name = document.getElementById('prog-name').value.trim();
+        if (!name) return { error: 'プログラム名を入力してください' };
+        if (!editing.items.length) return { error: '項目を1つ以上入れてください' };
+        const items = [];
+        for (const it of editing.items) {
+            const sec = Math.round(Number(it.durationSec));
+            if (!(sec >= 1 && sec <= 3600)) return { error: '秒数は1〜3600で入力してください' };
+            const o = { screen: it.screen, durationSec: sec };
+            if (it.screen === 'final_startlist') { if (!it.finalStartlistTarget) return { error: '決勝スタートリストの項目は、クラスを選んでください' }; o.finalStartlistTarget = it.finalStartlistTarget; }
+            if (it.screen === 'announce' && it.announce) o.announce = { line1: it.announce.line1 || '', line2: it.announce.line2 || '', line3: it.announce.line3 || '' };
+            items.push(o);
+        }
+        const timerOn = document.getElementById('prog-timer-on').checked;
+        const mins = Math.round(Number(document.getElementById('prog-timer-min').value));
+        if (timerOn && !(mins >= 1 && mins <= 180)) return { error: 'タイマーは1〜180分で入力してください' };
+        return { program: { id: editing.id || ('p' + Date.now().toString(36)), name, loop: document.getElementById('prog-loop').checked, timerMinutes: timerOn ? mins : 0, timerOverlay: true, items } };
+    }
+    async function savePrograms(list) { await updateDoc(doc(db, 'tournaments', eventId), { venuePrograms: list }); }
+    document.getElementById('prog-save').addEventListener('click', async () => {
+        const st = document.getElementById('prog-save-status');
+        const r = collectEditor();
+        if (r.error) { st.style.color = '#c62828'; st.textContent = r.error; return; }
+        const idx = programs.findIndex(x => x.id === r.program.id);
+        const list = idx >= 0 ? programs.map((x, i) => i === idx ? r.program : x) : [...programs, r.program];
+        if (list.length > 20) { st.style.color = '#c62828'; st.textContent = 'プログラムは20個までです'; return; }
+        try { await savePrograms(list); programs = list; renderPrograms(); closeEditor(); }
+        catch (e) { st.style.color = '#c62828'; st.textContent = '保存に失敗: ' + e.message; }
+    });
+    async function deleteProgram(p) {
+        if (!confirm('プログラム「' + p.name + '」を削除しますか？')) return;
+        const list = programs.filter(x => x.id !== p.id);
+        try { await savePrograms(list); programs = list; renderPrograms(); } catch (e) { alert('削除に失敗: ' + e.message); }
+    }
+
+    // --- 開始・停止 ---
+    // 会場練習タイマーを同時に始める組み合わせ（残り時間を画面に重ねる）
+    function timerStartFields(minutes) {
+        const ms = minutes * 60000;
+        return {
+            'warmupSettings.timerDefaultMs': ms, 'warmupSettings.timerRemainingMs': ms, 'warmupSettings.timerPaused': false,
+            'warmupSettings.timerRef': serverTimestamp(), 'warmupSettings.timerEndMs': Date.now() + ms,
+            'warmupSettings.overlayEnabled': true,
+        };
+    }
+    async function startProgram(p) {
+        const items = (p.items || []).map(i => { const o = { screen: i.screen, durationSec: i.durationSec }; if (i.finalStartlistTarget) o.finalStartlistTarget = i.finalStartlistTarget; if (i.announce) o.announce = i.announce; return o; });
+        if (!items.length) { alert('項目がありません'); return; }
+        if (items.some(i => i.screen === 'carousel') && !(lastDoc.rankingCarousel?.items?.length)) { alert('順位表巡回のクラスが、まだ設定されていません。先に「順位表 巡回」でクラスを選んで、一度会場に出してください。'); return; }
+        if (items.some(i => i.screen === 'intro') && !(lastDoc.introSettings?.athletes?.length)) { alert('選手紹介の選手が、まだ設定されていません。先に「選手紹介」で選手を選んで、一度会場に出してください。'); return; }
+        const first = items[0];
+        const run = { name: p.name || '', loop: p.loop === true, items };
+        const upd = {};
+        if (target === 'all') {
+            Object.assign(upd, {
+                venueProgram: { at: serverTimestamp(), ...run },
+                venueScreen: first.screen === 'carousel' ? 'score' : first.screen,
+                'rankingCarousel.active': false,
+                venueScreenAt: serverTimestamp(),
+            });
+            knownNames().forEach(n => {
+                const d = lastDoc.venueDisplays?.[n];
+                if (!d) return;
+                upd['venueDisplays.' + n + '.override'] = d.follow === false ? { screen: first.screen, at: serverTimestamp(), program: run } : deleteField();
+            });
+        } else {
+            upd['venueDisplays.' + target + '.override'] = { screen: first.screen, at: serverTimestamp(), program: run };
+        }
+        if (p.timerMinutes > 0) Object.assign(upd, timerStartFields(p.timerMinutes));
+        try {
+            await updateDoc(doc(db, 'tournaments', eventId), upd);
+            pendingScreen = null; document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('btn-show-screen').disabled = true; postPreview(null); refreshPreviewLabel();
+        } catch (e) { alert('開始に失敗: ' + e.message); }
+    }
+    // 止める: いま出している画面のまま固定する（プログラムは、新しい基準・上書きが書かれると終わる仕組み）
+    async function stopProgram() {
+        const r = resolveScene(lastDoc, target === 'all' ? BASE_DISPLAY : target, serverNow());
+        if (!r.program) return;
+        const scr = r.screen, extra = {}, allFields = {}, cfg = {};
+        if (scr === 'carousel') allFields['rankingCarousel.active'] = true;
+        else { allFields.venueScreen = scr; allFields['rankingCarousel.active'] = false; }
+        if (r.finalStartlistTarget) { allFields.finalStartlistTarget = r.finalStartlistTarget; extra.finalStartlistTarget = r.finalStartlistTarget; }
+        if (r.announce) ['line1', 'line2', 'line3'].forEach(k => { allFields['announceSettings.' + k] = r.announce[k] || ''; cfg['announceSettings.' + k] = r.announce[k] || ''; });
+        try { await writeScene(scr, allFields, cfg, extra); } catch (e) { alert('停止に失敗: ' + e.message); }
+    }
+    document.getElementById('prog-stop').addEventListener('click', stopProgram);
+
+    // --- 実行中の表示（毎秒） ---
+    function renderProgramStatus() {
+        const r = resolveScene(lastDoc, target === 'all' ? BASE_DISPLAY : target, serverNow());
+        const box = document.getElementById('prog-status');
+        if (!r.program) { box.classList.remove('show'); return; }
+        const pg = r.program;
+        const who = target === 'all' ? '全部' : target;
+        document.getElementById('prog-status-text').textContent = pg.ended
+            ? who + ': 「' + pg.name + '」は最後まで進みました（最後の画面のまま）'
+            : who + ': 「' + pg.name + '」を実行中 — ' + (pg.index + 1) + '/' + pg.count + ' 項目目: ' + (PROG_LABEL[r.screen] || r.screen) + '（あと ' + Math.ceil(pg.remainingMs / 1000) + '秒）';
+        box.classList.add('show');
+    }
+    setInterval(renderProgramStatus, 1000);
+
+    // ---- ワンタップ切替の記憶（この端末） ----
+    (function () {
+        const cb = document.getElementById('vc-onetap');
+        try { cb.checked = localStorage.getItem('vcOneTap') === '1'; } catch (e) {}
+        cb.addEventListener('change', () => { try { localStorage.setItem('vcOneTap', cb.checked ? '1' : '0'); } catch (e) {} });
+    })();
+
+    // ---- 自動保存: 入力が止まったら、各パネルの保存処理を呼ぶ（保存ボタンは隠している） ----
+    function autosave(containerSel, buttonId, statusId) {
+        const box = document.querySelector(containerSel);
+        if (!box) return;
+        let t = null;
+        const fire = () => {
+            const st = document.getElementById(statusId);
+            if (st) { st.style.color = '#888'; st.textContent = '保存中…'; }
+            clearTimeout(t);
+            t = setTimeout(() => document.getElementById(buttonId)?.click(), 700);
+        };
+        box.addEventListener('input', fire);
+        box.addEventListener('change', fire);
+    }
+    autosave('#panel-title', 'save-title-btn', 'save-title-status');
+    autosave('#panel-ceremony', 'save-ceremony-btn', 'save-ceremony-status');
+    autosave('#panel-warmup', 'save-warmup-btn', 'save-warmup-status');
+    autosave('#panel-announce', 'save-announce-btn', 'save-announce-status');
+    // 全体の設定: 配色（クリック）・スライダー・数値
+    (function () {
+        const box = document.getElementById('tab-display');
+        let t = null;
+        const fire = () => {
+            const st = document.getElementById('save-settings-status');
+            if (st) { st.style.color = '#888'; st.textContent = '保存中…'; }
+            clearTimeout(t);
+            t = setTimeout(() => { const b = document.getElementById('save-settings-btn'); if (b && !b.disabled) b.click(); }, 700);
+        };
+        box.addEventListener('input', fire);
+        box.addEventListener('change', fire);
+        box.querySelectorAll('.theme-swatch').forEach(b => b.addEventListener('click', fire));
+    })();
+
+    // ---- お知らせ文 ----
+    const ANNOUNCE_KEYS = ['line1', 'line2', 'line3'];
+    document.getElementById('announce-fs').addEventListener('input', e => { document.getElementById('announce-fs-val').value = e.target.value; });
+    document.getElementById('announce-fs-val').addEventListener('input', e => { document.getElementById('announce-fs').value = e.target.value; });
+    function readAnnounce() {
+        const o = { fontSize: Number(document.getElementById('announce-fs-val').value) || 6 };
+        ANNOUNCE_KEYS.forEach((k, i) => { o[k] = document.getElementById('announce-line' + (i + 1)).value.trim(); });
+        return o;
+    }
+    document.getElementById('save-announce-btn').addEventListener('click', async () => {
+        const st = document.getElementById('save-announce-status');
+        const o = readAnnounce();
+        try {
+            await updateDoc(doc(db, 'tournaments', eventId), {
+                'announceSettings.fontSize': o.fontSize, 'announceSettings.line1': o.line1,
+                'announceSettings.line2': o.line2, 'announceSettings.line3': o.line3,
+            });
+            st.textContent = '✅ 自動保存済み'; st.style.color = '#2e7d32';
+        } catch (e) { st.textContent = '❌ ' + e.message; st.style.color = '#c62828'; }
+    });
+    let announcePhrases = [];
+    function renderPhrases() {
+        const box = document.getElementById('announce-phrases');
+        box.innerHTML = '';
+        if (!announcePhrases.length) { box.innerHTML = '<div style="font-size:0.78rem;color:var(--text-sub);">まだありません。よく使う文を入力して「いまの文を保存する」を押すと、ここに並びます。</div>'; return; }
+        announcePhrases.forEach((p, i) => {
+            const row = document.createElement('div'); row.className = 'an-phrase';
+            const load = document.createElement('button'); load.type = 'button'; load.className = 'load';
+            load.textContent = ANNOUNCE_KEYS.map(k => p[k]).filter(Boolean).join('\n');
+            load.addEventListener('click', () => {
+                ANNOUNCE_KEYS.forEach((k, j) => { document.getElementById('announce-line' + (j + 1)).value = p[k] || ''; });
+                document.getElementById('announce-line1').dispatchEvent(new Event('input', { bubbles: true }));   // 自動保存を起動
+            });
+            const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = '×'; del.title = 'この文を削除';
+            del.addEventListener('click', async () => {
+                if (!confirm('この保存済みの文を削除しますか？')) return;
+                announcePhrases = announcePhrases.filter((_, j) => j !== i); renderPhrases();
+                try { await updateDoc(doc(db, 'tournaments', eventId), { announcePhrases }); } catch (e) { alert('削除に失敗: ' + e.message); }
+            });
+            row.appendChild(load); row.appendChild(del); box.appendChild(row);
+        });
+    }
+    document.getElementById('announce-save-phrase').addEventListener('click', async () => {
+        const o = readAnnounce();
+        const p = {}; ANNOUNCE_KEYS.forEach(k => { p[k] = o[k]; });
+        if (!ANNOUNCE_KEYS.some(k => p[k])) { alert('文を入力してから保存してください'); return; }
+        if (announcePhrases.some(x => ANNOUNCE_KEYS.every(k => (x[k] || '') === p[k]))) return;   // 同じ文は重ねて保存しない
+        if (announcePhrases.length >= 30) { alert('保存できる文は30件までです。不要な文を削除してください'); return; }
+        announcePhrases = [...announcePhrases, p]; renderPhrases();
+        try { await updateDoc(doc(db, 'tournaments', eventId), { announcePhrases }); } catch (e) { alert('保存に失敗: ' + e.message); }
+    });
+    const _announceSig = {};
+    function applyAnnounce(d) {
+        applyIfChanged(_announceSig, 'cur', d.announceSettings || {}, a => {
+            ANNOUNCE_KEYS.forEach((k, i) => { document.getElementById('announce-line' + (i + 1)).value = a[k] || ''; });
+            setSlider('announce-fs', a.fontSize || 6);
+        });
+        applyIfChanged(_announceSig, 'phrases', d.announcePhrases || [], list => { announcePhrases = Array.isArray(list) ? list : []; renderPhrases(); });
+    }
+
+    // ---- タイトル保存 ----
+    document.getElementById('save-title-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('save-title-btn');
+        const st  = document.getElementById('save-title-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
+        try {
+            await updateDoc(doc(db,'tournaments',eventId), {
+                'titleSettings.fontSize': Number(document.getElementById('title-fs-val').value),
+                'titleSettings.line1': document.getElementById('title-line1').value.trim(),
+                'titleSettings.line2': document.getElementById('title-line2').value.trim(),
+                'titleSettings.line3': document.getElementById('title-line3').value.trim()
+            });
+            st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
+        } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
+    });
+
+    // ---- 表彰式保存 ----
+    document.getElementById('save-ceremony-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('save-ceremony-btn');
+        const st  = document.getElementById('save-ceremony-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
+        try {
+            await updateDoc(doc(db,'tournaments',eventId), {
+                'ceremonySettings.nameFontSize':  Number(document.getElementById('cer-name-fs-val').value),
+                'ceremonySettings.labelFontSize': Number(document.getElementById('cer-label-fs-val').value),
+            });
+            st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
+        } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
+    });
+
+    // ---- 会場練習保存（クラス名＋文字サイズ） ----
+    document.getElementById('save-warmup-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('save-warmup-btn');
+        const st  = document.getElementById('save-warmup-status');
+        btn.disabled = true; st.textContent = '保存中...'; st.style.color = '#888';
+        try {
+            const newRepeat = document.getElementById('timer-repeat').checked;
+            const upd = {
+                ...repeatChangeFields(newRepeat),
+                'warmupSettings.class1':       document.getElementById('wu-class1').value,
+                'warmupSettings.class2':       document.getElementById('wu-class2').value,
+                'warmupSettings.classFontSize':Number(document.getElementById('wu-class-fs-val').value),
+                'warmupSettings.timerFontSize':Number(document.getElementById('wu-timer-fs-val').value),
+            };
+            await updateDoc(doc(db,'tournaments',eventId), upd);
+            st.textContent = '✅ 保存しました'; st.style.color = '#2e7d32';
+        } catch(e) { st.textContent = `❌ ${e.message}`; st.style.color = '#c62828'; }
+        finally { btn.disabled = false; }
+    });
+
+    // ---- 順位表 巡回モード ----
+    let carouselCombos = []; // { classVal, gender, type, label }
+
+    function buildCarouselList(combos) {
+        const list = document.getElementById('carousel-class-list');
+        if (!list) return;
+        list.innerHTML = '';
+        combos.forEach((c, i) => {
+            const lbl = document.createElement('label');
+            lbl.className = 'carousel-item';
+            lbl.innerHTML = `<input type="checkbox" data-idx="${i}"><span>${c.label}</span>`;
+            list.appendChild(lbl);
+        });
+    }
+
+    // （巡回の開始・停止は btn-show-screen / applyScreenState で統合管理）
+
+    // ---- 選手紹介 ----
+    let introAthletes   = [];
+    let introTimerItv   = null;
+    let introCurIdx     = 0;
+    let introShowRoster = false;   // ループ最後に選手一覧ページを挟むか
+    let introAthList    = [];
+    let introClassDefs  = [];
+    let introFilterKey  = '';          // '' = 全員, 'class|gender|type' = 絞り込み
+    let introCheckedIds = new Set();   // フィルターをまたいでチェック状態を保持
+    let introSortMode   = 'qualifying'; // 'qualifying' | 'final'
+
+    function getIntroSorted() {
+        const gScore = g => g.includes('女') ? 0 : g.includes('男') ? 1 : 2;
+        const base = introSortMode === 'final'
+            ? introAthletes.filter(a => a.finalOrder != null)  // 決勝: finalOrder 設定済みのみ
+            : introAthletes.slice();
+        const orderField = introSortMode === 'final' ? 'finalOrder' : 'order';
+        return base.sort((a, b) => {
+            const ia = introClassDefs.indexOf(a.class);
+            const ib = introClassDefs.indexOf(b.class);
+            const ca = ia >= 0 ? ia : 99, cb = ib >= 0 ? ib : 99;
+            if (ca !== cb) return ca - cb;
+            const gd = gScore(a.gender || '') - gScore(b.gender || '');
+            if (gd !== 0) return gd;
+            return (parseInt(a[orderField])||0) - (parseInt(b[orderField])||0);
+        });
+    }
+
+    function renderIntroAthleteList(athletes) {
+        const list = document.getElementById('intro-athlete-list');
+        if (!list) return;
+        list.innerHTML = '';
+        let lastGroup = null;
+        athletes.forEach(a => {
+            const group = `${a.class} ${a.gender}`.trim();
+            if (group !== lastGroup) {
+                const h = document.createElement('div');
+                h.className = 'intro-class-header';
+                h.textContent = group;
+                list.appendChild(h);
+                lastGroup = group;
+            }
+            const lbl = document.createElement('label');
+            lbl.className = 'intro-athlete-item';
+            const name = a.type === 'synchro' && a.name2 ? `${a.name1} / ${a.name2}` : a.name1;
+            const orderNum = introSortMode === 'final' ? a.finalOrder : a.order;
+            lbl.innerHTML = `<input type="checkbox" data-id="${a.id}"><span>${orderNum ? 'No.' + orderNum + '&nbsp;' : ''}${name}${a.club1 ? ' (' + a.club1 + ')' : ''}</span>`;
+            list.appendChild(lbl);
+        });
+        list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = introCheckedIds.has(cb.dataset.id);
+        });
+    }
+
+    function saveCheckedState() {
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => {
+            if (cb.checked) introCheckedIds.add(cb.dataset.id);
+            else introCheckedIds.delete(cb.dataset.id);
+        });
+    }
+
+    function applyIntroFilter() {
+        saveCheckedState();
+        const all = getIntroSorted();
+        const filtered = introFilterKey
+            ? all.filter(a => `${a.class}|${a.gender}|${a.type}` === introFilterKey)
+            : all;
+        renderIntroAthleteList(filtered);
+    }
+
+    function buildIntroFilterBtns() {
+        const wrap = document.getElementById('intro-filter-wrap');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        const allBtn = document.createElement('button');
+        allBtn.className = 'intro-filter-btn active';
+        allBtn.textContent = '全員';
+        allBtn.dataset.key = '';
+        wrap.appendChild(allBtn);
+        const seen = new Set();
+        getIntroSorted().forEach(a => {
+            const key = `${a.class}|${a.gender}|${a.type}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                const btn = document.createElement('button');
+                btn.className = 'intro-filter-btn';
+                const typeLabel = a.type === 'synchro' ? 'シンクロ' : '個人';
+                btn.textContent = [a.class, a.gender, typeLabel].filter(Boolean).join(' ');
+                btn.dataset.key = key;
+                wrap.appendChild(btn);
+            }
+        });
+        wrap.querySelectorAll('.intro-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                wrap.querySelectorAll('.intro-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                introFilterKey = btn.dataset.key;
+                applyIntroFilter();
+            });
+        });
+    }
+
+    document.querySelectorAll('.intro-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.intro-mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            introSortMode = btn.dataset.mode;
+            introFilterKey = '';          // モード切替時はフィルターをリセット
+            buildIntroFilterBtns();
+            applyIntroFilter();
+        });
+    });
+
+    document.getElementById('intro-select-all').addEventListener('click', () => {
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => {
+            cb.checked = true; introCheckedIds.add(cb.dataset.id);
+        });
+    });
+    document.getElementById('intro-clear-all').addEventListener('click', () => {
+        introCheckedIds.clear(); // 非表示の選手も含めて選択記憶を完全リセット
+        document.querySelectorAll('#intro-athlete-list input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+    });
+
+    function getSelectedIntroAthletes() {
+        saveCheckedState();
+        return getIntroSorted().filter(a => introCheckedIds.has(a.id));
+    }
+
+    // steps: 選手紹介ループの実際の手順（選手＋任意でクラス一覧ページ）。buildIntroSteps()参照
+    function updateIntroStatus(idx, steps) {
+        const st = document.getElementById('intro-run-status');
+        if (!st) return;
+        const step = idx >= 0 ? steps[idx] : null;
+        st.textContent = idx < 0
+            ? '「選手紹介」タイトル表示中…'
+            : idx >= steps.length
+              ? '選手一覧ページ表示中…'
+              : step.type === 'classRoster'
+                ? `${step.className || ''} 一覧ページ表示中…`
+                : `紹介中: ${idx + 1} / ${steps.length} 手順目`;
+        st.className = 'intro-run-status running';
+    }
+
+    function stopIntroSequence() {
+        if (introTimerItv) { clearInterval(introTimerItv); introTimerItv = null; }
+        const st = document.getElementById('intro-run-status');
+        if (st) { st.textContent = ''; st.className = 'intro-run-status'; }
+        const stopBtn = document.getElementById('intro-stop-btn');
+        if (stopBtn) stopBtn.style.display = 'none';
+    }
+
+    function startIntroSequence(athletes, durationMs, showRoster, showPerClassRoster) {
+        stopIntroSequence();
+        introAthList    = athletes;
+        introShowRoster = !!showRoster;
+        // クラス一覧ページを挟んだ手順（display.html側のapplyIntroSlide()と同じ組み立て方をする
+        // ことで、currentIndexの意味を両者で一致させる）
+        const steps = buildIntroSteps(athletes, !!showPerClassRoster);
+        introCurIdx     = -1;  // タイトル画面から開始（最初の刻みで1人目へ）
+        updateIntroStatus(-1, steps);
+        document.getElementById('intro-stop-btn').style.display = '';
+        introTimerItv = setInterval(async () => {
+            introCurIdx++;
+            // 末尾: 一覧ONなら 手順数（=一覧ページ）まで進み、超えたらタイトル(-1)へ戻る（毎周）
+            const maxIdx = steps.length - 1 + (introShowRoster ? 1 : 0);
+            if (introCurIdx > maxIdx) {
+                introCurIdx = -1; // 一周 → 毎回「選手紹介」タイトルから
+            }
+            // currentIndex の書き込みは廃止（会場ディスプレイが startedAt から自分で進める）。ここは操作画面の表示用のみ。
+            updateIntroStatus(introCurIdx, steps);
+        }, durationMs);
+    }
+
+    document.getElementById('intro-stop-btn').addEventListener('click', async () => {
+        stopIntroSequence();
+        await updateDoc(doc(db,'tournaments',eventId), {
+            'introSettings.isRunning': false,
+            venueScreen: 'score',
+            venueScreenAt: serverTimestamp()
+        }).catch(e => alert('失敗: ' + e.message));
+    });
+
+    // ---- タイマー制御 ----
+    // 書き込みは「開始・一時停止・リセット・時間設定」を押した瞬間の1回だけ。
+    // 残り時間の計算と繰り返しの自動再スタートは warmup_timer.js が各端末で計算するため、
+    // この画面を開いていなくても（別ページ・裏タブ・閉じても）会場ディスプレイのタイマーは止まらない。
+    function syncCtrlTimer() {
+        if (stopCtrlTimer) stopCtrlTimer();
+        const timerEl  = document.getElementById('ctrl-timer');
+        const startBtn = document.getElementById('timer-start-btn');
+        const pauseBtn = document.getElementById('timer-pause-btn');
+        stopCtrlTimer = startWarmupTicker(() => warmupData, ({ rem, running }) => {
+            renderCtrlTimer(timerEl, rem, running);
+            startBtn.textContent = '▶ 開始';
+            startBtn.disabled = running || rem === 0;
+            pauseBtn.disabled = !running;
+        });
+    }
+
+    // 繰り返しの切替で書く項目。切替は残り時間の計算の仕方が変わる。動作中ならその時点の残りを新しい基準にして
+    // 表示が飛ばないようにし、すでに終わっている場合は停止状態に確定する（切替で勝手に再開しない）。
+    function repeatChangeFields(newRepeat) {
+        const upd = { 'warmupSettings.timerRepeat': newRepeat };
+        if (newRepeat !== !!warmupData.timerRepeat && !warmupData.timerPaused && warmupData.timerRef) {
+            const cur = warmupRem(warmupData);
+            if (cur.running) {
+                upd['warmupSettings.timerRef']         = serverTimestamp();
+                upd['warmupSettings.timerRemainingMs'] = cur.rem;
+                upd['warmupSettings.timerEndMs']       = Date.now() + cur.rem;
+            } else {
+                upd['warmupSettings.timerRemainingMs'] = 0;
+                upd['warmupSettings.timerPaused']      = true;
+                upd['warmupSettings.timerEndMs']       = null;
+                upd['warmupSettings.timerRef']         = null;
+            }
+        }
+        return upd;
+    }
+
+    function renderCtrlTimer(el, ms, running) {
+        const s = Math.ceil(ms / 1000);
+        el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+        el.className = 'timer-display num' + (ms===0?' done':ms<60000?' warning':running?' running':'');
+    }
+
+    document.getElementById('timer-start-btn').addEventListener('click', async () => {
+        const rem = warmupData.timerRemainingMs ?? 0;
+        if (rem <= 0) return;
+        // timerRef=serverTimestamp を全PC共通の時刻基準にする。
+        // timerEndMs は timerRef 確定までの一瞬、この操作PC自身の即時表示に使うフォールバック。
+        await updateDoc(doc(db,'tournaments',eventId), {
+            'warmupSettings.timerRef':        serverTimestamp(),
+            'warmupSettings.timerEndMs':      Date.now() + rem,
+            'warmupSettings.timerRemainingMs':rem,
+            'warmupSettings.timerPaused':     false,
+        }).catch(e => alert('失敗: '+e.message));
+    });
+    document.getElementById('timer-pause-btn').addEventListener('click', async () => {
+        // サーバー時刻補正込みで残りを確定してから固定値として保存（どのPCで押しても同じ結果）。
+        const { rem, running } = warmupRem(warmupData);
+        if (!running) return;
+        await updateDoc(doc(db,'tournaments',eventId), {
+            'warmupSettings.timerRemainingMs': rem,
+            'warmupSettings.timerPaused':      true,
+            'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
+        }).catch(e => alert('失敗: '+e.message));
+    });
+    document.getElementById('timer-reset-btn').addEventListener('click', async () => {
+        const rem = warmupData.timerDefaultMs ?? 5*60*1000;
+        await updateDoc(doc(db,'tournaments',eventId), {
+            'warmupSettings.timerRemainingMs': rem,
+            'warmupSettings.timerPaused':      true,
+            'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
+        }).catch(e => alert('失敗: '+e.message));
+    });
+    // ---- タイマー帯: 設定の開閉（この端末に記憶） ----
+    (function () {
+        const btn = document.getElementById('dock-toggle'), detail = document.getElementById('timer-dock-detail');
+        function setOpen(open) {
+            detail.style.display = open ? '' : 'none';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            try { localStorage.setItem('dcDockOpen', open ? '1' : '0'); } catch (e) {}
+        }
+        btn.addEventListener('click', () => setOpen(detail.style.display === 'none'));
+        let saved = false; try { saved = localStorage.getItem('dcDockOpen') === '1'; } catch (e) {}
+        setOpen(saved);
+    })();
+
+    new ResizeObserver(() => document.documentElement.style.setProperty('--dock-h', document.getElementById('timer-dock').offsetHeight + 'px'))
+        .observe(document.getElementById('timer-dock'));
+
+    // ---- 繰り返し: 切り替えたらすぐ保存 ----
+    document.getElementById('timer-repeat').addEventListener('change', async (e) => {
+        try { await updateDoc(doc(db, 'tournaments', eventId), repeatChangeFields(e.target.checked)); }
+        catch (err) { alert('繰り返しの保存に失敗: ' + err.message); e.target.checked = !!warmupData.timerRepeat; }
+    });
+
+    // ---- ±30秒 ----
+    // 動作中: その時点の残りを±して新しい基準にする（全端末が同じ残り時間になる）。一時停止中: 保存された残りを±する。
+    // 自然終了後は何もしない（↺ リセットで戻す）。残りは最低1秒。
+    // data-delta を持つボタン（±30秒）だけが対象。同じ見た目の他のボタン（追加・コピー・保存など）では動かさない
+    document.querySelectorAll('.adj-btn[data-delta]').forEach(btn => btn.addEventListener('click', async () => {
+        const delta = Number(btn.dataset.delta);
+        if (!Number.isFinite(delta)) return;   // 万一でも、不正な値（NaN）を残り時間に書かない
+        const { rem, running } = warmupRem(warmupData);
+        const ref = doc(db, 'tournaments', eventId);
+        try {
+            if (running) {
+                if (rem <= 0) return;
+                const t = Math.max(1000, Math.round(rem + delta));
+                await updateDoc(ref, {
+                    'warmupSettings.timerRef': serverTimestamp(),
+                    'warmupSettings.timerRemainingMs': t,
+                    'warmupSettings.timerEndMs': Date.now() + t,
+                    'warmupSettings.timerPaused': false,
+                });
+            } else if (warmupData.timerPaused) {
+                const t = Math.max(1000, (warmupData.timerRemainingMs ?? 0) + delta);
+                await updateDoc(ref, { 'warmupSettings.timerRemainingMs': t });
+            }
+        } catch (e) { alert('失敗: ' + e.message); }
+    }));
+
+    // ---- 会場への重ね表示の設定（変更したら自動保存） ----
+    function setOverlayForm(w) {
+        document.getElementById('ov-enabled').checked = w.overlayEnabled === true;
+        document.getElementById('ov-onscore').checked = w.overlayOnScore === true;
+        const style = w.overlayStyle === 'band' ? 'band' : 'badge';
+        document.querySelectorAll('#ov-style button').forEach(b => b.classList.toggle('active', b.dataset.style === style));
+        const pos = ['tr', 'tl', 'br', 'bl'].includes(w.overlayPosition) ? w.overlayPosition : 'tr';
+        document.querySelectorAll('#ov-pos button').forEach(b => b.classList.toggle('active', b.dataset.pos === pos));
+        const sc = Number(w.overlayScale) >= 0.5 && Number(w.overlayScale) <= 2 ? Number(w.overlayScale) : 1;
+        document.getElementById('ov-scale').value = sc;
+        document.getElementById('ov-scale-val').textContent = '×' + sc.toFixed(1);
+        document.getElementById('ov-box').classList.toggle('off', w.overlayEnabled !== true);
+    }
+    function collectOverlay() {
+        return {
+            overlayEnabled:  document.getElementById('ov-enabled').checked,
+            overlayStyle:    document.querySelector('#ov-style button.active')?.dataset.style || 'badge',
+            overlayPosition: document.querySelector('#ov-pos button.active')?.dataset.pos || 'tr',
+            overlayScale:    Math.round(Number(document.getElementById('ov-scale').value) * 10) / 10,
+            overlayOnScore:  document.getElementById('ov-onscore').checked,
+        };
+    }
+    let _ovSaveTimer = null;
+    function saveOverlay() {
+        const st = document.getElementById('ov-status');
+        const o = collectOverlay();
+        document.getElementById('ov-box').classList.toggle('off', !o.overlayEnabled);
+        document.getElementById('ov-scale-val').textContent = '×' + o.overlayScale.toFixed(1);
+        st.style.color = '#888'; st.textContent = '保存中…';
+        clearTimeout(_ovSaveTimer);
+        _ovSaveTimer = setTimeout(async () => {
+            const upd = {};
+            Object.entries(o).forEach(([k, v]) => { upd['warmupSettings.' + k] = v; });
+            try {
+                await updateDoc(doc(db, 'tournaments', eventId), upd);
+                st.style.color = '#2e7d32'; st.textContent = '✓ 自動保存済み';
+            } catch (e) { st.style.color = '#c62828'; st.textContent = '❌ ' + e.message; }
+        }, 300);
+    }
+    document.getElementById('ov-enabled').addEventListener('change', saveOverlay);
+    document.getElementById('ov-onscore').addEventListener('change', saveOverlay);
+    document.getElementById('ov-scale').addEventListener('input', saveOverlay);
+    document.querySelectorAll('#ov-style button').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#ov-style button').forEach(x => x.classList.toggle('active', x === b));
+        saveOverlay();
+    }));
+    document.querySelectorAll('#ov-pos button').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#ov-pos button').forEach(x => x.classList.toggle('active', x === b));
+        saveOverlay();
+    }));
+
+    // ---- タイマー手入力：onSnapshot で上書きされないよう「更新」ボタンでのみ反映 ----
+    document.getElementById('timer-manual-set-btn').addEventListener('click', async () => {
+        const minEl = document.getElementById('timer-manual-min');
+        const secEl = document.getElementById('timer-manual-sec');
+        const minVal = parseInt(minEl.value, 10);
+        const secVal = parseInt(secEl.value, 10);
+        if (isNaN(minVal) || isNaN(secVal) || minVal < 0 || secVal < 0 || secVal > 59) {
+            minEl.focus(); return;
+        }
+        const ms = (minVal * 60 + secVal) * 1000;
+        if (ms <= 0) { minEl.focus(); return; }
+        await updateDoc(doc(db,'tournaments',eventId), {
+            'warmupSettings.timerDefaultMs':   ms,
+            'warmupSettings.timerRemainingMs': ms,
+            'warmupSettings.timerPaused':      true,
+            'warmupSettings.timerEndMs':       null,
+            'warmupSettings.timerRef':         null,
+        }).catch(e => alert('失敗: '+e.message));
+        // 入力欄をクリア
+        minEl.value = ''; secEl.value = '';
+    });
+    // 秒フィールドで Enter → 更新ボタンと同じ動作
+    document.getElementById('timer-manual-sec').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('timer-manual-set-btn').click();
+    });
+    // 秒を2桁に自動補正（59以上は59に丸める）
+    document.getElementById('timer-manual-sec').addEventListener('blur', e => {
+        const v = parseInt(e.target.value, 10);
+        if (!isNaN(v)) e.target.value = Math.min(59, Math.max(0, v));
+    });
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const ms = Number(btn.dataset.min) * 60 * 1000;
+            await updateDoc(doc(db,'tournaments',eventId), {
+                'warmupSettings.timerDefaultMs':   ms,
+                'warmupSettings.timerRemainingMs': ms,
+                'warmupSettings.timerPaused':      true,
+                'warmupSettings.timerEndMs':       null,
+                'warmupSettings.timerRef':         null,
+            }).catch(e => alert('失敗: '+e.message));
+        });
+    });
+
+    // ---- 認証 & ロード ----
+    ensureAdmin(async user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+
+        if (!eventId) { document.getElementById('event-name').textContent = 'URLにeventパラメータがありません'; return; }
+
+        const tourData = await getTournament(eventId);
+        if (!tourData) { document.getElementById('event-name').textContent = '大会が見つかりません'; return; }
+        const tournamentName = tourData.name || '';
+        document.getElementById('event-name').textContent = tournamentName || eventId;
+        document.getElementById('btn-autofill-name').addEventListener('click', () => {
+            document.getElementById('title-line1').value = tournamentName;
+        });
+        if (tourData.displaySettings) applyDispToUI(tourData.displaySettings);
+        document.getElementById('save-settings-btn').disabled = false;
+
+        // 選手紹介: クラス表示順を確定
+        const _iDefs = (tourData.classes?.individual || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+        const _sDefs = (tourData.classes?.synchro    || []).slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+        introClassDefs = [...new Set([..._iDefs,..._sDefs])];
+
+        // 選手データからクラス一覧を取得
+        const athSnap = await getDocs(collection(db,'tournaments',eventId,'athletes'));
+        const comboSet = new Set();
+        const carouselSet = new Set();
+        const catType = {};   // `${cls}|${gender}` → 個人/シンクロ（団体の基礎タイプ推定用）
+        athSnap.forEach(d => {
+            const a = d.data();
+            const typeRaw = a.type || 'individual';
+            const typeLabel = typeRaw === 'synchro' ? 'シンクロ' : '個人';
+            const gender = a.gender || '';
+            const cls    = a.class  || '';
+            if (cls) {
+                if (!catType[`${cls}|${gender}`]) catType[`${cls}|${gender}`] = typeRaw;
+                comboSet.add(`${cls} ${gender}（${typeLabel}）`);
+                const key = `${cls}|${gender}|${typeRaw}`;
+                if (!carouselSet.has(key)) {
+                    carouselSet.add(key);
+                    // 予選・決勝を別々の巡回候補として選べるようにする
+                    carouselCombos.push({ classVal: cls, gender, type: typeRaw, round: 'qualifying',
+                        label: `${cls} ${gender}（${typeLabel}）予選` });
+                    carouselCombos.push({ classVal: cls, gender, type: typeRaw, round: 'final',
+                        label: `${cls} ${gender}（${typeLabel}）決勝` });
+                }
+            }
+        });
+        // 団体（team）: チーム登録のある class|gender を巡回候補に追加（基礎タイプは選手から推定）
+        try {
+            const teamSnap = await getDocs(collection(db, 'tournaments', eventId, 'teams'));
+            const teamSet = new Set();
+            teamSnap.forEach(d => {
+                const t = d.data();
+                const cls = t.class || '', gender = t.gender || '';
+                if (!cls) return;
+                const catKey = `${cls}|${gender}`;
+                if (teamSet.has(catKey)) return;
+                teamSet.add(catKey);
+                carouselCombos.push({ classVal: cls, gender, type: catType[catKey] || 'individual',
+                    mode: 'team', label: `${cls} ${gender}（団体）` });
+            });
+        } catch (e) { console.warn('団体（teams）取得失敗', e); }
+        // 決勝スタートリスト: isInFinal の選手がいるクラス組み合わせを巡回候補に追加
+        // （下の fsl-target 用ループと条件は同じだが、あちらは単一選択のプルダウン用、
+        //   こちらは巡回チェックリストへの追加なので別々に列挙する）
+        const fslCarouselSet = new Set();
+        athSnap.forEach(d => {
+            const a = d.data();
+            if (!a.isInFinal || !a.class) return;
+            const typeRaw   = a.type || 'individual';
+            const typeLabel = typeRaw === 'synchro' ? 'シンクロ' : '個人';
+            const gender    = a.gender || '';
+            const key = `${a.class}|${gender}|${typeRaw}`;
+            if (fslCarouselSet.has(key)) return;
+            fslCarouselSet.add(key);
+            carouselCombos.push({ classVal: a.class, gender, type: typeRaw,
+                mode: 'final_startlist', label: `${a.class} ${gender}（${typeLabel}）決勝スタートリスト` });
+        });
+        classCombos = [...comboSet].sort();
+        carouselCombos.sort((a, b) => a.label.localeCompare(b.label, 'ja'));
+        buildClassOptions(classCombos);
+        buildCarouselList(carouselCombos);
+
+        // 決勝スタートリスト: isInFinal の選手がいるクラス組み合わせを列挙
+        const fslSel = document.getElementById('fsl-target');
+        const fslMap = new Map(); // key → label
+        athSnap.forEach(d => {
+            const a = d.data();
+            if (!a.isInFinal || !a.class) return;
+            const typeRaw   = a.type || 'individual';
+            const typeLabel = typeRaw === 'synchro' ? 'シンクロ' : '個人';
+            const key = `${a.class}|${a.gender||''}|${typeRaw}`;
+            if (!fslMap.has(key))
+                fslMap.set(key, `${a.class} ${a.gender||''}（${typeLabel}）`.replace(/\s+/g,' ').trim());
+        });
+        [...fslMap.entries()].sort((a,b) => a[1].localeCompare(b[1],'ja')).forEach(([val, label]) => {
+            const o = document.createElement('option');
+            o.value = val; o.textContent = label;
+            fslSel.appendChild(o);
+        });
+
+        // 選手紹介用リスト
+        athSnap.forEach(d => {
+            const a = d.data();
+            if (a.name1) introAthletes.push({
+                id: d.id, name1: a.name1||'', name2: a.name2||'',
+                kana1: a.kana1||'', kana2: a.kana2||'',
+                club1: a.club1||'', club2: a.club2||'',
+                type: a.type||'individual', class: a.class||'',
+                gender: a.gender||'', order: a.order||'',
+                finalOrder: a.finalOrder ?? null // 「決勝試技順」モード（getIntroSorted）の絞り込みに必要
+            });
+        });
+        introAthletes.forEach(a => introCheckedIds.add(a.id));
+        buildIntroFilterBtns();
+        applyIntroFilter();
+
+        // 初期画面状態を即座に反映（onSnapshot 到着前にタイマーを表示する）
+        lastDoc = tourData;
+        applyScreenState(
+            tourData.venueScreen      || 'score',
+            tourData.warmupSettings   || {},
+            tourData.titleSettings    || {},
+            tourData.ceremonySettings || {},
+            tourData.rankingCarousel  || {}
+        );
+        applyAnnounce(tourData);
+        renderTargetUI();
+
+        // リアルタイム監視
+        subscribePresence();
+        onSnapshot(doc(db,'tournaments',eventId), snap => {
+            if (!snap.exists()) return;
+            const d = snap.data();
+            if (d.displaySettings) applyDispToUI(d.displaySettings);
+            lastDoc = d;
+            applyScreenState(
+                d.venueScreen      || 'score',
+                d.warmupSettings   || {},
+                d.titleSettings    || {},
+                d.ceremonySettings || {},
+                d.rankingCarousel  || {}
+            );
+            applyAnnounce(d);
+            renderTargetUI();
+        });
+    });
+</script>
+</body>
+</html>
