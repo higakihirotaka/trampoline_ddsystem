@@ -767,7 +767,7 @@
 </style>
 </head>
 <body>
-<div class="sample-bar">サンプル表示 — Aクラスのデータを埋め込んだ、単体で開けるレイアウト確認用のページです</div>
+<div class="sample-bar">サンプル表示 — 大会の実データを読み取り専用で参照しています（書き込み・公開は行いません）</div>
 
 <header class="hero">
   <svg class="arc" viewBox="0 0 400 150" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -802,155 +802,17 @@
   <div id="out"></div>
 </main>
 
-<script src="score_public_sample_data.js"></script>
 <script type="module">
+import { getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db } from "./firebase-config.js";
+import { calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, extractTbScores, parseDDRule, calcCardDD } from "./shared.js";
+import { getTournament, getAthletes, getFinalOrders, getSkills } from "./cache.js";
 
-// ---------- サンプルデータ（score_public_sample_data.js に分離。Aクラスのみ） ----------
-const DATA = window.SAMPLE_DATA;
+// 読み取り専用のサンプル。第61回全日本学生トランポリン競技選手権大会の実データを直接参照する
+// （別の大会を見たいときは ?event=大会ID）
+const DEFAULT_EVENT = 'NDDBqFY9CP5wJDl8JccT';
+const eventId = new URLSearchParams(location.search).get('event') || DEFAULT_EVENT;
 
-// ---------- 共通の計算（shared.js の順位・難度の計算を、そのまま収録） ----------
-function round1(v) {
-  return Math.round(v * 10) / 10;
-}
-
-function extractTbScores(result) {
-  if (!result) return { tof: null, hd: null, diff: null };
-  return {
-    tof:  result.tof                    ?? null,
-    hd:   result.hd?.total              ?? null,
-    diff: result.officialD ?? result.dd ?? null
-  };
-}
-
-function calcQualifyingScore(pre1, pre2, numPre, scoreMode) {
-  if (numPre === 1) return pre1 ?? null;
-  if (pre1 != null && pre2 != null)
-    return scoreMode === 'total' ? pre1 + pre2 : Math.max(pre1, pre2);
-  return pre1 ?? pre2 ?? null;
-}
-
-function calcQualifyingTb(pre1, pre2, pre1r, pre2r, numPre, scoreMode) {
-  if (numPre < 2 || pre1 == null || pre2 == null) {
-    return { tbSum: null, tb: extractTbScores(pre1 != null ? pre1r : pre2r) };
-  }
-  if (scoreMode === 'best') {
-    return {
-      tbSum: pre1 + pre2,
-      tb:    extractTbScores(pre1 >= pre2 ? pre1r : pre2r)
-    };
-  } else {
-    const s1 = extractTbScores(pre1r), s2 = extractTbScores(pre2r);
-    return {
-      tbSum: null,
-      tb: {
-        tof:  (s1.tof  ?? 0) + (s2.tof  ?? 0),
-        hd:   (s1.hd   ?? 0) + (s2.hd   ?? 0),
-        diff: (s1.diff ?? 0) + (s2.diff ?? 0)
-      }
-    };
-  }
-}
-
-function calcFinalScore(qualPre, final, finalScoreMode) {
-  if (finalScoreMode === 'combined') {
-    if (qualPre != null && final != null) return qualPre + final;
-    return final ?? qualPre ?? null;
-  }
-  return final ?? null;
-}
-
-function compareRankEntries(a, b) {
-  if (a.qualScore == null && b.qualScore == null) return 0;
-  if (a.qualScore == null) return  1;
-  if (b.qualScore == null) return -1;
-  const as2 = Math.round(a.qualScore * 1000) / 1000;
-  const bs2 = Math.round(b.qualScore * 1000) / 1000;
-  if (bs2 !== as2) return bs2 - as2;
-  if (a.tbSum != null && b.tbSum != null && Math.abs(b.tbSum - a.tbSum) > 1e-9) return b.tbSum - a.tbSum;
-  for (const k of ['tof', 'hd', 'diff']) {
-    const va = a.tb?.[k], vb = b.tb?.[k];
-    if (va != null && vb != null && Math.abs(vb - va) > 1e-9) return vb - va;
-  }
-  return 0;
-}
-
-function assignRanks(entries) {
-  entries.forEach((r, idx) => {
-    if (idx === 0) { r.rank = 1; return; }
-    const prev = entries[idx - 1];
-    if (r.qualScore == null || prev.qualScore == null) { r.rank = idx + 1; return; }
-    r.rank = compareRankEntries(r, prev) === 0 ? prev.rank : idx + 1;
-  });
-  return entries;
-}
-
-function calcBonus(gender, tripleCount) {
-  if (gender === '男子' && tripleCount > 5) return (tripleCount - 5) * 0.3;
-  if ((gender === '女子' || gender === '混合') && tripleCount >= 3) return (tripleCount - 2) * 0.3;
-  return 0;
-}
-
-function parseDDRule(rule, round) {
-  const r = rule || {};
-  const num = v => { const n = parseFloat(v); return (v != null && !isNaN(n)) ? n : null; };
-  const rawDesig = (r.designatedDDCount != null && r.designatedDDCount >= 0) ? r.designatedDDCount : -1;
-  const desigValid = rawDesig >= 0 && r.qualifyingRoutines === 2 && r.scoreMode === 'total' && round === 'pre1';
-  return {
-    perSkillDDCap: num(r.perSkillDDCap),
-    perSkillDQ:    r.perSkillDDCapMode === 'disqualify',
-    routineDDCap:  num(r.routineDDCap),
-    routineDQ:     r.routineDDCapMode === 'disqualify',
-    minRoutineDD:  num(r.minRoutineDD),
-    designatedDDCount: desigValid ? rawDesig : -1,
-  };
-}
-
-function calcCardDD({ skills, gender, ddRule, designatedIndices = [], validLimit = 10 }) {
-  const { perSkillDDCap: pc, perSkillDQ, routineDDCap: rc, routineDQ, designatedDDCount: dc } = ddRule;
-  const desigSet = designatedIndices instanceof Set ? designatedIndices : new Set(designatedIndices);
-
-  const keyCounts = {};
-  for (let i = 0; i < 10 && i < validLimit; i++) {
-    const s = skills[i];
-    if (s && s.key) keyCounts[s.key] = (keyCounts[s.key] || 0) + 1;
-  }
-
-  const rows = [], seen = new Set();
-  let baseDD = 0, tripleCount = 0, skillOverCapDQ = false;
-  for (let i = 0; i < 10; i++) {
-    const s = skills[i] || null;
-    const isDesignated = dc < 0 || (dc > 0 && desigSet.has(i));
-    const row = { index: i, blank: !s, beyondLimit: i >= validLimit, skill: s, isDesignated,
-                  isDupRow: false, isDupZero: false, overCap: false, isCapped: false, counted: false, usedDD: 0 };
-    rows.push(row);
-    if (row.beyondLimit || !s) continue;
-
-    row.isDupRow  = !!s.key && keyCounts[s.key] > 1;
-    row.isDupZero = !!s.key && seen.has(s.key);
-    if (s.key) seen.add(s.key);
-
-    const dd = s.dd;
-    row.overCap  = !row.isDupZero && pc != null && dd != null && round1(dd) > pc;
-    row.isCapped = row.overCap && !perSkillDQ;
-    row.usedDD   = row.isDupZero ? 0 : (row.isCapped ? pc : (dd ?? 0));
-    row.counted  = isDesignated && !row.isDupZero;
-    if (row.counted) {
-      if (dd != null) baseDD += row.usedDD;
-      if (s.isTriple) tripleCount++;
-      if (row.overCap && perSkillDQ) skillOverCapDQ = true;
-    }
-  }
-
-  const bonus = calcBonus(gender || '', tripleCount);
-  const rawTotal = baseDD + bonus;
-  const routineOverCap = rc != null && round1(rawTotal) > rc;
-  const routineCapped  = routineOverCap && !routineDQ;
-  const routineOverDQ  = routineOverCap && routineDQ;
-  return { rows, baseDD, tripleCount, bonus, rawTotal, total: routineCapped ? rc : rawTotal,
-           routineOverCap, routineCapped, routineOverDQ, skillOverCapDQ };
-}
-
-// ============================================================
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -967,19 +829,29 @@ let tour, athletes = [], teamDocs = [], byAth = {}, resultsLoaded = false, skill
 
 // ---------- データ読み込み ----------
 async function loadBase() {
-  if (!DATA) throw new Error('score_public_sample_data.js が読み込めませんでした。同じフォルダに配置されているか確認してください。');
-  tour = DATA.tour; athletes = DATA.athletes.map(x => ({ ...x })); teamDocs = DATA.teams; skillMaster = DATA.skills;
+  const [t, a] = await Promise.all([getTournament(eventId), getAthletes(eventId)]);
+  if (!t) throw new Error('大会が見つかりません');
+  tour = t; athletes = a.map(x => ({ ...x }));
   if (tour.displaySettings?.colorTheme === 'red') document.documentElement.dataset.theme = 'red';
+  const fo = await getFinalOrders(eventId);
+  athletes.forEach(x => { const o = fo[x.id]; if (o) { x.finalOrder = o.finalOrder; x.isInFinal = o.isInFinal; } });
+  try { teamDocs = (await getDocs(collection(db, 'tournaments', eventId, 'teams'))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { teamDocs = []; }
+  skillMaster = await getSkills();
   $('t-name').textContent = tour.name || '';
   const range = [tour.start_date || tour.startDate, tour.end_date].filter(Boolean).map(s => String(s).replace(/-/g, '/')).join(' – ');
   $('t-meta').textContent = [tour.venue, range].filter(Boolean).join(' · ');
 }
 async function loadResults() {
+  // 採用条件: 公開済み、または、修正中（公開は解除されているが、前の確定値 officialTotal が残っている）
+  const snap = await getDocs(query(collection(db, 'results'), where('eventId', '==', eventId)));
   byAth = {};
-  DATA.results.forEach(r => { (byAth[r.athleteId] ||= {})[r.round] = r; });
+  snap.docs.forEach(d => {
+    const r = d.data();
+    if (r.published !== true && !(r.published === false && r.officialTotal != null)) return;
+    (byAth[r.athleteId] ||= {})[r.round] = r;
+  });
   resultsLoaded = true;
-  const n = new Date(DATA.snapshotAt);
-  $('stamp').textContent = 'SNAPSHOT ' + (n.getMonth() + 1) + '/' + n.getDate() + ' ' + [n.getHours(), n.getMinutes()].map(x => String(x).padStart(2, '0')).join(':');
+  const n = new Date(); $('stamp').textContent = 'UPDATED ' + [n.getHours(), n.getMinutes(), n.getSeconds()].map(x => String(x).padStart(2, '0')).join(':');
 }
 
 // ---------- グループ ----------
