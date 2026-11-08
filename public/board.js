@@ -344,15 +344,17 @@ export function createBoardWriter(db, sdk) {
   const ref = (eventId, id) => sdk.doc(db, 'tournaments', eventId, BOARD_COLLECTION, id);
   const stamp = () => sdk.serverTimestamp();
 
-  /** フィールド単位の更新。ドキュメントが無ければ、skeleton() の骨組みごと作る */
+  /** フィールド単位の更新。ドキュメントが無ければ、skeleton() の骨組みごと作る。戻り値: 'updated' | 'created' */
   async function patch(eventId, key, fields, skeleton) {
     const r = ref(eventId, key);
     try {
       await sdk.updateDoc(r, { ...fields, updatedAt: stamp() });
+      return 'updated';
     } catch (e) {
       if (e?.code !== 'not-found') throw e;
       const base = skeleton ? skeleton() : { v: BOARD_VERSION };
       await sdk.setDoc(r, deepMerge(base, nest({ ...fields, updatedAt: stamp() })), { merge: true });
+      return 'created';
     }
   }
 
@@ -369,6 +371,13 @@ export function createBoardWriter(db, sdk) {
     writeMeta: (eventId, key, field, value, skeleton) => {
       if (!['roster', 'teams', 'rule'].includes(field)) throw new Error('meta のフィールドが不正です: ' + field);
       return patch(eventId, key, { [`meta.${field}`]: value }, skeleton);
+    },
+    /** 目次がまだ無いときだけ、書く（1回だけ読む）。書いたら true */
+    async ensureIndex(eventId, indexFn) {
+      const s = await sdk.getDoc(ref(eventId, INDEX_ID));
+      if (s.exists()) return false;
+      await sdk.setDoc(ref(eventId, INDEX_ID), { ...indexFn(), updatedAt: stamp() });
+      return true;
     },
     /** 目次を、丸ごと書く */
     writeIndex: (eventId, index) => sdk.setDoc(ref(eventId, INDEX_ID), { ...index, updatedAt: stamp() }),

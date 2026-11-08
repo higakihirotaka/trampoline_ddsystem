@@ -237,6 +237,7 @@ function fakeSdk() {
     async updateDoc(r, fields) { log.push(['update', r]); if (!store.has(r)) { const e = new Error('nf'); e.code = 'not-found'; throw e; } for (const [p, v] of Object.entries(fields)) setPath(store.get(r), p, v); },
     async setDoc(r, data, opt) { log.push(['set', r, !!opt?.merge]); if (opt?.merge && store.has(r)) merge(store.get(r), data); else { const t = {}; merge(t, data); store.set(r, t); } },
     async deleteDoc(r) { store.delete(r); },
+    async getDoc(r) { log.push(['get', r]); return { exists: () => store.has(r), data: () => store.get(r) }; },
   };
 }
 
@@ -383,4 +384,15 @@ test('団体: 完全な同点は同順位。チームが無いクラスは空', 
   const t = rankTeams(doc({}, roster, rows, [{ name: '甲', members: ['a'] }, { name: '乙', members: ['b'] }]));
   assert.deepEqual(t.map(x => x.rank), [1, 1]);
   assert.deepEqual(rankTeams(doc({}, roster, rows)), []);
+});
+
+test('書込: 戻り値で、新規に作ったか分かる。目次は、無いときだけ書く（読むのは1回）', async () => {
+  const sdk = fakeSdk(); const w = createBoardWriter({}, sdk); const key = 'k';
+  assert.equal(await w.writeRoutine('E', key, 'a1', 'pre1', { total: 1 }, () => ({ v: 1, meta: {}, rows: {} })), 'created');
+  assert.equal(await w.writeRoutine('E', key, 'a2', 'pre1', { total: 2 }), 'updated');
+  let n = 0; const indexFn = () => { n++; return { v: 1, groups: [] }; };
+  assert.equal(await w.ensureIndex('E', indexFn), true);
+  assert.equal(await w.ensureIndex('E', indexFn), false);
+  assert.equal(n, 1, '2回目は作らない');
+  assert.equal(sdk.log.filter(l => l[0] === 'get').length, 2);
 });

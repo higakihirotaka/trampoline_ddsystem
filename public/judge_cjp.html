@@ -188,6 +188,8 @@
     import { ensureAdmin } from "./auth.js";
     import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
     import { round1, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";
+    // 公開スコアボード（docs/realtime-score-spec.md）への書込。失敗しても、ここでの確定・削除は止めない
+    import { boardPublish, boardDns, boardRemove } from "./board_client.js";
 
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
@@ -212,6 +214,7 @@
 
     let athletes = [], submissions = {}, results = {}, currentTour = null;
     let teamCategoryKeys = new Set(); // 団体戦: チーム登録のあるカテゴリー "class|gender"
+    let teamDocs = [];                // 団体戦: チームのドキュメント（公開スコアボードの名簿の骨組み用）
     let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;
     let sidebarFilteredAthletes = []; // renderSidebar()が今表示している順（Nキーの「次の選手へ」用）
     let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null, unsubscribeSub = null;
@@ -345,6 +348,7 @@
             skillMasterMap[d.id] = {
                 id: d.id,
                 symbol: d.data().symbol,
+                displaySymbol: d.data().displaySymbol || '',   // 公開スコアボードの記号表記
                 note: d.data().note || '',
                 dd: parseFloat(d.data().dd) || 0,
                 isTriple: d.data().isTriple === true,
@@ -367,6 +371,7 @@
 
         // 団体戦: チーム登録のあるカテゴリー(class|gender)を収集（ボタン表示判定用）
         teamCategoryKeys = new Set(teamSnap.docs.map(d => `${d.data().class || ''}|${d.data().gender || ''}`));
+        teamDocs = teamSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
         renderSidebar();
         renderScores({}); // 審判行を常に表示（numExecJudges 人分の空行）
@@ -914,6 +919,7 @@
                 }, { merge: true })
             ]);
 
+            boardRemove({ eventId, tour: currentTour, athletes, teams: teamDocs, athleteId, round });   // 公開スコアボードからも消す
             // ローカル状態リセット（switchAthlete と同等）
             delete results[resId];
             latestData = {};
@@ -973,6 +979,7 @@
                     liveState: { [panel]: { locked: true } }
                 }, { merge: true })
             ]);
+            boardDns({ eventId, tour: currentTour, athletes, teams: teamDocs, athleteId, round });   // 公開スコアボードに棄権を書く
         } catch(e) { alert('エラー: ' + e.message); }
     };
 
@@ -989,6 +996,7 @@
                     liveState: { [panel]: { locked: false } }, calculating: false
                 }, { merge: true })
             ]);
+            boardRemove({ eventId, tour: currentTour, athletes, teams: teamDocs, athleteId, round });   // 公開スコアボードからも消す
             delete results[resId];
             latestData = {};
             manualRows = new Set(); pendingEdits = {};
@@ -2327,7 +2335,20 @@
             renderSidebar();
         } catch (err) {
             alert('送信に失敗しました: ' + err.message);
+            return;
         }
+
+        // 公開スコアボード: 確定した内容を、その時点の表示用データにして書く（待たない。失敗しても確定は済んでいる）。
+        // 画面に出ている値（latestData と今回の保存値）から作る。FirestoreのdeleteField等は「無い」扱いにする。
+        const _pub = { ...latestData };
+        Object.entries(saveData).forEach(([k, v]) => { if (v && typeof v === 'object' && v._methodName) delete _pub[k]; else _pub[k] = v; });
+        _pub.validCount = vLimit;
+        boardPublish({
+            eventId, tour: currentTour, athletes, teams: teamDocs, athleteId, round, res: _pub,
+            skillMaster: skillMasterMap, panel: curPanel(),
+            // 試合中に技マスタへ追加された技が見つかったとき、取り直した技マスタをこの画面にも反映する
+            onSkillMaster: list => list.forEach(s => { skillMasterMap[s.id] = s; }),
+        });
     };
 
     // ---- キーボードナビゲーション（手動入力セル） ----
