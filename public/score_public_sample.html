@@ -359,7 +359,7 @@
     padding: 0 12px 64px;
   }
 
-  /* セクション見出し＆検索バー */
+  /* セクション見出し */
   .sec {
     margin: 18px 2px 12px;
   }
@@ -411,40 +411,6 @@
     background: linear-gradient(90deg, var(--accent), var(--ok));
     border-radius: 4px;
     transition: width .3s ease;
-  }
-
-  /* 検索フィルタ */
-  .filter-bar {
-    margin-top: 10px;
-    position: relative;
-  }
-  .filter-input {
-    width: 100%;
-    font: inherit;
-    font-size: 13px;
-    padding: 8px 32px 8px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--line);
-    background: var(--card);
-    color: var(--ink);
-    outline: none;
-    transition: border-color .15s;
-  }
-  .filter-input:focus {
-    border-color: var(--accent);
-  }
-  .filter-clear {
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 0;
-    background: transparent;
-    color: var(--mute);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 4px 6px;
-    line-height: 1;
   }
 
   /* スコアカード（選手行） */
@@ -996,7 +962,7 @@ const dash = '<span class="na">–</span>';
 const medal = r => r <= 3 ? ` m${r}` : '';
 
 const PHASES = [{ id: 'qual', label: '予選' }, { id: 'final', label: '決勝' }, { id: 'team', label: '団体' }];
-const state = { phase: 'qual', cat: null, open: new Set(), auto: false, timer: null, query: '' };
+const state = { phase: 'qual', cat: null, open: new Set(), auto: false, timer: null };
 let tour, athletes = [], teamDocs = [], byAth = {}, resultsLoaded = false, skillMaster = null;
 
 // ---------- データ読み込み ----------
@@ -1089,11 +1055,6 @@ const clubOf = a => {
   if (a.type !== 'synchro') return esc(a.club1 || '');
   const c1 = (a.club1 || '').trim(), c2 = (a.club2 || '').trim();
   return esc(c1 && c1 === c2 ? c1 : [c1, c2].filter(Boolean).join(' / '));
-};
-const matchQuery = (a, q) => {
-  if (!q) return true;
-  const hay = [a.name1, a.name2, a.club1, a.club2].filter(Boolean).join(' ').toLowerCase();
-  return hay.includes(q.toLowerCase());
 };
 
 function routineCard(label, res, synchro, adopted, dimmed) {
@@ -1278,16 +1239,9 @@ async function renderOut() {
   const leader = d.ranked[0]?.qualScore;
   const pct = d.total ? Math.round(done / d.total * 100) : 0;
 
-  const q = state.query.trim();
-  const fRanked = d.ranked.filter(r => matchQuery(r.a, q));
-  const fWaiting = d.waiting.filter(r => matchQuery(r.a, q));
-  const fDns = d.dns.filter(r => matchQuery(r.a, q));
-
-  const listHtml = (fRanked.length + fWaiting.length + fDns.length) > 0
-    ? fRanked.map((r) => personRow(r, g, state.phase, d.ranked.indexOf(r), leader)).join('')
-      + fWaiting.map(r => waitingRow(r, '演技待ち')).join('')
-      + fDns.map(r => waitingRow(r, '棄権')).join('')
-    : `<div class="empty"><b>該当する選手が見つかりません</b><span>検索キーワードを変更してください</span></div>`;
+  const listHtml = d.ranked.map(r => personRow(r, g, state.phase, d.ranked.indexOf(r), leader)).join('')
+    + d.waiting.map(r => waitingRow(r, '演技待ち')).join('')
+    + d.dns.map(r => waitingRow(r, '棄権')).join('');
 
   out.innerHTML = `
     <div class="sec">
@@ -1296,43 +1250,16 @@ async function renderOut() {
         <span class="badge">${done}/${d.total}名 確定</span>
       </div>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <div class="filter-bar">
-        <input type="search" id="search-input" class="filter-input" placeholder="選手名・大学名で絞り込み…" value="${esc(state.query)}">
-        <button type="button" id="search-clear" class="filter-clear" aria-label="クリア" ${state.query ? '' : 'hidden'}>×</button>
-      </div>
     </div>
     <div id="cards-list">${listHtml}</div>`;
 
-  const sInput = $('search-input');
-  if (sInput) {
-    sInput.addEventListener('input', e => {
-      state.query = e.target.value;
-      $('search-clear').hidden = !state.query;
-      renderCardsOnly(g, d, leader);
-    });
-  }
-}
-
-function renderCardsOnly(g, d, leader) {
-  const listEl = $('cards-list');
-  if (!listEl) return;
-  const q = state.query.trim();
-  const fRanked = d.ranked.filter(r => matchQuery(r.a, q));
-  const fWaiting = d.waiting.filter(r => matchQuery(r.a, q));
-  const fDns = d.dns.filter(r => matchQuery(r.a, q));
-  listEl.innerHTML = (fRanked.length + fWaiting.length + fDns.length) > 0
-    ? fRanked.map((r) => personRow(r, g, state.phase, d.ranked.indexOf(r), leader)).join('')
-      + fWaiting.map(r => waitingRow(r, '演技待ち')).join('')
-      + fDns.map(r => waitingRow(r, '棄権')).join('')
-    : `<div class="empty"><b>該当する選手が見つかりません</b><span>検索キーワードを変更してください</span></div>`;
 }
 
 document.addEventListener('click', async e => {
-  const p = e.target.closest('[data-phase]'), c = e.target.closest('[data-cat]'), t = e.target.closest('[data-toggle]'), clr = e.target.closest('#search-clear');
-  if (p) { state.phase = p.dataset.phase; state.query = ''; state.open.clear(); renderNav(); renderOut(); }
-  else if (c && !c.disabled) { state.cat = c.dataset.cat; state.query = ''; state.open.clear(); renderNav(); renderOut(); }
+  const p = e.target.closest('[data-phase]'), c = e.target.closest('[data-cat]'), t = e.target.closest('[data-toggle]');
+  if (p) { state.phase = p.dataset.phase; state.open.clear(); renderNav(); renderOut(); }
+  else if (c && !c.disabled) { state.cat = c.dataset.cat; state.open.clear(); renderNav(); renderOut(); }
   else if (t) { const k = t.dataset.toggle; state.open.has(k) ? state.open.delete(k) : state.open.add(k); renderOut(); }
-  else if (clr) { state.query = ''; renderOut(); }
 });
 
 async function refresh() { await loadResults(); if (state.phase && state.cat) renderOut(); }
