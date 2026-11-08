@@ -5,80 +5,133 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>公開スコアページ レイアウト確認（サンプル）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f4f5f7; --card: #fff; --line: #e3e5ea; --ink: #1c1f26; --sub: #626a78; --mute: #98a0ad;
-    --accent: #1f2a44; --on-accent: #fff; --green-bg: #e7f5ec; --green: #1c7a45;
-    --warn-bg: #fff3d6; --warn: #8a5a00; --chip-bg: #fff; --dim: .55;
+    --bg: #f2f0eb; --card: #fff; --soft: #f6f4ef; --line: #e6e2d9;
+    --ink: #172033; --sub: #5d6678; --mute: #9aa1ae;
+    --hero: #12203d; --hero2: #1d3560; --sel: #12203d; --on-sel: #fff;
+    --hl: #f2b01e; --on-hl: #2a1d00; --hl-soft: #fdf3d7;
+    --ok: #1f8a52; --ok-soft: #e5f4ea; --link: #2b5fc7;
+    --num: "Barlow", "DIN 2014", system-ui, sans-serif;
   }
+  :root[data-theme="red"] { --hero: #4a0f1d; --hero2: #7a1a30; --sel: #8f1730; }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #12141a; --card: #1b1e26; --line: #2b2f3a; --ink: #eceef2; --sub: #a3abb9; --mute: #6c7484;
-      --accent: #e8ebf3; --on-accent: #12141a; --green-bg: #173a29; --green: #66d19a;
-      --warn-bg: #3a2f10; --warn: #f0c36a; --chip-bg: #1b1e26;
+      --bg: #0d1017; --card: #171b25; --soft: #1f2431; --line: #2a3040;
+      --ink: #eceef3; --sub: #a4adbd; --mute: #6b7487;
+      --hero: #0a1226; --hero2: #14264a; --sel: #f2b01e; --on-sel: #2a1d00;
+      --hl-soft: #3a2f12; --ok: #5fcf93; --ok-soft: #14352a; --link: #8db4ff;
     }
+    :root[data-theme="red"] { --hero: #2b0a12; --hero2: #4a1020; --sel: #f2b01e; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Noto Sans JP", system-ui, -apple-system, "Hiragino Sans", sans-serif; -webkit-text-size-adjust: 100%; }
   .wrap { max-width: 640px; margin: 0 auto; padding: 0 12px 48px; }
-  .sample-bar { background: var(--warn-bg); color: var(--warn); font-size: 12px; text-align: center; padding: 6px 12px; }
-  .head { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 12px; }
-  .head h1 { font-size: 16px; line-height: 1.4; margin: 0; font-weight: 700; }
-  .head .meta { font-size: 12px; color: var(--sub); margin-top: 2px; }
-  .head .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  .notice { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); }
+  .sample-bar { background: var(--hl-soft); color: var(--sub); font-size: 11px; text-align: center; padding: 6px 12px; }
+
+  /* ヘッダー: 紺の地に、トランポリンの跳ね上がりの軌道を薄い線で */
+  .hero { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--hero), var(--hero2)); color: #fff; border-radius: 0 0 22px 22px; padding: 18px 0 16px; }
+  .hero .arc { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .hero .arc path { fill: none; stroke: #fff; stroke-opacity: .1; stroke-width: 2; }
+  .hero .arc circle { fill: var(--hl); fill-opacity: .55; }
+  .hero-in { position: relative; max-width: 640px; margin: 0 auto; padding: 0 16px; }
+  .kicker { font-family: var(--num); font-size: 11px; font-weight: 600; letter-spacing: .14em; color: var(--hl); }
+  .hero h1 { font-size: 19px; line-height: 1.4; margin: 4px 0 0; font-weight: 700; }
+  .hero .meta { font-size: 12px; color: rgba(255,255,255,.72); margin-top: 3px; }
+  .hero .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .notice { font-size: 11px; padding: 4px 9px; border-radius: 999px; background: rgba(242,176,30,.16); color: #ffd277; border: 1px solid rgba(242,176,30,.4); }
   .ctl { display: flex; align-items: center; gap: 6px; }
-  .ctl button { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip-bg); color: var(--ink); cursor: pointer; }
-  .ctl button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-  .stamp { font-size: 11px; color: var(--mute); margin-top: 6px; }
-  .nav-label { font-size: 11px; color: var(--sub); margin: 14px 2px 6px; }
+  .ctl button { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.08); color: #fff; cursor: pointer; }
+  .ctl button[aria-pressed="true"] { background: var(--hl); color: var(--on-hl); border-color: var(--hl); font-weight: 700; }
+  .stamp { font-family: var(--num); font-size: 11px; color: rgba(255,255,255,.55); margin-top: 8px; }
+
+  /* ナビ: フェーズは3分割のスイッチ、種目は種別ごとにまとめたチップ */
+  .nav-label { font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: .04em; margin: 18px 2px 6px; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
+  .seg button { font: inherit; font-size: 15px; font-weight: 700; border: 0; border-radius: 10px; padding: 11px 0; background: transparent; color: var(--ink); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--sel); color: var(--on-sel); }
+  .grp { margin-top: 10px; }
+  .grp-h { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: var(--sub); margin: 0 2px 6px; }
+  .grp-h::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { font: inherit; font-size: 13px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--chip-bg); color: var(--ink); cursor: pointer; min-height: 38px; }
-  .chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-  .chip:disabled { color: var(--mute); border-style: dashed; cursor: default; background: transparent; }
-  .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 12px; padding: 30px 16px; text-align: center; margin-top: 14px; }
+  .chip { font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; min-height: 38px; }
+  .chip[aria-pressed="true"] { background: var(--sel); color: var(--on-sel); border-color: var(--sel); font-weight: 700; }
+  .chip:disabled { color: var(--mute); border-style: dashed; background: transparent; cursor: default; }
+
+  .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 16px; padding: 32px 16px; text-align: center; margin-top: 16px; }
   .empty b { display: block; font-size: 15px; }
   .empty span { font-size: 12px; color: var(--sub); }
-  .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 16px 2px 8px; }
-  .sec-head h2 { font-size: 15px; margin: 0; font-weight: 700; }
-  .badge { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--green-bg); color: var(--green); white-space: nowrap; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
-  .card.dim { opacity: var(--dim); }
-  .top { display: flex; align-items: center; gap: 10px; }
-  .rank { width: 28px; height: 28px; border-radius: 7px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex: none; }
+
+  /* 見出し */
+  .sec { margin: 20px 2px 10px; }
+  .sec-t { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+  .sec small { display: block; font-size: 12px; color: var(--sub); font-weight: 500; }
+  .sec h2 { font-size: 22px; margin: 0; font-weight: 700; line-height: 1.25; }
+  .badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); white-space: nowrap; }
+  .bar { height: 4px; border-radius: 4px; background: var(--line); margin-top: 10px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--hl); border-radius: 4px; }
+
+  /* 順位の行 */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; position: relative; overflow: hidden; }
+  .card.q-on::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--ok); }
+  .card.dim { opacity: .55; }
+  .top { display: flex; align-items: center; gap: 12px; }
+  .rank { width: 32px; height: 32px; border-radius: 50%; background: var(--soft); display: flex; align-items: center; justify-content: center; font-family: var(--num); font-weight: 700; font-size: 16px; flex: none; }
+  .rank.m1 { background: #f3c64f; color: #3a2a00; }
+  .rank.m2 { background: #d5dae3; color: #2b3342; }
+  .rank.m3 { background: #e3b08a; color: #3b2310; }
   .who { flex: 1; min-width: 0; }
-  .name { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+  .name { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; line-height: 1.35; }
   .club { font-size: 12px; color: var(--sub); overflow-wrap: anywhere; }
-  .q { font-size: 12px; font-weight: 700; color: var(--green); margin-left: 6px; }
+  .q { display: inline-block; font-family: var(--num); font-size: 11px; font-weight: 700; color: #fff; background: var(--ok); border-radius: 4px; padding: 0 6px; margin-left: 6px; vertical-align: 2px; }
+  @media (prefers-color-scheme: dark) { .q { color: #06241a; } }
   .tot { text-align: right; flex: none; }
-  .tot b { display: block; font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; }
-  .tot span { font-size: 11px; color: var(--sub); }
-  .rt { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
-  .rt.use { border-color: var(--green); background: var(--green-bg); }
-  .rt-h { display: flex; justify-content: space-between; font-size: 11px; color: var(--sub); }
-  .rt-h b { font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
-  .rt-g { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); text-align: center; font-size: 10px; color: var(--sub); margin-top: 4px; }
-  .rt-g b { display: block; font-size: 13px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
-  .more { margin-top: 8px; font: inherit; font-size: 13px; color: #2b6cd9; background: none; border: 0; padding: 6px 0; cursor: pointer; }
-  @media (prefers-color-scheme: dark) { .more { color: #7fb0ff; } }
-  table.sk { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; font-variant-numeric: tabular-nums; }
-  table.sk th, table.sk td { padding: 4px 3px; text-align: right; border-top: 1px solid var(--line); font-weight: 400; }
-  table.sk th { color: var(--sub); font-size: 10px; }
+  .tot b { display: block; font-family: var(--num); font-size: 30px; font-weight: 700; line-height: 1; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .tot span { display: block; font-family: var(--num); font-size: 12px; color: var(--sub); margin-top: 3px; }
+
+  /* 本ごとの得点 */
+  .rt { margin-top: 8px; background: var(--soft); border-radius: 10px; padding: 8px 10px; }
+  .rt.use { background: var(--hl-soft); box-shadow: inset 3px 0 0 var(--hl); }
+  .rt.off { opacity: .7; }
+  .rt-h { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--sub); }
+  .rt-h b { font-family: var(--num); font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .tag { font-style: normal; font-size: 10px; font-weight: 700; background: var(--hl); color: var(--on-hl); border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
+  .rt-g { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); text-align: center; font-size: 10px; color: var(--sub); margin-top: 6px; }
+  .rt-g b { display: block; font-family: var(--num); font-size: 15px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .more { display: block; width: 100%; margin-top: 10px; font: inherit; font-size: 13px; color: var(--link); background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 0 2px; cursor: pointer; text-align: center; }
+  table.sk { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; font-family: var(--num); font-variant-numeric: tabular-nums; }
+  table.sk th, table.sk td { padding: 5px 4px; text-align: right; font-weight: 500; }
+  table.sk tr:nth-child(even) td { background: var(--soft); }
+  table.sk th { color: var(--sub); font-size: 10px; font-family: "Noto Sans JP", system-ui, sans-serif; font-weight: 700; border-bottom: 1px solid var(--line); }
   table.sk th:first-child, table.sk td:first-child, table.sk th:nth-child(2), table.sk td:nth-child(2) { text-align: left; }
-  .cap { font-size: 11px; color: var(--sub); margin-top: 8px; }
+  table.sk td:first-child { color: var(--sub); }
+  table.sk tr.land td { border-top: 1px solid var(--line); font-weight: 700; }
+  .cap { font-size: 12px; color: var(--sub); font-weight: 700; margin-top: 12px; }
+  .cap.n { font-weight: 400; }
   .na { color: var(--mute); }
-  .mem { display: grid; grid-template-columns: 1fr 64px 64px; gap: 4px; font-size: 13px; padding: 5px 0; border-top: 1px solid var(--line); align-items: center; font-variant-numeric: tabular-nums; }
-  .mem.h { font-size: 10px; color: var(--sub); border-top: 0; padding-top: 8px; }
-  .mem span:not(:first-child) { text-align: right; }
-  .mem .use { background: var(--green-bg); color: var(--green); border-radius: 5px; padding: 1px 4px; font-weight: 600; }
+
+  /* 団体 */
+  .mem { display: grid; grid-template-columns: 1fr 66px 66px; gap: 4px; font-size: 14px; padding: 6px 0; border-top: 1px solid var(--line); align-items: center; font-variant-numeric: tabular-nums; }
+  .mem.h { font-size: 10px; color: var(--sub); border-top: 0; padding-top: 10px; font-weight: 700; }
+  .mem span:not(:first-child) { text-align: right; font-family: var(--num); font-size: 15px; }
+  .mem.h span:not(:first-child) { font-family: inherit; font-size: 10px; }
+  .mem .use { background: var(--hl-soft); box-shadow: inset 0 -2px 0 var(--hl); border-radius: 5px; padding: 1px 6px; font-weight: 700; }
   .mem .drop { color: var(--mute); }
   .err { color: #c0392b; font-size: 13px; padding: 16px; }
 </style>
 </head>
 <body>
 <div class="sample-bar">サンプル表示 — 現時点のデータを読み取り専用で表示しています（書き込み・公開は行いません）</div>
-<div class="wrap">
-  <header class="head">
+<header class="hero">
+  <svg class="arc" viewBox="0 0 400 150" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <path d="M-30 150 Q 60 -20 150 150"/><path d="M110 150 Q 205 10 300 150"/><path d="M250 150 Q 335 30 430 150"/>
+    <circle cx="60" cy="32" r="3"/><circle cx="205" cy="48" r="3"/><circle cx="335" cy="56" r="3"/>
+  </svg>
+  <div class="hero-in">
+    <div class="kicker">SCORES</div>
     <h1 id="t-name">読み込み中…</h1>
     <div class="meta" id="t-meta"></div>
     <div class="row">
@@ -89,12 +142,13 @@
       </span>
     </div>
     <div class="stamp" id="stamp"></div>
-  </header>
-
-  <div class="nav-label">1. フェーズを選ぶ</div>
-  <div class="chips" id="phases"></div>
-  <div class="nav-label">2. 種目・クラス・性別を選ぶ</div>
-  <div class="chips" id="cats"></div>
+  </div>
+</header>
+<div class="wrap">
+  <div class="nav-label">1　フェーズを選ぶ</div>
+  <div class="seg" id="phases"></div>
+  <div class="nav-label">2　種目・クラス・性別を選ぶ</div>
+  <div id="cats"></div>
 
   <div id="out"></div>
 </div>
@@ -117,6 +171,7 @@ const f1 = v => v != null ? Number(v).toFixed(1) : null;
 const f2 = v => v != null ? Number(v).toFixed(2) : null;
 const f2r = v => v != null ? (Math.round(Number(v) * 100 + 1e-6) / 100).toFixed(2) : null;
 const dash = '<span class="na">–</span>';
+const medal = r => r <= 3 ? ` m${r}` : '';
 
 const PHASES = [{ id: 'qual', label: '予選' }, { id: 'final', label: '決勝' }, { id: 'team', label: '団体' }];
 const state = { phase: null, cat: null, open: new Set(), auto: false, timer: null };
@@ -127,6 +182,7 @@ async function loadBase() {
   const [t, a] = await Promise.all([getTournament(eventId), getAthletes(eventId)]);
   if (!t) throw new Error('大会が見つかりません');
   tour = t; athletes = a.map(x => ({ ...x }));
+  if (tour.displaySettings?.colorTheme === 'red') document.documentElement.dataset.theme = 'red';
   const fo = await getFinalOrders(eventId);
   athletes.forEach(x => { const o = fo[x.id]; if (o) { x.finalOrder = o.finalOrder; x.isInFinal = o.isInFinal; } });
   try { teamDocs = (await getDocs(collection(db, 'tournaments', eventId, 'teams'))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { teamDocs = []; }
@@ -144,12 +200,12 @@ async function loadResults() {
     (byAth[r.athleteId] ||= {})[r.round] = r;
   });
   resultsLoaded = true;
-  const n = new Date(); $('stamp').textContent = '最終更新 ' + [n.getHours(), n.getMinutes(), n.getSeconds()].map(x => String(x).padStart(2, '0')).join(':');
+  const n = new Date(); $('stamp').textContent = 'UPDATED ' + [n.getHours(), n.getMinutes(), n.getSeconds()].map(x => String(x).padStart(2, '0')).join(':');
 }
 
 // ---------- グループ ----------
 const ruleOf = (type, cls) => ((tour.classRules || {})[type] || {})[cls] || {};
-const typeLabel = t => t === 'synchro' ? 'シンクロ' : '個人';
+const typeLabel = t => t === 'synchro' ? 'シンクロ' : t === 'team' ? '団体' : '個人';
 const clsOf = a => a.class || a.category || '';
 function classOrder(type) {
   const defs = Array.isArray(tour.classes) ? tour.classes : (tour.classes?.[type] || tour.classes?.individual || []);
@@ -221,13 +277,14 @@ const clubOf = a => {
   const c1 = (a.club1 || '').trim(), c2 = (a.club2 || '').trim();
   return esc(c1 && c1 === c2 ? c1 : [c1, c2].filter(Boolean).join(' / '));
 };
+
 function routineCard(label, res, synchro, adopted, dimmed) {
-  if (!res) return `<div class="rt"><div class="rt-h"><span>${label}</span><b class="na">演技待ち</b></div></div>`;
+  if (!res) return `<div class="rt"><div class="rt-h"><span>${label}</span><span class="na">演技待ち</span></div></div>`;
   const e = res.officialE != null ? (synchro ? f2r(res.officialE) : f1(res.officialE)) : null;
   const pen = (res.penalty != null && res.penalty !== 0) ? f1(res.penalty) : null;
   const c = v => v != null ? v : dash;
-  return `<div class="rt${adopted ? ' use' : ''}" style="${dimmed ? 'opacity:.7' : ''}">
-    <div class="rt-h"><span>${label}${adopted ? ' · 採用' : ''}</span><b>${f2(res.officialTotal) ?? dash}</b></div>
+  return `<div class="rt${adopted ? ' use' : ''}${dimmed ? ' off' : ''}">
+    <div class="rt-h"><span>${label}${adopted ? '<i class="tag">採用</i>' : ''}</span><b>${f2(res.officialTotal) ?? dash}</b></div>
     <div class="rt-g"><span>D<b>${c(f1(res.officialD))}</b></span><span>E<b>${c(e)}</b></span><span>${synchro ? 'Syn' : 'ToF'}<b>${c(f2(res.tof))}</b></span><span>HD<b>${c(f2(res.hd?.total))}</b></span><span>減点<b>${c(pen)}</b></span></div>
   </div>`;
 }
@@ -243,8 +300,8 @@ function personRow(r, g, phase, idx, leader) {
   const gap = idx > 0 && leader != null ? `-${(leader - r.qualScore).toFixed(2)}` : '';
   const sub = phase === 'final' && r.qualPart != null ? `予選 ${f2(r.qualPart)}` : gap;
   const open = state.open.has(key);
-  return `<div class="card" data-key="${esc(key)}">
-    <div class="top"><div class="rank">${r.rank}</div>
+  return `<div class="card${showQ ? ' q-on' : ''}" data-key="${esc(key)}">
+    <div class="top"><div class="rank${medal(r.rank)}">${r.rank}</div>
       <div class="who"><div class="name">${nameOf(a)}${showQ ? '<span class="q">Q</span>' : ''}</div><div class="club">${clubOf(a)}</div></div>
       <div class="tot"><b>${f2(r.qualScore)}</b><span>${sub}</span></div></div>
     ${rounds.map(([lb, res], i) => routineCard(lb, res, synchro, i === adoptedIdx, adoptedIdx >= 0 && i !== adoptedIdx)).join('')}
@@ -294,12 +351,12 @@ function detailHtml(r, rounds, g) {
       body.push(`<tr><td>${i + 1}</td><td>${code}</td><td>${dd}</td><td>${eTxt}</td><td>${tof}</td><td>${hdv}</td></tr>`);
     }
     const land = vLimit < 10 ? '' : (res.officialELanding != null ? (synchro ? (res.officialELanding * 10).toFixed(2) : String(Math.round(res.officialELanding * 10))) : '–');
-    body.push(`<tr><td>L</td><td>${paper ? '' : '着地'}</td><td></td><td>${land === '' ? '–' : land}</td><td></td><td></td></tr>`);
+    body.push(`<tr class="land"><td>L</td><td>${paper ? '' : '着地'}</td><td></td><td>${land === '' ? '–' : land}</td><td></td><td></td></tr>`);
     const pens = (res.penaltyItems || []).map(p => esc(p.label || p.name || p.reason || '')).filter(Boolean);
     return `<div class="cap">${esc(lb)}</div>
       <table class="sk"><tr><th>#</th><th>${paper ? '' : '技'}</th><th>${paper ? '' : '難度'}</th><th>E減点</th><th>${synchro ? 'Syn' : 'ToF'}</th><th>HD</th></tr>${body.join('')}</table>
-      ${pens.length ? `<div class="cap">減点: ${pens.join('、')}</div>` : ''}`;
-  }).join('') || '<div class="cap">内訳のデータがありません</div>';
+      ${pens.length ? `<div class="cap n">減点: ${pens.join('、')}</div>` : ''}`;
+  }).join('') || '<div class="cap n">内訳のデータがありません</div>';
 }
 
 // 団体（ranking.html / display.html と同じ集計）
@@ -339,23 +396,26 @@ function teamHtml(g) {
   teams.forEach((t, i) => { const k = `${t.score}|${t.T}|${t.H}|${t.D}`; if (k !== prev) { rank = i + 1; prev = k; } t.rank = rank; });
   const two = numPre >= 2;
   const cell = (has, v, use) => `<span class="${use ? 'use' : 'drop'}">${has ? f2(v) : ''}</span>`;
-  const cards = teams.map((t, idx) => `<div class="card"><div class="top"><div class="rank">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
+  const cards = teams.map((t, idx) => `<div class="card"><div class="top"><div class="rank${medal(t.rank)}">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
       <div class="tot"><b>${f2(t.score)}</b><span>${idx > 0 ? '-' + (teams[0].score - t.score).toFixed(2) : ''}</span></div></div>
       <div class="mem h"><span>選手</span><span>${two ? '1本目' : '得点'}</span><span>${two ? '2本目' : ''}</span></div>
       ${t.members.map(m => scoreMode === 'best'
         ? `<div class="mem"><span>${esc(m.name)}</span>${two ? cell(m.has1, m.p1.total, m.counted && m.adopt === 1) + cell(m.has2, m.p2.total, m.counted && m.adopt === 2) : cell(m.has1, m.score, m.counted) + '<span></span>'}</div>`
         : `<div class="mem"><span>${esc(m.name)}</span>${cell(m.has1, m.p1.total, m.c1)}${two ? cell(m.has2, m.p2.total, m.c2) : '<span></span>'}</div>`).join('')}
     </div>`).join('');
-  return { html: cards + '<div class="cap">緑 = 団体得点に採用（上位3名）</div>', count: teams.length };
+  return { html: cards + '<div class="cap n">黄色の下線 = 団体得点に採用（上位3名）</div>', count: teams.length };
 }
 
 // ---------- 描画 ----------
+const secHead = (small, title, badge, pct) => `<div class="sec"><div class="sec-t"><div><small>${esc(small)}</small><h2>${esc(title)}</h2></div><span class="badge">${esc(badge)}</span></div>${pct != null ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ''}</div>`;
 function renderNav() {
-  $('phases').innerHTML = PHASES.map(p => `<button class="chip" type="button" data-phase="${p.id}" aria-pressed="${state.phase === p.id}">${p.label}</button>`).join('');
-  const cats = state.phase ? catsFor(state.phase) : personGroups().concat(teamGroups()).slice(0, 4);
-  $('cats').innerHTML = cats.length
-    ? cats.map(c => `<button class="chip" type="button" data-cat="${esc(c.key)}" aria-pressed="${state.cat === c.key}" ${state.phase ? '' : 'disabled'}>${esc(c.label)}</button>`).join('')
-    : '<span class="cap">この種別に該当するカテゴリーがありません</span>';
+  $('phases').innerHTML = PHASES.map(p => `<button type="button" data-phase="${p.id}" aria-pressed="${state.phase === p.id}">${p.label}</button>`).join('');
+  const cats = catsFor(state.phase || 'qual');
+  const groups = [];
+  cats.forEach(c => { let gr = groups.find(x => x.type === c.type); if (!gr) groups.push(gr = { type: c.type, items: [] }); gr.items.push(c); });
+  $('cats').innerHTML = groups.length
+    ? groups.map(gr => `<div class="grp"><div class="grp-h">${typeLabel(gr.type)}</div><div class="chips">${gr.items.map(c => `<button class="chip" type="button" data-cat="${esc(c.key)}" aria-pressed="${state.cat === c.key}" ${state.phase ? '' : 'disabled'}>${esc(c.cls)} ${esc(c.gender)}</button>`).join('')}</div></div>`).join('')
+    : '<div class="cap n">この種別に該当するカテゴリーがありません</div>';
 }
 async function renderOut() {
   const out = $('out');
@@ -368,13 +428,13 @@ async function renderOut() {
   const phaseLabel = PHASES.find(p => p.id === state.phase).label;
   if (state.phase === 'team') {
     const t = teamHtml(g);
-    out.innerHTML = `<div class="sec-head"><h2>${esc(g.label)} · 予選</h2><span class="badge">${t.count}チーム</span></div>${t.html}`; return;
+    out.innerHTML = secHead(g.label, '予選', `${t.count}チーム`) + t.html; return;
   }
   if (!skillMaster) skillMaster = await getSkills();
   const d = buildRows(g, state.phase);
   const done = d.ranked.length + d.dns.length;
   const leader = d.ranked[0]?.qualScore;
-  out.innerHTML = `<div class="sec-head"><h2>${esc(g.label)} · ${phaseLabel}</h2><span class="badge">${done}/${d.total}名 確定</span></div>`
+  out.innerHTML = secHead(g.label, phaseLabel, `${done}/${d.total}名 確定`, d.total ? Math.round(done / d.total * 100) : 0)
     + d.ranked.map((r, i) => personRow(r, g, state.phase, i, leader)).join('')
     + d.waiting.map(r => waitingRow(r, '演技待ち')).join('')
     + d.dns.map(r => waitingRow(r, '棄権')).join('');
@@ -386,7 +446,7 @@ document.addEventListener('click', async e => {
   else if (c && !c.disabled) { state.cat = c.dataset.cat; state.open.clear(); renderNav(); renderOut(); }
   else if (t) { const k = t.dataset.toggle; state.open.has(k) ? state.open.delete(k) : state.open.add(k); renderOut(); }
 });
-async function refresh() { if (!state.phase || !state.cat) { await loadResults(); return; } await loadResults(); renderOut(); }
+async function refresh() { await loadResults(); if (state.phase && state.cat) renderOut(); }
 $('btn-refresh').addEventListener('click', refresh);
 $('btn-auto').addEventListener('click', () => {
   state.auto = !state.auto;
