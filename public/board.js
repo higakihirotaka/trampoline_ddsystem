@@ -352,7 +352,7 @@ export function createBoardWriter(db, sdk) {
       return 'updated';
     } catch (e) {
       if (e?.code !== 'not-found') throw e;
-      const base = skeleton ? skeleton() : { v: BOARD_VERSION };
+      const base = skeleton ? await skeleton() : { v: BOARD_VERSION };
       await sdk.setDoc(r, deepMerge(base, nest({ ...fields, updatedAt: stamp() })), { merge: true });
       return 'created';
     }
@@ -367,7 +367,23 @@ export function createBoardWriter(db, sdk) {
       try { await sdk.updateDoc(ref(eventId, key), { [rowPath(athleteId, round)]: sdk.deleteField(), updatedAt: stamp() }); }
       catch (e) { if (e?.code !== 'not-found') throw e; }
     },
-    /** meta の一部（roster / teams / rule）を書き直す */
+    /**
+     * すでにあるグループの meta（roster / teams / rule）を、書き直す。渡したものだけ。ドキュメントが無ければ何もしない（false）。
+     * 大会の準備中に、選手名などが公開されないようにするため、作ることはしない。teams が undefined のときは、項目を消す。
+     */
+    async updateMeta(eventId, key, parts) {
+      const fields = {};
+      for (const k of ['roster', 'teams', 'rule']) if (k in parts) fields['meta.' + k] = parts[k] === undefined ? sdk.deleteField() : parts[k];
+      if (!Object.keys(fields).length) return true;
+      try { await sdk.updateDoc(ref(eventId, key), { ...fields, updatedAt: stamp() }); return true; }
+      catch (e) { if (e?.code === 'not-found') return false; throw e; }
+    },
+    /** 目次を、すでにあるときだけ、書き直す（無ければ何もしない）。書いたら true */
+    async updateIndex(eventId, index) {
+      try { await sdk.updateDoc(ref(eventId, INDEX_ID), { ...index, updatedAt: stamp() }); return true; }
+      catch (e) { if (e?.code === 'not-found') return false; throw e; }
+    },
+    /** meta の一部（roster / teams / rule）を書き直す（無ければ骨組みごと作る） */
     writeMeta: (eventId, key, field, value, skeleton) => {
       if (!['roster', 'teams', 'rule'].includes(field)) throw new Error('meta のフィールドが不正です: ' + field);
       return patch(eventId, key, { [`meta.${field}`]: value }, skeleton);

@@ -110,6 +110,7 @@
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
     import { getTournament, getAthletes } from "./cache.js";
+    import { boardDns, boardRemove, boardPublish } from "./board_client.js";   // 公開スコアボードへの反映（失敗しても、棄権の設定・取消は止めない）
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -321,6 +322,7 @@
                     eventId, athleteId, round, dns: true, published: true, dnsAt: serverTimestamp()
                 }, { merge: true });
                 resultsMap[resId] = { ...(resultsMap[resId] || {}), dns: true, published: true };
+                boardDns({ eventId, tour: tourData, athletes: allAthletes, athleteId, round });
                 rerenderCell(athleteId, round);
                 // 既に採点データ（確定済み、または入力途中）がある試技の場合は、その旨をトーストで併記する
                 // （データは消えず、解除すれば元の状態に復元される）
@@ -339,11 +341,15 @@
                     await updateDoc(doc(db, 'results', resId), { dns: deleteField(), dnsAt: deleteField() });
                     const { dns, dnsAt, ...rest } = resultsMap[resId] || {};
                     resultsMap[resId] = rest;
+                    // 公開スコアボード: 元の確定済みの得点があれば復元し、無ければ（入力途中だけなら）公開データから消す
+                    if (rest.officialTotal != null) boardPublish({ eventId, tour: tourData, athletes: allAthletes, athleteId, round, res: rest });
+                    else boardRemove({ eventId, tour: tourData, athletes: allAthletes, athleteId, round });
                 } else {
                     // 得点が元々無かった（棄権登録のためだけに作られたドキュメント）場合は、
                     // 完全に削除して「未実施」のきれいな状態に戻す
                     await deleteDoc(doc(db, 'results', resId));
                     delete resultsMap[resId];
+                    boardRemove({ eventId, tour: tourData, athletes: allAthletes, athleteId, round });
                 }
                 rerenderCell(athleteId, round);
                 showToast('棄権を取り消しました');

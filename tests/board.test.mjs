@@ -396,3 +396,22 @@ test('書込: 戻り値で、新規に作ったか分かる。目次は、無い
   assert.equal(n, 1, '2回目は作らない');
   assert.equal(sdk.log.filter(l => l[0] === 'get').length, 2);
 });
+
+test('書込: 準備中の公開を避けるため、すでにあるドキュメントだけを書き直す（無ければ作らない）。teams が無くなれば項目を消す', async () => {
+  const sdk = fakeSdk(); const w = createBoardWriter({}, sdk); const path = 'tournaments/E/publicBoard/k';
+  assert.equal(await w.updateMeta('E', 'k', { roster: { a: {} } }), false);
+  assert.equal(sdk.store.has(path), false, '作らない');
+  assert.equal(await w.updateIndex('E', { v: 1, groups: [] }), false);
+  assert.equal(sdk.store.has('tournaments/E/publicBoard/' + INDEX_ID), false);
+  sdk.store.set(path, { meta: { roster: { old: {} }, rule: { numPre: 1 }, teams: [{ name: '甲' }] }, rows: { old: { pre1: { total: 3 } } } });
+  assert.equal(await w.updateMeta('E', 'k', { roster: { a: { n1: '新' } }, rule: { numPre: 2 }, teams: undefined }), true);
+  const d = sdk.store.get(path);
+  assert.deepEqual(Object.keys(d.meta.roster), ['a']); assert.equal(d.meta.rule.numPre, 2); assert.equal('teams' in d.meta, false);
+  assert.equal(d.rows.old.pre1.total, 3, '得点は触らない');
+  await w.updateMeta('E', 'k', { roster: { b: {} } });   // 渡さなかった項目は、そのまま
+  assert.equal(sdk.store.get(path).meta.rule.numPre, 2);
+  assert.equal(await w.updateMeta('E', 'k', {}), true);
+  sdk.store.set('tournaments/E/publicBoard/' + INDEX_ID, { v: 1, groups: [{ key: 'old' }] });
+  assert.equal(await w.updateIndex('E', { v: 1, groups: [{ key: 'new' }] }), true);
+  assert.deepEqual(sdk.store.get('tournaments/E/publicBoard/' + INDEX_ID).groups, [{ key: 'new' }]);
+});

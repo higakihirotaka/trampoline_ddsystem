@@ -108,6 +108,7 @@
     import { db } from "./firebase-config.js";
     import { normalizeClassRules, resolveEJudgeCount } from './shared.js';
     import { invalidateCache } from './cache.js';
+    import { boardSyncMeta } from "./board_client.js";   // 公開スコアボードの名簿・設定を書き直す（失敗しても保存は止めない）
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
@@ -775,6 +776,8 @@
 
             // キャッシュをクリア（judge_cjp 等が stale なデータを読まないよう）
             invalidateCache(eventId);
+            // 公開スコアボードのルールと目次。画面を移動すると中断されるので、終わりを待つ（長くても8秒。失敗しても保存は済んでいる）
+            await Promise.race([boardSyncMeta({ eventId }), new Promise(r => setTimeout(r, 8000))]);
 
             location.href = `admin_menu.html?event=${eventId}`;
         } catch (e) {

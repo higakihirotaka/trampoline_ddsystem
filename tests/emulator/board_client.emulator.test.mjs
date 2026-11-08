@@ -118,3 +118,42 @@ test('失敗: 書けない状況（認証なし）でも、例外を投げず、
   assert.equal(await read(), undefined);
   await assert.doesNotReject(C2.boardPublish({ ...base(), tour: null, athletes: null, res: {} }));   // 壊れた入力でも、例外にしない
 });
+
+// ---------- 大会データを渡さない呼び出し・名簿の書き直し ----------
+const seedEvent = () => t.seed(async db => {
+  await F.setDoc(F.doc(db, 'tournaments', 'E1'), TOUR);
+  for (const a of ATH) await F.setDoc(F.doc(db, 'tournaments', 'E1', 'athletes', a.id), a);
+});
+
+test('大会データを渡さなくても、必要なときだけ読んで公開できる', async () => {
+  await seedEvent();
+  await C.boardPublish({ eventId: 'E1', athleteId: 'a1', round: 'pre1', skillMaster: master, res: res() });
+  const d = await read();
+  assert.equal(d.rows.a1.pre1.total, 38.5); assert.equal(d.meta.roster.a2.n1, '鈴木');
+  assert.equal((await read(B.INDEX_ID)).groups[0].key, KEY);
+});
+
+test('名簿・設定の書き直し: すでにあるグループだけ（準備中は作らない）。得点は触らない', async () => {
+  await seedEvent();
+  await C.boardSyncMeta({ eventId: 'E1' });
+  assert.equal(await read(), undefined, '公開ドキュメントが無ければ作らない（準備中の選手名を公開しない）');
+  assert.equal(await read(B.INDEX_ID), undefined);
+  await C.boardPublish({ eventId: 'E1', athleteId: 'a1', round: 'pre1', skillMaster: master, res: res() });
+  // 選手名の訂正・決勝試技順・チーム・ルールの変更
+  await t.seed(async db => {
+    await F.setDoc(F.doc(db, 'tournaments', 'E1', 'athletes', 'a1'), { name1: '山田（訂正）', finalOrder: 4 }, { merge: true });
+    await F.setDoc(F.doc(db, 'tournaments', 'E1', 'teams', 't1'), { class: 'Aクラス', gender: '男子', teamName: '甲大A', memberIds: ['a1', 'a2'] });
+    await F.setDoc(F.doc(db, 'tournaments', 'E1'), { classRules: { individual: { Aクラス: { qualifyingRoutines: 2, scoreMode: 'total' } } } }, { merge: true });
+  });
+  await C.boardSyncMeta({ eventId: 'E1' });
+  const d = await read();
+  assert.equal(d.meta.roster.a1.n1, '山田（訂正）'); assert.equal(d.meta.roster.a1.fo, 4);
+  assert.deepEqual(d.meta.teams, [{ name: '甲大A', members: ['a1', 'a2'] }]);
+  assert.equal(d.meta.rule.numPre, 2); assert.equal(d.meta.rule.scoreMode, 'total');
+  assert.equal(d.rows.a1.pre1.total, 38.5, '得点は触らない');
+  assert.equal((await read(B.INDEX_ID)).groups[0].hasTeam, true);
+  // チームを全部消したら、項目も消える
+  await t.seed(db => F.deleteDoc(F.doc(db, 'tournaments', 'E1', 'teams', 't1')));
+  await C.boardSyncMeta({ eventId: 'E1' });
+  assert.equal('teams' in (await read()).meta, false);
+});

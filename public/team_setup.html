@@ -173,6 +173,7 @@
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { ensureAdmin, logout } from "./auth.js";
     import { getTournament, getAthletes } from "./cache.js";
+    import { boardSyncMeta } from "./board_client.js";   // 公開スコアボードの名簿・設定を書き直す（失敗しても保存は止めない）
 
     const params  = new URLSearchParams(location.search);
     const eventId = params.get('event');
@@ -363,6 +364,7 @@
                 await addDoc(collection(db, 'tournaments', eventId, 'teams'), data);
                 showToast('✅ チームを保存しました');
             }
+            boardSyncMeta({ eventId });   // 公開スコアボードのチームと目次
             cancelEdit();
             await reloadTeams();
         } catch (e) {
@@ -416,6 +418,7 @@
         if (!confirm(`「${team.teamName}」を削除しますか？`)) return;
         try {
             await deleteDoc(doc(db, 'tournaments', eventId, 'teams', teamId));
+            boardSyncMeta({ eventId });
             if (editingTeamId === teamId) cancelEdit();
             allTeams = allTeams.filter(t => t.id !== teamId);
             renderAthleteList();

@@ -250,6 +250,7 @@
   import { doc, getDocs, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { ensureAdmin, logout } from "./auth.js";
   import { getTournament, getAthletes, getFinalOrders, invalidateCache } from "./cache.js";
+  import { boardSyncMeta } from "./board_client.js";   // 公開スコアボードの名簿（決勝試技順）を書き直す（失敗しても保存は止めない）
   import { normalizeClassRules, calcQualifyingScore, calcQualifyingTb, compareRankEntries, assignRanks } from "./shared.js";
 
   const params  = new URLSearchParams(location.search);
@@ -801,6 +802,7 @@
       });
       await batch.commit();
       invalidateCache(eventId);
+      boardSyncMeta({ eventId });
 
       // ローカルのathletesデータも更新
       pendingFinalOrder.forEach(e => {

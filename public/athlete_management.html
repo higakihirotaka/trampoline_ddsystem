@@ -188,6 +188,7 @@
     import { ensureAdmin, logout } from './auth.js';
     import { db } from "./firebase-config.js";
     import { invalidateCache } from "./cache.js";
+    import { boardSyncMeta } from "./board_client.js";   // 公開スコアボードの名簿・設定を書き直す（失敗しても保存は止めない）
     const params = new URLSearchParams(location.search);
     const eventId = params.get('event');
 
@@ -782,6 +783,7 @@
             // ここで無効化しないと judge_cjp.html 等の他画面で最大10分間、選手名などの変更が反映されない
             // （このタブ内でその画面に遷移・再読み込みした場合に限る。別タブ/別端末は別途キャッシュを持つ）
             invalidateCache(eventId);
+            boardSyncMeta({ eventId });   // 公開スコアボードの名簿（氏名・所属・決勝試技順）と目次
             showToast('保存しました');
         } catch (e) {
             console.error(e);

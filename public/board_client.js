@@ -3,6 +3,9 @@
  * CJP・棄権の管理・選手管理などの画面が、本来の保存のあとに呼ぶ。ここでの失敗は、本来の処理を止めない:
  * 順番に書き（同じ項目の順序を守る）、失敗したら数回やり直し、それでもだめなら、画面の隅に通知を出す。
  * 通知が出たら、管理画面の「公開データを再生成」で直せる。
+ *
+ * 画面が大会・選手・チームのデータを持っていれば tour / athletes / teams として渡す（読み込みを増やさないため）。
+ * 渡さなければ、必要になったときだけ、Firestore から読む。
  */
 import { db } from "./firebase-config.js";
 import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -32,12 +35,12 @@ export function notice(msg) {
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('TIMEOUT')), ms))]);
 let chain = Promise.resolve();
 /** 書込を、順番に実行する。失敗したら、少し待ってやり直す。戻り値は、終わるまで待てる Promise（待たなくてよい） */
-export function enqueue(label, fn) {
+export function enqueue(label, fn, timeoutMs = 15000) {
   const run = async () => {
     let last;
     for (const wait of [0, 1500, 4000]) {
       if (wait) await new Promise(r => setTimeout(r, wait));
-      try { return await withTimeout(fn(), 15000); } catch (e) { last = e; }
+      try { return await withTimeout(fn(), timeoutMs); } catch (e) { last = e; }
     }
     console.warn('[board]', label, last);
     notice(`公開スコアの更新に失敗しました（${label}）。管理画面の「公開データを再生成」で直せます。`);
@@ -46,13 +49,34 @@ export function enqueue(label, fn) {
   return chain;
 }
 
+// ---------- 大会・選手・チームの読み込み（画面が渡さなかったときだけ） ----------
+const docsOf = snap => snap.docs.map(d => ({ id: d.id, ...d.data() }));
+async function fetchTeams(eventId) { try { return docsOf(await getDocs(collection(db, 'tournaments', eventId, 'teams'))); } catch { return []; } }
+/** 最新の大会設定・選手（決勝試技順を含む）・チーム */
+export async function loadContext(eventId) {
+  const [t, a, teams] = await Promise.all([getDoc(doc(db, 'tournaments', eventId)), getDocs(collection(db, 'tournaments', eventId, 'athletes')), fetchTeams(eventId)]);
+  if (!t.exists()) throw new Error('大会データが見つかりません');
+  return { tour: t.data(), athletes: docsOf(a), teams };
+}
+/** 渡されたデータを使い、足りなければ必要になったときに読む */
+function lazyContext(p) {
+  let base = p.tour && p.athletes ? { tour: p.tour, athletes: p.athletes, teams: p.teams } : null;
+  return {
+    async get() {
+      if (!base) base = await loadContext(p.eventId);
+      if (!base.teams) base = { ...base, teams: await fetchTeams(p.eventId) };
+      return base;
+    },
+  };
+}
+
 /** 選手から、書き込み先のグループを決める */
-function targetOf(tour, athletes, teams, athleteId) {
-  const ath = (athletes || []).find(a => a.id === athleteId);
+function targetOf(c, athleteId) {
+  const ath = (c.athletes || []).find(a => a.id === athleteId);
   if (!ath) return null;
   const g = { type: Board.athleteType(ath), cls: Board.athleteClass(ath), gender: ath.gender || '' };
   g.key = Board.groupKey(g.type, g.cls, g.gender);
-  return { ath, g, key: g.key, rule: Board.ruleOf(tour, g.type, g.cls), skeleton: () => Board.buildSkeleton(tour, athletes, teams, g) };
+  return { ath, g, key: g.key, rule: Board.ruleOf(c.tour, g.type, g.cls), skeleton: () => Board.buildSkeleton(c.tour, c.athletes, c.teams, g) };
 }
 
 async function fetchSkillMaster() {
@@ -64,25 +88,19 @@ async function fetchSkillMaster() {
 }
 
 /** 書込のあと、グループのドキュメントを新しく作ったときは、目次も（無ければ）作る */
-async function afterWrite(result, eventId, tour, athletes, teams) {
-  if (result === 'created') await writer.ensureIndex(eventId, () => Board.buildIndex(tour, athletes, teams));
+async function afterWrite(result, eventId, c) {
+  if (result === 'created') await writer.ensureIndex(eventId, () => Board.buildIndex(c.tour, c.athletes, c.teams));
 }
 
-/**
- * 確定した1本を、公開データに書く。
- * @param {object} p
- *   eventId, tour, athletes, teams（チームのドキュメント）, athleteId, round,
- *   res          確定した結果（結果ドキュメントの内容。確定時にCJPの画面が書く値と同じ形）
- *   skillMaster  いまの技マスタ（配列または { id: {...} }）
- *   panel        ToF・HDを読む審判パネル
- *   onSkillMaster(list)  技マスタを取り直したときに呼ばれる（画面側の技マスタを更新する用）
- */
-function _boardPublish(p) {
-  const t = targetOf(p.tour, p.athletes, p.teams, p.athleteId);
-  if (!t) return Promise.resolve();
+/** 確定した結果から、1本分の公開データを作って書く（確定・修正中の前の値の復元に共通） */
+function publishRoutine(label, p) {
+  const lc = lazyContext(p);
   const at = Date.now();
   const res = JSON.parse(JSON.stringify(p.res));   // 確定の瞬間の値で固定する（後から画面が変わっても影響しない）
-  return enqueue('得点の公開', async () => {
+  return enqueue(label, async () => {
+    const c = await lc.get();
+    const t = targetOf(c, p.athleteId);
+    if (!t) return;
     let skills = Board.indexSkills(p.skillMaster);
     if (Board.findUnresolvedSkills(res, skills).length) {
       // 試合中に技マスタへ技が追加された場合: 取り直す。それでも無ければ、記号は ? にして、通知する（確定は止めない）
@@ -93,25 +111,58 @@ function _boardPublish(p) {
     const routine = Board.buildRoutine(res, {
       at, synchro: t.g.type === 'synchro', gender: t.ath.gender, rule: t.rule, round: p.round, skills, panel: p.panel, calcCardDD, parseDDRule,
     });
-    await afterWrite(await writer.writeRoutine(p.eventId, t.key, p.athleteId, p.round, routine, t.skeleton), p.eventId, p.tour, p.athletes, p.teams);
+    await afterWrite(await writer.writeRoutine(p.eventId, t.key, p.athleteId, p.round, routine, async () => t.skeleton()), p.eventId, c);
   });
 }
 
+/**
+ * 確定した1本を、公開データに書く。
+ * @param {object} p
+ *   eventId, athleteId, round,
+ *   tour, athletes, teams   （省略可。省略すると必要なときだけ読む）
+ *   res          確定した結果（結果ドキュメントの内容。確定時にCJPの画面が書く値と同じ形）
+ *   skillMaster  いまの技マスタ（配列または { id: {...} }。省略可）
+ *   panel        ToF・HDを読む審判パネル（省略可）
+ *   onSkillMaster(list)  技マスタを取り直したときに呼ばれる（画面側の技マスタを更新する用）
+ */
+function _boardPublish(p) { return publishRoutine('得点の公開', p); }
+
 /** 棄権を、公開データに書く */
 function _boardDns(p) {
-  const t = targetOf(p.tour, p.athletes, p.teams, p.athleteId);
-  if (!t) return Promise.resolve();
+  const lc = lazyContext(p);
   const at = Date.now();
   return enqueue('棄権の公開', async () => {
-    await afterWrite(await writer.writeRoutine(p.eventId, t.key, p.athleteId, p.round, { at, dns: true }, t.skeleton), p.eventId, p.tour, p.athletes, p.teams);
+    const c = await lc.get();
+    const t = targetOf(c, p.athleteId);
+    if (!t) return;
+    await afterWrite(await writer.writeRoutine(p.eventId, t.key, p.athleteId, p.round, { at, dns: true }, async () => t.skeleton()), p.eventId, c);
   });
 }
 
 /** 1本を、公開データから消す（棄権の取消・得点の削除） */
 function _boardRemove(p) {
-  const t = targetOf(p.tour, p.athletes, p.teams, p.athleteId);
-  if (!t) return Promise.resolve();
-  return enqueue('公開データの削除', () => writer.deleteRoutine(p.eventId, t.key, p.athleteId, p.round));
+  const lc = lazyContext(p);
+  return enqueue('公開データの削除', async () => {
+    const t = targetOf(await lc.get(), p.athleteId);
+    if (t) await writer.deleteRoutine(p.eventId, t.key, p.athleteId, p.round);
+  });
+}
+
+/**
+ * 名簿・チーム・ルール・目次を、すでにある公開ドキュメントに書き直す（選手管理・決勝試技順・チーム・ルールの保存のあと）。
+ * 最新のデータを読み直して作る。公開ドキュメントが無いグループには書かない（大会の準備中に、選手名が公開されないように）。
+ * 戻り値の Promise は、終わるまで待てる（画面を移動する前などに待つ）。
+ */
+function _boardSyncMeta(p) {
+  return enqueue('名簿・設定の公開', async () => {
+    const c = await loadContext(p.eventId);
+    const groups = Board.listGroups(c.tour, c.athletes);
+    await Promise.all(groups.map(g => {
+      const m = Board.buildMeta(c.tour, c.athletes, c.teams, g);
+      return writer.updateMeta(p.eventId, g.key, { roster: m.roster, rule: m.rule, teams: m.teams });
+    }));
+    await writer.updateIndex(p.eventId, Board.buildIndex(c.tour, c.athletes, c.teams));
+  }, 30000);
 }
 
 // 公開スコアボードへの書込は、本来の処理（確定・削除など）の邪魔をしない。同期的な例外も、ここで止める
@@ -119,3 +170,4 @@ const safe = (fn, label) => p => { try { return fn(p); } catch (e) { console.war
 export const boardPublish = safe(_boardPublish, '得点の公開');
 export const boardDns = safe(_boardDns, '棄権の公開');
 export const boardRemove = safe(_boardRemove, '公開データの削除');
+export const boardSyncMeta = safe(_boardSyncMeta, '名簿・設定の公開');
