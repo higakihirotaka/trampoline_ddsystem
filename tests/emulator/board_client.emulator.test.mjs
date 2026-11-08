@@ -157,3 +157,26 @@ test('名簿・設定の書き直し: すでにあるグループだけ（準備
   await C.boardSyncMeta({ eventId: 'E1' });
   assert.equal('teams' in (await read()).meta, false);
 });
+
+test('再生成: 結果から全グループと目次を作り直し、もう無いグループの公開データを消す。入力途中は出さず、修正中の前の値は出す', async () => {
+  await seedEvent();
+  await t.seed(async db => {
+    await F.setDoc(F.doc(db, 'skillMaster', '1'), { symbol: 'a', displaySymbol: 'A', dd: 0.5, isTriple: false });
+    const put = (id, o) => F.setDoc(F.doc(db, 'results', `E1_${id}`), { eventId: 'E1', ...o });
+    await put('a1_pre1', { athleteId: 'a1', round: 'pre1', ...res() });                                   // 確定
+    await put('a2_pre1', { athleteId: 'a2', round: 'pre1', ...res({ published: false, officialTotal: 33 }) });  // 修正中（前の値が残る）
+    await put('a2_final', { athleteId: 'a2', round: 'final', published: false });                          // 入力途中
+    await F.setDoc(F.doc(db, 'tournaments', 'E1', 'publicBoard', 'individual__消えたクラス__男子'), { v: 1, rows: {} });  // もう無いグループ
+    await F.setDoc(F.doc(db, 'results', 'E2_x_pre1'), { eventId: 'E2', athleteId: 'a1', round: 'pre1', ...res() });  // 別の大会
+  });
+  const steps = [];
+  const r = await C.regenerateBoard('E1', m => steps.push(m));
+  assert.equal(r.results, 3); assert.deepEqual(r.stale, ['individual__消えたクラス__男子']);
+  assert.equal(r.stats[0].confirmed, 2);
+  const d = await read();
+  assert.equal(d.rows.a1.pre1.total, 38.5); assert.equal(d.rows.a2.pre1.total, 33); assert.equal(d.rows.a2.final, undefined);
+  assert.equal(d.rows.a1.pre1.sk[0].sym, 'A'); assert.equal(d.meta.roster.a1.n1, '山田');
+  assert.equal(await read('individual__消えたクラス__男子'), undefined);
+  assert.equal((await read(B.INDEX_ID)).groups.length, 1);
+  assert.ok(steps.length >= 4);
+});

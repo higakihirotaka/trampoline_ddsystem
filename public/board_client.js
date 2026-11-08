@@ -8,11 +8,11 @@
  * 渡さなければ、必要になったときだけ、Firestore から読む。
  */
 import { db } from "./firebase-config.js";
-import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { calcCardDD, parseDDRule } from "./shared.js";
 import * as Board from "./board.js";
 
-const writer = Board.createBoardWriter(db, { doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp });
+export const writer = Board.createBoardWriter(db, { doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp });
 
 /** 画面の隅の、消えていく通知（操作を止めない） */
 export function notice(msg) {
@@ -58,25 +58,26 @@ export async function loadContext(eventId) {
   if (!t.exists()) throw new Error('大会データが見つかりません');
   return { tour: t.data(), athletes: docsOf(a), teams };
 }
-/** 渡されたデータを使い、足りなければ必要になったときに読む */
+/**
+ * 渡されたデータを使い、足りなければ必要になったときに読む。
+ * fresh(): ドキュメントを新しく作るとき（名簿の骨組み・目次）は、最新の大会・選手（決勝試技順を含む）・チームを読み直す。
+ * 画面が持っているデータは古いことがあり（キャッシュ・読み込み後の変更）、決勝試技順を持たない画面もあるため。1グループにつき、ほぼ1回だけ。
+ */
 function lazyContext(p) {
-  let base = p.tour && p.athletes ? { tour: p.tour, athletes: p.athletes, teams: p.teams } : null;
+  let base = p.tour && p.athletes ? { tour: p.tour, athletes: p.athletes } : null, fresh = null;
   return {
-    async get() {
-      if (!base) base = await loadContext(p.eventId);
-      if (!base.teams) base = { ...base, teams: await fetchTeams(p.eventId) };
-      return base;
-    },
+    async get() { return base ||= await loadContext(p.eventId); },
+    async fresh() { return fresh ||= await loadContext(p.eventId).catch(async () => (await this.get())); },
   };
 }
 
 /** 選手から、書き込み先のグループを決める */
-function targetOf(c, athleteId) {
+function targetOf(c, athleteId, lc) {
   const ath = (c.athletes || []).find(a => a.id === athleteId);
   if (!ath) return null;
   const g = { type: Board.athleteType(ath), cls: Board.athleteClass(ath), gender: ath.gender || '' };
   g.key = Board.groupKey(g.type, g.cls, g.gender);
-  return { ath, g, key: g.key, rule: Board.ruleOf(c.tour, g.type, g.cls), skeleton: () => Board.buildSkeleton(c.tour, c.athletes, c.teams, g) };
+  return { ath, g, key: g.key, rule: Board.ruleOf(c.tour, g.type, g.cls), skeleton: async () => { const f = await lc.fresh(); return Board.buildSkeleton(f.tour, f.athletes, f.teams || [], g); } };
 }
 
 async function fetchSkillMaster() {
@@ -88,8 +89,8 @@ async function fetchSkillMaster() {
 }
 
 /** 書込のあと、グループのドキュメントを新しく作ったときは、目次も（無ければ）作る */
-async function afterWrite(result, eventId, c) {
-  if (result === 'created') await writer.ensureIndex(eventId, () => Board.buildIndex(c.tour, c.athletes, c.teams));
+async function afterWrite(result, eventId, lc) {
+  if (result === 'created') await writer.ensureIndex(eventId, async () => { const f = await lc.fresh(); return Board.buildIndex(f.tour, f.athletes, f.teams || []); });
 }
 
 /** 確定した結果から、1本分の公開データを作って書く（確定・修正中の前の値の復元に共通） */
@@ -99,7 +100,7 @@ function publishRoutine(label, p) {
   const res = JSON.parse(JSON.stringify(p.res));   // 確定の瞬間の値で固定する（後から画面が変わっても影響しない）
   return enqueue(label, async () => {
     const c = await lc.get();
-    const t = targetOf(c, p.athleteId);
+    const t = targetOf(c, p.athleteId, lc);
     if (!t) return;
     let skills = Board.indexSkills(p.skillMaster);
     if (Board.findUnresolvedSkills(res, skills).length) {
@@ -111,7 +112,7 @@ function publishRoutine(label, p) {
     const routine = Board.buildRoutine(res, {
       at, synchro: t.g.type === 'synchro', gender: t.ath.gender, rule: t.rule, round: p.round, skills, panel: p.panel, calcCardDD, parseDDRule,
     });
-    await afterWrite(await writer.writeRoutine(p.eventId, t.key, p.athleteId, p.round, routine, async () => t.skeleton()), p.eventId, c);
+    await afterWrite(await writer.writeRoutine(p.eventId, t.key, p.athleteId, p.round, routine, t.skeleton), p.eventId, lc);
   });
 }
 
@@ -133,9 +134,9 @@ function _boardDns(p) {
   const at = Date.now();
   return enqueue('棄権の公開', async () => {
     const c = await lc.get();
-    const t = targetOf(c, p.athleteId);
+    const t = targetOf(c, p.athleteId, lc);
     if (!t) return;
-    await afterWrite(await writer.writeRoutine(p.eventId, t.key, p.athleteId, p.round, { at, dns: true }, async () => t.skeleton()), p.eventId, c);
+    await afterWrite(await writer.writeRoutine(p.eventId, t.key, p.athleteId, p.round, { at, dns: true }, t.skeleton), p.eventId, lc);
   });
 }
 
@@ -143,7 +144,7 @@ function _boardDns(p) {
 function _boardRemove(p) {
   const lc = lazyContext(p);
   return enqueue('公開データの削除', async () => {
-    const t = targetOf(await lc.get(), p.athleteId);
+    const t = targetOf(await lc.get(), p.athleteId, lc);
     if (t) await writer.deleteRoutine(p.eventId, t.key, p.athleteId, p.round);
   });
 }
@@ -163,6 +164,31 @@ function _boardSyncMeta(p) {
     }));
     await writer.updateIndex(p.eventId, Board.buildIndex(c.tour, c.athletes, c.teams));
   }, 30000);
+}
+
+/**
+ * 公開データを、結果から作り直す（管理画面の「公開データを再生成」）。大会・選手・チーム・クラス設定・技マスタ・確定済みの得点を
+ * すべて読み、目次と全グループを書き、もう無いグループの公開データを消す。
+ * @param {string} eventId
+ * @param {(msg:string)=>void} [onProgress]
+ * @returns {Promise<{ stats: Array, stale: string[], results: number }>}
+ */
+export async function regenerateBoard(eventId, onProgress = () => {}) {
+  onProgress('大会・選手・チームを読み込み中…');
+  const c = await loadContext(eventId);
+  onProgress('確定済みの得点と技マスタを読み込み中…');
+  const [resSnap, skills] = await Promise.all([getDocs(query(collection(db, 'results'), where('eventId', '==', eventId))), fetchSkillMaster()]);
+  const results = resSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  onProgress('公開データを作成中…');
+  const out = Board.buildAll({ tour: c.tour, athletes: c.athletes, teams: c.teams, results, skills, calcCardDD, parseDDRule });
+  onProgress('書き込み中…');
+  const existing = await getDocs(collection(db, 'tournaments', eventId, Board.BOARD_COLLECTION));
+  await writer.writeIndex(eventId, out.index);
+  for (const [key, d] of Object.entries(out.groups)) await writer.writeGroup(eventId, key, d);
+  // 選手がいなくなったグループの、古い公開データを消す
+  const stale = existing.docs.map(d => d.id).filter(id => id !== Board.INDEX_ID && !(id in out.groups));
+  for (const id of stale) await writer.removeGroup(eventId, id);
+  return { stats: out.stats, stale, results: results.length };
 }
 
 // 公開スコアボードへの書込は、本来の処理（確定・削除など）の邪魔をしない。同期的な例外も、ここで止める

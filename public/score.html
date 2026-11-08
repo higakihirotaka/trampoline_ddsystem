@@ -804,7 +804,7 @@
 
 <script type="module">
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db, isLocalDev } from "./firebase-config.js";
+import { db } from "./firebase-config.js";
 import { calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, extractTbScores } from "./shared.js";
 import { INDEX_ID, BOARD_COLLECTION, rankGroup, rankTeams } from "./board.js";
 
@@ -812,11 +812,6 @@ import { INDEX_ID, BOARD_COLLECTION, rankGroup, rankTeams } from "./board.js";
 // 読むのは、目次（_index）と、いま見ている種目のドキュメントだけ。順位・Q・団体は、ここで計算する。
 const params = new URLSearchParams(location.search);
 const eventId = params.get('event') || '';
-// 手元の確認用: localhost のときだけ、?emulator=1 で Firestore エミュレータ（127.0.0.1:8080）を読む
-if (isLocalDev && params.get('emulator')) {
-  const { connectFirestoreEmulator } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
-}
 
 const SHARED = { calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, extractTbScores };
 const $ = id => document.getElementById(id);

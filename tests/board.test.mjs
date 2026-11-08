@@ -7,7 +7,7 @@ const S = await loadEsm('shared.js');
 const {
   f1, f2, f2r, fmtEDeduction, indexSkills, findUnresolvedSkills, buildRoutine, groupKey, ruleOf, publicRule,
   listGroups, buildIndex, buildMeta, buildSkeleton, isAdoptable, buildAll, rowPath, nest, createBoardWriter,
-  rankGroup, rankTeams, INDEX_ID,
+  rankGroup, rankTeams, INDEX_ID, resultTime,
 } = B;
 const sharedFns = { calcQualifyingScore: S.calcQualifyingScore, calcQualifyingTb: S.calcQualifyingTb, calcFinalScore: S.calcFinalScore, compareRankEntries: S.compareRankEntries, assignRanks: S.assignRanks, extractTbScores: S.extractTbScores };
 const dd = { calcCardDD: S.calcCardDD, parseDDRule: S.parseDDRule };
@@ -414,4 +414,13 @@ test('書込: 準備中の公開を避けるため、すでにあるドキュメ
   sdk.store.set('tournaments/E/publicBoard/' + INDEX_ID, { v: 1, groups: [{ key: 'old' }] });
   assert.equal(await w.updateIndex('E', { v: 1, groups: [{ key: 'new' }] }), true);
   assert.deepEqual(sdk.store.get('tournaments/E/publicBoard/' + INDEX_ID).groups, [{ key: 'new' }]);
+});
+
+test('再生成: 各本の時刻は、結果の確定時刻（publishedAt）を引き継ぐ', () => {
+  assert.equal(resultTime({ publishedAt: { toMillis: () => 123 } }, 9), 123);
+  assert.equal(resultTime({ publishedAt: { seconds: 5 } }, 9), 5000);
+  assert.equal(resultTime({ publishedAt: '2026-08-21T00:00:00Z' }, 9), Date.parse('2026-08-21T00:00:00Z'));
+  assert.equal(resultTime({}, 9), 9);
+  const out = buildAll({ tour: TOUR, athletes: ATH, teams: [], skills: MASTER, ...dd, now: 5, results: [{ athleteId: 'a2', round: 'pre1', ...baseRes(), publishedAt: { seconds: 7 } }] });
+  assert.equal(out.groups['individual__Aクラス__男子'].rows.a2.pre1.at, 7000);
 });

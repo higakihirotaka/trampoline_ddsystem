@@ -266,6 +266,15 @@ export function isAdoptable(r) {
   return !!r && (r.published === true || (r.published === false && r.officialTotal != null));
 }
 
+/** 結果ドキュメントの確定時刻（ミリ秒）。無ければ fallback */
+export function resultTime(r, fallback) {
+  const t = r?.publishedAt;
+  if (t && typeof t.toMillis === 'function') return t.toMillis();
+  if (t && typeof t.seconds === 'number') return t.seconds * 1000;
+  if (typeof t === 'string' && !isNaN(Date.parse(t))) return Date.parse(t);
+  return fallback ?? Date.now();
+}
+
 /**
  * 全グループのドキュメントと目次を、結果から作る（再生成用）。
  * @param {object} p  { tour, athletes, teams, finalOrders?, results: [{id?, athleteId, round, ...}], skills, calcCardDD, parseDDRule, now? }
@@ -290,7 +299,7 @@ export function buildAll(p) {
     const key = groupKey(athleteType(a), athleteClass(a), a.gender || '');
     const doc = groups[key];
     if (!doc) continue;
-    const at = p.now ?? Date.now();
+    const at = resultTime(r, p.now);
     const routine = buildRoutine(r, {
       at, synchro: athleteType(a) === 'synchro', gender: a.gender, rule: ruleOf(tour, athleteType(a), athleteClass(a)),
       round: r.round, skills: idx, calcCardDD: p.calcCardDD, parseDDRule: p.parseDDRule,
@@ -392,7 +401,7 @@ export function createBoardWriter(db, sdk) {
     async ensureIndex(eventId, indexFn) {
       const s = await sdk.getDoc(ref(eventId, INDEX_ID));
       if (s.exists()) return false;
-      await sdk.setDoc(ref(eventId, INDEX_ID), { ...indexFn(), updatedAt: stamp() });
+      await sdk.setDoc(ref(eventId, INDEX_ID), { ...(await indexFn()), updatedAt: stamp() });
       return true;
     },
     /** 目次を、丸ごと書く */
