@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>公開スコアページ レイアウト確認（サンプル）</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --line: #e3e5ea; --ink: #1c1f26; --sub: #626a78; --mute: #98a0ad;
+    --accent: #1f2a44; --on-accent: #fff; --green-bg: #e7f5ec; --green: #1c7a45;
+    --warn-bg: #fff3d6; --warn: #8a5a00; --chip-bg: #fff; --dim: .55;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12141a; --card: #1b1e26; --line: #2b2f3a; --ink: #eceef2; --sub: #a3abb9; --mute: #6c7484;
+      --accent: #e8ebf3; --on-accent: #12141a; --green-bg: #173a29; --green: #66d19a;
+      --warn-bg: #3a2f10; --warn: #f0c36a; --chip-bg: #1b1e26;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Noto Sans JP", system-ui, -apple-system, "Hiragino Sans", sans-serif; -webkit-text-size-adjust: 100%; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 12px 48px; }
+  .sample-bar { background: var(--warn-bg); color: var(--warn); font-size: 12px; text-align: center; padding: 6px 12px; }
+  .head { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 12px; }
+  .head h1 { font-size: 16px; line-height: 1.4; margin: 0; font-weight: 700; }
+  .head .meta { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .head .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .notice { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); }
+  .ctl { display: flex; align-items: center; gap: 6px; }
+  .ctl button { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip-bg); color: var(--ink); cursor: pointer; }
+  .ctl button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .stamp { font-size: 11px; color: var(--mute); margin-top: 6px; }
+  .nav-label { font-size: 11px; color: var(--sub); margin: 14px 2px 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font: inherit; font-size: 13px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--chip-bg); color: var(--ink); cursor: pointer; min-height: 38px; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .chip:disabled { color: var(--mute); border-style: dashed; cursor: default; background: transparent; }
+  .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 12px; padding: 30px 16px; text-align: center; margin-top: 14px; }
+  .empty b { display: block; font-size: 15px; }
+  .empty span { font-size: 12px; color: var(--sub); }
+  .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 16px 2px 8px; }
+  .sec-head h2 { font-size: 15px; margin: 0; font-weight: 700; }
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--green-bg); color: var(--green); white-space: nowrap; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  .card.dim { opacity: var(--dim); }
+  .top { display: flex; align-items: center; gap: 10px; }
+  .rank { width: 28px; height: 28px; border-radius: 7px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex: none; }
+  .who { flex: 1; min-width: 0; }
+  .name { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+  .club { font-size: 12px; color: var(--sub); overflow-wrap: anywhere; }
+  .q { font-size: 12px; font-weight: 700; color: var(--green); margin-left: 6px; }
+  .tot { text-align: right; flex: none; }
+  .tot b { display: block; font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tot span { font-size: 11px; color: var(--sub); }
+  .rt { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .rt.use { border-color: var(--green); background: var(--green-bg); }
+  .rt-h { display: flex; justify-content: space-between; font-size: 11px; color: var(--sub); }
+  .rt-h b { font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .rt-g { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); text-align: center; font-size: 10px; color: var(--sub); margin-top: 4px; }
+  .rt-g b { display: block; font-size: 13px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .more { margin-top: 8px; font: inherit; font-size: 13px; color: #2b6cd9; background: none; border: 0; padding: 6px 0; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { .more { color: #7fb0ff; } }
+  table.sk { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  table.sk th, table.sk td { padding: 4px 3px; text-align: right; border-top: 1px solid var(--line); font-weight: 400; }
+  table.sk th { color: var(--sub); font-size: 10px; }
+  table.sk th:first-child, table.sk td:first-child, table.sk th:nth-child(2), table.sk td:nth-child(2) { text-align: left; }
+  .cap { font-size: 11px; color: var(--sub); margin-top: 8px; }
+  .na { color: var(--mute); }
+  .mem { display: grid; grid-template-columns: 1fr 64px 64px; gap: 4px; font-size: 13px; padding: 5px 0; border-top: 1px solid var(--line); align-items: center; font-variant-numeric: tabular-nums; }
+  .mem.h { font-size: 10px; color: var(--sub); border-top: 0; padding-top: 8px; }
+  .mem span:not(:first-child) { text-align: right; }
+  .mem .use { background: var(--green-bg); color: var(--green); border-radius: 5px; padding: 1px 4px; font-weight: 600; }
+  .mem .drop { color: var(--mute); }
+  .err { color: #c0392b; font-size: 13px; padding: 16px; }
+</style>
+</head>
+<body>
+<div class="sample-bar">サンプル表示 — 現時点のデータを読み取り専用で表示しています（書き込み・公開は行いません）</div>
+<div class="wrap">
+  <header class="head">
+    <h1 id="t-name">読み込み中…</h1>
+    <div class="meta" id="t-meta"></div>
+    <div class="row">
+      <span class="notice">速報 · 公式結果が優先 / Unofficial</span>
+      <span class="ctl">
+        <button id="btn-refresh" type="button">更新</button>
+        <button id="btn-auto" type="button" aria-pressed="false">自動更新 OFF</button>
+      </span>
+    </div>
+    <div class="stamp" id="stamp"></div>
+  </header>
+
+  <div class="nav-label">1. フェーズを選ぶ</div>
+  <div class="chips" id="phases"></div>
+  <div class="nav-label">2. 種目・クラス・性別を選ぶ</div>
+  <div class="chips" id="cats"></div>
+
+  <div id="out"></div>
+</div>
+
+<script type="module">
+import { getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db } from "./firebase-config.js";
+import { calcQualifyingScore, calcQualifyingTb, calcFinalScore, compareRankEntries, assignRanks, extractTbScores, parseDDRule, calcCardDD } from "./shared.js";
+import { getTournament, getAthletes, getFinalOrders, getSkills } from "./cache.js";
+
+// 読み取り専用のサンプル。既定の大会は、レイアウト確認用に指定された大会
+const DEFAULT_EVENT = 'NDDBqFY9CP5wJDl8JccT';
+const params = new URLSearchParams(location.search);
+const eventId = params.get('event') || DEFAULT_EVENT;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const genderRank = g => g === '男子' ? 0 : g === '女子' ? 1 : 2;
+const f1 = v => v != null ? Number(v).toFixed(1) : null;
+const f2 = v => v != null ? Number(v).toFixed(2) : null;
+const f2r = v => v != null ? (Math.round(Number(v) * 100 + 1e-6) / 100).toFixed(2) : null;
+const dash = '<span class="na">–</span>';
+
+const PHASES = [{ id: 'qual', label: '予選' }, { id: 'final', label: '決勝' }, { id: 'team', label: '団体' }];
+const state = { phase: null, cat: null, open: new Set(), auto: false, timer: null };
+let tour, athletes = [], teamDocs = [], byAth = {}, resultsLoaded = false, skillMaster = null;
+
+// ---------- データ読み込み ----------
+async function loadBase() {
+  const [t, a] = await Promise.all([getTournament(eventId), getAthletes(eventId)]);
+  if (!t) throw new Error('大会が見つかりません');
+  tour = t; athletes = a.map(x => ({ ...x }));
+  const fo = await getFinalOrders(eventId);
+  athletes.forEach(x => { const o = fo[x.id]; if (o) { x.finalOrder = o.finalOrder; x.isInFinal = o.isInFinal; } });
+  try { teamDocs = (await getDocs(collection(db, 'tournaments', eventId, 'teams'))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { teamDocs = []; }
+  $('t-name').textContent = tour.name || '';
+  const range = [tour.start_date || tour.startDate, tour.end_date].filter(Boolean).map(s => String(s).replace(/-/g, '/')).join(' – ');
+  $('t-meta').textContent = [tour.venue, range].filter(Boolean).join(' · ');
+}
+async function loadResults() {
+  // 採用条件（仕様 4章）: 公開済み、または、修正中（公開は解除されているが、前の確定値 officialTotal が残っている）
+  const snap = await getDocs(query(collection(db, 'results'), where('eventId', '==', eventId)));
+  byAth = {};
+  snap.docs.forEach(d => {
+    const r = d.data();
+    if (r.published !== true && !(r.published === false && r.officialTotal != null)) return;
+    (byAth[r.athleteId] ||= {})[r.round] = r;
+  });
+  resultsLoaded = true;
+  const n = new Date(); $('stamp').textContent = '最終更新 ' + [n.getHours(), n.getMinutes(), n.getSeconds()].map(x => String(x).padStart(2, '0')).join(':');
+}
+
+// ---------- グループ ----------
+const ruleOf = (type, cls) => ((tour.classRules || {})[type] || {})[cls] || {};
+const typeLabel = t => t === 'synchro' ? 'シンクロ' : '個人';
+const clsOf = a => a.class || a.category || '';
+function classOrder(type) {
+  const defs = Array.isArray(tour.classes) ? tour.classes : (tour.classes?.[type] || tour.classes?.individual || []);
+  return defs.slice().sort((a, b) => (a.display_order ?? 99) - (b.display_order ?? 99)).map(c => c.name);
+}
+function personGroups() {
+  const out = [];
+  for (const type of ['individual', 'synchro']) {
+    const ath = athletes.filter(a => (a.type || 'individual') === type);
+    const present = [...new Set(ath.map(clsOf).filter(Boolean))];
+    const order = classOrder(type);
+    const classes = [...order.filter(c => present.includes(c)), ...present.filter(c => !order.includes(c))];
+    for (const cls of classes) {
+      const genders = [...new Set(ath.filter(a => clsOf(a) === cls).map(a => a.gender || '').filter(Boolean))].sort((a, b) => genderRank(a) - genderRank(b));
+      genders.forEach(gender => out.push({ type, cls, gender, key: `${type}|${cls}|${gender}`, label: `${typeLabel(type)} ${cls} ${gender}` }));
+    }
+  }
+  return out;
+}
+function teamGroups() {
+  const order = classOrder('individual');
+  const present = [...new Set(teamDocs.map(t => t.class || '').filter(Boolean))];
+  const classes = [...order.filter(c => present.includes(c)), ...present.filter(c => !order.includes(c))];
+  const out = [];
+  for (const cls of classes) {
+    [...new Set(teamDocs.filter(t => (t.class || '') === cls).map(t => t.gender || ''))].sort((a, b) => genderRank(a) - genderRank(b))
+      .forEach(gender => out.push({ type: 'team', cls, gender, key: `team|${cls}|${gender}`, label: `団体 ${cls} ${gender}` }));
+  }
+  return out;
+}
+function catsFor(phase) {
+  if (phase === 'team') return teamGroups();
+  const g = personGroups();
+  if (phase === 'qual') return g.filter(x => ruleOf(x.type, x.cls).finalOnly !== true);
+  return g.filter(x => ruleOf(x.type, x.cls).hasFinal !== false && athletes.some(a => (a.type || 'individual') === x.type && clsOf(a) === x.cls && (a.gender || '') === x.gender && a.finalOrder != null));
+}
+
+// ---------- 順位の計算（ranking.html と同じ共通関数） ----------
+function buildRows(g, phase) {
+  const rule = ruleOf(g.type, g.cls);
+  const numPre = rule.qualifyingRoutines ?? tour.qualifyingRoutines ?? 1;
+  const scoreMode = rule.scoreMode || 'best';
+  const finalScoreMode = rule.finalScoreMode ?? 'zero';
+  let list = athletes.filter(a => (a.type || 'individual') === g.type && clsOf(a) === g.cls && (a.gender || '') === g.gender);
+  if (phase === 'final') list = list.filter(a => a.finalOrder != null);
+  const rows = list.map(a => {
+    const m = byAth[a.id] || {};
+    const p1r = m.pre1 || null, p2r = m.pre2 || null, fr = m.final || null;
+    const p1 = p1r?.officialTotal ?? null, p2 = p2r?.officialTotal ?? null, fin = fr?.officialTotal ?? null;
+    const qualPart = calcQualifyingScore(p1, p2, numPre, scoreMode);
+    let qualScore, tbSum = null, tb;
+    if (phase === 'qual') { qualScore = qualPart; ({ tbSum, tb } = calcQualifyingTb(p1, p2, p1r, p2r, numPre, scoreMode)); }
+    else { qualScore = calcFinalScore(qualPart, fin, finalScoreMode); tb = extractTbScores(fr); }
+    const isDns = phase === 'qual' ? (p1r?.dns === true || p2r?.dns === true) : fr?.dns === true;
+    if (isDns) qualScore = null;
+    return { a, p1r, p2r, fr, qualScore, qualPart, tbSum, tb, isDns, numPre, scoreMode, rule };
+  });
+  const ranked = rows.filter(r => !r.isDns && r.qualScore != null).sort(compareRankEntries);
+  assignRanks(ranked);
+  const waiting = rows.filter(r => !r.isDns && r.qualScore == null);
+  const dns = rows.filter(r => r.isDns);
+  return { ranked, waiting, dns, total: rows.length, numPre, scoreMode, rule };
+}
+
+// ---------- 表示 ----------
+const nameOf = a => a.type === 'synchro' ? `${esc(a.name1 || '–')} / ${esc(a.name2 || '–')}` : esc(a.name1 || '–');
+const clubOf = a => {
+  if (a.type !== 'synchro') return esc(a.club1 || '');
+  const c1 = (a.club1 || '').trim(), c2 = (a.club2 || '').trim();
+  return esc(c1 && c1 === c2 ? c1 : [c1, c2].filter(Boolean).join(' / '));
+};
+function routineCard(label, res, synchro, adopted, dimmed) {
+  if (!res) return `<div class="rt"><div class="rt-h"><span>${label}</span><b class="na">演技待ち</b></div></div>`;
+  const e = res.officialE != null ? (synchro ? f2r(res.officialE) : f1(res.officialE)) : null;
+  const pen = (res.penalty != null && res.penalty !== 0) ? f1(res.penalty) : null;
+  const c = v => v != null ? v : dash;
+  return `<div class="rt${adopted ? ' use' : ''}" style="${dimmed ? 'opacity:.7' : ''}">
+    <div class="rt-h"><span>${label}${adopted ? ' · 採用' : ''}</span><b>${f2(res.officialTotal) ?? dash}</b></div>
+    <div class="rt-g"><span>D<b>${c(f1(res.officialD))}</b></span><span>E<b>${c(e)}</b></span><span>${synchro ? 'Syn' : 'ToF'}<b>${c(f2(res.tof))}</b></span><span>HD<b>${c(f2(res.hd?.total))}</b></span><span>減点<b>${c(pen)}</b></span></div>
+  </div>`;
+}
+
+function personRow(r, g, phase, idx, leader) {
+  const a = r.a, synchro = a.type === 'synchro';
+  const key = `${g.key}|${phase}|${a.id}`;
+  const showQ = phase === 'qual' && r.rule.hasFinal !== false && r.rule.finalOnly !== true && a.finalOrder != null;
+  const rounds = phase === 'final' ? [['決勝', r.fr, 'final']] : (r.numPre >= 2 ? [['1本目', r.p1r, 'pre1'], ['2本目', r.p2r, 'pre2']] : [['予選', r.p1r, 'pre1']]);
+  let adoptedIdx = -1;
+  if (phase === 'qual' && r.numPre >= 2 && r.scoreMode === 'best' && r.p1r && r.p2r) adoptedIdx = (r.p2r.officialTotal ?? 0) > (r.p1r.officialTotal ?? 0) ? 1 : 0;
+  else if (phase === 'qual' && r.numPre >= 2 && r.scoreMode === 'best') adoptedIdx = r.p1r ? 0 : r.p2r ? 1 : -1;
+  const gap = idx > 0 && leader != null ? `-${(leader - r.qualScore).toFixed(2)}` : '';
+  const sub = phase === 'final' && r.qualPart != null ? `予選 ${f2(r.qualPart)}` : gap;
+  const open = state.open.has(key);
+  return `<div class="card" data-key="${esc(key)}">
+    <div class="top"><div class="rank">${r.rank}</div>
+      <div class="who"><div class="name">${nameOf(a)}${showQ ? '<span class="q">Q</span>' : ''}</div><div class="club">${clubOf(a)}</div></div>
+      <div class="tot"><b>${f2(r.qualScore)}</b><span>${sub}</span></div></div>
+    ${rounds.map(([lb, res], i) => routineCard(lb, res, synchro, i === adoptedIdx, adoptedIdx >= 0 && i !== adoptedIdx)).join('')}
+    <button class="more" type="button" data-toggle="${esc(key)}">${open ? '▲ 技ごとの内訳を閉じる' : '▼ 技ごとの内訳'}</button>
+    ${open ? detailHtml(r, rounds, g) : ''}
+  </div>`;
+}
+function waitingRow(r, label) {
+  const a = r.a;
+  return `<div class="card dim"><div class="top"><div class="rank">–</div><div class="who"><div class="name">${nameOf(a)}</div><div class="club">${clubOf(a)}</div></div><div class="tot"><span>${label}</span></div></div></div>`;
+}
+
+// 技ごとの内訳（難度は display.html と同じく shared.js の calcCardDD で計算）
+function detailHtml(r, rounds, g) {
+  const a = r.a, synchro = a.type === 'synchro', rule = r.rule;
+  const paper = rule.useOnlineCard === false;
+  return rounds.filter(([, res]) => res).map(([lb, res, rnd]) => {
+    const vLimit = res.validCount ?? 10;
+    const sk = Array.from({ length: 10 }, (_, i) => {
+      if (i >= vLimit) return null;
+      const raw = (res.officialSkills || [])[i];
+      const m = raw ? (skillMaster.find(x => x.id === String(raw)) || skillMaster.find(x => x.symbol === String(raw))) : null;
+      return m ? { key: m.id, dd: m.dd, isTriple: m.isTriple } : null;
+    });
+    const ddRule = parseDDRule(rule, rnd);
+    const calc = (res.officialDDValues && res.officialDDValues.length) ? null : calcCardDD({ skills: sk, gender: a.gender, ddRule, designatedIndices: res.officialDesignatedDDIndices || [], validLimit: vLimit });
+    // 技ごとの ToF・HD は、E審判が最も多いパネルの保存値
+    const hmap = res.hdtsPerSkillByPanel || {};
+    const counts = {}; Object.keys(res.execution?.judges || {}).forEach(k => { const p = k.split('_')[0]; counts[p] = (counts[p] || 0) + 1; });
+    const active = Object.entries(counts).sort((x, y) => y[1] - x[1])[0]?.[0];
+    const hd = hmap[active] || hmap[Object.keys(hmap)[0]] || {};
+    const body = [];
+    for (let i = 0; i < 10; i++) {
+      if (i >= vLimit) { body.push(`<tr><td>${i + 1}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td></tr>`); continue; }
+      const raw = (res.officialSkills || [])[i];
+      const m = raw ? (skillMaster.find(x => x.id === String(raw)) || skillMaster.find(x => x.symbol === String(raw))) : null;
+      const code = paper ? '' : (m ? esc(m.displaySymbol || m.symbol) : '–');
+      let dd = '–';
+      if (!paper) {
+        if (res.officialDDValues && res.officialDDValues.length) dd = (Number(res.officialDDValues[i]) || 0).toFixed(1);
+        else if (calc?.rows[i]?.skill) dd = calc.rows[i].isDesignated ? calc.rows[i].usedDD.toFixed(1) : '–';
+      }
+      const ed = res.officialEPerSkill?.[i];
+      const eTxt = ed != null ? (synchro ? (ed * 10).toFixed(2) : String(Math.round(ed * 10))) : '–';
+      const tof = synchro ? (hd.syn?.[i] != null ? Number(hd.syn[i]).toFixed(2) : '–') : (hd.tof?.[i] != null ? Number(hd.tof[i]).toFixed(3) : '–');
+      const hdv = synchro ? ((hd.hd1?.[i] != null || hd.hd2?.[i] != null) ? `${hd.hd1?.[i] ?? '–'} / ${hd.hd2?.[i] ?? '–'}` : '–') : (hd.hd?.[i] != null ? hd.hd[i] : '–');
+      body.push(`<tr><td>${i + 1}</td><td>${code}</td><td>${dd}</td><td>${eTxt}</td><td>${tof}</td><td>${hdv}</td></tr>`);
+    }
+    const land = vLimit < 10 ? '' : (res.officialELanding != null ? (synchro ? (res.officialELanding * 10).toFixed(2) : String(Math.round(res.officialELanding * 10))) : '–');
+    const pens = (res.penaltyItems || []).map(p => esc(p.label || p.name || p.reason || '')).filter(Boolean);
+    return `<div class="cap">${esc(lb)}</div>
+      <table class="sk"><tr><th>#</th><th>${paper ? '' : '技'}</th><th>${paper ? '' : '難度'}</th><th>E減点</th><th>${synchro ? 'Syn' : 'ToF'}</th><th>HD</th></tr>${body.join('')}</table>
+      <div class="cap">着地 E減点 ${land === '' ? '–' : land}${pens.length ? ' · 減点: ' + pens.join('、') : ''}</div>`;
+  }).join('') || '<div class="cap">内訳のデータがありません</div>';
+}
+
+// 団体（ranking.html / display.html と同じ集計）
+function teamHtml(g) {
+  const myTeams = teamDocs.filter(t => (t.class || '') === g.cls && (t.gender || '') === g.gender);
+  const rule = ruleOf('individual', g.cls);
+  const scoreMode = rule.scoreMode || 'best';
+  const numPre = rule.qualifyingRoutines ?? tour.qualifyingRoutines ?? 1;
+  const athMap = Object.fromEntries(athletes.map(a => [a.id, a]));
+  const ZERO = { total: 0, T: 0, H: 0, D: 0 };
+  const comp = r => r?.dns === true ? ZERO : { total: r?.officialTotal ?? 0, T: r?.tof ?? 0, H: r?.hd?.total ?? 0, D: r?.officialD ?? 0 };
+  const top3 = arr => [...arr].sort((a, b) => b - a).slice(0, 3).reduce((s, v) => s + v, 0);
+  const teams = myTeams.map(t => {
+    const members = (t.memberIds || []).map(id => {
+      const ath = athMap[id], p1raw = byAth[id]?.pre1, p2raw = byAth[id]?.pre2;
+      const p1 = p1raw ? comp(p1raw) : ZERO, p2 = p2raw ? comp(p2raw) : ZERO;
+      const base = { id, name: ath?.name1 || id, p1, p2, has1: p1raw != null, has2: p2raw != null };
+      if (scoreMode === 'best') { const use2 = p2.total > p1.total; const ad = use2 ? p2 : p1; return { ...base, score: ad.total, T: ad.T, H: ad.H, D: ad.D, adopt: use2 ? 2 : 1 }; }
+      return base;
+    });
+    let score, T, H, D;
+    if (scoreMode === 'best') {
+      score = top3(members.map(m => m.score)); T = top3(members.map(m => m.T)); H = top3(members.map(m => m.H)); D = top3(members.map(m => m.D));
+      members.sort((a, b) => b.score - a.score); members.forEach((m, i) => { m.counted = i < 3; });
+    } else {
+      score = top3(members.map(m => m.p1.total)) + top3(members.map(m => m.p2.total));
+      T = top3(members.map(m => m.p1.T)) + top3(members.map(m => m.p2.T)); H = top3(members.map(m => m.p1.H)) + top3(members.map(m => m.p2.H)); D = top3(members.map(m => m.p1.D)) + top3(members.map(m => m.p2.D));
+      const i1 = [...members].sort((a, b) => b.p1.total - a.p1.total).slice(0, 3).map(m => m.id);
+      const i2 = [...members].sort((a, b) => b.p2.total - a.p2.total).slice(0, 3).map(m => m.id);
+      members.forEach(m => { m.c1 = i1.includes(m.id); m.c2 = i2.includes(m.id); });
+      members.sort((a, b) => (b.p1.total + b.p2.total) - (a.p1.total + a.p2.total));
+    }
+    return { name: t.teamName || '–', members, score, T, H, D };
+  });
+  teams.sort((a, b) => b.score - a.score || b.T - a.T || b.H - a.H || b.D - a.D);
+  let rank = 0, prev = null;
+  teams.forEach((t, i) => { const k = `${t.score}|${t.T}|${t.H}|${t.D}`; if (k !== prev) { rank = i + 1; prev = k; } t.rank = rank; });
+  const two = numPre >= 2;
+  const cell = (has, v, use) => `<span class="${use ? 'use' : 'drop'}">${has ? f2(v) : ''}</span>`;
+  const cards = teams.map((t, idx) => `<div class="card"><div class="top"><div class="rank">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
+      <div class="tot"><b>${f2(t.score)}</b><span>${idx > 0 ? '-' + (teams[0].score - t.score).toFixed(2) : ''}</span></div></div>
+      <div class="mem h"><span>選手</span><span>${two ? '1本目' : '得点'}</span><span>${two ? '2本目' : ''}</span></div>
+      ${t.members.map(m => scoreMode === 'best'
+        ? `<div class="mem"><span>${esc(m.name)}</span>${two ? cell(m.has1, m.p1.total, m.counted && m.adopt === 1) + cell(m.has2, m.p2.total, m.counted && m.adopt === 2) : cell(m.has1, m.score, m.counted) + '<span></span>'}</div>`
+        : `<div class="mem"><span>${esc(m.name)}</span>${cell(m.has1, m.p1.total, m.c1)}${two ? cell(m.has2, m.p2.total, m.c2) : '<span></span>'}</div>`).join('')}
+    </div>`).join('');
+  return { html: cards + '<div class="cap">緑 = 団体得点に採用（上位3名）</div>', count: teams.length };
+}
+
+// ---------- 描画 ----------
+function renderNav() {
+  $('phases').innerHTML = PHASES.map(p => `<button class="chip" type="button" data-phase="${p.id}" aria-pressed="${state.phase === p.id}">${p.label}</button>`).join('');
+  const cats = state.phase ? catsFor(state.phase) : personGroups().concat(teamGroups()).slice(0, 4);
+  $('cats').innerHTML = cats.length
+    ? cats.map(c => `<button class="chip" type="button" data-cat="${esc(c.key)}" aria-pressed="${state.cat === c.key}" ${state.phase ? '' : 'disabled'}>${esc(c.label)}</button>`).join('')
+    : '<span class="cap">この種別に該当するカテゴリーがありません</span>';
+}
+async function renderOut() {
+  const out = $('out');
+  if (!state.phase || !state.cat) {
+    out.innerHTML = `<div class="empty"><b>フェーズと種目を選んでください</b><span>選ぶと、順位表が表示されます</span></div>`; return;
+  }
+  const g = catsFor(state.phase).find(c => c.key === state.cat);
+  if (!g) { out.innerHTML = ''; return; }
+  if (!resultsLoaded) { out.innerHTML = '<div class="empty"><span>読み込み中…</span></div>'; await loadResults(); }
+  const phaseLabel = PHASES.find(p => p.id === state.phase).label;
+  if (state.phase === 'team') {
+    const t = teamHtml(g);
+    out.innerHTML = `<div class="sec-head"><h2>${esc(g.label)} · 予選</h2><span class="badge">${t.count}チーム</span></div>${t.html}`; return;
+  }
+  if (!skillMaster) skillMaster = await getSkills();
+  const d = buildRows(g, state.phase);
+  const done = d.ranked.length + d.dns.length;
+  const leader = d.ranked[0]?.qualScore;
+  out.innerHTML = `<div class="sec-head"><h2>${esc(g.label)} · ${phaseLabel}</h2><span class="badge">${done}/${d.total}名 確定</span></div>`
+    + d.ranked.map((r, i) => personRow(r, g, state.phase, i, leader)).join('')
+    + d.waiting.map(r => waitingRow(r, '演技待ち')).join('')
+    + d.dns.map(r => waitingRow(r, '棄権')).join('');
+}
+
+document.addEventListener('click', async e => {
+  const p = e.target.closest('[data-phase]'), c = e.target.closest('[data-cat]'), t = e.target.closest('[data-toggle]');
+  if (p) { state.phase = p.dataset.phase; state.cat = null; state.open.clear(); renderNav(); renderOut(); }
+  else if (c && !c.disabled) { state.cat = c.dataset.cat; state.open.clear(); renderNav(); renderOut(); }
+  else if (t) { const k = t.dataset.toggle; state.open.has(k) ? state.open.delete(k) : state.open.add(k); renderOut(); }
+});
+async function refresh() { if (!state.phase || !state.cat) { await loadResults(); return; } await loadResults(); renderOut(); }
+$('btn-refresh').addEventListener('click', refresh);
+$('btn-auto').addEventListener('click', () => {
+  state.auto = !state.auto;
+  $('btn-auto').setAttribute('aria-pressed', state.auto);
+  $('btn-auto').textContent = '自動更新 ' + (state.auto ? 'ON' : 'OFF');
+  clearInterval(state.timer);
+  if (state.auto) state.timer = setInterval(refresh, 30000);
+});
+
+try { await loadBase(); renderNav(); renderOut(); }
+catch (err) { $('t-name').textContent = ''; $('out').innerHTML = `<div class="err">${esc(err.message || err)}</div>`; }
+</script>
+</body>
+</html>
