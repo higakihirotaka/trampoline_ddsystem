@@ -294,10 +294,11 @@ function detailHtml(r, rounds, g) {
       body.push(`<tr><td>${i + 1}</td><td>${code}</td><td>${dd}</td><td>${eTxt}</td><td>${tof}</td><td>${hdv}</td></tr>`);
     }
     const land = vLimit < 10 ? '' : (res.officialELanding != null ? (synchro ? (res.officialELanding * 10).toFixed(2) : String(Math.round(res.officialELanding * 10))) : '–');
+    body.push(`<tr><td>L</td><td>${paper ? '' : '着地'}</td><td></td><td>${land === '' ? '–' : land}</td><td></td><td></td></tr>`);
     const pens = (res.penaltyItems || []).map(p => esc(p.label || p.name || p.reason || '')).filter(Boolean);
     return `<div class="cap">${esc(lb)}</div>
       <table class="sk"><tr><th>#</th><th>${paper ? '' : '技'}</th><th>${paper ? '' : '難度'}</th><th>E減点</th><th>${synchro ? 'Syn' : 'ToF'}</th><th>HD</th></tr>${body.join('')}</table>
-      <div class="cap">着地 E減点 ${land === '' ? '–' : land}${pens.length ? ' · 減点: ' + pens.join('、') : ''}</div>`;
+      ${pens.length ? `<div class="cap">減点: ${pens.join('、')}</div>` : ''}`;
   }).join('') || '<div class="cap">内訳のデータがありません</div>';
 }
 
