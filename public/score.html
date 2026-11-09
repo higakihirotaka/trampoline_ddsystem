@@ -987,7 +987,7 @@ function setStale(v) { $('stale').hidden = !v; if (!v) stampNow(); }
 async function renderOut() {
   const out = $('out');
   if (!index) { showMsg('公開前です', '大会が始まって最初の得点が確定すると、ここに結果が表示されます'); return; }
-  if (!state.phase || !state.cat) { showMsg('フェーズと種目を選んでください', '選ぶと、順位表が表示されます'); return; }
+  if (!state.phase || !state.cat) { showMsg('種目を選んでください'); return; }
   const g = groupOf(state.cat);
   if (!g) { out.innerHTML = ''; return; }
   const cached = docs.has(state.cat);
