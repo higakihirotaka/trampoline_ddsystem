@@ -981,14 +981,17 @@ function teamHtml(d) {
   const teams = rankTeams(d);
   const rule = d.meta?.rule || {}, scoreMode = rule.scoreMode || 'best', two = (rule.numPre ?? 1) >= 2;
   const cell = (has, v, use) => `<span><i style="font-style:normal" class="${use ? 'use' : 'drop'}">${has ? f2(v) : '–'}</i></span>`;
-  const cards = teams.map((t, idx) => `<div class="card"><div class="top"><div class="rank${medal(t.rank)}">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
-      <div class="tot"><b>${f2(t.score)}</b><span>${idx > 0 ? '-' + (teams[0].score - t.score).toFixed(2) : ''}</span></div></div>
-      <div class="mem h"><span>選手</span><span>${two ? '1本目' : '得点'}</span><span>${two ? '2本目' : ''}</span></div>
+  // 一覧は1行（順位・チーム名・得点）。タップで、選手ごとの得点を開く
+  const keyOf = t => `team|${state.cat}|${t.name}`;
+  const cards = teams.map((t, idx) => { const key = keyOf(t), exp = state.exp.has(key); return `<div class="card${exp ? ' exp' : ''}" data-key="${esc(key)}"><div class="top" data-row="${esc(key)}" role="button" tabindex="0" aria-expanded="${exp}"><div class="rank${medal(t.rank)}">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
+      <div class="tot"><b>${f2(t.score)}</b><span>${idx > 0 ? '-' + (teams[0].score - t.score).toFixed(2) : ''}</span></div><i class="chev"></i></div>
+      ${exp ? `<div class="mem h"><span>選手</span><span>${two ? '1本目' : '得点'}</span><span>${two ? '2本目' : ''}</span></div>
       ${t.members.map(m => scoreMode === 'best'
         ? `<div class="mem"><span>${esc(m.name)}</span>${two ? cell(m.has1, m.p1.total, m.counted && m.adopt === 1) + cell(m.has2, m.p2.total, m.counted && m.adopt === 2) : cell(m.has1, m.score, m.counted) + '<span></span>'}</div>`
-        : `<div class="mem"><span>${esc(m.name)}</span>${cell(m.has1, m.p1.total, m.c1)}${two ? cell(m.has2, m.p2.total, m.c2) : '<span></span>'}</div>`).join('')}
-    </div>`).join('');
-  return { html: cards + (teams.length ? '<div class="cap" style="text-align:center;margin-top:12px;">ハイライト枠 = 団体得点に採用（上位3名）</div>' : ''), count: teams.length };
+        : `<div class="mem"><span>${esc(m.name)}</span>${cell(m.has1, m.p1.total, m.c1)}${two ? cell(m.has2, m.p2.total, m.c2) : '<span></span>'}</div>`).join('')}` : ''}
+    </div>`; }).join('');
+  const anyOpen = teams.some(t => state.exp.has(keyOf(t)));
+  return { html: cards + (anyOpen ? '<div class="cap" style="text-align:center;margin-top:12px;">ハイライト枠 = 団体得点に採用（上位3名）</div>' : ''), count: teams.length };
 }
 
 // ---------- 描画 ----------
