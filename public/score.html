@@ -557,16 +557,6 @@
     font-variant-numeric: tabular-nums;
     line-height: 1;
   }
-  .tag {
-    font-style: normal;
-    font-size: 11px;
-    font-weight: 700;
-    background: var(--hl);
-    color: var(--on-hl);
-    border-radius: 5px;
-    padding: 2px 7px;
-    margin-left: 6px;
-  }
   .rt-g {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -884,7 +874,7 @@ function routineCard(label, r, synchro, adopted, dimmed) {
   const s = r.s || {};
   const c = v => v ? v : dash;
   return `<div class="rt${adopted ? ' use' : ''}${dimmed ? ' off' : ''}">
-    <div class="rt-h"><span>${label}${adopted ? '<i class="tag">採用</i>' : ''}</span><b>${c(s.total)}</b></div>
+    <div class="rt-h"><span>${label}</span><b>${c(s.total)}</b></div>
     <div class="rt-g">
       <span>D<b>${c(s.d)}</b></span>
       <span>E<b>${c(s.e)}</b></span>
