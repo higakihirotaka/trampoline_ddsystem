@@ -696,6 +696,8 @@
   table.sk td:nth-child(2) {
     font-weight: 700;
   }
+  table.sk td.bn { color: var(--hl-ink, var(--accent)); font-weight: 700; }
+  table.sk td.bn:nth-child(2) { font-family: inherit; font-size: 12px; }
   table.sk tr.land td {
     border-top: 1px solid var(--line);
     font-weight: 700;
@@ -923,7 +925,9 @@ function detailHtml(rounds, synchro, paper) {
       if (!k) { body.push(`<tr><td>${i + 1}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td></tr>`); continue; }
       body.push(`<tr><td>${i + 1}</td><td>${paper ? '' : esc(k.sym ?? '–')}</td><td>${paper ? '–' : esc(k.dd ?? '–')}</td><td>${esc(k.e ?? '–')}</td><td>${esc(k.tof ?? '–')}</td><td>${esc(k.hd ?? '–')}</td></tr>`);
     }
-    body.push(`<tr class="land"><td>L</td><td></td><td></td><td>${esc(r.land === '' || r.land == null ? '–' : r.land)}</td><td></td><td></td></tr>`);
+    // Lの行: 着地のE減点。Dのボーナスがあるときは、難度の列に +x.x（技の列に Bonus）
+    const bn = r.bn ? esc(r.bn) : '';
+    body.push(`<tr class="land"><td>L</td><td class="bn">${bn ? 'Bonus' : ''}</td><td class="bn">${bn ? '+' + bn : ''}</td><td>${esc(r.land === '' || r.land == null ? '–' : r.land)}</td><td></td><td></td></tr>`);
     const pens = (r.pr || []).map(esc).filter(Boolean);
     return `<div class="cap">${esc(lb)}</div>
       <table class="sk"><tr><th>#</th><th>${paper ? '' : '技'}</th><th>${paper ? '' : '難度'}</th><th>E減点</th><th>${synchro ? 'Syn' : 'ToF'}</th><th>HD</th></tr>${body.join('')}</table>

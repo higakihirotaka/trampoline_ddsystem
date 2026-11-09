@@ -132,6 +132,8 @@ export function buildRoutine(res, ctx) {
     sk.push(row);
   }
 
+  // Dのボーナス（トリプルの本数による加点）。会場ディスプレイと同じ: 紙運用は出さない、手動入力は入力値、自動計算は calcCardDD の値
+  const bonusNum = paper ? 0 : (hasManualDD ? num(res.officialDDBonus) : calc?.bonus) ?? 0;
   const penNum = num(res.penalty);
   const routine = {
     at,
@@ -146,6 +148,7 @@ export function buildRoutine(res, ctx) {
     },
     sk,
     land: vl < 10 ? '' : fmtEDeduction(res.officialELanding, synchro),
+    bn: bonusNum > 0 ? f1(bonusNum) : '',
     pr: (res.penaltyItems || []).map(penaltyLabel).filter(Boolean),
   };
   return routine;

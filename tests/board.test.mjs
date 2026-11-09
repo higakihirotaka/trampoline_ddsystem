@@ -101,6 +101,21 @@ test('routine: D手動入力の結果は、保存されている各技のDD値�
   assert.deepEqual(r.sk.slice(0, 5).map(x => x.dd), ['0.1', '0.5', '3.0', '0.0', '0.4']);
 });
 
+test('routine: Dのボーナス（トリプルの本数）。男子は6本目から1本につき0.3、女子・混合は3本目から。無ければ空', () => {
+  // 同じ技は2回目以降0点でトリプルに数えないため、別の技（ID）で6本そろえる
+  const master = [...MASTER, ...[5, 6, 7, 8, 9].map(i => ({ id: String(i), symbol: 'T' + i, dd: 2.0, isTriple: true }))];
+  const sixTriples = { officialSkills: ['3', '5', '6', '7', '8', '9', '', '', '', ''], validCount: 6 };
+  assert.equal(buildRoutine(baseRes(sixTriples), ctx({ skills: master, gender: '男子' })).bn, '0.3', '男子: トリプル6本で 0.3');
+  assert.equal(buildRoutine(baseRes(sixTriples), ctx({ skills: master, gender: '女子' })).bn, '1.2', '女子: トリプル6本で (6-2)×0.3');
+  assert.equal(buildRoutine(baseRes(), ctx()).bn, '', 'トリプルが少なければ空');
+});
+
+test('routine: ボーナスは、手動入力は保存された値、紙運用は出さない', () => {
+  assert.equal(buildRoutine(baseRes({ officialDDValues: [0.1, 0.5, 3, 0, 0.4], officialDDBonus: 0.6 }), ctx()).bn, '0.6');
+  assert.equal(buildRoutine(baseRes({ officialDDValues: [0.1, 0.5, 3, 0, 0.4] }), ctx()).bn, '', '手動入力でボーナスの保存が無ければ空');
+  assert.equal(buildRoutine(baseRes({ officialDDBonus: 0.6 }), ctx({ rule: { useOnlineCard: false } })).bn, '', '紙運用は出さない');
+});
+
 test('routine: 指定難度では、指定されなかった技の難度は –', () => {
   const rule = { qualifyingRoutines: 2, scoreMode: 'total', designatedDDCount: 2 };
   const r = buildRoutine(baseRes({ officialDesignatedDDIndices: [0, 2] }), ctx({ rule }));
