@@ -464,19 +464,6 @@
     font-size: 15px;
     flex: none;
   }
-  .rank.m1 {
-    background: linear-gradient(135deg, #fde047, #f59e0b);
-    color: #451a03;
-    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35);
-  }
-  .rank.m2 {
-    background: linear-gradient(135deg, #e2e8f0, #94a3b8);
-    color: #0f172a;
-  }
-  .rank.m3 {
-    background: linear-gradient(135deg, #fed7aa, #d97706);
-    color: #431407;
-  }
   /* 一覧は1行: 順位 / 名前（Q）所属 / 得点。個人は名前と所属を同じ行に、シンクロは2行 */
   .who {
     flex: 1;
@@ -852,7 +839,6 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f2 = v => v != null ? Number(v).toFixed(2) : null;
 const dash = '<span class="na">–</span>';
-const medal = r => r <= 3 ? ` m${r}` : '';
 const typeLabel = t => t === 'synchro' ? 'シンクロ' : t === 'team' ? '団体' : '個人';
 
 const PHASES = [{ id: 'qual', label: '予選' }, { id: 'final', label: '決勝' }, { id: 'team', label: '団体' }];
@@ -956,7 +942,7 @@ function personRow(r, g, phase, idx, leader, rule) {
   const open = state.open.has(key), exp = state.exp.has(key);
   return `<div class="card${r.showQ ? ' q-on' : ''}${synchro ? ' syn' : ''}${exp ? ' exp' : ''}" data-key="${esc(key)}">
     <div class="top" data-row="${esc(key)}" role="button" tabindex="0" aria-expanded="${exp}">
-      <div class="rank${medal(r.rank)}">${r.rank}</div>
+      <div class="rank">${r.rank}</div>
       <div class="who">
         <div class="name-row"><span class="name">${nameOf(r, synchro)}</span>${r.showQ ? '<span class="q">Q</span>' : ''}</div>
         <div class="club">${clubOf(r, synchro)}</div>
@@ -983,7 +969,7 @@ function teamHtml(d) {
   const cell = (has, v, use) => `<span><i style="font-style:normal" class="${use ? 'use' : 'drop'}">${has ? f2(v) : '–'}</i></span>`;
   // 一覧は1行（順位・チーム名・得点）。タップで、選手ごとの得点を開く
   const keyOf = t => `team|${state.cat}|${t.name}`;
-  const cards = teams.map((t, idx) => { const key = keyOf(t), exp = state.exp.has(key); return `<div class="card${exp ? ' exp' : ''}" data-key="${esc(key)}"><div class="top" data-row="${esc(key)}" role="button" tabindex="0" aria-expanded="${exp}"><div class="rank${medal(t.rank)}">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
+  const cards = teams.map((t, idx) => { const key = keyOf(t), exp = state.exp.has(key); return `<div class="card${exp ? ' exp' : ''}" data-key="${esc(key)}"><div class="top" data-row="${esc(key)}" role="button" tabindex="0" aria-expanded="${exp}"><div class="rank">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
       <div class="tot"><b>${f2(t.score)}</b><span>${idx > 0 ? '-' + (teams[0].score - t.score).toFixed(2) : ''}</span></div><i class="chev"></i></div>
       ${exp ? `<div class="mem h"><span>選手</span><span>${two ? '1本目' : '得点'}</span><span>${two ? '2本目' : ''}</span></div>
       ${t.members.map(m => scoreMode === 'best'
