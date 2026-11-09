@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { initializeFirestore, memoryLocalCache } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { initializeFirestore, memoryLocalCache, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhSJsTmnzBCFrHuXuB8zGUTiQauOS96m4",
@@ -16,8 +15,13 @@ const app = initializeApp(firebaseConfig);
 // memoryLocalCache: IndexedDB を一切使わずメモリのみでキャッシュ
 // → iOS Safari プライベートモードで IndexedDB が制限される環境でもクラッシュしない
 const db = initializeFirestore(app, { localCache: memoryLocalCache() });
-const auth = getAuth(app);
 
 const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
-export { app, db, auth, isLocalDev };
+// 手元の確認用: localhost のときだけ、URL に ?emulator=1 を付けると、本番ではなく Firestore エミュレータ（127.0.0.1:8080）を読み書きする
+if (isLocalDev && new URLSearchParams(location.search).get('emulator')) connectFirestoreEmulator(db, '127.0.0.1', 8080);
+
+// auth（Google認証）は firebase-auth.js の読み込み・初期化コストが伴うため、
+// 実際に認証を使うページ用に firebase-auth-config.js へ分離した。db しか使わない
+// ページ（審判入力画面など）はこのファイルを import しても auth 関連は一切読み込まれない。
+export { app, db, isLocalDev };

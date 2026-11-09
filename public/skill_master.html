@@ -14,6 +14,9 @@
         .back-link:hover { background: #eee; }
         .btn-add { padding: 8px 18px; border-radius: 8px; border: 2px solid var(--primary); background: var(--primary); color: white; font-size: 0.9rem; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.15s; }
         .btn-add:hover { background: #1558b0; border-color: #1558b0; }
+        .auth-info { font-size: 0.8rem; color: var(--gray); display: none; align-items: center; white-space: nowrap; }
+        .auth-info span { font-weight: bold; color: #333; }
+        .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--primary); cursor: pointer; font-size: 0.85em; margin-left: 10px; padding: 3px 8px; }
 
         /* 新規追加フォーム */
         .add-panel { background: white; border: 2px solid var(--primary); border-radius: 14px; padding: 20px 24px; margin-bottom: 20px; }
@@ -57,7 +60,7 @@
         .col-dd      { width: 60px; text-align: center; }
         .col-triple  { width: 52px; text-align: center; }
         .col-dir     { width: 70px; }
-        .col-soma    { width: 70px; }
+        .col-soma    { width: 100px; }
         .col-note    { min-width: 140px; color: #777; font-size: 0.85rem; }
         .col-act     { width: 110px; text-align: right; white-space: nowrap; }
 
@@ -120,6 +123,10 @@
     <div class="header">
         <a href="javascript:history.back()" class="back-link">← 戻る</a>
         <h1>📖 技マスター</h1>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
         <button class="btn-add" onclick="toggleAddPanel()">＋ 技を追加</button>
     </div>
 
@@ -143,6 +150,10 @@
                 <div class="add-field-label">3回転</div>
                 <input type="checkbox" id="new-triple">
             </div>
+            <div class="add-triple-wrap">
+                <div class="add-field-label">D審のみ</div>
+                <input type="checkbox" id="new-djudge">
+            </div>
             <div class="add-field-wrap">
                 <div class="add-field-label">系統</div>
                 <select class="add-input" id="new-dir">
@@ -156,10 +167,18 @@
                 <div class="add-field-label">宙系</div>
                 <select class="add-input" id="new-soma">
                     <option value="">-- なし --</option>
-                    <option value="1回宙">1回宙</option>
-                    <option value="2回宙">2回宙</option>
-                    <option value="3回宙">3回宙</option>
-                    <option value="4回宙">4回宙</option>
+                    <optgroup label="宙系">
+                        <option value="1回宙">1回宙</option>
+                        <option value="2回宙">2回宙</option>
+                        <option value="3回宙">3回宙</option>
+                        <option value="4回宙">4回宙</option>
+                    </optgroup>
+                    <optgroup label="開始姿勢（基礎技）">
+                        <option value="スタンドから">スタンドから</option>
+                        <option value="腰から">腰から</option>
+                        <option value="腹から">腹から</option>
+                        <option value="背から">背から</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="add-field-wrap">
@@ -180,6 +199,7 @@
         <button class="filter-btn" data-dir="後方系" onclick="setDir(this)">後方系</button>
         <button class="filter-btn" data-dir="基礎技" onclick="setDir(this)">基礎技</button>
         <button class="filter-btn" id="triple-btn" onclick="setTriple(this)">3回転のみ</button>
+        <button class="filter-btn" id="djudge-btn" onclick="setDJudgeOnly(this)" title="選手入力画面では選択できず、管理者入力・D審判画面のみ選択できる技">D審のみ</button>
         <span style="width:1px; background:#ddd; align-self:stretch; margin:0 4px;"></span>
         <button class="filter-btn active" data-soma="" onclick="setSoma(this)">宙系: 全て</button>
         <button class="filter-btn" data-soma="1回宙" onclick="setSoma(this)">1回宙</button>
@@ -187,6 +207,7 @@
         <button class="filter-btn" data-soma="3回宙" onclick="setSoma(this)">3回宙</button>
         <button class="filter-btn" data-soma="4回宙" onclick="setSoma(this)">4回宙</button>
         <button class="filter-btn" onclick="autoAssignSoma()" title="Symbolの先頭数字から宙系を自動割り当て">🔄 宙系自動割当</button>
+        <button class="filter-btn" onclick="assignBasePosture()" title="開始姿勢が未設定の基礎技に「スタンドから」を一括設定">🤸 基礎技の開始姿勢を初期化</button>
         <button class="filter-btn" onclick="bulkCopySymbolToDisplay()" title="未設定の表示用にSymbolを一括コピー">📋 表示用一括コピー</button>
         <span style="width:1px; background:#ddd; align-self:stretch; margin:0 4px;"></span>
         <button class="filter-btn" onclick="sortByDD()" title="難度点の低い順に並べ替え（保存が必要）" style="border-color:#7e57c2; color:#7e57c2;">📊 難度順に並替</button>
@@ -203,6 +224,7 @@
                 <th class="col-disp">表示用</th>
                 <th class="col-dd">DD</th>
                 <th class="col-triple">3回転</th>
+                <th class="col-triple" title="選手入力画面では選択できず、管理者入力・D審判画面のみ選択できる">D審のみ</th>
                 <th class="col-dir">系統</th>
                 <th class="col-soma">宙系</th>
                 <th class="col-note">注釈</th>
@@ -223,12 +245,14 @@
 
 <script type="module">
     import { db } from "./firebase-config.js";
-    import { collection, getDocs, setDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { collection, getDocs, getDoc, setDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from './auth.js';
 
     let skills = [];
     let editingId = null;   // 現在編集中の行ID
     let currentDir = '';
     let tripleOnly = false;
+    let dJudgeOnlyFilter = false;
     let currentSoma = '';
     let orderDirty = false; // 順序変更フラグ
     let savedOrder = [];    // 保存前の順序（元に戻す用）
@@ -245,6 +269,14 @@
     function skillSortKey(s) {
         // displayOrder があればそれ、なければ id の数値
         return s.displayOrder ?? Number(s.id);
+    }
+
+    // 技マスタを編集するたびに更新日時マーカーを書く。entry.html/event.html 側の getSkills() が
+    // 静的な skills.json の鮮度チェックに使う（マーカーの方が新しければ自動でFirestoreから取り直す）。
+    // 技マスタ本体の保存には影響させたくないので、失敗しても警告のみで無視する。
+    function touchSkillMasterVersion() {
+        setDoc(doc(db, 'meta', 'skillMaster'), { updatedAt: serverTimestamp() }, { merge: true })
+            .catch(e => console.warn('技マスタ更新マーカーの書込に失敗しました:', e));
     }
 
     async function init() {
@@ -264,6 +296,16 @@
         document.getElementById('loading').style.display = 'none';
         document.getElementById('skill-table').style.display = '';
         render();
+
+        // skills.json 鮮度チェックの基準（更新日時マーカー）がまだ無ければここで作成する。
+        // このページを開けるのは基本的に管理者（Firestoreルール上、未ログインなら
+        // touchSkillMasterVersion() 自体が失敗し警告のみで無視される）。
+        try {
+            const markerSnap = await getDoc(doc(db, 'meta', 'skillMaster'));
+            if (!markerSnap.exists()) touchSkillMasterVersion();
+        } catch (e) {
+            console.warn('技マスタ更新マーカーの確認に失敗しました:', e);
+        }
     }
 
     window.toggleAddPanel = function() {
@@ -296,12 +338,15 @@
         let newSoma = document.getElementById('new-soma').value;
         // 宙系未選択の場合はSymbolから自動検出
         if (!newSoma && newDir !== '基礎技') newSoma = detectSomaType(symbol);
+        // 基礎技で開始姿勢が未選択なら「スタンドから」を既定にする
+        if (newDir === '基礎技' && !newSoma) newSoma = 'スタンドから';
         const newDisplaySymbol = document.getElementById('new-display-symbol').value.trim() || symbol;
         const data = {
             symbol,
             displaySymbol: newDisplaySymbol,
             dd: parseFloat(document.getElementById('new-dd').value) || 0,
             isTriple: document.getElementById('new-triple').checked,
+            dJudgeOnly: document.getElementById('new-djudge').checked,
             direction: newDir,
             somersaultType: newSoma,
             note: document.getElementById('new-note').value.trim(),
@@ -311,6 +356,7 @@
 
         try {
             await setDoc(doc(db, 'skillMaster', nextId), data);
+            touchSkillMasterVersion();
             skills.push({ id: nextId, ...data });
             skills.sort((a, b) => skillSortKey(a) - skillSortKey(b));
             document.getElementById('add-panel').style.display = 'none';
@@ -335,6 +381,12 @@
     window.setTriple = function(btn) {
         tripleOnly = !tripleOnly;
         btn.classList.toggle('active', tripleOnly);
+        render();
+    };
+
+    window.setDJudgeOnly = function(btn) {
+        dJudgeOnlyFilter = !dJudgeOnlyFilter;
+        btn.classList.toggle('active', dJudgeOnlyFilter);
         render();
     };
 
@@ -363,6 +415,7 @@
         if (currentDir && s.direction !== currentDir) return false;
         if (currentSoma && s.somersaultType !== currentSoma) return false;
         if (tripleOnly && !s.isTriple) return false;
+        if (dJudgeOnlyFilter && !s.dJudgeOnly) return false;
         const q = document.getElementById('search').value.trim().toLowerCase();
         if (q && !s.symbol.toLowerCase().includes(q)) return false;
         return true;
@@ -380,7 +433,7 @@
             document.getElementById('empty-msg').style.display = '';
         } else {
             document.getElementById('empty-msg').style.display = 'none';
-            const isFiltered = !!(currentDir || currentSoma || tripleOnly || q);
+            const isFiltered = !!(currentDir || currentSoma || tripleOnly || dJudgeOnlyFilter || q);
             tbody.innerHTML = filtered.map((s, fi) => {
                 // skills配列内のインデックス（フィルタなしの全体順序）
                 const globalIdx = skills.indexOf(s);
@@ -409,6 +462,10 @@
                             <input type="checkbox" class="edit-triple-cb" data-id="${s.id}" data-field="isTriple"
                                 ${s.isTriple ? 'checked' : ''}>
                         </td>
+                        <td class="col-triple">
+                            <input type="checkbox" class="edit-djudge-cb" data-id="${s.id}" data-field="dJudgeOnly"
+                                ${s.dJudgeOnly ? 'checked' : ''}>
+                        </td>
                         <td class="col-dir">
                             <select class="edit-input" data-id="${s.id}" data-field="direction" style="width:80px;">
                                 <option value="前方系" ${s.direction === '前方系' ? 'selected' : ''}>前方</option>
@@ -417,12 +474,20 @@
                             </select>
                         </td>
                         <td class="col-soma">
-                            <select class="edit-input" data-id="${s.id}" data-field="somersaultType" style="width:78px;">
+                            <select class="edit-input" data-id="${s.id}" data-field="somersaultType" style="width:112px;">
                                 <option value="" ${!s.somersaultType ? 'selected' : ''}>--</option>
-                                <option value="1回宙" ${s.somersaultType === '1回宙' ? 'selected' : ''}>1回宙</option>
-                                <option value="2回宙" ${s.somersaultType === '2回宙' ? 'selected' : ''}>2回宙</option>
-                                <option value="3回宙" ${s.somersaultType === '3回宙' ? 'selected' : ''}>3回宙</option>
-                                <option value="4回宙" ${s.somersaultType === '4回宙' ? 'selected' : ''}>4回宙</option>
+                                <optgroup label="宙系">
+                                    <option value="1回宙" ${s.somersaultType === '1回宙' ? 'selected' : ''}>1回宙</option>
+                                    <option value="2回宙" ${s.somersaultType === '2回宙' ? 'selected' : ''}>2回宙</option>
+                                    <option value="3回宙" ${s.somersaultType === '3回宙' ? 'selected' : ''}>3回宙</option>
+                                    <option value="4回宙" ${s.somersaultType === '4回宙' ? 'selected' : ''}>4回宙</option>
+                                </optgroup>
+                                <optgroup label="開始姿勢">
+                                    <option value="スタンドから" ${s.somersaultType === 'スタンドから' ? 'selected' : ''}>スタンドから</option>
+                                    <option value="腰から" ${s.somersaultType === '腰から' ? 'selected' : ''}>腰から</option>
+                                    <option value="腹から" ${s.somersaultType === '腹から' ? 'selected' : ''}>腹から</option>
+                                    <option value="背から" ${s.somersaultType === '背から' ? 'selected' : ''}>背から</option>
+                                </optgroup>
                             </select>
                         </td>
                         <td class="col-note">
@@ -453,6 +518,7 @@
                         <td class="col-disp">${s.displaySymbol || '<span class="display-empty">—</span>'}</td>
                         <td class="col-dd" style="text-align:center;">${Number(s.dd).toFixed(1)}</td>
                         <td class="col-triple">${s.isTriple ? '<span class="triple-check">✓</span>' : ''}</td>
+                        <td class="col-triple">${s.dJudgeOnly ? '<span class="triple-check">✓</span>' : ''}</td>
                         <td class="col-dir">${dirLabel[s.direction] || s.direction || ''}</td>
                         <td class="col-soma">${s.somersaultType || ''}</td>
                         <td class="col-note">${noteText}</td>
@@ -515,6 +581,7 @@
                 batch.push(setDoc(doc(db, 'skillMaster', s.id), { displayOrder: s.displayOrder }, { merge: true }));
             }
             await Promise.all(batch);
+            touchSkillMasterVersion();
             savedOrder = skills.map(s => s.id);
             orderDirty = false;
             document.getElementById('order-save-bar').classList.remove('visible');
@@ -588,6 +655,7 @@
         const dispSymbolEl  = document.querySelector(`input.edit-input[data-id="${id}"][data-field="displaySymbol"]`);
         const ddEl          = document.querySelector(`input.edit-input[data-id="${id}"][data-field="dd"]`);
         const tripleEl      = document.querySelector(`input.edit-triple-cb[data-id="${id}"]`);
+        const djudgeEl      = document.querySelector(`input.edit-djudge-cb[data-id="${id}"]`);
         const dirEl         = document.querySelector(`select.edit-input[data-id="${id}"][data-field="direction"]`);
         const somaEl        = document.querySelector(`select.edit-input[data-id="${id}"][data-field="somersaultType"]`);
         const noteEl        = document.querySelector(`input.edit-input[data-id="${id}"][data-field="note"]`);
@@ -596,6 +664,7 @@
         const newDisplaySymbol  = dispSymbolEl?.value.trim() || newSymbol;
         const newDd             = parseFloat(ddEl?.value) || 0;
         const newIsTriple       = tripleEl?.checked || false;
+        const newDJudgeOnly     = djudgeEl?.checked || false;
         const newDirection      = dirEl?.value || skill.direction;
         const newSomersault     = somaEl?.value || '';
         const newNote           = noteEl?.value.trim() || '';
@@ -611,6 +680,7 @@
             displaySymbol: newDisplaySymbol,
             dd: newDd,
             isTriple: newIsTriple,
+            dJudgeOnly: newDJudgeOnly,
             direction: newDirection,
             somersaultType: newSomersault,
             note: newNote,
@@ -619,10 +689,11 @@
 
         try {
             await setDoc(doc(db, 'skillMaster', id), data, { merge: true });
+            touchSkillMasterVersion();
 
             const idx = skills.findIndex(s => s.id === id);
             if (idx >= 0) {
-                skills[idx] = { ...skills[idx], symbol: newSymbol, displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, direction: newDirection, somersaultType: newSomersault, note: newNote };
+                skills[idx] = { ...skills[idx], symbol: newSymbol, displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, dJudgeOnly: newDJudgeOnly, direction: newDirection, somersaultType: newSomersault, note: newNote };
             }
             editingId = null;
             render();
@@ -654,6 +725,7 @@
             return setDoc(doc(db, 'skillMaster', s.id), { displaySymbol: val }, { merge: true });
         });
         await Promise.all(updates);
+        touchSkillMasterVersion();
         alert(`${skills.length}件を更新しました`);
         render();
     };
@@ -678,6 +750,7 @@
         if (!confirm(`「${skill.symbol}」を削除しますか？\n選手の申告データには影響しません。`)) return;
         try {
             await deleteDoc(doc(db, 'skillMaster', id));
+            touchSkillMasterVersion();
             skills = skills.filter(s => s.id !== id);
             render();
         } catch (e) {
@@ -690,7 +763,8 @@
         if (!confirm('Symbolの先頭数字から宙系を自動判定して一括更新します。\n4始まり→1回宙、8始まり→2回宙、12始まり→3回宙、16始まり→4回宙\nよろしいですか？')) return;
         const updates = [];
         for (const s of skills) {
-            const soma = s.direction === '基礎技' ? '' : detectSomaType(s.symbol);
+            if (s.direction === '基礎技') continue; // 基礎技の「開始姿勢」は自動割当の対象外（維持する）
+            const soma = detectSomaType(s.symbol);
             if (soma !== (s.somersaultType || '')) {
                 s.somersaultType = soma;
                 updates.push(setDoc(doc(db, 'skillMaster', s.id), { somersaultType: soma }, { merge: true }));
@@ -698,11 +772,42 @@
         }
         if (updates.length === 0) { alert('変更対象なし'); return; }
         await Promise.all(updates);
+        touchSkillMasterVersion();
         alert(`${updates.length}件を更新しました`);
         render();
     };
 
-    init();
+    // 基礎技の「開始姿勢」を一括初期化（未設定のものに「スタンドから」を代入）
+    window.assignBasePosture = async function() {
+        const POSTURES = ['スタンドから', '腰から', '腹から', '背から'];
+        const targets = skills.filter(s => s.direction === '基礎技' && !POSTURES.includes(s.somersaultType || ''));
+        if (targets.length === 0) { alert('対象なし（すべての基礎技に開始姿勢が設定済みです）'); return; }
+        if (!confirm(`開始姿勢が未設定の基礎技 ${targets.length} 件に「スタンドから」を設定します。\n（すでに 腰から/腹から/背から 等が設定済みのものは変更しません）\nよろしいですか？`)) return;
+        const updates = targets.map(s => {
+            s.somersaultType = 'スタンドから';
+            return setDoc(doc(db, 'skillMaster', s.id), { somersaultType: 'スタンドから' }, { merge: true });
+        });
+        try {
+            await Promise.all(updates);
+            touchSkillMasterVersion();
+            alert(`${targets.length}件の基礎技に「スタンドから」を設定しました`);
+            render();
+        } catch (e) {
+            console.error('assignBasePosture error:', e);
+            alert('設定に失敗しました: ' + e.message);
+        }
+    };
+
+    // このページはFirestoreの skillMaster へ直接書き込む（追加・編集・削除・並替）ため、
+    // 他の管理者画面と同じく ensureAdmin() でログイン状態を確定させてから初期化する。
+    // 以前はこのガードが無く、未ログイン状態（Firestoreルール上 write は request.auth != null 必須）
+    // でも画面自体は開けてしまい、追加操作だけがpermission-deniedで失敗する不具合があった。
+    ensureAdmin(user => {
+        document.getElementById('auth-info').style.display = 'flex';
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        document.getElementById('logout-btn').onclick = logout;
+        init();
+    });
 </script>
 </body>
 </html>

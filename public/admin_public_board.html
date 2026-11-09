@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公開スコアページ - Trampoline System</title>
+    <style>
+        :root { --primary-blue: #1a73e8; --bg-gray: #f0f2f5; --text-dark: #202124; --text-gray: #5f6368; --text-sub: #546e7a; --ok: #1e8e3e; --warn: #b45309; --err: #c62828; }
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; padding: 20px; background: var(--bg-gray); margin: 0; color: var(--text-dark); }
+        .wrap { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .btn-back { text-decoration: none; color: var(--text-sub); font-size: 0.9rem; border: 1px solid #ccc; padding: 8px 20px; border-radius: 8px; }
+        .auth-info { font-size: 0.85em; color: #999; display: none; align-items: center; }
+        .auth-info span { font-weight: bold; color: var(--text-dark); }
+        .logout-btn { background: none; border: 1px solid #ccc; border-radius: 5px; color: var(--primary-blue); cursor: pointer; font-size: 0.9em; margin-left: 12px; padding: 3px 8px; }
+        h1 { text-align: center; font-size: 1.7em; margin: 6px 0 4px; }
+        .sub { text-align: center; color: var(--text-sub); font-size: 0.9rem; margin-bottom: 24px; }
+        h2 { font-size: 1.15rem; margin: 30px 0 10px; border-left: 5px solid var(--primary-blue); padding-left: 12px; }
+        .box { background: #f8f9fa; border: 1px solid #e3e6ea; border-radius: 12px; padding: 16px 18px; }
+        .url-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .url-row input { flex: 1; min-width: 220px; padding: 9px 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.9rem; font-family: monospace; }
+        button, .btn { cursor: pointer; border: 1px solid var(--primary-blue); background: #fff; color: var(--primary-blue); border-radius: 8px; padding: 8px 14px; font-size: 0.88rem; font-weight: bold; text-decoration: none; display: inline-block; }
+        button:hover, .btn:hover { background: #e8f0fe; }
+        button.primary { background: var(--primary-blue); color: #fff; }
+        button.primary:hover { background: #1557b0; }
+        button:disabled { opacity: .5; cursor: default; }
+        .qr-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+        #qr { background: #fff; padding: 10px; border: 1px solid #e3e6ea; border-radius: 10px; min-width: 148px; min-height: 148px; }
+        .note { font-size: 0.84rem; color: var(--text-sub); line-height: 1.7; }
+        .warn-box { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; border-radius: 10px; padding: 12px 14px; font-size: 0.85rem; line-height: 1.7; margin: 12px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.86rem; }
+        th, td { padding: 8px 6px; border-bottom: 1px solid #eee; text-align: right; }
+        th:first-child, td:first-child { text-align: left; }
+        th { color: var(--text-gray); font-size: 0.75rem; white-space: nowrap; }
+        .status { margin-top: 10px; font-size: 0.9rem; min-height: 1.4em; }
+        .status.ok { color: var(--ok); } .status.err { color: var(--err); } .status.warn { color: var(--warn); }
+        .tbl-wrap { overflow-x: auto; }
+        .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#263238; color:white; padding:11px 28px; border-radius:30px; font-size:0.9rem; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:300; white-space:nowrap; }
+        .toast.show { opacity:1; }
+        @media (max-width: 600px) { body { padding: 10px; } .wrap { padding: 16px; border-radius: 12px; } }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="header-bar">
+        <a id="back-link" href="admin_menu.html" class="btn-back">← メニューに戻る</a>
+        <div id="auth-info" class="auth-info">
+            <span id="user-name"></span>としてログイン中
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+        </div>
+    </div>
+    <h1 id="event-title">読み込み中...</h1>
+    <div class="sub">観客・コーチ向けの公開スコアページ（ログイン不要）</div>
+
+    <h2>公開ページのURL</h2>
+    <div class="box">
+        <div class="url-row">
+            <input id="url" type="text" readonly>
+            <button id="btn-copy" type="button">コピー</button>
+            <a id="btn-open" class="btn" target="_blank" rel="noopener">開く</a>
+        </div>
+        <div class="qr-row">
+            <div id="qr"></div>
+            <div class="note">
+                会場の掲示や配布資料にQRコードを使えます。<br>
+                得点はCJPが確定すると自動で公開されます（公開のON/OFFはありません）。<br>
+                公開ページは検索エンジンに載りません。URLを知っている人だけが見られます。<br>
+                <button id="btn-qr-save" type="button" style="margin-top:8px;">QRコードを画像で保存</button>
+            </div>
+        </div>
+    </div>
+
+    <h2>現在の公開データ</h2>
+    <div class="note">公開ページが読んでいるデータです。「確定」はグループごとの確定済みの本数（棄権を除く）です。</div>
+    <div id="status-now" class="status"></div>
+    <div class="tbl-wrap"><table id="tbl-now"></table></div>
+    <div style="margin-top:10px;"><button id="btn-reload" type="button">表示を更新</button></div>
+
+    <h2>公開データを再生成</h2>
+    <div class="box">
+        <div class="note">
+            大会・選手・チーム・クラス設定・技マスタ・確定済みの得点をすべて読み直して、公開データを作り直します。次のときに使います。<br>
+            ・この大会で、最初に公開するとき（すでに確定した得点がある場合を含む）<br>
+            ・CJPの端末が止まるなどして、公開ページに反映されない得点があるとき<br>
+            ・選手管理以外の画面で、選手名や所属を変えたとき
+        </div>
+        <div class="warn-box">
+            再生成の最中に確定が入ると、その1本が古い内容で上書きされることがあります。<b>CJPの確定が止まっているときに押してください。</b><br>
+            読み込みは、結果と選手を合わせて数百〜千件程度です。
+        </div>
+        <button id="btn-regen" class="primary" type="button">公開データを再生成</button>
+        <div id="status-regen" class="status"></div>
+        <div class="tbl-wrap"><table id="tbl-regen"></table></div>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script type="module">
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { ensureAdmin, logout } from "./auth.js";
+    import * as Board from "./board.js";
+    import { regenerateBoard } from "./board_client.js";
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event');
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtBytes = n => n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B';
+    const fmtTime = ms => { if (!ms) return '–'; const d = new Date(ms); return `${d.getMonth() + 1}/${d.getDate()} ${[d.getHours(), d.getMinutes(), d.getSeconds()].map(x => String(x).padStart(2, '0')).join(':')}`; };
+    const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); };
+    const setStatus = (id, msg, kind = '') => { const el = $(id); el.textContent = msg; el.className = 'status ' + kind; };
+    $('back-link').href = `admin_menu.html?event=${eventId}`;
+
+    // ---------- URL と QR ----------
+    const publicUrl = `${location.origin}/score.html?event=${encodeURIComponent(eventId || '')}`;
+    $('url').value = publicUrl;
+    $('btn-open').href = publicUrl;
+    $('btn-copy').onclick = async () => { try { await navigator.clipboard.writeText(publicUrl); toast('URLをコピーしました'); } catch { $('url').select(); toast('選択しました。コピーしてください'); } };
+    function drawQr() {
+        $('qr').innerHTML = '';
+        if (typeof QRCode === 'undefined') { $('qr').textContent = 'QRコードの部品を読み込めませんでした（URLをコピーして使ってください）'; return; }
+        new QRCode($('qr'), { text: publicUrl, width: 148, height: 148, correctLevel: QRCode.CorrectLevel.M });
+    }
+    $('btn-qr-save').onclick = () => {
+        const c = $('qr').querySelector('canvas'); const img = $('qr').querySelector('img');
+        const src = c ? c.toDataURL('image/png') : img?.src;
+        if (!src) { toast('QRコードがありません'); return; }
+        const a = document.createElement('a'); a.href = src; a.download = `score_qr_${eventId}.png`; a.click();
+    };
+
+    // ---------- 現在の公開データ ----------
+    async function showNow() {
+        setStatus('status-now', '読み込み中…');
+        try {
+            const snap = await getDocs(collection(db, 'tournaments', eventId, Board.BOARD_COLLECTION));
+            const map = Object.fromEntries(snap.docs.map(d => [d.id, d.data()]));
+            const index = map[Board.INDEX_ID];
+            if (!index) {
+                $('tbl-now').innerHTML = '';
+                setStatus('status-now', snap.size ? '目次がありません。「公開データを再生成」を押してください。' : 'まだ公開データがありません。最初の得点が確定するか、再生成を行うと作られます。', 'warn');
+                return;
+            }
+            const rows = index.groups.map(g => {
+                const d = map[g.key];
+                let confirmed = 0, dns = 0;
+                Object.values(d?.rows || {}).forEach(r => Object.values(r).forEach(x => { if (x?.dns) dns++; else if (x) confirmed++; }));
+                const t = d?.updatedAt?.toMillis?.() ?? null;
+                return `<tr><td>${esc(g.label)}</td><td>${d ? confirmed : '–'}</td><td>${d ? dns : '–'}</td><td>${d ? fmtBytes(JSON.stringify(d).length) : '（未作成）'}</td><td>${fmtTime(t)}</td></tr>`;
+            });
+            $('tbl-now').innerHTML = `<tr><th>グループ</th><th>確定</th><th>棄権</th><th>容量</th><th>最終更新</th></tr>${rows.join('')}`;
+            const made = index.groups.filter(g => map[g.key]).length;
+            setStatus('status-now', `${index.groups.length}グループ中 ${made}グループに、公開データがあります（目次の更新: ${fmtTime(index.updatedAt?.toMillis?.())}）。`, 'ok');
+        } catch (e) { setStatus('status-now', '読み込みに失敗しました: ' + e.message, 'err'); }
+    }
+    $('btn-reload').onclick = showNow;
+
+    // ---------- 再生成 ----------
+    $('btn-regen').onclick = async () => {
+        if (!confirm('公開データを再生成します。\n\nCJPの確定が止まっているときに行ってください（再生成の最中の確定が、古い内容で上書きされることがあります）。\n\n進めますか？')) return;
+        const btn = $('btn-regen'); btn.disabled = true; $('tbl-regen').innerHTML = '';
+        try {
+            const r = await regenerateBoard(eventId, msg => setStatus('status-regen', msg));
+            const out = { stats: r.stats }, stale = r.stale;
+            const total = out.stats.reduce((s, x) => s + x.confirmed, 0), dns = out.stats.reduce((s, x) => s + x.dns, 0), unresolved = out.stats.reduce((s, x) => s + x.unresolved, 0);
+            $('tbl-regen').innerHTML = `<tr><th>グループ</th><th>確定</th><th>棄権</th><th>技マスタに無い技</th><th>容量</th></tr>` + out.stats.map(s =>
+                `<tr><td>${esc(s.label)}</td><td>${s.confirmed}</td><td>${s.dns}</td><td style="${s.unresolved ? 'color:var(--warn);font-weight:bold' : ''}">${s.unresolved || '–'}</td><td>${fmtBytes(s.bytes)}</td></tr>`).join('');
+            setStatus('status-regen', `再生成しました。${out.stats.length}グループ、確定 ${total} 本、棄権 ${dns} 本${stale.length ? `、古い ${stale.length} グループを削除` : ''}。` + (unresolved ? ` 技マスタに無い技が ${unresolved} 件あり、公開ページでは記号が「?」になります（技マスタを直して、もう一度再生成してください）。` : ''), unresolved ? 'warn' : 'ok');
+            showNow();
+        } catch (e) {
+            console.error(e);
+            setStatus('status-regen', '再生成に失敗しました: ' + e.message, 'err');
+        } finally { btn.disabled = false; }
+    };
+
+    ensureAdmin(async user => {
+        $('auth-info').style.display = 'flex';
+        $('user-name').textContent = user.displayName || user.email;
+        $('logout-btn').onclick = logout;
+        if (!eventId) { $('event-title').textContent = 'URLにeventパラメータがありません'; return; }
+        try {
+            const t = await getDoc(doc(db, 'tournaments', eventId));
+            if (!t.exists()) throw new Error('none');
+            $('event-title').textContent = t.data().name || '公開スコアページ';
+            document.title = `${t.data().name || ''} - 公開スコアページ`;
+        } catch { $('event-title').textContent = '大会が見つかりません'; return; }
+        drawQr();
+        showNow();
+    });
+</script>
+</body>
+</html>

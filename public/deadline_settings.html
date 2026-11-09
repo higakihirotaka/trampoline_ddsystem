@@ -20,6 +20,10 @@
         .label-desc { font-size: 0.8rem; font-weight: normal; color: #90a4ae; margin-left: 6px; text-transform: none; letter-spacing: 0; }
         input[type="datetime-local"] { width: 100%; padding: 10px 14px; border: 1px solid #d0d7de; border-radius: 8px; font-size: 1rem; box-sizing: border-box; background: #f8fbff; transition: border-color 0.2s; }
         input[type="datetime-local"]:focus { border-color: var(--accent); outline: none; background: #fff; }
+        input[type="datetime-local"]:disabled { background: #eceff1; color: #90a4ae; cursor: not-allowed; }
+        .dl-opts { display: flex; gap: 18px; margin-bottom: 8px; flex-wrap: wrap; }
+        .dl-check { display: flex; align-items: center; gap: 5px; margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-sub); text-transform: none; letter-spacing: 0; cursor: pointer; }
+        .dl-check input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
         .clear-btn { background: none; border: none; color: #90a4ae; font-size: 0.8rem; cursor: pointer; padding: 4px 0; margin-top: 4px; display: block; }
         .clear-btn:hover { color: var(--accent); }
         .btn-save { background: var(--accent); color: white; display: block; width: 100%; padding: 14px; font-size: 1rem; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 8px; }
@@ -51,12 +55,19 @@
 
         <div class="form-group">
             <label>修正締切 <span class="label-desc">提出後の修正ができる期限</span></label>
+            <div class="dl-opts">
+                <label class="dl-check"><input type="checkbox" id="revisionDeadline-same"> 提出締切と同じ</label>
+                <label class="dl-check"><input type="checkbox" id="revisionDeadline-none"> 設定しない</label>
+            </div>
             <input type="datetime-local" id="revisionDeadline">
             <button class="clear-btn" onclick="clearField('revisionDeadline')">クリア</button>
         </div>
 
         <div class="form-group">
             <label>決勝締切 <span class="label-desc">決勝用カードの提出期限</span></label>
+            <div class="dl-opts">
+                <label class="dl-check"><input type="checkbox" id="finalSubmissionDeadline-same"> 提出締切と同じ</label>
+            </div>
             <input type="datetime-local" id="finalSubmissionDeadline">
             <button class="clear-btn" onclick="clearField('finalSubmissionDeadline')">クリア</button>
         </div>
@@ -89,26 +100,80 @@
         if (!tDoc.exists()) { showToast('大会データが見つかりません', true); return; }
 
         const d = tDoc.data();
+        // 保存済みの解決済み値を各inputに反映（Firestore は "YYYY-MM-DDTHH:mm" 想定）
         ['submissionDeadline', 'revisionDeadline', 'finalSubmissionDeadline'].forEach(key => {
-            if (d[key]) {
-                // Firestore の値は "YYYY-MM-DDTHH:mm" 形式を想定
-                document.getElementById(key).value = d[key].slice(0, 16);
-            }
+            if (d[key]) document.getElementById(key).value = d[key].slice(0, 16);
+        });
+        // モード復元（未保存の旧データは custom 扱い）
+        const revMode = d.revisionDeadlineMode || 'custom';
+        document.getElementById('revisionDeadline-same').checked = revMode === 'same';
+        document.getElementById('revisionDeadline-none').checked = revMode === 'none';
+        document.getElementById('finalSubmissionDeadline-same').checked = (d.finalSubmissionDeadlineMode || 'custom') === 'same';
+
+        wireDeadlineOpts();
+        applyDeadlineMode('revisionDeadline');
+        applyDeadlineMode('finalSubmissionDeadline');
+    }
+
+    // 「提出締切と同じ／設定しない」チェックと日時入力の連動
+    function applyDeadlineMode(field) {
+        const input = document.getElementById(field);
+        const same  = document.getElementById(field + '-same');
+        const none  = document.getElementById(field + '-none'); // 決勝には無い
+        const isSame = !!(same && same.checked);
+        const isNone = !!(none && none.checked);
+        input.disabled = isSame || isNone;
+        if (isSame)      input.value = document.getElementById('submissionDeadline').value; // 提出締切の値を表示
+        else if (isNone) input.value = '';
+    }
+
+    function wireDeadlineOpts() {
+        const revSame = document.getElementById('revisionDeadline-same');
+        const revNone = document.getElementById('revisionDeadline-none');
+        const finSame = document.getElementById('finalSubmissionDeadline-same');
+        // 同一フィールドの2チェックは排他
+        revSame.addEventListener('change', () => { if (revSame.checked) revNone.checked = false; applyDeadlineMode('revisionDeadline'); });
+        revNone.addEventListener('change', () => { if (revNone.checked) revSame.checked = false; applyDeadlineMode('revisionDeadline'); });
+        finSame.addEventListener('change', () => applyDeadlineMode('finalSubmissionDeadline'));
+        // 提出締切を変えたら「提出締切と同じ」表示も追従
+        document.getElementById('submissionDeadline').addEventListener('input', () => {
+            if (revSame.checked) applyDeadlineMode('revisionDeadline');
+            if (finSame.checked) applyDeadlineMode('finalSubmissionDeadline');
         });
     }
 
-    window.clearField = (id) => { document.getElementById(id).value = ''; };
+    // クリア: チェックを外して個別設定・空に戻す
+    window.clearField = (id) => {
+        const same = document.getElementById(id + '-same');
+        const none = document.getElementById(id + '-none');
+        if (same) same.checked = false;
+        if (none) none.checked = false;
+        const input = document.getElementById(id);
+        input.disabled = false;
+        input.value = '';
+    };
 
     window.save = async () => {
         const btn = document.getElementById('btn-save');
         btn.disabled = true;
         btn.textContent = '保存中…';
         try {
-            const toVal = id => document.getElementById(id).value || null;
+            const subVal = document.getElementById('submissionDeadline').value || null;
+            const custom = id => document.getElementById(id).value || null;
+            // 修正締切: same=提出締切値 / none=null / custom=入力値
+            const revSame = document.getElementById('revisionDeadline-same').checked;
+            const revNone = document.getElementById('revisionDeadline-none').checked;
+            const revMode = revSame ? 'same' : revNone ? 'none' : 'custom';
+            const revisionDeadline = revMode === 'same' ? subVal : revMode === 'none' ? null : custom('revisionDeadline');
+            // 決勝締切: same=提出締切値 / custom=入力値
+            const finSame = document.getElementById('finalSubmissionDeadline-same').checked;
+            const finMode = finSame ? 'same' : 'custom';
+            const finalSubmissionDeadline = finMode === 'same' ? subVal : custom('finalSubmissionDeadline');
+
             await setDoc(doc(db, 'tournaments', eventId), {
-                submissionDeadline:      toVal('submissionDeadline'),
-                revisionDeadline:        toVal('revisionDeadline'),
-                finalSubmissionDeadline: toVal('finalSubmissionDeadline'),
+                submissionDeadline:          subVal,
+                revisionDeadline,            revisionDeadlineMode: revMode,
+                finalSubmissionDeadline,     finalSubmissionDeadlineMode: finMode,
                 updatedAt: serverTimestamp()
             }, { merge: true });
             location.href = `admin_menu.html?event=${eventId}`;

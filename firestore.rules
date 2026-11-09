@@ -2,62 +2,122 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ログイン済み(request.auth != null)であることに加え、そのUIDが admins コレクションに
+    // 登録済みであることを確認する。これまで「ログインさえしていれば誰でも書込可」に
+    // なっていた各ルールを、これに差し替えて「登録済み管理者のみ」に絞る。
+    function isAdmin() {
+      return request.auth != null
+          && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     // ---- 大会設定・選手データ ----
-    // 読込自由、書込はログイン必須（管理者・CJP操作）
+    // 読込自由、書込は管理者のみ
     match /tournaments/{eventId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
 
       match /athletes/{athleteId} {
         allow read: if true;
-        allow write: if request.auth != null;
+        allow write: if isAdmin();
         // 未ログイン（選手）: 提出ステータスとふりがなのみ更新可
         allow update: if request.auth == null
             && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['submissions', 'kana1', 'clubKana1', 'kana2', 'clubKana2']);
       }
+
+      // ---- 会場ディスプレイの接続状況（操作画面の「メイン 接続中」表示用） ----
+      // 会場ディスプレイは未ログインのため、決まった項目だけ書込可（validPresence）。読込は自由、削除は管理者のみ。
+      match /venuePresence/{pid} {
+        allow read: if true;
+        allow write: if isAdmin();
+        allow create, update: if request.auth == null && validPresence(pid);
+      }
     }
 
     // ---- 申請技（選手入力） ----
-    // 公式記録ではないため誰でも読み書き可
+    // 公式記録ではないため誰でも読み書き可（ここは変更しない）
     match /submissions/{docId} {
       allow read, write: if true;
+
+      // 修正で上書きされる直前の内容を退避する履歴（card_history.html の差分表示用）。
+      // 親と同じく公式記録ではないため誰でも読み書き可。
+      match /revisions/{revId} {
+        allow read, write: if true;
+      }
     }
 
     // ---- 採点結果 ----
     match /results/{resultId} {
       allow read: if true;
 
-      // ログイン済み（CJP・管理者）: 全フィールド書込可
-      allow write: if request.auth != null;
+      // 管理者（CJP）: 全フィールド書込可（確定フィールド含む）
+      allow write: if isAdmin();
 
-      // 未ログイン（E/D/T/HD 審判）:
-      //   published / publishedAt / verifiedAt の変更は不可
-      //   それ以外の審判スコア入力は書込可
+      // 未ログイン（E/D/T/HD 審判）: 審判の入力画面が実際に書く項目（judgeKeys）だけ書込可。
+      //   確定した合計・DNS・published 系などは管理者のみ。
+      //   公開済み（published）になった後に書けるのは、遅れて入るE審判の確定（execution）だけ。
       allow write: if request.auth == null
-          && !officialFieldsChanged();
+          && judgeWriteAllowed();
     }
 
     // ---- 技マスタ ----
-    // 読込自由、書込はログイン必須
+    // 読込自由、書込は管理者のみ
     match /skillMaster/{docId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
 
-    // ---- その他（将来の拡張コレクション）----
+    // ---- 管理者一覧 ----
+    // 誰が管理者かは引き続き公開のままだが、書込（管理者の追加・削除）は
+    // 既存の管理者のみ許可する（無関係なログインユーザーが自分を追加できないように）。
+    match /admins/{uid} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- その他（将来の拡張コレクション。teams / clubLinks / publicRankings / meta 等）----
     match /{document=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 
-  // 公式確定フィールドが変更されるかどうかを判定
-  // 新規ドキュメント作成時は keys() で確認、更新時は diff() で確認
-  function officialFieldsChanged() {
-    let changed = resource == null
+  // 未ログインの審判が results に書いてよい項目（judge_e / judge_tof_hd / judge_panel が書く項目）。
+  // published / publishedAt / verifiedAt や、CJPが確定する tof / hd / dns / officialDDValues などは含めない。
+  function judgeKeys() {
+    return ['eventId', 'athleteId', 'round', 'updatedAt', 'execution', 'tofByPanel', 'hdByPanel',
+            'officialSkills', 'validCount', 'officialTotalDD', 'dConfirmedAt', 'revisionCount'];
+  }
+
+  // 変更されるトップレベルのキー（新規作成時は書き込む全キー、更新時は差分）
+  function changedKeys() {
+    return resource == null
         ? request.resource.data.keys()
         : request.resource.data.diff(resource.data).affectedKeys();
-    return changed.hasAny(['published', 'publishedAt', 'verifiedAt']);
+  }
+
+  function judgeWriteAllowed() {
+    let ch = changedKeys();
+    return ch.hasOnly(judgeKeys())
+        && (resource == null
+            || resource.data.get('published', false) != true
+            || ch.hasOnly(['execution', 'updatedAt']));
+  }
+
+  // 会場ディスプレイの接続状況の印。書ける項目・型・大きさを限り、ドキュメントIDは「名前__端末ID」に固定する
+  // （画面が実際に書く項目は display.html の sendPresence。tests/ で、ここと一致していることを検査している）。
+  // lastSeen はサーバー時刻に限る（偽の時刻を書けないように）。
+  function validPresence(pid) {
+    let d = request.resource.data;
+    return d.keys().hasOnly(['name', 'instance', 'screen', 'follow', 'w', 'h', 'lastSeen'])
+        && d.keys().hasAll(['name', 'instance', 'lastSeen'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 20
+        && d.instance is string && d.instance.size() >= 1 && d.instance.size() <= 40
+        && pid == d.name + '__' + d.instance
+        && d.lastSeen == request.time
+        && (!('screen' in d) || (d.screen is string && d.screen.size() <= 30))
+        && (!('follow' in d) || d.follow is bool)
+        && (!('w' in d) || (d.w is number && d.w >= 0 && d.w <= 20000))
+        && (!('h' in d) || (d.h is number && d.h >= 0 && d.h <= 20000));
   }
 }
