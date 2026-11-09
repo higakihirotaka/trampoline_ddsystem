@@ -146,9 +146,17 @@ export function buildRoutine(res, ctx) {
     },
     sk,
     land: vl < 10 ? '' : fmtEDeduction(res.officialELanding, synchro),
-    pr: (res.penaltyItems || []).map(p => String(p?.ja || p?.label || p?.name || p?.reason || '')).filter(Boolean),
+    pr: (res.penaltyItems || []).map(penaltyLabel).filter(Boolean),
   };
   return routine;
+}
+
+/** 反則の表示（会場ディスプレイと同じ: 英字の表示名＋減点。例 'START DELAY −0.2'） */
+function penaltyLabel(p) {
+  const name = String(p?.display || p?.en || p?.ja || p?.label || p?.name || p?.reason || '');
+  if (!name) return '';
+  const pt = Number(p?.points);
+  return p?.points != null && p.points !== '' && Number.isFinite(pt) ? `${name} −${pt.toFixed(1)}` : name;
 }
 
 // ============================================================

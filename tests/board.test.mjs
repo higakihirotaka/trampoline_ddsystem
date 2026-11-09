@@ -64,7 +64,7 @@ test('routine: 個人の数値・表示用文字列・技ごとの内訳（重�
   assert.equal(r.sk[4].sym, '記号のみ', 'displaySymbol が無ければ symbol');
   assert.equal(r.sk[5], null, '有効技数より後ろは null');
   assert.equal(r.land, '', '有効技数が10未満なら着地は無し');
-  assert.deepEqual(r.pr, ['枠外']);
+  assert.deepEqual(r.pr, ['x −0.4']);   // 会場ディスプレイと同じ: 英字の表示名 − 減点
 });
 
 test('routine: 10本そろった演技は着地を持つ。減点が0なら表示は空', () => {
