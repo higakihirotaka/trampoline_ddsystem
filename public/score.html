@@ -429,8 +429,8 @@
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    padding: 16px 14px 14px;
-    margin-bottom: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
@@ -445,11 +445,14 @@
   .top {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
+  .card.dim .top { cursor: default; }
   .rank {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: var(--soft);
     color: var(--sub);
@@ -458,7 +461,7 @@
     justify-content: center;
     font-family: var(--num);
     font-weight: 800;
-    font-size: 17px;
+    font-size: 15px;
     flex: none;
   }
   .rank.m1 {
@@ -474,40 +477,57 @@
     background: linear-gradient(135deg, #fed7aa, #d97706);
     color: #431407;
   }
+  /* 一覧は1行: 順位 / 名前（Q）所属 / 得点。個人は名前と所属を同じ行に、シンクロは2行 */
   .who {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .name-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-wrap: wrap;
+    flex: none;
+    max-width: 62%;
+    min-width: 0;
   }
   .name {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
-    overflow-wrap: anywhere;
     line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  .card.syn .who { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .card.syn .name-row { max-width: none; }
+  .card.syn .name { white-space: normal; overflow: visible; }
+  .pn { white-space: nowrap; }
+  .card.syn .club { flex: none; white-space: normal; overflow-wrap: anywhere; }
   .q {
     display: inline-flex;
     align-items: center;
-    font-family: var(--num);
+    font-family: inherit;
     font-size: 12px;
     font-weight: 800;
     color: var(--ok);
     background: var(--ok-soft);
     border: 1px solid var(--ok-border);
     border-radius: 5px;
-    padding: 1px 8px;
+    padding: 0 7px;
     line-height: 1.4;
+    flex: none;
   }
   .club {
     font-size: 12px;
     color: var(--sub);
-    margin-top: 2px;
-    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .tot {
     text-align: right;
@@ -516,7 +536,7 @@
   .tot b {
     display: block;
     font-family: var(--num);
-    font-size: 32px;
+    font-size: 22px;
     font-weight: 800;
     line-height: 1;
     letter-spacing: -.02em;
@@ -528,15 +548,28 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--mute);
-    margin-top: 4px;
+    margin-top: 2px;
   }
+  .card:not(.exp) .tot span { display: none; }   /* 差・予選点は、開いたときだけ */
+  .chev {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid var(--mute);
+    border-bottom: 2px solid var(--mute);
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform .15s ease;
+    margin: 0 2px 0 -2px;
+  }
+  .card.exp .chev { transform: rotate(-135deg) translateY(-2px); }
+  .card.dim .chev { display: none; }
 
   /* ★ 本ごとの得点ブロック（D / E / ToF / HD / 減点 を大幅拡大） */
   .rt-wrap {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 10px;
   }
   .rt {
     background: var(--soft);
@@ -823,7 +856,7 @@ const medal = r => r <= 3 ? ` m${r}` : '';
 const typeLabel = t => t === 'synchro' ? 'シンクロ' : t === 'team' ? '団体' : '個人';
 
 const PHASES = [{ id: 'qual', label: '予選' }, { id: 'final', label: '決勝' }, { id: 'team', label: '団体' }];
-const state = { phase: null, cat: null, open: new Set(), auto: false, timer: null };
+const state = { phase: null, cat: null, open: new Set(), exp: new Set(), auto: false, timer: null };
 let index = null;                 // 目次
 const docs = new Map();           // グループのドキュメント（更新するまで、読み直さない）
 
@@ -872,7 +905,7 @@ function validateSelection() {
 }
 
 // ---------- 表示 ----------
-const nameOf = (r, synchro) => synchro ? `${esc(r.n1 || '–')} / ${esc(r.n2 || '–')}` : esc(r.n1 || '–');
+const nameOf = (r, synchro) => synchro ? `<span class="pn">${esc(r.n1 || '–')} /</span> <span class="pn">${esc(r.n2 || '–')}</span>` : esc(r.n1 || '–');
 const clubOf = (r, synchro) => {
   if (!synchro) return esc(r.c1 || '');
   const c1 = (r.c1 || '').trim(), c2 = (r.c2 || '').trim();
@@ -920,27 +953,28 @@ function personRow(r, g, phase, idx, leader, rule) {
   const rounds = phase === 'final' ? [['決勝', r.fin, 'final']] : (numPre >= 2 ? [['1本目', r.p1, 'pre1'], ['2本目', r.p2, 'pre2']] : [['予選', r.p1, 'pre1']]);
   const gap = idx > 0 && leader != null ? `-${(leader - r.qualScore).toFixed(2)}` : '';
   const sub = phase === 'final' && r.qualPart != null ? `予選 ${f2(r.qualPart)}` : gap;
-  const open = state.open.has(key);
-  return `<div class="card${r.showQ ? ' q-on' : ''}" data-key="${esc(key)}">
-    <div class="top">
+  const open = state.open.has(key), exp = state.exp.has(key);
+  return `<div class="card${r.showQ ? ' q-on' : ''}${synchro ? ' syn' : ''}${exp ? ' exp' : ''}" data-key="${esc(key)}">
+    <div class="top" data-row="${esc(key)}" role="button" tabindex="0" aria-expanded="${exp}">
       <div class="rank${medal(r.rank)}">${r.rank}</div>
       <div class="who">
         <div class="name-row"><span class="name">${nameOf(r, synchro)}</span>${r.showQ ? '<span class="q">Q</span>' : ''}</div>
         <div class="club">${clubOf(r, synchro)}</div>
       </div>
       <div class="tot"><b>${f2(r.qualScore)}</b><span>${sub}</span></div>
+      <i class="chev"></i>
     </div>
-    <div class="rt-wrap">
+    ${exp ? `<div class="rt-wrap">
       ${rounds.map(([lb, res], i) => routineCard(lb, res, synchro, phase === 'qual' && i === r.adopted, phase === 'qual' && r.adopted >= 0 && i !== r.adopted)).join('')}
     </div>
     <button class="more" type="button" data-toggle="${esc(key)}">${open ? '▲ detail' : '▼ detail'}</button>
-    ${open ? `<div class="detail-box">${detailHtml(rounds, synchro, paper)}</div>` : ''}
+    ${open ? `<div class="detail-box">${detailHtml(rounds, synchro, paper)}</div>` : ''}` : ''}
   </div>`;
 }
 
 function waitingRow(r, g, label) {
   const synchro = g.type === 'synchro';
-  return `<div class="card dim"><div class="top"><div class="rank">–</div><div class="who"><div class="name">${nameOf(r, synchro)}</div><div class="club">${clubOf(r, synchro)}</div></div><div class="tot"><span>${label}</span></div></div></div>`;
+  return `<div class="card dim${synchro ? ' syn' : ''} exp"><div class="top"><div class="rank">–</div><div class="who"><div class="name-row"><span class="name">${nameOf(r, synchro)}</span></div><div class="club">${clubOf(r, synchro)}</div></div><div class="tot"><span>${label}</span></div></div></div>`;
 }
 
 function teamHtml(d) {
@@ -1027,10 +1061,15 @@ async function renderOut() {
 
 // ---------- 操作 ----------
 document.addEventListener('click', e => {
-  const p = e.target.closest('[data-phase]'), c = e.target.closest('[data-cat]'), t = e.target.closest('[data-toggle]');
-  if (p) { state.phase = p.dataset.phase; state.open.clear(); saveSel(); renderNav(); renderOut(); }
-  else if (c) { state.cat = c.dataset.cat; state.open.clear(); saveSel(); renderNav(); renderOut(); }
+  const p = e.target.closest('[data-phase]'), c = e.target.closest('[data-cat]'), t = e.target.closest('[data-toggle]'), w = e.target.closest('[data-row]');
+  if (p) { state.phase = p.dataset.phase; state.open.clear(); state.exp.clear(); saveSel(); renderNav(); renderOut(); }
+  else if (c) { state.cat = c.dataset.cat; state.open.clear(); state.exp.clear(); saveSel(); renderNav(); renderOut(); }
   else if (t) { const k = t.dataset.toggle; state.open.has(k) ? state.open.delete(k) : state.open.add(k); renderOut(); }
+  else if (w) { const k = w.dataset.row; state.exp.has(k) ? state.exp.delete(k) : state.exp.add(k); renderOut(); }
+});
+document.addEventListener('keydown', e => {
+  const w = e.target.closest?.('[data-row]');
+  if (w && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); w.click(); }
 });
 
 // 更新: 見ている種目の1回だけ読む（目次がまだ無いときは、目次も読む）。他の種目は、切り替えたときに読み直す
