@@ -890,7 +890,7 @@ function routineCard(label, r, synchro, adopted, dimmed) {
       <span>E<b>${c(s.e)}</b></span>
       <span>${synchro ? 'Syn' : 'ToF'}<b>${c(s.tof)}</b></span>
       <span>HD<b>${c(s.hd)}</b></span>
-      <span>減点<b class="${s.pen ? 'pen-val' : ''}">${c(s.pen)}</b></span>
+      <span>Pen<b class="${s.pen ? 'pen-val' : ''}">${c(s.pen)}</b></span>
     </div>
   </div>`;
 }
@@ -903,11 +903,11 @@ function detailHtml(rounds, synchro, paper) {
       if (!k) { body.push(`<tr><td>${i + 1}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td></tr>`); continue; }
       body.push(`<tr><td>${i + 1}</td><td>${paper ? '' : esc(k.sym ?? '–')}</td><td>${paper ? '–' : esc(k.dd ?? '–')}</td><td>${esc(k.e ?? '–')}</td><td>${esc(k.tof ?? '–')}</td><td>${esc(k.hd ?? '–')}</td></tr>`);
     }
-    body.push(`<tr class="land"><td>L</td><td>${paper ? '' : '着地'}</td><td></td><td>${esc(r.land === '' || r.land == null ? '–' : r.land)}</td><td></td><td></td></tr>`);
+    body.push(`<tr class="land"><td>L</td><td></td><td></td><td>${esc(r.land === '' || r.land == null ? '–' : r.land)}</td><td></td><td></td></tr>`);
     const pens = (r.pr || []).map(esc).filter(Boolean);
     return `<div class="cap">${esc(lb)}</div>
       <table class="sk"><tr><th>#</th><th>${paper ? '' : '技'}</th><th>${paper ? '' : '難度'}</th><th>E減点</th><th>${synchro ? 'Syn' : 'ToF'}</th><th>HD</th></tr>${body.join('')}</table>
-      ${pens.length ? `<div class="cap n">減点: ${pens.join('、')}</div>` : ''}`;
+      ${pens.length ? `<div class="cap n">Pen: ${pens.join('、')}</div>` : ''}`;
   }).join('');
   return out || '<div class="cap">内訳のデータがありません</div>';
 }
@@ -932,7 +932,7 @@ function personRow(r, g, phase, idx, leader, rule) {
     <div class="rt-wrap">
       ${rounds.map(([lb, res], i) => routineCard(lb, res, synchro, phase === 'qual' && i === r.adopted, phase === 'qual' && r.adopted >= 0 && i !== r.adopted)).join('')}
     </div>
-    <button class="more" type="button" data-toggle="${esc(key)}">${open ? '▲ 技ごとの内訳を閉じる' : '▼ 技ごとの内訳を見る'}</button>
+    <button class="more" type="button" data-toggle="${esc(key)}">${open ? '▲ 内訳' : '▼ 内訳'}</button>
     ${open ? `<div class="detail-box">${detailHtml(rounds, synchro, paper)}</div>` : ''}
   </div>`;
 }
