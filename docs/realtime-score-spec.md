@@ -1,10 +1,10 @@
 # 公開スコアページ（観客・コーチ向け）仕様・要件
 
-作成: 2026-10-04 / 全面改訂: 2026-11-08 / ステータス: 実装済み・デプロイ済み（2026-11-09）。通しリハーサル（10章の6）と、旧サンプルの削除（10章の7）が残っている
+作成: 2026-10-04 / 全面改訂: 2026-11-08 / ステータス: 実装済み・デプロイ済み（2026-11-09）。旧サンプルは削除済み。通しリハーサル（10章の6）が残っている
 
 改訂の主旨: Firebaseの従量課金（読込回数）を抑えるため、**確定時にCJPの画面が「表示用データ」を公開用ドキュメントへ書き、公開ページはそれを読むだけ**にする。旧仕様（2026-10-04）の「大会全体を1ドキュメント」「CJPのブラウザが結果を読み直して作り直す」「最新タブ」「公開ON/OFF」は廃止する。
 
-レイアウトの参考: `public/score_public_sample.html`（第61回大会の実データを読み取り専用で表示するサンプル。**実装完了時に削除する**。実際の選手名が誰でも読める状態のため）。参考サイト（live.gymnastics.sport）は掲載内容の参考にとどめ、見た目は独自とする。
+レイアウトの参考: `score_public_sample.html`（第61回大会の実データを表示するサンプル。実際の選手名が読める状態だったため、2026-11-09 に削除済み）。参考サイト（live.gymnastics.sport）は掲載内容の参考にとどめ、見た目は独自とする。
 
 ---
 
@@ -62,7 +62,7 @@
 - **技マスタに無い技**: 試合中に技が追加された場合に備え、確定時に未解決の技IDがあれば、技マスタを強制的に取り直してから作る。それでも解決しなければ、記号を `?` とし、CJPの画面にその旨を通知する（確定は止めない）。
 - **ToF・HD・E減点**: CJP画面が保持している現在の値と `curPanel()` のパネルから作る。
 - **紙運用クラス（`useOnlineCard===false`）**: 技の記号と難度は保存しない。E減点は保存する。
-- **整形の規則**: `public/score_public_sample.html` のとおり。個人のEは小数第1位、シンクロは小数第2位（E減点は10倍して個人は整数、シンクロは小数第2位）。ToFは合計が小数第2位、技ごとは小数第3位。
+- **整形の規則**: `public/board.js` の整形関数のとおり（旧サンプルと同じ規則）。個人のEは小数第1位、シンクロは小数第2位（E減点は10倍して個人は整数、シンクロは小数第2位）。ToFは合計が小数第2位、技ごとは小数第3位。
 - **再確定**: 同じ本を再確定すると、その本の分だけが丸ごと置き換わる（フィールド単位の置換）。
 
 ## 3. Firestoreのデータ仕様と読込回数
@@ -157,7 +157,7 @@ tournaments/{eventId}/publicBoard/{グループキー}    … 種目×クラス�
 ## 6. 公開ページ（`score.html`）
 
 - **URL**: `score.html?event={eventId}`。`noindex,nofollow`（ページの `<meta>` と `firebase.json` のヘッダーの両方）。
-- **構成**: `public/score_public_sample.html` のレイアウトを土台にする。ヘッダー（大会名・会場・日付、「LIVE SCORES」、更新時刻、注意書き、更新・自動更新ボタン）、固定ナビ（フェーズ：予選・決勝・団体、種目：個人・シンクロ・団体のチップ）、順位のカード。
+- **構成**: 旧サンプルのレイアウトを土台にした（`public/score.html`）。ヘッダー（大会名・会場・日付、「LIVE SCORES」、更新時刻、注意書き、更新・自動更新ボタン）、固定ナビ（フェーズ：予選・決勝・団体、種目：個人・シンクロ・団体のチップ）、順位のカード。
 - **選択**: 同じ端末の `localStorage` に、フェーズと種目を保存して、次回開いたときに復元する。保存した種目が目次に無ければ、未選択にする。`localStorage` が使えなくても動く。
 - **順位のカード**: 順位（1〜3位はメダル風）、氏名、所属、合計点、Qマーク、1位との差。本ごとにD・E・ToF（Syn）・HD・減点。ベスト方式のクラスは採用した本を示す。タップで技ごとの内訳。
 - **決勝**: 予選点と決勝点を並べる。決勝チップは、決勝のあるクラスをすべて出し、まだ誰も確定していないものは「結果がありません」と表示する。
@@ -182,7 +182,7 @@ tournaments/{eventId}/publicBoard/{グループキー}    … 種目×クラス�
 | 変更 | `public/judge_cjp.html` | `publish`、`declareDNS`、`cancelDNS`、`deleteResult` に書込を組み込む |
 | 変更 | `public/admin_dns.html`、`public/athlete_management.html`、`public/admin_final_order.html`、`public/team_setup.html`、`public/class_rules.html` | 書込を組み込む |
 | 変更 | `public/admin_menu.html`、`firebase.json`、`public/firebase-config.js` | 入口カード、noindex用ヘッダー、localhost の `?emulator=1`（手元の確認用） |
-| 削除 | `public/score_public_sample.html`、`public/score_sample.html`、`public/score_prototype.html` | 公開ページの実装完了時に削除。後ろ2つは、どこからもリンクされていない旧い試作 |
+| 削除 | `public/score_public_sample.html`、`public/score_sample.html`、`public/score_prototype.html` | 2026-11-09 に削除済み |
 | 変更なし | `public/score_viewer.html` | 審判メニューの「スコア確認」から使われている別画面。公開ページとは別物なので残す |
 
 ## 9. テスト
@@ -208,14 +208,14 @@ tournaments/{eventId}/publicBoard/{グループキー}    … 種目×クラス�
 4. 他の画面への組み込み（選手管理、決勝試技順、チーム、ルール、`admin_dns.html`）
 5. 管理メニューのカード、再生成ボタン、URL・QR
 6. デプロイ後の通しリハーサル
-7. `score_public_sample.html` の削除
+7. `score_public_sample.html` の削除（済み）
 
 ### 10.1 実装の状況（2026-11-09）
 
 手順1〜5は実装し、デプロイ済み。単体テスト（`npm test`）とエミュレータ（`npm run test:emulator`）で検証している。残りは次の2つ。
 
 - **手順6 通しリハーサル**: 本番の管理者アカウントで行う。下の手順に沿って確認する。
-- **手順7 旧サンプルの削除**: リハーサルが済んだら、`score_public_sample.html`・`score_sample.html`・`score_prototype.html` を削除する（実際の選手名が、サンプルから誰でも読める状態のため）。
+- **手順7 旧サンプルの削除**: 済み（2026-11-09）。`score_public_sample.html`・`score_sample.html`・`score_prototype.html` を削除した。
 
 **リハーサルの手順**（確認用の大会、または確定を止めた状態で）:
 
@@ -247,6 +247,6 @@ tournaments/{eventId}/publicBoard/{グループキー}    … 種目×クラス�
 2. 公開を緊急に止める手段: 付けない。
 3. 決勝のチップ: 決勝のあるクラスはすべて出す。
 4. 旧仕様から引き継いだ項目（URL・QRカード、固定の注意書き、団体総合を初回から対応、noindex）: そのまま採用。
-5. 既存の別画面: `score_viewer.html` は残す。`score_sample.html`・`score_prototype.html` は、公開ページの実装完了時に削除する。
+5. 既存の別画面: `score_viewer.html` は残す。`score_sample.html`・`score_prototype.html` は削除済み。
 
 残る未決事項は、更新方法（手動のみ／自動更新の切替／リアルタイム購読）だけ。
