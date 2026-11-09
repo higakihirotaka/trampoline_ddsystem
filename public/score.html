@@ -551,82 +551,59 @@
   .card.exp .chev { transform: rotate(-135deg) translateY(-2px); }
   .card.dim .chev { display: none; }
 
-  /* ★ 本ごとの得点ブロック（D / E / ToF / HD / 減点 を大幅拡大） */
+  /* 本ごとの得点: 1つの表（行=本、列=合計・D・E・ToF・HD・Pen）。採用の本は色で示す */
   .rt-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 10px;
-  }
-  .rt {
-    background: var(--soft);
+    margin-top: 8px;
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    padding: 10px 12px;
+    overflow: hidden;
+    background: var(--soft);
   }
-  .rt.use {
+  .rt-r {
+    display: grid;
+    grid-template-columns: 42px repeat(6, minmax(0, 1fr));
+    align-items: center;
+    gap: 2px;
+    padding: 8px 10px;
+    text-align: right;
+    font-family: var(--num);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .rt-r + .rt-r { border-top: 1px solid var(--line); }
+  .rt-r.hd {
+    padding: 6px 10px 4px;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--sub);
+  }
+  .rt-r .lb {
+    text-align: left;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--sub);
+  }
+  .rt-r b {
+    font-size: 16px;
+    font-weight: 800;
+  }
+  .rt-r.use {
     background: var(--hl-soft);
-    border-color: var(--hl-border);
     box-shadow: inset 4px 0 0 var(--hl);
   }
-  .rt.off {
-    opacity: .72;
+  .rt-r.off { color: var(--sub); }
+  .rt-r.off b { color: var(--sub); }
+  .rt-r > .na {
+    grid-column: 2 / -1;
+    text-align: left;
+    font-family: inherit;
+    font-size: 12px;
   }
-  .rt-h {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--sub);
-  }
-  .rt-h b {
-    font-family: var(--num);
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-  }
-  .rt-g {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
-    text-align: center;
-    margin-top: 8px;
-  }
-  .rt-g > span {
-    background: var(--card);
-    border: 1px solid var(--line-soft);
-    border-radius: 8px;
-    padding: 6px 2px 5px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--sub);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  .rt.use .rt-g > span {
-    border-color: rgba(245, 158, 11, 0.28);
-  }
-  .rt-g b {
-    display: block;
-    font-family: var(--num);
-    font-size: 19px;
-    color: var(--ink);
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.15;
-    margin-top: 2px;
-  }
-  .rt-g b.pen-val {
-    color: var(--danger);
-  }
+  .rt-r .pen-val { color: var(--danger); }
 
   @media (max-width: 390px) {
-    .rt-g { gap: 4px; }
-    .rt-g b { font-size: 17px; }
     .tot b { font-size: 28px; }
   }
 
@@ -898,22 +875,14 @@ const clubOf = (r, synchro) => {
   return esc(c1 && c1 === c2 ? c1 : [c1, c2].filter(Boolean).join(' / '));
 };
 
-function routineCard(label, r, synchro, adopted, dimmed) {
-  if (!r) return `<div class="rt"><div class="rt-h"><span>${label}</span><span class="na">演技待ち</span></div></div>`;
-  if (r.dns) return `<div class="rt off"><div class="rt-h"><span>${label}</span><span class="na">棄権</span></div></div>`;
+function routineRow(label, r, synchro, adopted, dimmed) {
+  if (!r) return `<div class="rt-r"><span class="lb">${label}</span><span class="na">演技待ち</span></div>`;
+  if (r.dns) return `<div class="rt-r off"><span class="lb">${label}</span><span class="na">棄権</span></div>`;
   const s = r.s || {};
   const c = v => v ? v : dash;
-  return `<div class="rt${adopted ? ' use' : ''}${dimmed ? ' off' : ''}">
-    <div class="rt-h"><span>${label}</span><b>${c(s.total)}</b></div>
-    <div class="rt-g">
-      <span>D<b>${c(s.d)}</b></span>
-      <span>E<b>${c(s.e)}</b></span>
-      <span>${synchro ? 'Syn' : 'ToF'}<b>${c(s.tof)}</b></span>
-      <span>HD<b>${c(s.hd)}</b></span>
-      <span>Pen<b class="${s.pen ? 'pen-val' : ''}">${c(s.pen)}</b></span>
-    </div>
-  </div>`;
+  return `<div class="rt-r${adopted ? ' use' : ''}${dimmed ? ' off' : ''}"><span class="lb">${label}</span><b>${c(s.total)}</b><span>${c(s.d)}</span><span>${c(s.e)}</span><span>${c(s.tof)}</span><span>${c(s.hd)}</span><span class="${s.pen ? 'pen-val' : ''}">${c(s.pen)}</span></div>`;
 }
+const routineHead = synchro => `<div class="rt-r hd"><span></span><span>Total</span><span>D</span><span>E</span><span>${synchro ? 'Syn' : 'ToF'}</span><span>HD</span><span>Pen</span></div>`;
 
 function detailHtml(rounds, synchro, paper) {
   const out = rounds.filter(([, r]) => r && !r.dns).map(([lb, r]) => {
@@ -951,7 +920,8 @@ function personRow(r, g, phase, idx, leader, rule) {
       <i class="chev"></i>
     </div>
     ${exp ? `<div class="rt-wrap">
-      ${rounds.map(([lb, res], i) => routineCard(lb, res, synchro, phase === 'qual' && i === r.adopted, phase === 'qual' && r.adopted >= 0 && i !== r.adopted)).join('')}
+      ${routineHead(synchro)}
+      ${rounds.map(([lb, res], i) => routineRow(lb, res, synchro, phase === 'qual' && i === r.adopted, phase === 'qual' && r.adopted >= 0 && i !== r.adopted)).join('')}
     </div>
     <button class="more" type="button" data-toggle="${esc(key)}">${open ? '▲ detail' : '▼ detail'}</button>
     ${open ? `<div class="detail-box">${detailHtml(rounds, synchro, paper)}</div>` : ''}` : ''}
