@@ -87,7 +87,7 @@
     </div>
     <!-- 技名予測変換用（全行共通） -->
     <datalist id="skill-datalist"></datalist>
-    <p class="hint">💡 右の「直接入力」欄に技名を打つと候補が出ます。選ぶと左の系統・宙系・技名が自動で埋まります。</p>
+    <p class="hint">💡 右の「直接入力」欄に技名を打つと候補が出ます。選ぶと左の系統・宙系・技名が自動で埋まります。技が決まったあとの <b>Enter</b> で1行下の直接入力へ移ります（Shift+Enterで1行上）。</p>
 
     <div class="total-display">
         <div class="total-display-sub">
@@ -230,6 +230,20 @@
         const skill = skillMaster.find(s => s.id === id);
         el.value = skill ? labelOf(skill) : '';
     };
+
+    // キー操作: 直接入力欄で Enter → 1行下の直接入力へ（Shift+Enter → 1行上へ。10行目の次は1行目、1行目の前は10行目）。
+    // 日本語入力の確定の Enter、候補を選ぶための Enter では動かさない（技が決まった / 空欄のときだけ移る）。
+    document.getElementById('skill-rows').addEventListener('keydown', e => {
+        const m = /^skill-text-([0-9]+)$/.exec(e.target.id || '');
+        if (!m || e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+        const v = e.target.value.trim();
+        if (v && !LABEL_TO_ID.has(v)) return;   // 打ちかけ・候補の選択中は、ブラウザに任せる（選ぶと技が入る）
+        e.preventDefault();
+        const i = +m[1];
+        const next = e.shiftKey ? (i === 1 ? 10 : i - 1) : (i === 10 ? 1 : i + 1);
+        const el = document.getElementById(`skill-text-${next}`);
+        if (el) { el.focus(); el.select(); el.scrollIntoView({ block: 'nearest' }); }
+    });
 
     window.calcTotal = () => {
         let baseDD = 0, tripleCount = 0;
