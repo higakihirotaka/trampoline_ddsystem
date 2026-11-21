@@ -57,6 +57,8 @@
         .col-id      { width: 40px; text-align: center; color: #aaa; font-size: 0.78rem; }
         .col-sym     { width: 130px; font-family: monospace; font-size: 0.95rem; font-weight: bold; color: #202124; }
         .col-disp    { width: 150px; font-size: 0.9rem; color: #202124; font-weight: bold; }
+        .col-symen   { width: 130px; font-size: 0.9rem; color: #1a73e8; }
+        .col-noteen  { min-width: 140px; color: #1a73e8; font-size: 0.85rem; }
         .col-dd      { width: 60px; text-align: center; }
         .col-triple  { width: 52px; text-align: center; }
         .col-dir     { width: 70px; }
@@ -143,6 +145,10 @@
                 <input type="text" class="add-input" id="new-display-symbol" placeholder="例: 841&lt;">
             </div>
             <div class="add-field-wrap">
+                <div class="add-field-label">Symbol（英） <span style="color:#aaa; font-weight:normal;">(日本語のSymbolのみ)</span></div>
+                <input type="text" class="add-input" id="new-symbol-en" placeholder="例: Half seat">
+            </div>
+            <div class="add-field-wrap">
                 <div class="add-field-label">DD</div>
                 <input type="number" class="add-input" id="new-dd" step="0.1" min="0" max="9.9" value="0.0">
             </div>
@@ -185,6 +191,10 @@
                 <div class="add-field-label">注釈</div>
                 <input type="text" class="add-input" id="new-note" placeholder="メモ...">
             </div>
+            <div class="add-field-wrap">
+                <div class="add-field-label">注釈（英）</div>
+                <input type="text" class="add-input" id="new-note-en" placeholder="例: Tuck bounce">
+            </div>
         </div>
         <div class="add-actions">
             <button class="btn-confirm" onclick="addSkill()">追加する</button>
@@ -222,12 +232,14 @@
                 <th class="col-id">#</th>
                 <th class="col-sym">Symbol</th>
                 <th class="col-disp">表示用</th>
+                <th class="col-symen" title="D計算ページの英語表示で使う。日本語のSymbolの技だけ入力（英数字のSymbolは空でよい）">Symbol（英）</th>
                 <th class="col-dd">DD</th>
                 <th class="col-triple">3回転</th>
                 <th class="col-triple" title="選手入力画面では選択できず、管理者入力・D審判画面のみ選択できる">D審のみ</th>
                 <th class="col-dir">系統</th>
                 <th class="col-soma">宙系</th>
                 <th class="col-note">注釈</th>
+                <th class="col-noteen" title="D計算ページの英語表示で使う注釈">注釈（英）</th>
                 <th class="col-act"></th>
             </tr>
         </thead>
@@ -320,6 +332,8 @@
             document.getElementById('new-dir').value = '';
             document.getElementById('new-soma').value = '';
             document.getElementById('new-note').value = '';
+            document.getElementById('new-symbol-en').value = '';
+            document.getElementById('new-note-en').value = '';
             document.getElementById('new-symbol').focus();
         }
     };
@@ -350,6 +364,8 @@
             direction: newDir,
             somersaultType: newSoma,
             note: document.getElementById('new-note').value.trim(),
+            symbolEn: document.getElementById('new-symbol-en').value.trim(),
+            noteEn: document.getElementById('new-note-en').value.trim(),
             displayOrder: nextOrder,
             updatedAt: serverTimestamp()
         };
@@ -454,6 +470,10 @@
                             <input type="text" class="edit-input" data-id="${s.id}" data-field="displaySymbol"
                                 value="${(s.displaySymbol || '').replace(/"/g, '&quot;')}" placeholder="(Symbolと同じ)">
                         </td>
+                        <td class="col-symen">
+                            <input type="text" class="edit-input" data-id="${s.id}" data-field="symbolEn"
+                                value="${(s.symbolEn || '').replace(/"/g, '&quot;')}" placeholder="(日本語のSymbolのみ)">
+                        </td>
                         <td class="col-dd">
                             <input type="number" class="edit-input" data-id="${s.id}" data-field="dd"
                                 step="0.1" min="0" max="9.9" value="${Number(s.dd).toFixed(1)}" style="width:58px;">
@@ -494,6 +514,10 @@
                             <input type="text" class="edit-input" data-id="${s.id}" data-field="note"
                                 value="${(s.note || '').replace(/"/g, '&quot;')}" placeholder="メモ...">
                         </td>
+                        <td class="col-noteen">
+                            <input type="text" class="edit-input" data-id="${s.id}" data-field="noteEn"
+                                value="${(s.noteEn || '').replace(/"/g, '&quot;')}" placeholder="Note (EN)">
+                        </td>
                         <td class="col-act">
                             <button class="btn-save-row" id="save-${s.id}" onclick="saveRow('${s.id}')">保存</button>
                             <button class="btn-cancel-row" onclick="cancelEdit()">✕</button>
@@ -516,12 +540,14 @@
                         <td class="col-id">${s.id}</td>
                         <td class="col-sym">${isFiltered ? '' : '<span class="drag-handle">☰ </span>'}${s.symbol}</td>
                         <td class="col-disp">${s.displaySymbol || '<span class="display-empty">—</span>'}</td>
+                        <td class="col-symen">${s.symbolEn || '<span class="display-empty">-</span>'}</td>
                         <td class="col-dd" style="text-align:center;">${Number(s.dd).toFixed(1)}</td>
                         <td class="col-triple">${s.isTriple ? '<span class="triple-check">✓</span>' : ''}</td>
                         <td class="col-triple">${s.dJudgeOnly ? '<span class="triple-check">✓</span>' : ''}</td>
                         <td class="col-dir">${dirLabel[s.direction] || s.direction || ''}</td>
                         <td class="col-soma">${s.somersaultType || ''}</td>
                         <td class="col-note">${noteText}</td>
+                        <td class="col-noteen">${s.noteEn || '<span class="display-empty">-</span>'}</td>
                         <td class="col-act">
                             <button class="btn-edit" onclick="startEdit('${s.id}')">編集</button>
                             <button class="btn-delete" onclick="deleteSkill('${s.id}')">削除</button>
@@ -659,6 +685,8 @@
         const dirEl         = document.querySelector(`select.edit-input[data-id="${id}"][data-field="direction"]`);
         const somaEl        = document.querySelector(`select.edit-input[data-id="${id}"][data-field="somersaultType"]`);
         const noteEl        = document.querySelector(`input.edit-input[data-id="${id}"][data-field="note"]`);
+        const symbolEnEl    = document.querySelector(`input.edit-input[data-id="${id}"][data-field="symbolEn"]`);
+        const noteEnEl      = document.querySelector(`input.edit-input[data-id="${id}"][data-field="noteEn"]`);
 
         const newSymbol         = symbolEl?.value.trim() || skill.symbol;
         const newDisplaySymbol  = dispSymbolEl?.value.trim() || newSymbol;
@@ -668,6 +696,8 @@
         const newDirection      = dirEl?.value || skill.direction;
         const newSomersault     = somaEl?.value || '';
         const newNote           = noteEl?.value.trim() || '';
+        const newSymbolEn       = symbolEnEl?.value.trim() || '';
+        const newNoteEn         = noteEnEl?.value.trim() || '';
 
         if (!newSymbol) {
             alert('Symbolは必須です。');
@@ -684,6 +714,8 @@
             direction: newDirection,
             somersaultType: newSomersault,
             note: newNote,
+            symbolEn: newSymbolEn,
+            noteEn: newNoteEn,
             updatedAt: serverTimestamp()
         };
 
@@ -693,7 +725,7 @@
 
             const idx = skills.findIndex(s => s.id === id);
             if (idx >= 0) {
-                skills[idx] = { ...skills[idx], symbol: newSymbol, displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, dJudgeOnly: newDJudgeOnly, direction: newDirection, somersaultType: newSomersault, note: newNote };
+                skills[idx] = { ...skills[idx], symbol: newSymbol, displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, dJudgeOnly: newDJudgeOnly, direction: newDirection, somersaultType: newSomersault, note: newNote, symbolEn: newSymbolEn, noteEn: newNoteEn };
             }
             editingId = null;
             render();

@@ -35,6 +35,14 @@
         .dd-zero { color: var(--danger) !important; font-weight: bold; }
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .hint { font-size: 0.78em; color: #80868b; margin: 6px 2px 0; }
+        .total-display-sub .lbl { font-weight: normal; font-size: 1em; color: #5f6368; }
+        /* 言語バッジ（日本語 / EN） */
+        .lang-badge { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+        .lang-badge { gap: 0; }
+        .lang-badge button { font: inherit; font-size: 0.78em; font-weight: bold; padding: 4px 14px; background: #fff; color: var(--primary); border: 1px solid var(--primary); cursor: pointer; }
+        .lang-badge button:first-child { border-radius: 999px 0 0 999px; }
+        .lang-badge button:last-child  { border-radius: 0 999px 999px 0; border-left: 0; }
+        .lang-badge button[aria-pressed="true"] { background: var(--primary); color: #fff; }
         @media (max-width: 700px) {
             body { padding: 8px; }
             .container { padding: 14px; border-radius: 14px; }
@@ -50,20 +58,24 @@
 </head>
 <body>
 <div class="container">
-    <h1 class="page-title">D（難度）計算用</h1>
-    <p class="page-sub">選手名・チーム名と技を入力してDDを計算し、CSVで保存できます。確定・提出はされません（計算専用）。</p>
+    <div class="lang-badge" role="group" aria-label="Language / 言語">
+        <button type="button" id="lang-ja" onclick="setLang('ja')">日本語</button>
+        <button type="button" id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+    <h1 class="page-title" data-i18n="title">D（難度）計算用</h1>
+    <p class="page-sub" data-i18n="sub">選手名・チーム名と技を入力してDDを計算し、CSVで保存できます。確定・提出はされません（計算専用）。</p>
 
     <div class="info-card">
         <div class="field-row">
-            <label class="fld-label" for="name">選手名</label>
-            <input type="text" id="name" class="txt" placeholder="（空欄可）">
+            <label class="fld-label" for="name" data-i18n="name">選手名</label>
+            <input type="text" id="name" class="txt" placeholder="（空欄可）" data-i18n-ph="optional">
         </div>
         <div class="field-row">
-            <label class="fld-label" for="team">チーム名</label>
-            <input type="text" id="team" class="txt" placeholder="（空欄可）">
+            <label class="fld-label" for="team" data-i18n="team">チーム名</label>
+            <input type="text" id="team" class="txt" placeholder="（空欄可）" data-i18n-ph="optional">
         </div>
         <div class="field-row">
-            <label class="fld-label" for="gender">性別</label>
+            <label class="fld-label" for="gender" data-i18n="gender">性別</label>
             <select id="gender" class="txt gender" onchange="calcTotal()">
                 <option value="男子">男子</option>
                 <option value="女子">女子</option>
@@ -76,10 +88,10 @@
     <table id="skill-table">
         <thead><tr>
             <th style="width:34px;">#</th>
-            <th style="width:16%;">系統</th>
-            <th style="width:18%;">宙系 / 姿勢</th>
-            <th>技名（選択）</th>
-            <th>技名（直接入力・予測）</th>
+            <th style="width:16%;" data-i18n="th_dir">系統</th>
+            <th style="width:18%;" data-i18n="th_soma">宙系 / 姿勢</th>
+            <th data-i18n="th_sel">技名（選択）</th>
+            <th data-i18n="th_txt">技名（直接入力・予測）</th>
             <th style="width:58px;">DD</th>
         </tr></thead>
         <tbody id="skill-rows"></tbody>
@@ -87,12 +99,12 @@
     </div>
     <!-- 技名予測変換用（全行共通） -->
     <datalist id="skill-datalist"></datalist>
-    <p class="hint">💡 右の「直接入力」欄に技名を打つと候補が出ます。選ぶと左の系統・宙系・技名が自動で埋まります。技が決まったあとの <b>Enter</b> で1行下の直接入力へ移ります（Shift+Enterで1行上）。</p>
+    <p class="hint" data-i18n-html="hint">💡 右の「直接入力」欄に技名を打つと候補が出ます。選ぶと左の系統・宙系・技名が自動で埋まります。技が決まったあとの <b>Enter</b> で1行下の直接入力へ移ります（Shift+Enterで1行上）。</p>
 
     <div class="total-display">
         <div class="total-display-sub">
-            基礎点：<span id="dd-base">0.0</span><br>
-            ボーナス点：<span id="dd-bonus">0.0</span>
+            <span class="lbl" data-i18n="base">基礎点：</span><span id="dd-base">0.0</span><br>
+            <span class="lbl" data-i18n="bonus">ボーナス点：</span><span id="dd-bonus">0.0</span>
         </div>
         <div class="total-val-wrap">
             <div class="total-val-label">Total DD</div>
@@ -101,9 +113,9 @@
     </div>
 
     <div class="btn-group">
-        <a id="back-link" class="btn btn-secondary" href="#">← メニューに戻る</a>
-        <button class="btn btn-secondary" onclick="clearAll()">クリア</button>
-        <button class="btn btn-primary" onclick="saveCSV()">💾 CSVで保存</button>
+        <a id="back-link" class="btn btn-secondary" href="#" data-i18n="back">← メニューに戻る</a>
+        <button class="btn btn-secondary" onclick="clearAll()" data-i18n="clear">クリア</button>
+        <button class="btn btn-primary" onclick="saveCSV()" data-i18n="csv">💾 CSVで保存</button>
     </div>
 </div>
 
@@ -116,19 +128,67 @@
     let skillMaster = [];
     const LABEL_TO_ID = new Map();   // 技名ラベル → 技ID（予測変換の逆引き）
 
-    const labelOf   = s => s.note ? `${s.symbol}（${s.note}）` : s.symbol;
+    // ---- 言語（日本語 / English）。URL の ?lang=en でも指定できる。選んだ言語はこのブラウザに覚えさせる ----
+    let lang = 'ja';
+    try {
+        const q = new URLSearchParams(location.search).get('lang');
+        lang = (q === 'en' || q === 'ja') ? q : (localStorage.getItem('dcalcLang') === 'en' ? 'en' : 'ja');
+    } catch { /* 使えなければ日本語 */ }
+    const I18N = {
+        ja: {
+            pageTitle: 'D計算用 - Trampoline Scoring System', title: 'D（難度）計算用',
+            sub: '選手名・チーム名と技を入力してDDを計算し、CSVで保存できます。確定・提出はされません（計算専用）。',
+            name: '選手名', team: 'チーム名', gender: '性別', optional: '（空欄可）',
+            g_男子: '男子', g_女子: '女子', g_混合: '混合',
+            th_dir: '系統', th_soma: '宙系 / 姿勢', th_sel: '技名（選択）', th_txt: '技名（直接入力・予測）',
+            hint: '💡 右の「直接入力」欄に技名を打つと候補が出ます。選ぶと左の系統・宙系・技名が自動で埋まります。技が決まったあとの <b>Enter</b> で1行下の直接入力へ移ります（Shift+Enterで1行上）。',
+            base: '基礎点：', bonus: 'ボーナス点：', back: '← メニューに戻る', clear: 'クリア', csv: '💾 CSVで保存',
+            search: '技名で検索', select: '選択してください',
+            d_前方系: '前方系', d_後方系: '後方系', d_基礎技: '基礎技',
+            soma_all: '--（全て）', soma_none: '--',
+            s_スタンドから: 'スタンドから', s_腰から: '腰から', s_腹から: '腹から', s_背から: '背から',
+            s_1回宙: '1回宙系', s_2回宙low: '2回宙系（1.5以下）', s_2回宙high: '2回宙系（1.6以上）', s_3回宙: '3回宙系', s_4回宙: '4回宙系',
+            confirmClear: '選手名・チーム名と技をすべてクリアします。よろしいですか？',
+            confirmEmpty: '名前・チーム名・技がいずれも未入力です。このまま保存しますか？',
+            c_name: '選手名', c_team: 'チーム名', c_gender: '性別', c_date: '日時',
+            c_head: ['#', '系統', '宙系/姿勢', '技名', 'DD'], c_base: '基礎点', c_bonus: 'ボーナス点', c_total: '合計DD',
+        },
+        en: {
+            pageTitle: 'D Calculator - Trampoline Scoring System', title: 'D (Difficulty) Calculator',
+            sub: 'Enter the athlete, team and skills to calculate the DD, and save it as CSV. Nothing is submitted or confirmed (calculation only).',
+            name: 'Athlete', team: 'Team', gender: 'Gender', optional: '(optional)',
+            g_男子: 'Men', g_女子: 'Women', g_混合: 'Mixed',
+            th_dir: 'Direction', th_soma: 'Somersault / Start', th_sel: 'Skill (select)', th_txt: 'Skill (type to search)',
+            hint: '💡 Type a skill name in the right-hand column to see suggestions. Picking one fills in the direction, somersault and skill on the left. Press <b>Enter</b> once the skill is set to jump to the next row (Shift+Enter: previous row).',
+            base: 'Base DD: ', bonus: 'Bonus: ', back: '← Back to menu', clear: 'Clear', csv: '💾 Save CSV',
+            search: 'Search skill', select: 'Select',
+            d_前方系: 'Forward', d_後方系: 'Backward', d_基礎技: 'Basic',
+            soma_all: '-- (all)', soma_none: '--',
+            s_スタンドから: 'From feet', s_腰から: 'From seat', s_腹から: 'From front', s_背から: 'From back',
+            s_1回宙: '1 somersault', s_2回宙low: '2 somersaults (DD ≤ 1.5)', s_2回宙high: '2 somersaults (DD ≥ 1.6)', s_3回宙: '3 somersaults', s_4回宙: '4 somersaults',
+            confirmClear: 'Clear the athlete, team and all skills. Are you sure?',
+            confirmEmpty: 'The athlete, team and skills are all empty. Save anyway?',
+            c_name: 'Athlete', c_team: 'Team', c_gender: 'Gender', c_date: 'Date',
+            c_head: ['#', 'Direction', 'Somersault/Start', 'Skill', 'DD'], c_base: 'Base DD', c_bonus: 'Bonus', c_total: 'Total DD',
+        },
+    };
+    const T = k => I18N[lang][k];
+
+    // 技名のラベル。英語では、技マスタの Symbol（英）・注釈（英）を使う（未入力なら日本語のまま出す＝同じ記号の別の技を区別できなくならないように）。
+    // 表示用（displaySymbol）は会場表示用で、別の技でも同じ文字になることがあるので使わない。
+    const symOf  = s => lang === 'en' ? (s.symbolEn || s.symbol) : s.symbol;
+    const noteOf = s => lang === 'en' ? (s.noteEn || s.note) : s.note;
+    const labelOf = s => { const n = noteOf(s); return n ? (lang === 'en' ? `${symOf(s)} (${n})` : `${symOf(s)}（${n}）`) : symOf(s); };
     const escapeHtml = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     // 2段目セレクタの選択肢（系統で出し分け: 基礎技=開始姿勢 / 宙技=宙系）— entry.html と同一
-    const SOMA_OPTIONS = {
-        basic:  [['','--（全て）'], ['スタンドから','スタンドから'], ['腰から','腰から'], ['腹から','腹から'], ['背から','背から']],
-        aerial: [['','--'], ['1回宙','1回宙系'], ['2回宙（1.5以下）','2回宙系（1.5以下）'], ['2回宙（1.6以上）','2回宙系（1.6以上）'], ['3回宙','3回宙系'], ['4回宙','4回宙系']]
-    };
+    const somaOptions = kind => kind === 'basic'
+        ? [['', T('soma_all')], ...['スタンドから', '腰から', '腹から', '背から'].map(v => [v, T('s_' + v)])]
+        : [['', T('soma_none')], ['1回宙', T('s_1回宙')], ['2回宙（1.5以下）', T('s_2回宙low')], ['2回宙（1.6以上）', T('s_2回宙high')], ['3回宙', T('s_3回宙')], ['4回宙', T('s_4回宙')]];
 
-    async function init() {
-        skillMaster = await getSkills();
-
-        // 予測変換用の datalist と 逆引きマップを構築（同一ラベルは最初の技を採用・重複表示は省く）
+    // 予測変換用の datalist と 逆引きマップを構築（同一ラベルは最初の技を採用・重複表示は省く）
+    function buildDatalist() {
+        LABEL_TO_ID.clear();
         const seen = new Set(), opts = [];
         skillMaster.forEach(s => {
             const lbl = labelOf(s);
@@ -136,22 +196,54 @@
             if (!seen.has(lbl)) { seen.add(lbl); opts.push(`<option value="${escapeHtml(lbl)}"></option>`); }
         });
         document.getElementById('skill-datalist').innerHTML = opts.join('');
+    }
+
+    // 画面の文言を、いまの言語に合わせる（選択中の技・入力内容は変えない）
+    function applyLang() {
+        document.documentElement.lang = lang;
+        document.title = T('pageTitle');
+        document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = T(el.dataset.i18nHtml); });
+        document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = T(el.dataset.i18nPh); });
+        for (const o of document.getElementById('gender').options) o.textContent = T('g_' + o.value);
+        document.getElementById('lang-ja').setAttribute('aria-pressed', String(lang === 'ja'));
+        document.getElementById('lang-en').setAttribute('aria-pressed', String(lang === 'en'));
+        if (!skillMaster.length) return;
+        buildDatalist();
+        for (let i = 1; i <= 10; i++) {
+            for (const o of document.getElementById(`dir-${i}`).options) if (o.value) o.textContent = T('d_' + o.value);
+            document.getElementById(`skill-text-${i}`).placeholder = T('search');
+            updateOptions(i, document.getElementById(`skill-${i}`).value, false, true);   // 宙系・技名の選択肢を作り直し、予測欄も新しい言語のラベルに
+        }
+        calcTotal();
+    }
+    window.setLang = l => {
+        lang = l === 'en' ? 'en' : 'ja';
+        try { localStorage.setItem('dcalcLang', lang); } catch { /* 保存できなくても動く */ }
+        applyLang();
+    };
+
+    async function init() {
+        skillMaster = await getSkills();
+
+        buildDatalist();
 
         let rows = '';
         for (let i = 1; i <= 10; i++) {
             rows += `<tr id="row-${i}"><td>${i}</td>
                 <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
-                    <option value="前方系">前方系</option>
-                    <option value="後方系">後方系</option>
-                    <option value="基礎技">基礎技</option></select></td>
+                    <option value="前方系">${T('d_前方系')}</option>
+                    <option value="後方系">${T('d_後方系')}</option>
+                    <option value="基礎技">${T('d_基礎技')}</option></select></td>
                 <td><select id="soma-${i}" onchange="updateOptions(${i})"></select></td>
-                <td><select id="skill-${i}" onchange="onSkillSelect(${i})"><option value="">選択してください</option></select></td>
-                <td><input type="text" class="skill-text" list="skill-datalist" id="skill-text-${i}" oninput="onSkillText(${i})" onchange="onSkillText(${i})" placeholder="技名で検索"></td>
+                <td><select id="skill-${i}" onchange="onSkillSelect(${i})"><option value="">${T('select')}</option></select></td>
+                <td><input type="text" class="skill-text" list="skill-datalist" id="skill-text-${i}" oninput="onSkillText(${i})" onchange="onSkillText(${i})" placeholder="${T('search')}"></td>
                 <td><span id="dd-${i}">0.0</span></td></tr>`;
         }
         document.getElementById('skill-rows').innerHTML = rows;
         for (let i = 1; i <= 10; i++) updateOptions(i, '', false);
         calcTotal();
+        applyLang();
     }
 
     // 系統・宙系に応じて技名ドロップダウンを構築（entry.html と同一ロジック＋末尾で予測欄を同期）
@@ -174,7 +266,7 @@
                              : (sk.somersaultType || '');
                 }
             }
-            const optsSoma = isBasic ? SOMA_OPTIONS.basic : SOMA_OPTIONS.aerial;
+            const optsSoma = somaOptions(isBasic ? 'basic' : 'aerial');
             somaEl.innerHTML = optsSoma.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
             somaEl.value = (showSoma && optsSoma.some(([v]) => v === want)) ? want : '';
         }
@@ -182,7 +274,7 @@
         let somaType  = soma, somaGroup = '';
         if (soma === '2回宙（1.5以下）') { somaType = '2回宙'; somaGroup = 'low'; }
         else if (soma === '2回宙（1.6以上）') { somaType = '2回宙'; somaGroup = 'high'; }
-        sel.innerHTML = '<option value="">選択してください</option>';
+        sel.innerHTML = `<option value="">${T('select')}</option>`;
         if (dir) {
             skillMaster.filter(s => {
                 if (s.direction !== dir) return false;
@@ -285,7 +377,7 @@
     };
 
     window.clearAll = () => {
-        if (!confirm('選手名・チーム名と技をすべてクリアします。よろしいですか？')) return;
+        if (!confirm(T('confirmClear'))) return;
         document.getElementById('name').value = '';
         document.getElementById('team').value = '';
         for (let i = 1; i <= 10; i++) {
@@ -324,27 +416,27 @@
         };
 
         const rows = [];
-        rows.push(['選手名', name]);
-        rows.push(['チーム名', team]);
-        rows.push(['性別', gender]);
-        rows.push(['日時', readable]);
+        rows.push([T('c_name'), name]);
+        rows.push([T('c_team'), team]);
+        rows.push([T('c_gender'), T('g_' + gender)]);
+        rows.push([T('c_date'), readable]);
         rows.push([]);
-        rows.push(['#', '系統', '宙系/姿勢', '技名', 'DD']);
+        rows.push(T('c_head'));
         let anySkill = false;
         for (let i = 1; i <= 10; i++) {
             const id = document.getElementById(`skill-${i}`).value;
             if (!id) continue;
             anySkill = true;
             const skill = skillMaster.find(s => s.id === id);
-            rows.push([i, skill.direction || '', somaLabel(i), labelOf(skill), document.getElementById(`dd-${i}`).textContent]);
+            rows.push([i, skill.direction ? T('d_' + skill.direction) : '', somaLabel(i), labelOf(skill), document.getElementById(`dd-${i}`).textContent]);
         }
         rows.push([]);
-        rows.push(['基礎点',     document.getElementById('dd-base').textContent]);
-        rows.push(['ボーナス点', document.getElementById('dd-bonus').textContent]);
-        rows.push(['合計DD',     document.getElementById('total-dd').textContent]);
+        rows.push([T('c_base'),  document.getElementById('dd-base').textContent]);
+        rows.push([T('c_bonus'), document.getElementById('dd-bonus').textContent]);
+        rows.push([T('c_total'), document.getElementById('total-dd').textContent]);
 
         if (!anySkill && !name && !team) {
-            if (!confirm('名前・チーム名・技がいずれも未入力です。このまま保存しますか？')) return;
+            if (!confirm(T('confirmEmpty'))) return;
         }
 
         // ファイル名: 名前_チーム名_時間 ／ 名前もチーム名も空なら時間のみ
