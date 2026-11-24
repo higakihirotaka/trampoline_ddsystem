@@ -36,8 +36,14 @@ const subsOf = pred => Object.fromEntries(R.submissions.filter(s => ids.has(s.at
 
 const tourBase = () => {
   const { id, liveState, ...t } = swapEvent(R.tour);
+  // 決勝の8人以外の氏名・運営の氏名は、デモに含めない（大会の設定データには、選手紹介用の名簿や審判長などの氏名が入っている）
+  const introSettings = { ...(t.introSettings || {}), athletes: [], showRoster: false, showPerClassRoster: false, isRunning: false };
+  const staff = Object.fromEntries(Object.entries(t.judgeConfig?.staff || {}).map(([k, v]) => [k, typeof v === 'string' ? '' : v]));
   return {
     ...t,
+    introSettings,
+    // 審判の割り当て（judgeConfig.classes には、担当審判の氏名が入っている）は含めない。並び順の設定だけ残す
+    judgeConfig: { rosterOrder: t.judgeConfig?.rosterOrder || {}, rosterHidden: t.judgeConfig?.rosterHidden || {}, staff },
     venueScreen: 'score', venueScreenAt: ts(Date.now()), calculating: false, inquiry: false,
     rankingCarousel: { active: false }, liveState: {},
   };
