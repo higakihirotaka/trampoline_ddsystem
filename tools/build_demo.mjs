@@ -98,20 +98,27 @@ const cjpDocs = () => ({
 const strip = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 const dataModule = (name, docs) => `// 自動生成（tools/build_demo.mjs）。本番の大会データをもとにした、デモ用のダミーデータ。
 import { seed } from "./fake-firestore.js";
-seed(${JSON.stringify(strip(docs))});
+import { localizeDocs } from "./demo-i18n.js";   // 英語表示のときは、選手名（ローマ字）・大学名・大会名を英語にして取り込む
+seed(localizeDocs(${JSON.stringify(strip(docs))}));
 `;
 
 // ---------- 画面の加工 ----------
-const BADGE = `
+const badge = langButtons => `
 <style>
   #demo-badge{position:fixed;left:10px;bottom:10px;z-index:2147483000;display:flex;gap:8px;align-items:center;font:600 12px/1.2 system-ui,'Noto Sans JP',sans-serif;
-    background:rgba(17,24,39,.86);color:#fff;border-radius:999px;padding:7px 12px;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:.9}
+    background:rgba(17,24,39,.86);color:#fff;border-radius:999px;padding:6px 8px 6px 12px;box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:.9}
   #demo-badge:hover{opacity:1}
   #demo-badge b{background:#f59e0b;color:#111;border-radius:999px;padding:2px 8px;font-size:11px;letter-spacing:.04em}
+  #demo-badge a{color:#fff;text-decoration:none}
+  #demo-badge .lang{display:inline-flex;margin-left:2px}
+  #demo-badge .lang button{font:inherit;font-size:11px;font-weight:700;padding:3px 9px;background:transparent;color:#cbd5e1;border:1px solid #64748b;cursor:pointer}
+  #demo-badge .lang button:first-child{border-radius:999px 0 0 999px}
+  #demo-badge .lang button:last-child{border-radius:0 999px 999px 0;border-left:0}
+  #demo-badge .lang button[aria-pressed="true"]{background:#fff;color:#111;border-color:#fff}
 </style>
-<a id="demo-badge" href="index.html" title="デモ一覧に戻る"><b>DEMO</b><span>ダミーデータ ・ ← デモ一覧</span></a>`;
+<div id="demo-badge"><b>DEMO</b><a href="index.html" title="デモ一覧に戻る">ダミーデータ ・ ← デモ一覧</a>${langButtons ? '<span class="lang" role="group" aria-label="Language"><button type="button" data-lang="ja">日本語</button><button type="button" data-lang="en">EN</button></span>' : ''}</div>`;
 
-const patch = (html, { params, dataFile, back = [], usesFirestore = true, edits = [] }) => {
+const patch = (html, { params, dataFile, back = [], usesFirestore = true, edits = [], replaceAll = [], langButtons = true }) => {
   const g = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
   if (usesFirestore && !html.includes(g)) throw new Error('firestore import not found');
   html = html.split(g).join('./fake-firestore.js');
@@ -123,7 +130,8 @@ const patch = (html, { params, dataFile, back = [], usesFirestore = true, edits 
   // デモ用の細かい変更（最初の絞り込みなど）。対象が見つからなければ、本物の画面が変わったということなので、止める
   for (const [from, to] of edits) { if (!html.includes(from)) throw new Error('edit target not found: ' + from.slice(0, 60)); html = html.replace(from, () => to); }
   for (const [from, to] of back) { if (!html.includes(from)) throw new Error('back link not found: ' + from); html = html.split(from).join(to); }
-  return html.replace('</body>', BADGE + '\n</body>');
+  for (const [from, to] of replaceAll) { if (!html.includes(from)) throw new Error('replaceAll target not found: ' + from); html = html.split(from).join(to); }
+  return html.replace('</body>', badge(langButtons) + '\n</body>');
 };
 
 const read = f => fs.readFileSync(path.join(PUB, f), 'utf8');
@@ -162,7 +170,8 @@ fs.writeFileSync(path.join(OUT, 'judge_cjp.html'), patch(read('judge_cjp.html'),
   back: [['ranking.html?event=${eventId}', 'index.html#ranking-not-in-demo']],
 }));
 fs.writeFileSync(path.join(OUT, 'd_calc.html'), patch(read('d_calc.html'), {
-  params: { event: EVENT }, dataFile: 'demo-data-dcalc.js', usesFirestore: false,
+  params: { event: EVENT }, dataFile: 'demo-data-dcalc.js', usesFirestore: false, langButtons: false,
+  replaceAll: [["'dcalcLang'", "'demoLang'"]],
   back: [["`admin_menu.html?event=${eventId}`", "'index.html'"]],
 }));
 
