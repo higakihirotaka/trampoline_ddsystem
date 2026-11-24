@@ -1,0 +1,2668 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="../favicon-32.png">
+  <script>(function(){var u=new URL(location.href),d={"event":"demo","panel":"A","role":"CJP","athlete":"BVQDJ9Jc6N3XmT6EV019","round":"final"};Object.keys(d).forEach(function(k){if(!u.searchParams.has(k))u.searchParams.set(k,d[k]);});history.replaceState(null,'',u);})();</script>
+    <meta charset="UTF-8">
+    <title>Technical Console - Trampoline System</title>
+    <link rel="stylesheet" href="cjp_panel.css">
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div class="sb-system-label">Official Console</div>
+        <div class="sb-event-name" id="event-name-sidebar">Loading...</div>
+        <a href="#" id="menu-back" class="sb-back-link">← ポータルに戻る</a>
+    </div>
+    <div id="sidebar-filters" class="sidebar-filters"></div>
+    <div id="sidebar-list" class="sidebar-list"></div>
+</div>
+
+<div class="console-wrapper">
+    <div class="top-bar">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <div id="panel-role-label" style="font-size: 0.8rem; font-weight: bold; color: var(--accent);">PANEL - | ROLE -</div>
+            <button id="btn-ranking" onclick="openRanking()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.75);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;white-space:nowrap;">🏆 順位表</button>
+        </div>
+        <div></div>
+        <button onclick="fillDummyData()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">🎲 ダミー入力</button>
+        <button id="btn-kb-shortcut" onclick="toggleKbShortcuts()" style="padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;" title="入力欄にフォーカスしていない時、Hキー=HDTS取得／Nキー=次の選手へ／Sキー=内訳が緑かつ未確定の時だけ確定&amp;表示 を有効にします（このブラウザだけの設定）">⌨️ H/N/S ショートカット: OFF</button>
+        <button id="btn-dns" onclick="declareDNS()" style="background:rgba(156,39,176,0.25);border:1px solid rgba(156,39,176,0.6);color:#ce93d8;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🚫 棄権</button>
+        <button id="btn-delete-result" onclick="deleteResult()" style="background:rgba(211,47,47,0.25);border:1px solid rgba(211,47,47,0.6);color:#ef9a9a;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;display:none;">🗑 得点削除</button>
+        <a href="#" id="exit-link" class="btn-exit">✕ 終了</a>
+    </div>
+
+    <div class="athlete-banner">
+        <div>
+            <div style="font-size: 1.6rem; font-weight: 900;" id="ath-name">選手を選択してください</div>
+            <div id="ath-club" style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600; margin-top: 2px;"></div>
+        </div>
+        <div id="ath-meta" style="color: var(--text-dim); font-size: 0.9rem; margin-left: auto;">- / -</div>
+    </div>
+
+    <div id="dns-banner" class="dns-banner">
+        <div class="dns-label">DNS</div>
+        <div class="dns-sublabel">棄権 — 競技不参加</div>
+        <button class="btn-cancel-dns" onclick="cancelDNS()">棄権を取り消す</button>
+    </div>
+
+    <div class="console-scroll">
+    <div class="main-content">
+        <div class="table-card">
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+        <table class="monitor-table">
+            <colgroup>
+                <col style="width:70px"><!-- Judge/申請/実施/DD: 固定 -->
+                <col><col><col><col><col><col><col><col><col><col><!-- S1-S10: 均等自動分配 -->
+                <col><!-- Ln: S列と同幅 -->
+                <col style="width:62px"><!-- Total/SUM: 固定 -->
+                <col style="width:36px"><!-- toggle: 固定 -->
+            </colgroup>
+            <thead>
+                <tr class="section-head e-section-head">
+                    <th colspan="14">E &nbsp; EXECUTION</th>
+                </tr>
+                <!-- 審判ヘッダー行 -->
+                <tr>
+                    <th>Judge</th>
+                    <th class="sn-th" id="sn-th-1"  onclick="setValidCount(1)" >S1</th><th class="sn-th" id="sn-th-2"  onclick="setValidCount(2)" >S2</th><th class="sn-th" id="sn-th-3"  onclick="setValidCount(3)" >S3</th><th class="sn-th" id="sn-th-4"  onclick="setValidCount(4)" >S4</th><th class="sn-th" id="sn-th-5"  onclick="setValidCount(5)" >S5</th>
+                    <th class="sn-th" id="sn-th-6"  onclick="setValidCount(6)" >S6</th><th class="sn-th" id="sn-th-7"  onclick="setValidCount(7)" >S7</th><th class="sn-th" id="sn-th-8"  onclick="setValidCount(8)" >S8</th><th class="sn-th" id="sn-th-9"  onclick="setValidCount(9)" >S9</th><th class="sn-th" id="sn-th-10" onclick="setValidCount(10)">S10</th>
+                    <th>Ln</th><th>Total</th>
+                    <th style="width:36px;font-size:0.55rem;color:var(--th-text);opacity:0.7;line-height:1.2">手動<br>入力</th>
+                </tr>
+            </thead>
+            <tbody id="judge-rows"></tbody>
+            <tfoot>
+                <tr class="section-head d-section-head">
+                    <th colspan="14">D &nbsp; DIFFICULTY</th>
+                </tr>
+                <!-- 申請行 -->
+                <tr class="d-info-row" id="declared-row">
+                    <th style="width:70px;">申請</th>
+                    <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
+                    <th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th><th class="d-declared">-</th>
+                    <th class="cell-blank"></th><th class="cell-blank"></th><th class="toggle-col"></th>
+                </tr>
+                <!-- 実施行 -->
+                <tr class="d-info-row" id="skill-symbols-row">
+                    <th style="width:70px;white-space:normal;line-height:1.4;">実施<br><span id="d-confirmed-badge"></span></th>
+                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
+                    <th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th><th class="skill-header">-</th>
+                    <th>Bonus</th><th>SUM</th><th class="toggle-col"></th>
+                </tr>
+                <!-- DD行 -->
+                <tr class="d-info-row" id="dd-row">
+                    <th style="width:70px;white-space:normal;line-height:1.4;">DD<br><span id="d-confirmed-badge-paper"></span></th>
+                    <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
+                    <th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th><th class="d-dd">-</th>
+                    <th id="dd-bonus-cell">-</th><th id="dd-total-cell">-</th><th class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" id="d-mode-toggle" onchange="toggleDMode(this.checked)"><span class="track-sm"></span></label></th>
+                </tr>
+                <!-- 指定難度行 -->
+                <tr class="d-info-row" id="designated-row">
+                    <th style="width:70px;white-space:normal;line-height:1.4;">指定<br><span id="dsg-count" style="font-size:0.7rem;font-weight:normal;color:#90a4ae;">0/0</span></th>
+                    <th class="d-designated" id="dsg-0" onclick="toggleDesignated(0)">·</th><th class="d-designated" id="dsg-1" onclick="toggleDesignated(1)">·</th><th class="d-designated" id="dsg-2" onclick="toggleDesignated(2)">·</th><th class="d-designated" id="dsg-3" onclick="toggleDesignated(3)">·</th><th class="d-designated" id="dsg-4" onclick="toggleDesignated(4)">·</th>
+                    <th class="d-designated" id="dsg-5" onclick="toggleDesignated(5)">·</th><th class="d-designated" id="dsg-6" onclick="toggleDesignated(6)">·</th><th class="d-designated" id="dsg-7" onclick="toggleDesignated(7)">·</th><th class="d-designated" id="dsg-8" onclick="toggleDesignated(8)">·</th><th class="d-designated" id="dsg-9" onclick="toggleDesignated(9)">·</th>
+                    <th>-</th><th>-</th><th class="toggle-col"></th>
+                </tr>
+                <tr class="section-head hdts-section-head">
+                    <th colspan="14">HDTS</th>
+                </tr>
+                <!-- HDTS 技別 ToF 行 -->
+                <tr class="d-info-row hdts-row" id="hdts-tof-row">
+                    <th class="hdts-label" id="hdts-tof-label">ToF</th>
+                    <th id="hdts-tof-1">-</th><th id="hdts-tof-2">-</th><th id="hdts-tof-3">-</th><th id="hdts-tof-4">-</th><th id="hdts-tof-5">-</th>
+                    <th id="hdts-tof-6">-</th><th id="hdts-tof-7">-</th><th id="hdts-tof-8">-</th><th id="hdts-tof-9">-</th><th id="hdts-tof-10">-</th>
+                    <th>-</th><th class="hdts-sum" id="hdts-tof-sum">-</th><th class="toggle-col"></th>
+                </tr>
+                <!-- HDTS 技別 HD 行 -->
+                <tr class="d-info-row hdts-row" id="hdts-hd-row">
+                    <th class="hdts-label">HD</th>
+                    <th id="hdts-hd-1">-</th><th id="hdts-hd-2">-</th><th id="hdts-hd-3">-</th><th id="hdts-hd-4">-</th><th id="hdts-hd-5">-</th>
+                    <th id="hdts-hd-6">-</th><th id="hdts-hd-7">-</th><th id="hdts-hd-8">-</th><th id="hdts-hd-9">-</th><th id="hdts-hd-10">-</th>
+                    <th>-</th><th class="hdts-sum" id="hdts-hd-sum">-</th><th class="toggle-col"></th>
+                </tr>
+            </tfoot>
+        </table>
+        </div>
+        </div>
+
+        <div class="input-grid">
+            <div class="input-card">
+                <label>VALID SKILLS</label>
+                <select id="valid-count" onchange="updateValid(this.value)">
+                    <option value="10">10本</option>
+                    <option value="9">9本</option><option value="8">8本</option><option value="7">7本</option><option value="6">6本</option><option value="5">5本</option>
+                    <option value="4">4本</option><option value="3">3本</option><option value="2">2本</option><option value="1">1本</option><option value="0">0本</option>
+                </select>
+            </div>
+            <div class="input-card">
+                <label><span id="tof-input-label">ToF (T)</span> <button class="btn-th-mode" id="tof-mode-btn" onclick="toggleTofMode()">読込</button></label>
+                <input type="number" id="tof" step="0.001" onchange="calc()">
+            </div>
+            <div class="input-card">
+                <label>HD <button class="btn-th-mode" id="hd-mode-btn" onclick="toggleHdMode()">読込</button></label>
+                <input type="number" id="hd" step="0.1" onchange="calc()">
+            </div>
+            <div class="input-card">
+                <label>PENALTY (P)</label>
+                <select id="pen-select" onchange="addPenaltyFromSelect()" style="font-size:0.82rem;"></select>
+                <div id="pen-chips" class="pen-chips"></div>
+                <input type="number" id="pen" step="0.1" value="0.0" onchange="onPenManualChange()" placeholder="手動加点" title="一覧にない場合の手動加点">
+            </div>
+        </div>
+
+        <div class="score-summary">
+            <div class="score-box"><label>Difficulty</label><div id="res-d">0.0</div></div>
+            <div class="score-box"><label>Execution</label><div id="res-e">0.0</div></div>
+            <div class="score-box"><label id="res-t-label">T</label><div id="res-t">0.00</div></div>
+            <div class="score-box"><label>HD</label><div id="res-hd">0.000</div></div>
+            <div class="score-box"><label>Penalty</label><div id="res-pen">0.0</div></div>
+            <div class="score-box"><label>Total</label><div id="res-total" style="color:var(--success)">0.00</div></div>
+        </div>
+
+        <div class="action-row">
+            <!-- 1行目 -->
+            <button class="btn-action btn-confirm"        id="btn-confirm"        onclick="publish()">確定&amp;表示</button>
+            <button class="btn-action btn-unlock"         id="btn-unlock"         onclick="unlock()">修正</button>
+            <button class="btn-action btn-republish"      id="btn-republish"      onclick="republish()">再表示</button>
+            <button class="btn-action btn-calculating"    id="btn-calculating"    onclick="showCalculating()">集計中</button>
+            <button class="btn-action btn-hdts"           id="btn-hdts"           onclick="getFromQira()">HDTS</button>
+            <!-- 2行目 -->
+            <button class="btn-action btn-confirm-silent" id="btn-confirm-silent" onclick="publishSilent()">確定のみ</button>
+            <!-- 集計中ボタン（1行目・4列目）の真下に配置 -->
+            <button class="btn-action btn-inquiry" id="btn-inquiry" onclick="showInquiry()" style="grid-column:4; background:#ef4444; color:#fff;">🔍 インクワイアリ</button>
+            <!-- 団体順位表は常に最後尾（表示/非表示しても他ボタンのレイアウトが変わらないように） -->
+            <button class="btn-action"                    id="btn-team-ranking"   onclick="showTeamRanking()" style="display:none; background:#7e57c2; color:#fff;">団体順位表</button>
+        </div>
+        <div id="qira-status" class="qira-status-bar"></div>
+    </div>
+    </div><!-- /.console-scroll -->
+</div><!-- /.console-wrapper -->
+
+<script type="module">
+    import "./demo-data-cjp.js";
+    import { db } from "./firebase-config.js";
+    import { doc, onSnapshot, getDoc, getDocs, getDocFromServer, collection, query, where, setDoc as fsSetDoc, updateDoc as fsUpdateDoc, deleteDoc, serverTimestamp, deleteField } from "./fake-firestore.js";
+    import { liveFirestore } from "./live_doc.js";
+    // 大会ドキュメントへの書き込み（liveState・calculating など）を、分割（live_doc.js）に対応させる。既定（dual）では、従来どおり書き、live にも写す。
+    // 大会ドキュメント以外（results など）への setDoc は、そのまま通る
+    const setDoc = liveFirestore({ doc, getDoc, setDoc: fsSetDoc, updateDoc: fsUpdateDoc, onSnapshot, serverTimestamp }, db).setDoc;
+    import { ensureAdmin } from "./auth.js";
+    import { getTournament, getAthletes, getFinalOrders } from "./cache.js";
+    import { round1, resolveEJudgeCount, parseDDRule, calcCardDD } from "./shared.js";
+    // 公開スコアボード（docs/realtime-score-spec.md）への書込。失敗しても、ここでの確定・削除は止めない
+    import { boardPublish, boardDns, boardRemove } from "./board_client.js";
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event'), panel = params.get('panel'), role = params.get('role');
+    let athleteId = params.get('athlete'), round = params.get('round') || "pre1";
+    // 記録主任モード: 特定パネルに紐づかず、どちらのパネルの選手も横断して確定済み記録を
+    // 確認・修正できるようにする。CJPが得点を確定していく最中でも、E審判の画面や会場
+    // ディスプレイなど大会進行中の表示に一切影響を与えないことを目的とする（詳細は各箇所のコメント参照）。
+    const isRecorder = params.get('mode') === 'recorder';
+    // E審判の入力キー（execution.judges.{panel}_{role}）を引くための実際のパネルを解決する。
+    // 通常モードでは自分の固定パネルでよいが、記録主任モードはPANEL A/Bどちらの選手も扱うため、
+    // 選手がどちらのパネルで競技したかを示す確実なフィールドが無い（flightGroupは組・グループ番号で
+    // A/Bとは別概念）。そこで、現在読み込んでいる結果ドキュメント（latestData）に実際に保存されている
+    // execution.judgesのキーの接頭辞（"A_"/"B_"）から実パネルを逆引きする。
+    function detectPanelFromData(data) {
+        const keys = Object.keys(data?.execution?.judges || {});
+        if (!keys.length) return null;
+        return keys[0].split('_')[0] || null;
+    }
+    function curPanel() {
+        return isRecorder ? (detectPanelFromData(latestData) || panel || 'A') : panel;
+    }
+
+    let athletes = [], submissions = {}, results = {}, currentTour = null;
+    let teamCategoryKeys = new Set(); // 団体戦: チーム登録のあるカテゴリー "class|gender"
+    let teamDocs = [];                // 団体戦: チームのドキュメント（公開スコアボードの名簿の骨組み用）
+    let fType = 'individual', fClass = '', fGender = '', fFinalOnly = true;   // デモ: 最初から「決勝」の一覧
+    let sidebarFilteredAthletes = []; // renderSidebar()が今表示している順（Nキーの「次の選手へ」用）
+    let manualRows = new Set(), pendingEdits = {}, latestData = {}, unsubscribeScores = null, unsubscribeSub = null;
+    let tofMode = 'auto', hdMode = 'auto'; // 'auto'=Firestore読込, 'manual'=手動入力
+    // CJPペナルティ（読込なし＝常にCJP入力。日本語で選択し Display Text(英字) も保持・保存）
+    const CJP_PENALTIES = [
+      { ja:'服装・装飾品の違反',                  en:'Violation of dress / jewellery',              display:'DRESS VIOLATION',   points:0.2 },
+      { ja:'規定のウォームアップ時間超過',          en:'Abuse of warm-up time limit',                 display:'OVER WARM-UP TIME', points:0.2 },
+      { ja:'演技開始合図後の時間超過（61〜90秒）',   en:'Exceeded time limit after CJP signal (61s)',  display:'START DELAY',       points:0.2 },
+      { ja:'演技開始合図後の時間超過（91〜120秒）',  en:'Exceeded time limit after CJP signal (91s)',  display:'START DELAY',       points:0.4 },
+      { ja:'演技開始合図後の時間超過（121〜180秒）', en:'Exceeded time limit after CJP signal (121s)', display:'START DELAY',       points:0.6 },
+      { ja:'演技中の補助員からの声かけ・合図',        en:'Talking / giving signal by spotter',          display:'SPOTTER TALKING',   points:0.6 },
+      { ja:'演技中のコーチからの声かけ・合図',        en:'Talking / giving signal by coach',            display:'COACH TALKING',     points:0.6 },
+      { ja:'特別要求の欠如',                        en:'Missing special requirement',                 display:'MISSING SPECIAL REQ', points:2.0 },
+      { ja:'アウトバウンス違い',                    en:'Out-bounce mismatch',                         display:'OUT-BOUNCE DIFF',   points:0.4, synchroOnly:true },
+    ];
+    let appliedPenalties = []; // 選択中の違反 [{ja,en,display,points}]
+    let _penDirty = false;     // CJPがペナルティを操作したか（renderScoresでの上書き抑制）
+    let isLocked = false;
+    let lockedOfficialSkills = null; // 確定時にスナップショットした実施技（D審判の更新を遮断）
+    let _preciseE = 0; // 表示は第1位だが保存用に全精度を保持（シンクロ4人時の第2位など）
+    let _lastEc   = null; // 最後に計算した calcExecution 結果（publish 時に per-skill E を保存するため）
+    let _dChanged = false; // D が申告と相違しているか（内訳Dの色・枠線判定用）
+    let _dConfirmed = false; // D審判が確定済みか（内訳Dは確定まで非表示）
+    let _eComplete = false;  // E: 全審判が有効本数分入力済みか（最後の全体描画時の値を保持）
+    let _eConfirmed = false; // E: 全審判が「確定」押下済みか（calc(ec無し)でも状態を保つため保持）
+    let _lastSummaryBorderColor = null; // 内訳ボックスの現在の枠線色（確定時に黄色枠だったかの判定に使う）
+
+    function roundLabel(r) {
+        if (r === 'pre1')  return 'Routine 1';
+        if (r === 'pre2')  return 'Routine 2';
+        if (r === 'final') return 'Final';
+        return r.toUpperCase();
+    }
+
+    window.openRanking = function() {
+        const base = `index.html#ranking-not-in-demo`;
+        const ath  = athletes.find(a => a.id === athleteId);
+        if (!ath) { window.open(base, '_blank'); return; }
+        const cls      = encodeURIComponent(ath.class || ath.category || '');
+        const gender   = encodeURIComponent(ath.gender || '');
+        const type     = encodeURIComponent(ath.type   || 'individual');
+        const rkRound  = round === 'final' ? 'final' : 'qualifying'; // pre1/pre2 → qualifying
+        window.open(`${base}&class=${cls}&gender=${gender}&type=${type}&round=${rkRound}`, '_blank');
+    };
+
+    // 現在の選手クラス・ラウンドに応じた E審判人数を返す（予選・決勝で個別設定されている場合に対応）
+    function getNumE() {
+        const ath = athletes.find(a => a.id === athleteId);
+        if (ath) {
+            const type = ath.type || 'individual';
+            const cls  = ath.class || ath.category || '';
+            const n = resolveEJudgeCount(currentTour?.classRules?.[type]?.[cls]?.eJudgeCount, round);
+            if (n) return n;
+        }
+        return currentTour?.numExecJudges || 6;
+    }
+    let skillMasterMap = {};  // skillId → { symbol, dd, ... }
+    let dMode = 'auto';           // 'auto' | 'manual'
+    let dModeAutoExplicit = false; // ユーザーが明示的にautoを選択した場合true（手動復元を抑制）
+    // 指定難度（-1=無効、0=0本指定(全DD=0)、1-9=N本指定）
+    let designatedDDCount = -1;
+    let designatedDDIndices = []; // 指定中の技インデックス（0-based）
+    let ddRule = parseDDRule({}, '');   // 難度上限などの設定（クラスルールから parseDDRule で読み取る。失格モードのクラスは丸め込まない）
+    let isPaperMode   = false;    // 紙運用クラス（classRule.useOnlineCard===false）: 合計DDのみ表示・確認
+    let designatedDDManualChanged = false; // 審判が手動で変更したフラグ
+
+    function withTimeout(promise, ms) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), ms))
+        ]);
+    }
+
+    function showLoadState(msg, isError) {
+        document.getElementById('sidebar-list').innerHTML = `
+            <div style="padding:24px;text-align:center;color:${isError ? '#e53935' : '#90a4ae'};">
+                <div style="font-size:2em;margin-bottom:10px;">${isError ? '⚠️' : '⏳'}</div>
+                <div style="font-weight:bold;margin-bottom:${isError ? '14px' : '0'};">${msg}</div>
+                ${isError ? '<button onclick="retryInit()" style="padding:10px 24px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:0.9em;cursor:pointer;font-weight:bold;">🔄 再読み込み</button>' : ''}
+            </div>`;
+        if (isError) document.getElementById('event-name-sidebar').innerText = '読み込みエラー';
+    }
+
+    window.retryInit = () => init();
+    let _initRunning = false;
+
+    async function init() {
+        if (!eventId || _initRunning) return;
+        _initRunning = true;
+        document.getElementById('menu-back').href = `admin_menu.html?event=${eventId}`;
+        document.getElementById('exit-link').href = isRecorder
+            ? `judge_menu.html?event=${eventId}`
+            : `judge_role_select.html?event=${eventId}`;
+        document.getElementById('panel-role-label').innerText = isRecorder
+            ? '📋 記録主任'
+            : `PANEL ${panel} | ROLE ${role}`;
+        if (isRecorder) {
+            // 会場ディスプレイの得点表示そのものを切り替えるボタンは記録主任モードでは使わない
+            // （大会進行中のスコア表示に影響させないため）。
+            // インクワイアリは得点表示を切り替えるものではなく、確定済みの記録を後から見直した際に
+            // 「問い合わせ確認中」を会場に告知するための機能なので、記録主任モードでも使えるようにする。
+            ['btn-republish', 'btn-calculating'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.style.display = 'none';
+            });
+        }
+
+        // 初期化完了前はアクションボタンを無効化
+        ['btn-confirm','btn-confirm-silent','btn-unlock','btn-republish','btn-calculating','btn-inquiry','btn-hdts'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.disabled = true;
+        });
+
+        showLoadState('データを読み込んでいます...', false);
+        try {
+        // getFinalOrders/teams はキャッシュ非対象・eventIdのみに依存するため、
+        // 他の読み込みと直列にする理由がない。まとめて1回のPromise.allで並列取得する。
+        const [tourData, athleteList, subSnap, resSnap, smSnap, finalOrders, teamSnap] = await withTimeout(
+            Promise.all([
+                getTournament(eventId),
+                getAthletes(eventId),
+                getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId))),
+                getDocs(query(collection(db, "results"), where("eventId", "==", eventId))),
+                getDocs(collection(db, "skillMaster")),
+                getFinalOrders(eventId),
+                getDocs(collection(db, "tournaments", eventId, "teams")).catch(() => ({ docs: [] })) // 団体未使用でも無視
+            ]),
+            20000
+        );
+        // Firestore skillMaster → skillMasterMap（ドキュメントID = 数値文字列）
+        smSnap.forEach(d => {
+            skillMasterMap[d.id] = {
+                id: d.id,
+                symbol: d.data().symbol,
+                displaySymbol: d.data().displaySymbol || '',   // 公開スコアボードの記号表記
+                note: d.data().note || '',
+                dd: parseFloat(d.data().dd) || 0,
+                isTriple: d.data().isTriple === true,
+                direction: d.data().direction || '',
+                displayOrder: d.data().displayOrder ?? parseInt(d.id)
+            };
+        });
+
+        if (!tourData) throw new Error('大会データが見つかりません');
+        currentTour = tourData;
+        document.getElementById('event-name-sidebar').innerText = currentTour.name;
+        athletes = athleteList;
+        // 決勝試技順はキャッシュ除外なので毎回Firestoreから取得してマージ（上のPromise.allで並列取得済み）
+        athletes.forEach(a => {
+            const fo = finalOrders[a.id];
+            if (fo) { a.finalOrder = fo.finalOrder; a.isInFinal = fo.isInFinal; }
+        });
+        subSnap.forEach(d => submissions[d.id] = d.data());
+        resSnap.forEach(d => results[d.id] = d.data());
+
+        // 団体戦: チーム登録のあるカテゴリー(class|gender)を収集（ボタン表示判定用）
+        teamCategoryKeys = new Set(teamSnap.docs.map(d => `${d.data().class || ''}|${d.data().gender || ''}`));
+        teamDocs = teamSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        renderSidebar();
+        renderScores({}); // 審判行を常に表示（numExecJudges 人分の空行）
+
+        if (athleteId) {
+            const ath = athletes.find(a => a.id === athleteId);
+            if (ath) {
+                if (ath.type) fType = ath.type; // fType をURLロード時の選手typeに合わせる
+                applySynchroUI(fType === 'synchro');
+                const dispName = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
+                const clubDisp = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+                    ? `${ath.club1} / ${ath.club2}` : (ath.club1 || '');
+                const displayOrder1 = (round === 'final' && ath.finalOrder != null) ? ath.finalOrder : ath.order;
+                document.getElementById('ath-name').innerText = `No.${displayOrder1} ${dispName}`;
+                document.getElementById('ath-club').textContent = clubDisp;
+                document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${roundLabel(round)}`;
+                updateDesignatedForAthlete(ath, round);
+
+                // E審判が自動追従するために liveState を更新（パネルごとに分離）。
+                // 記録主任モードはE審判画面に一切影響を与えないためスキップする。
+                if (!isRecorder) await setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: {
+                        [panel]: {
+                            athleteId,
+                            athleteName: `No.${displayOrder1} ${dispName}`,
+                            athleteClass: ath.class || ath.category || '',
+                            athleteGender: ath.gender || '',
+                            athleteType: ath.type || 'individual',
+                            round,
+                            updatedAt: serverTimestamp()
+                        }
+                    }
+                }, { merge: true });
+            }
+            watchScores();
+            // クラスルールのToF/HDデフォルトモードを適用
+            const ath2 = athletes.find(a => a.id === athleteId);
+            if (ath2) {
+                const athType  = ath2.type || 'individual';
+                const athClass = ath2.class || ath2.category || '';
+                const cRule    = currentTour.classRules?.[athType]?.[athClass] || {};
+                // 新形式(tofDefaultMode/hdDefaultMode)、旧形式(tofHdDefaultMode)両対応
+                if ((cRule.tofDefaultMode || cRule.tofHdDefaultMode) === 'manual') toggleTofMode();
+                if ((cRule.hdDefaultMode  || cRule.tofHdDefaultMode) === 'manual') toggleHdMode();
+                applyHdtsVisibility(ath2);
+            }
+            updateTeamRankingBtn();
+        }
+        } catch(e) {
+            console.error('初期化エラー:', e);
+            const msg = e.message === 'TIMEOUT' ? 'ネットワーク接続に時間がかかっています' : 'データの読み込みに失敗しました';
+            showLoadState(msg, true);
+            document.getElementById('ath-name').innerText = msg;
+            document.getElementById('ath-meta').innerText = e.message === 'TIMEOUT' ? '' : (e.message || 'ネットワークエラー');
+        } finally {
+            _initRunning = false;
+            // 選手選択に依存しないボタンは初期化完了後に常に有効化
+            ['btn-calculating','btn-inquiry','btn-republish','btn-hdts'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.disabled = false;
+            });
+        }
+    }
+
+    function renderSidebar() {
+        const isSynchro = fType === 'synchro';
+
+        // 種目でまず分ける
+        const byType = athletes.filter(a => (a.type || 'individual') === fType);
+
+        // クラス一覧（表示順=display_orderを維持）。
+        // 新形式 classes[fType]=[{name,display_order}] と、旧形式 classes=[{name,display_order}]（種目で分かれていない）の両対応
+        const _clsRaw = currentTour?.classes;
+        const _clsDefs = Array.isArray(_clsRaw) ? _clsRaw
+                       : (Array.isArray(_clsRaw?.[fType]) ? _clsRaw[fType] : []);
+        const tourClassDefs = _clsDefs.slice().sort((a,b)=>(a.display_order??99)-(b.display_order??99)).map(c=>c.name);
+        const rawClasses = [...new Set(byType.map(a => a.class || a.category || ''))];
+        const classes = [...tourClassDefs.filter(c=>rawClasses.includes(c)), ...rawClasses.filter(c=>!tourClassDefs.includes(c))].filter(Boolean);
+
+        // 性別一覧（個人・シンクロ共通）
+        const genders = [...new Set(byType.map(a => a.gender || ''))].filter(Boolean);
+
+        // タブ描画
+        const hasType = athletes.some(a => (a.type || 'individual') === 'synchro'); // シンクロ選手が存在するか
+        const filterEl = document.getElementById('sidebar-filters');
+        let filHtml = '';
+
+        if (hasType) {
+            filHtml += `<div class="filter-row">
+                <span class="filter-label">種目</span>
+                <button class="tab-btn ${fType==='individual'?'active':''}" onclick="setFilter('type','individual')">個人</button>
+                <button class="tab-btn ${fType==='synchro'?'active':''}" onclick="setFilter('type','synchro')">シンクロ</button>
+            </div>`;
+        }
+
+        if (classes.length >= 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">クラス</span>
+                <button class="tab-btn ${fClass===''?'active':''}" onclick="setFilter('class','')">全て</button>
+                ${classes.map(c => `<button class="tab-btn ${fClass===c?'active':''}" onclick="setFilter('class','${c}')">${c}</button>`).join('')}
+            </div>`;
+        }
+
+        if (genders.length > 1) {
+            filHtml += `<div class="filter-row"><span class="filter-label">性別</span>
+                <button class="tab-btn ${fGender===''?'active':''}" onclick="setFilter('gender','')">全て</button>
+                ${genders.map(g => `<button class="tab-btn ${fGender===g?'active':''}" onclick="setFilter('gender','${g}')">${g}</button>`).join('')}
+            </div>`;
+        }
+
+        // 決勝フィルター行（常時表示）
+        filHtml += `<div class="filter-row">
+            <span class="filter-label">ラウンド</span>
+            <button class="tab-btn ${!fFinalOnly?'active':''}" onclick="setFilter('finalOnly',false)">予選</button>
+            <button class="tab-btn ${fFinalOnly?'active':''}" onclick="setFilter('finalOnly',true)">🏆 決勝</button>
+        </div>`;
+
+        filterEl.style.display = filHtml ? '' : 'none';
+        filterEl.innerHTML = filHtml;
+
+        // 絞り込み＆ソート
+        let filtered;
+        if (fFinalOnly) {
+            filtered = byType
+                .filter(a => a.finalOrder != null)                           // 試技順確定済みのみ
+                .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+                .filter(a => !fGender || (a.gender || '') === fGender)
+                .sort((a, b) => a.finalOrder - b.finalOrder);               // 試技順（昇順）
+        } else {
+            filtered = byType
+                .filter(a => !fClass  || (a.class || a.category || '') === fClass)
+                .filter(a => !fGender || (a.gender || '') === fGender)
+                .sort((a, b) => {
+                    const ca = (a.class || a.category || ''), cb = (b.class || b.category || '');
+                    if (ca !== cb) {
+                        // クラスの並びはタブ順(display_order)に揃える
+                        const ia = classes.indexOf(ca), ib = classes.indexOf(cb);
+                        return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+                    }
+                    const ga = a.gender || '', gb = b.gender || '';
+                    if (ga !== gb) return ga.localeCompare(gb);
+                    // 同じクラス×性別内はグループ番号（選手管理のグループ）→試技順の順に並べる。
+                    // Nキーのグループ単位ナビゲーションが、この並びでグループが連続していることに依存する。
+                    const fa = a.flightGroup ?? 999, fb = b.flightGroup ?? 999;
+                    if (fa !== fb) return fa - fb;
+                    return (a.order ?? 999) - (b.order ?? 999);
+                });
+        }
+
+        sidebarFilteredAthletes = filtered; // Nキー（次の選手へ）が参照する表示順
+
+        const listEl = document.getElementById('sidebar-list');
+        const parts = [];
+        let lastCat = "", lastGender = "", lastFlightGroup = undefined;
+
+        filtered.forEach(ath => {
+            const cls = ath.class || ath.category || '';
+            if (cls !== lastCat) {
+                parts.push(`<div class="cat-group">${cls}</div>`);
+                lastCat = cls; lastGender = ""; lastFlightGroup = undefined;
+            }
+            if (!fFinalOnly && (ath.gender || '') !== lastGender) {
+                parts.push(`<div class="gender-group">${ath.gender || ''}</div>`);
+                lastGender = ath.gender || ''; lastFlightGroup = undefined;
+            }
+            // 選手管理のグループ番号（flightGroup）の境界。Nキーが送る単位と一致させる。
+            // グループ番号が設定されている選手がいる場合だけ表示し、使っていない大会では出さない。
+            if (!fFinalOnly && ath.flightGroup != null && ath.flightGroup !== lastFlightGroup) {
+                parts.push(`<div class="flight-group">グループ ${ath.flightGroup}</div>`);
+                lastFlightGroup = ath.flightGroup;
+            }
+
+            // クラスごとの予選本数を classRules から取得（なければトップレベル値にフォールバック）
+            const athType = ath.type || 'individual';
+            const classRule = currentTour.classRules?.[athType]?.[cls] || {};
+            const finalOnlyClass = classRule.finalOnly === true;   // 決勝のみ: 予選ドットなし・決勝のみ
+            const numPre = finalOnlyClass ? 0 : (classRule.qualifyingRoutines ?? currentTour.qualifyingRoutines ?? 1);
+            const hasFinalClass = finalOnlyClass ? true : (classRule.hasFinal ?? false);
+
+            let dotsHtml = "";
+            if (fFinalOnly) {
+                // 決勝モード: Fドットのみ（番号列に試技順を表示）
+                dotsHtml = getDotHtml(ath.id, 'final', 'F');
+            } else {
+                for (let i = 1; i <= numPre; i++) dotsHtml += getDotHtml(ath.id, `pre${i}`, `R${i}`);
+                if (hasFinalClass) dotsHtml += getDotHtml(ath.id, 'final', 'F');
+            }
+
+            const isActive = ath.id === athleteId;
+            const orderNum = fFinalOnly ? ath.finalOrder : ath.order;
+            const nameHtml = isSynchro
+                ? `<span class="ath-order">${orderNum}.</span>${ath.name1} / ${ath.name2 || ''}`
+                : `<span class="ath-order">${orderNum}.</span>${ath.name1}`;
+            const clubHtml = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+                ? `${ath.club1 || ''} / ${ath.club2}` : (ath.club1 || '');
+
+            parts.push(`
+                <div class="athlete-row ${isActive ? 'active-athlete' : ''}">
+                    <div style="flex:1;min-width:0;">
+                        <div class="ath-name-text">${nameHtml}</div>
+                        <div class="ath-club-text">${clubHtml}</div>
+                    </div>
+                    <div class="round-box">${dotsHtml}</div>
+                </div>`);
+        });
+        listEl.innerHTML = parts.join('');
+    }
+
+    window.setFilter = (key, val) => {
+        if (key === 'type')      { fType = val; fClass = ''; fGender = ''; fFinalOnly = false; }
+        if (key === 'class')     fClass  = val;
+        if (key === 'gender')    fGender = val;
+        if (key === 'finalOnly') fFinalOnly = (val === true);
+        renderSidebar();
+    };
+
+    // 「黄色枠のまま確定」の印（confirmedIncomplete）は確定した瞬間の画面状態で保存されるため、確定直後に
+    // 入力・確定が追いついた場合（E審判の確定が数秒遅れた等）でも true のまま残る。
+    // 一覧の表示では、保存フラグがtrueでも、最新のデータが「そろっている」ならこの印を出さない
+    // （保存データは変えない。印を消すだけで、新たに付けることはしない）。
+    //  未完了とみなす条件（1つでも当てはまれば未完了）:
+    //   ・D審判が未確定（dConfirmedAt が無い。CJPがDを手動入力して保存した場合は確定扱い）
+    //   ・ToF / HD が 0 または未入力（確定時に空欄だと 0 で保存されるため）
+    //   ・保存されているE審判のうち、確定（confirmedAt）していない審判がいる
+    function isResultStillIncomplete(r) {
+        if (!r) return false;
+        const manualD = Array.isArray(r.officialDDValues) && r.officialDDValues.length > 0 && r.officialTotalDD != null;
+        if (!r.dConfirmedAt && !manualD) return true;
+        if (!(Number(r.tof) > 0)) return true;
+        if (!(Number(r.hd?.total) > 0)) return true;
+        const judges = Object.values(r.execution?.judges || {});
+        if (judges.some(j => !j?.confirmedAt)) return true;
+        return false;
+    }
+
+    // ドットの状態クラスを計算（getDotHtml / updateCurrentDot で共用）
+    function dotStateClass(aid, rid) {
+        const id = `${eventId}_${aid}_${rid}`;
+        const r = results[id];
+        return (r?.published ? 'has-res' : (submissions[id] ? 'has-sub' : '')) +
+               (r?.dns === true ? ' dns-dot' : '') +
+               // 内訳が黄色枠（D/E/ToF/HDのいずれか未確定・未入力）のまま確定された場合、目立たせる
+               (r?.published && r?.confirmedIncomplete === true && isResultStillIncomplete(r) ? ' confirmed-incomplete' : '') +
+               (aid === athleteId && rid === round ? ' current' : '');
+    }
+
+    function getDotHtml(aid, rid, label) {
+        return `<a href="#" class="r-dot ${dotStateClass(aid, rid)}" data-aid="${aid}" data-rid="${rid}" onclick="switchAthlete('${aid}','${rid}');return false;">${label}</a>`;
+    }
+
+    // watchScores() 用の軽量更新: 現在選択中のドット1つだけを更新する。
+    // renderSidebar() をフル再描画すると、E審判が1減点入力するたびに
+    // 無関係な選手を含む一覧全体を作り直すことになり非常に高コストなため、
+    // 変化しうるのは「今見ている選手・ラウンドのドット」だけであることを利用して省略する。
+    function updateCurrentDot() {
+        if (!athleteId || !round) return;
+        const dot = document.querySelector(`.r-dot[data-aid="${CSS.escape(athleteId)}"][data-rid="${round}"]`);
+        if (!dot) return; // フィルタ対象外で非表示中。再表示/フィルタ変更時にrenderSidebar()で反映される
+        dot.className = `r-dot ${dotStateClass(athleteId, round)}`;
+    }
+
+    // ---- 選手切り替え（ページリロードなし） ----
+    window.switchAthlete = async function(aid, rid) {
+        if (aid === athleteId && rid === round) return;
+
+        // 旧リスナー解除
+        if (unsubscribeScores) { unsubscribeScores(); unsubscribeScores = null; }
+        if (unsubscribeSub)    { unsubscribeSub();    unsubscribeSub    = null; }
+
+        // 変数更新
+        athleteId = aid;
+        round = rid;
+
+        // 内訳欄を即座に空状態へリセットする（init()と同じ呼び出し方）。
+        // watchScores()が新しい選手のデータを受け取ってrenderScores()が呼ばれるまでの間、
+        // athleteId/roundは新しい選手を指しているのに内訳表示（_preciseE・
+        // _lastSummaryBorderColor・#res-d等）が前の選手の値のまま残る瞬間があり、
+        // その間に確定操作（S ショートカット・確定ボタン）をすると前の選手の点数が
+        // 新しい選手のIDで保存されてしまう。ここで先に空状態にしておくことで、
+        // 万一その瞬間に確定されても保存されるのは空のスコアであり、前の選手の点数が
+        // 誤って別選手のものとして保存されることはなくなる。
+        renderScores({});
+
+        // 指定難度リセット
+        designatedDDCount = -1; designatedDDIndices = []; designatedDDManualChanged = false;
+        renderDesignatedRow();
+
+        // 手動入力状態リセット
+        manualRows = new Set();
+        pendingEdits = {};
+        latestData = {};
+
+        // D mode リセット
+        dMode = 'auto';
+        dModeAutoExplicit = false;
+        const dToggle = document.getElementById('d-mode-toggle');
+        if (dToggle) dToggle.checked = false;
+        document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+        document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+        const dBonusCell = document.getElementById('dd-bonus-cell');
+        if (dBonusCell) { dBonusCell.contentEditable = 'false'; dBonusCell.classList.remove('d-manual-cell'); }
+        const dTotalCell0 = document.getElementById('dd-total-cell');
+        if (dTotalCell0) { dTotalCell0.contentEditable = 'false'; dTotalCell0.classList.remove('d-manual-cell'); }
+
+        // classRules が更新されている場合を考慮して大会データをサーバーから最新取得
+        try {
+            const _freshSnap = await getDocFromServer(doc(db, 'tournaments', eventId));
+            if (_freshSnap.exists()) currentTour = _freshSnap.data();
+        } catch(e) { /* ネットワーク不良時は既存の currentTour を使用 */ }
+
+        // ToF/HD/Pen mode リセット → classRules の初期値を直接適用（'auto' ハードコード不使用）
+        isLocked = false;
+        const _resetMode = (btnId, inpId, defaultVal = '') => {
+            const btn = document.getElementById(btnId);
+            const inp = document.getElementById(inpId);
+            if (btn) { btn.textContent = '読込'; btn.classList.remove('manual'); btn.disabled = false; }
+            if (inp) { inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
+                       inp.value = defaultVal; inp.disabled = false; }
+        };
+        {
+            const _sa    = athletes.find(a => a.id === aid);
+            const _saT   = _sa?.type || 'individual';
+            const _saC   = _sa?.class || _sa?.category || '';
+            const _saR   = currentTour?.classRules?.[_saT]?.[_saC] || {};
+            tofMode = 'auto'; _resetMode('tof-mode-btn', 'tof');
+            hdMode  = 'auto'; _resetMode('hd-mode-btn',  'hd');
+            _resetMode('pen-mode-btn', 'pen', '0');
+            appliedPenalties = []; _penDirty = false; renderPenaltyChips(); // ペナルティも選手切替でリセット
+            // classRulesの初期モードをリセット直後に適用
+            if ((_saR.tofDefaultMode || _saR.tofHdDefaultMode) === 'manual') toggleTofMode();
+            if ((_saR.hdDefaultMode  || _saR.tofHdDefaultMode) === 'manual') toggleHdMode();
+        }
+
+        // HDTS 技別行リセット
+        resetHdtsRows();
+
+        // バナー更新
+        const ath = athletes.find(a => a.id === aid);
+        if (ath) {
+            if (ath.type && ath.type !== fType) { fType = ath.type; fClass = ''; fGender = ''; } // 種目切替時はクラス・性別フィルタもリセット
+            else if (ath.type) fType = ath.type;
+            applySynchroUI(fType === 'synchro');
+            const dispName2 = ath.type === 'synchro' && ath.name2 ? `${ath.name1} / ${ath.name2}` : ath.name1;
+            const clubDisp2 = ath.type === 'synchro' && ath.club2 && ath.club1 !== ath.club2
+                ? `${ath.club1} / ${ath.club2}` : (ath.club1 || '');
+            const displayOrder2 = (rid === 'final' && ath.finalOrder != null) ? ath.finalOrder : ath.order;
+            document.getElementById('ath-name').innerText = `No.${displayOrder2} ${dispName2}`;
+            document.getElementById('ath-club').textContent = clubDisp2;
+            document.getElementById('ath-meta').innerText = `${ath.class || ath.category || '-'} / ${roundLabel(rid)}`;
+            updateTeamRankingBtn();
+
+            // liveState 更新（選手切り替え時は必ずロック解除）。
+            // 記録主任モードはE審判画面に一切影響を与えないためスキップする。
+            if (!isRecorder) await setDoc(doc(db, 'tournaments', eventId), {
+                liveState: { [panel]: {
+                    athleteId: aid,
+                    athleteName: `No.${displayOrder2} ${dispName2}`,
+                    athleteClass: ath.class || ath.category || '',
+                    athleteGender: ath.gender || '',
+                    athleteType: ath.type || 'individual',
+                    round: rid, updatedAt: serverTimestamp(),
+                    locked: false
+                }}
+            }, { merge: true });
+
+            // 指定難度ロード
+            updateDesignatedForAthlete(ath, rid);
+
+            applyHdtsVisibility(ath);
+        }
+
+        // URL 更新（ブラウザ履歴に残す）
+        history.pushState({}, '', isRecorder
+            ? `judge_cjp.html?event=${eventId}&mode=recorder&athlete=${aid}&round=${rid}`
+            : `judge_cjp.html?event=${eventId}&panel=${panel}&role=${role}&athlete=${aid}&round=${rid}`);
+
+        // サイドバー更新 → スコア監視開始
+        renderSidebar();
+        watchScores();
+        watchSubmission();
+    };
+
+    // ---- 指定難度 関数群 ----
+    function renderDesignatedRow() {
+        const row = document.getElementById('designated-row');
+        if (!row) return;
+        // 1本以上指定時のみ行を表示（0本指定=全DD0なのでチェック操作不要）
+        row.style.display = designatedDDCount > 0 ? '' : 'none';
+        for (let i = 0; i < 10; i++) {
+            const cell = document.getElementById(`dsg-${i}`);
+            if (!cell) continue;
+            const sel = designatedDDIndices.includes(i);
+            cell.textContent = sel ? '✓' : '·';
+            cell.classList.toggle('dsg-on', sel);
+        }
+        const countEl = document.getElementById('dsg-count');
+        if (countEl) countEl.textContent = `${designatedDDIndices.length}/${designatedDDCount}`;
+    }
+
+    window.toggleDesignated = function(idx) {
+        if (designatedDDCount <= 0) return; // 無効または0本指定時は操作不可
+        const pos = designatedDDIndices.indexOf(idx);
+        if (pos >= 0) {
+            designatedDDIndices.splice(pos, 1);
+        } else {
+            if (designatedDDIndices.length >= designatedDDCount) return; // 上限
+            designatedDDIndices.push(idx);
+        }
+        designatedDDManualChanged = true;
+        renderDesignatedRow();
+        renderScores(latestData);
+    };
+
+    function updateDesignatedForAthlete(ath, rid) {
+        if (!ath) {
+            designatedDDCount = -1; designatedDDIndices = []; designatedDDManualChanged = false;
+            renderDesignatedRow(); return;
+        }
+        const athType  = ath.type || 'individual';
+        const athClass = ath.class || ath.category || '';
+        const classRule = currentTour?.classRules?.[athType]?.[athClass] || {};
+        // 難度の上限・指定難度の設定（読み取りは shared.js の parseDDRule）
+        ddRule = parseDDRule(classRule, rid);
+        // 指定難度は2本合計・予選1本目のみ有効（-1=無効, 0=全DD0, 1-9=N本指定）
+        designatedDDCount = ddRule.designatedDDCount;
+
+        const resId = `${eventId}_${ath.id}_${rid}`;
+        const officialIdx    = results[resId]?.officialDesignatedDDIndices;
+        const submissionIdx  = submissions[resId]?.designatedDDIndices;
+        designatedDDIndices  = [...(officialIdx || submissionIdx || [])];
+        designatedDDManualChanged = false;
+        renderDesignatedRow();
+    }
+
+    function watchSubmission() {
+        if (unsubscribeSub) unsubscribeSub();
+        const resId = `${eventId}_${athleteId}_${round}`;
+        unsubscribeSub = onSnapshot(doc(db, "submissions", resId), snap => {
+            submissions[resId] = snap.exists() ? snap.data() : null;
+            // 審判が未変更の場合、選手の申告した指定インデックスを反映
+            if (!designatedDDManualChanged && designatedDDCount > 0) {
+                const idx = submissions[resId]?.designatedDDIndices;
+                if (idx) { designatedDDIndices = [...idx]; renderDesignatedRow(); }
+            }
+            renderScores(latestData);
+        });
+    }
+
+    function watchScores() {
+        if (unsubscribeScores) { unsubscribeScores(); unsubscribeScores = null; }
+        const resId = `${eventId}_${athleteId}_${round}`;
+        unsubscribeScores = onSnapshot(doc(db, "results", resId), async (snap) => {
+            latestData = snap.exists() ? snap.data() : {};
+            // ローカルキャッシュ更新（getDotHtml のドット判定に使用）
+            if (snap.exists()) { results[resId] = latestData; }
+            else               { delete results[resId]; }
+            const newLocked = latestData.published === true;
+            const lockChanged = newLocked !== isLocked;
+            renderScores(latestData);
+            updateCurrentDot(); // ドット色をリアルタイムに更新（フル再描画は避け、該当ドットのみ差し替え）
+            // E審判のロック状態をFirestoreに同期（変化があった場合のみ）。記録主任モードは対象外。
+            if (lockChanged && !isRecorder) {
+                setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: { [panel]: { locked: newLocked } }
+                }, { merge: true }).catch(() => {});
+            }
+        });
+    }
+
+    function applyLock(locked) {
+        isLocked = locked;
+        document.getElementById('btn-confirm').disabled        =  locked;  // 確定済みは再確定不可
+        document.getElementById('btn-confirm-silent').disabled =  locked;  // 同上
+        document.getElementById('btn-unlock').disabled         = !locked;  // 未確定時は修正不要
+        document.getElementById('btn-republish').disabled   = false;    // 選手選択後は常に有効
+        document.getElementById('btn-calculating').disabled = false;    // 選手選択後は常に有効
+        document.getElementById('btn-inquiry').disabled     = false;    // 選手選択後は常に有効（確定後の問い合わせにも対応するため）
+        document.getElementById('btn-hdts').disabled        = locked;   // 確定後は操作不可
+        // 確定後: 手動切替・有効本数・入力欄をロック
+        document.getElementById('tof-mode-btn').disabled = locked;
+        document.getElementById('hd-mode-btn').disabled  = locked;
+        const _penSel = document.getElementById('pen-select'); if (_penSel) _penSel.disabled = locked;
+        renderPenaltyChips(); // チップの✕ボタンのロック状態を反映
+        document.getElementById('valid-count').disabled  = locked;
+        document.getElementById('tof').disabled          = locked;
+        document.getElementById('hd').disabled           = locked;
+        document.getElementById('pen').disabled          = locked;
+        document.querySelectorAll('.sn-th').forEach(th => {
+            th.style.pointerEvents = locked ? 'none' : '';
+            th.style.cursor        = locked ? 'default' : '';
+            th.style.opacity       = locked ? '0.5' : '';
+        });
+        // E審判 行ごとの手動トグルをロック
+        document.querySelectorAll('.toggle-col input[type="checkbox"]').forEach(cb => {
+            cb.disabled = locked;
+        });
+        // 得点削除ボタン: 選手選択後は常に表示
+        const delBtn = document.getElementById('btn-delete-result');
+        if (delBtn) delBtn.style.display = athleteId ? '' : 'none';
+        // 棄権ボタン: DNS でなく、未確定で選手選択済みのときのみ表示
+        const isDns = latestData?.dns === true;
+        const dnsBtn = document.getElementById('btn-dns');
+        if (dnsBtn) dnsBtn.style.display = (athleteId && !locked && !isDns) ? '' : 'none';
+        // DNSバナー
+        const dnsBanner = document.getElementById('dns-banner');
+        if (dnsBanner) dnsBanner.classList.toggle('show', isDns);
+    }
+
+    window.unlock = async function() {
+        applyLock(false);
+        lockedOfficialSkills = null;
+        // 指定難度を申告値にリセット
+        const resId = `${eventId}_${athleteId}_${round}`;
+        const submissionIdx = submissions[resId]?.designatedDDIndices;
+        designatedDDIndices = [...(submissionIdx || [])];
+        designatedDDManualChanged = false;
+        renderDesignatedRow();
+        // 「修正」はスコアのロック解除のみ。Dの確定(dConfirmedAt)は維持し内訳Dを消さない。Firestore往復を待たず即時反映。
+        if (latestData) {
+            delete latestData.verifiedAt; latestData.published = false;
+            renderScores(latestData);
+        }
+        await Promise.all([
+            // 記録主任モードはE審判画面に一切影響を与えないためliveState更新をスキップする。
+            isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
+                liveState: { [panel]: { locked: false } }
+            }, { merge: true }),
+            athleteId ? setDoc(doc(db, 'results', resId), {
+                verifiedAt: deleteField(),
+                published: false   // スコアのロック解除（Dの確定は維持。D審判が「修正する」を押すと解除される）
+            }, { merge: true }) : Promise.resolve()
+        ]);
+    };
+
+    // 得点削除: results ドキュメントを完全削除してゼロ状態に戻す
+    window.deleteResult = async function() {
+        if (!athleteId) return;
+        if (!confirm('この選手のラウンドの得点データをすべて削除しますか？\nD審判・E審判の入力内容も含めて完全に削除されます。')) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        try {
+            await Promise.all([
+                deleteDoc(doc(db, 'results', resId)),
+                // 記録主任モードはliveState・calculating（会場ディスプレイ関連）を一切書き換えない
+                isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: { [panel]: { locked: false } },
+                    calculating: false
+                }, { merge: true })
+            ]);
+
+            boardRemove({ eventId, tour: currentTour, athletes, teams: teamDocs, athleteId, round });   // 公開スコアボードからも消す
+            // ローカル状態リセット（switchAthlete と同等）
+            delete results[resId];
+            latestData = {};
+            manualRows = new Set();
+            pendingEdits = {};
+            dMode = 'auto';
+            dModeAutoExplicit = false;
+            lockedOfficialSkills = null;
+            const dToggle = document.getElementById('d-mode-toggle');
+            if (dToggle) dToggle.checked = false;
+            document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            const dBonusCell = document.getElementById('dd-bonus-cell');
+            if (dBonusCell) { dBonusCell.contentEditable = 'false'; dBonusCell.classList.remove('d-manual-cell'); }
+            const dTotalCell1 = document.getElementById('dd-total-cell');
+            if (dTotalCell1) { dTotalCell1.contentEditable = 'false'; dTotalCell1.classList.remove('d-manual-cell'); }
+
+            // 指定難度を申告値にリセット
+            const submissionIdx = submissions[resId]?.designatedDDIndices;
+            designatedDDIndices = [...(submissionIdx || [])];
+            designatedDDManualChanged = false;
+            renderDesignatedRow();
+
+            // ロック解除・申告技をデフォルトとして再表示
+            applyLock(false);
+            const subData = submissions[resId];
+            const initSkills = (subData?.skills || []).map(s => {
+                if (!s) return '';
+                if (typeof s === 'object' && s !== null) {
+                    if (s.id) return String(s.id);
+                    // idなしオブジェクト（{skill,dd}形式）→ symbolからID逆引き
+                    const found = s.skill ? Object.values(skillMasterMap).find(v => v.symbol === s.skill) : null;
+                    return found ? found.id : (s.skill || '');
+                }
+                return String(s);
+            });
+            renderScores(initSkills.length > 0 ? { officialSkills: initSkills } : {});
+            renderSidebar();
+        } catch(e) {
+            alert('削除に失敗しました: ' + e.message);
+        }
+    };
+
+    // ---- 棄権（DNS）----
+    window.declareDNS = async function() {
+        if (!athleteId) return;
+        if (!confirm(`No.${athletes.find(a=>a.id===athleteId)?.order || ''} を棄権（DNS）に設定しますか？`)) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        try {
+            await Promise.all([
+                setDoc(doc(db, 'results', resId), {
+                    eventId, athleteId, round,
+                    dns: true, published: true, dnsAt: serverTimestamp()
+                }, { merge: true }),
+                // 記録主任モードはE審判画面に一切影響を与えないためliveState更新をスキップする。
+                isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: { [panel]: { locked: true } }
+                }, { merge: true })
+            ]);
+            boardDns({ eventId, tour: currentTour, athletes, teams: teamDocs, athleteId, round });   // 公開スコアボードに棄権を書く
+        } catch(e) { alert('エラー: ' + e.message); }
+    };
+
+    // 棄権取り消し: results を完全削除してゼロ状態に戻す
+    window.cancelDNS = async function() {
+        if (!athleteId) return;
+        if (!confirm('棄権を取り消しますか？\n得点データも削除されます。')) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        try {
+            await Promise.all([
+                deleteDoc(doc(db, 'results', resId)),
+                // 記録主任モードはliveState・calculating（会場ディスプレイ関連）を一切書き換えない
+                isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
+                    liveState: { [panel]: { locked: false } }, calculating: false
+                }, { merge: true })
+            ]);
+            boardRemove({ eventId, tour: currentTour, athletes, teams: teamDocs, athleteId, round });   // 公開スコアボードからも消す
+            delete results[resId];
+            latestData = {};
+            manualRows = new Set(); pendingEdits = {};
+            dMode = 'auto'; dModeAutoExplicit = false; lockedOfficialSkills = null;
+            const dToggle = document.getElementById('d-mode-toggle');
+            if (dToggle) dToggle.checked = false;
+            document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable='false'; el.classList.remove('d-manual-cell'); });
+            document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable='false'; el.classList.remove('d-manual-cell'); });
+            const dBc = document.getElementById('dd-bonus-cell');
+            if (dBc) { dBc.contentEditable='false'; dBc.classList.remove('d-manual-cell'); }
+            const dTotalCell2 = document.getElementById('dd-total-cell');
+            if (dTotalCell2) { dTotalCell2.contentEditable='false'; dTotalCell2.classList.remove('d-manual-cell'); }
+            const submissionIdx = submissions[resId]?.designatedDDIndices;
+            designatedDDIndices = [...(submissionIdx || [])];
+            designatedDDManualChanged = false;
+            renderDesignatedRow();
+            applyLock(false);
+            renderScores({});
+            renderSidebar();
+        } catch(e) { alert('取り消しに失敗しました: ' + e.message); }
+    };
+
+    // 再表示: publishedAtを更新して会場ディスプレイに再アニメーション
+    window.republish = async function() {
+        if (!athleteId) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        await Promise.all([
+            setDoc(doc(db, 'results', resId), { publishedAt: serverTimestamp() }, { merge: true }),
+            // 再表示で別の画面が出るので集計中・団体順位表などを解除しスコア画面へ
+            setDoc(doc(db, 'tournaments', eventId), { calculating: false, venueScreen: 'score', venueScreenAt: serverTimestamp() }, { merge: true })
+        ]);
+    };
+
+    // 集計中表示: 会場ディスプレイに選手情報付きの「得点集計中」画面を出す（審判側は変更なし）
+    window.showCalculating = async function() {
+        await setDoc(doc(db, 'tournaments', eventId), {
+            calculating: true,
+            calculatingAthleteId: athleteId || null,
+            calculatingRound:     round     || null
+        }, { merge: true });
+    };
+
+    // インクワイアリ表示: 会場ディスプレイに選手情報付きの「得点問い合わせ確認中」画面を出す
+    // （集計中と同じ優先度・同じライフサイクル。他の誰かの得点が確定した時点で自動的に消える）
+    window.showInquiry = async function() {
+        if (!athleteId) return;
+        const ath = athletes.find(a => a.id === athleteId);
+        if (!confirm(`No.${ath?.order ?? ''} ${ath?.name1 || ''} のインクワイアリを会場ディスプレイに表示しますか？`)) return;
+        await setDoc(doc(db, 'tournaments', eventId), {
+            inquiry: true,
+            inquiryAthleteId: athleteId || null,
+            inquiryRound:     round     || null
+        }, { merge: true });
+    };
+
+    // 団体順位表: 現在の選手のカテゴリー(class×gender)の団体順位を会場ディスプレイに表示
+    window.showTeamRanking = async function() {
+        const ath = athletes.find(a => a.id === athleteId);
+        if (!ath) return;
+        await setDoc(doc(db, 'tournaments', eventId), {
+            venueScreen: 'teamRanking',
+            venueScreenAt: serverTimestamp(),
+            teamRankingTarget: {
+                class:  ath.class || ath.category || '',
+                gender: ath.gender || '',
+                type:   ath.type || 'individual'
+            },
+            calculating: false // 集計中表示を解除
+        }, { merge: true });
+    };
+
+    // 選択中の選手のクラス×性別にチームがあれば「団体順位表」ボタンを表示
+    function updateTeamRankingBtn() {
+        const btn = document.getElementById('btn-team-ranking');
+        if (!btn) return;
+        if (isRecorder) { btn.style.display = 'none'; return; } // 会場ディスプレイを切り替えるボタンのため記録主任モードでは常に非表示
+        const ath = athletes.find(a => a.id === athleteId);
+        const key = ath ? `${ath.class || ath.category || ''}|${ath.gender || ''}` : '';
+        btn.style.display = (ath && teamCategoryKeys.has(key)) ? '' : 'none';
+    }
+
+
+    // ---- セル色クラス決定（2段階）----
+    // v: 0.0-1.0 形式の減点値, sr: skillResult, jIdx: 審判インデックス（jKeys中の位置）
+    // i: 技番号, vLimit: 有効本数
+    function _resolveRange(sr, jIdx) {
+        // シンクロ: jIdx偶数=奇数グループ(E1,E3,E5), jIdx奇数=偶数グループ(E2,E4,E6)
+        if (sr.groupData) {
+            const gr = jIdx % 2 === 0 ? sr.groupData.oddResult : sr.groupData.evenResult;
+            return { midMin: gr.midMin, midMax: gr.midMax, isMiddle: gr.indices.has(jIdx) };
+        }
+        return { midMin: sr.midMin, midMax: sr.midMax, isMiddle: sr.indices.has(jIdx) };
+    }
+    function cellColorCls(v, sr, jIdx, i, vLimit) {
+        if (i >= vLimit || v === null) return v !== null ? 'val-filled' : '';
+        const { midMin, midMax, isMiddle } = _resolveRange(sr, jIdx);
+        if (midMin === null) return v !== null ? 'val-filled' : '';
+        if (isMiddle) return 'val-filled'; // 採用審判は無色
+        if (v < midMin - 1e-9) {
+            const diff = Math.round((midMin - v) * 10);
+            return diff >= 2 ? 'low-cell' : 'low-cell-mild';
+        }
+        if (v > midMax + 1e-9) {
+            const diff = Math.round((v - midMax) * 10);
+            return diff >= 2 ? 'high-cell' : 'high-cell-mild';
+        }
+        return 'val-filled';
+    }
+    function landingColorCls(lv, lr, jIdx, vLimit) {
+        if (vLimit < 10 || lv === null) return lv !== null ? 'val-filled' : '';
+        const { midMin, midMax, isMiddle } = _resolveRange(lr, jIdx);
+        if (midMin === null) return lv !== null ? 'val-filled' : '';
+        if (isMiddle) return 'val-filled';
+        if (lv < midMin - 1e-9) {
+            const diff = Math.round((midMin - lv) * 10);
+            return diff >= 2 ? 'low-cell' : 'low-cell-mild';
+        }
+        if (lv > midMax + 1e-9) {
+            const diff = Math.round((lv - midMax) * 10);
+            return diff >= 2 ? 'high-cell' : 'high-cell-mild';
+        }
+        return 'val-filled';
+    }
+
+    // ---- 中間2名ルール（グループインデックス付き） ----
+    // groupIdxs: 例 [0,2,4] → 全審判配列中のインデックス
+    function middle2Synchro(allVals, groupIdxs) {
+        const groupVals = groupIdxs.map(gi => allVals[gi]);
+        const filled = groupVals.map((v, li) => ({ v, gi: groupIdxs[li] }))
+                                .filter(x => x.v !== null && x.v !== undefined);
+        if (filled.length < 2) return { sum: 0, indices: new Set(), midMin: null, midMax: null };
+        const sorted = [...filled].sort((a, b) => a.v - b.v);
+        const n = sorted.length;
+        const mid = Math.floor((n - 2) / 2);
+        const v0 = sorted[mid].v, v1 = sorted[mid + 1].v;
+        return {
+            sum: v0 + v1,
+            indices: new Set([sorted[mid].gi, sorted[mid + 1].gi]),
+            midMin: Math.min(v0, v1),
+            midMax: Math.max(v0, v1)
+        };
+    }
+
+    // ---- 中間2名ルール（個人用） ----
+    // values: 各E審判の減点値（null=未入力）
+    // 返り値: { sum: 中間2名の和, indices: 中間2名のインデックスSet }
+    function middle2(values) {
+        const filled = values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
+        if (filled.length < 2) return { sum: 0, indices: new Set(), midMin: null, midMax: null };
+        const sorted = [...filled].sort((a, b) => a.v - b.v);
+        const n = sorted.length;
+        const mid = Math.floor((n - 2) / 2);
+        const v0 = sorted[mid].v, v1 = sorted[mid + 1].v;
+        return {
+            sum:    v0 + v1,
+            indices: new Set([sorted[mid].i, sorted[mid + 1].i]),
+            midMin: Math.min(v0, v1),   // 採用値の下限
+            midMax: Math.max(v0, v1)    // 採用値の上限
+        };
+    }
+
+    // ---- 中央値1名（3人から真ん中を取得） ----
+    function median1(values) {
+        const filled = values.filter(v => v !== null && v !== undefined);
+        if (filled.length === 0) return null;
+        filled.sort((a, b) => a - b);
+        if (filled.length === 1) return filled[0];
+        if (filled.length === 2) return (filled[0] + filled[1]) / 2;
+        return filled[Math.floor(filled.length / 2)]; // 3人→真ん中
+    }
+
+    // ---- シンクロ用E減点計算 ----
+    // numE=2: 2人の平均, numE=4: 4人の平均, numE=6: E1,3,5の中間値 + E2,4,6の中間値 の平均
+    function synchroEDed(values, numE) {
+        const filled = values.filter(v => v !== null && v !== undefined);
+        if (filled.length === 0) return { avg: 0, hasData: false };
+        if (numE <= 4) {
+            // 2人 or 4人: 全員の平均
+            const avg = filled.reduce((a, b) => a + b, 0) / filled.length;
+            return { avg, hasData: true };
+        }
+        // 6人: E1,3,5(奇数)の中間値 + E2,4,6(偶数)の中間値 → 平均
+        const oddVals  = [values[0], values[2], values[4]]; // E1, E3, E5
+        const evenVals = [values[1], values[3], values[5]]; // E2, E4, E6
+        const medOdd  = median1(oddVals);
+        const medEven = median1(evenVals);
+        if (medOdd === null && medEven === null) return { avg: 0, hasData: false };
+        if (medOdd === null) return { avg: medEven, hasData: true };
+        if (medEven === null) return { avg: medOdd, hasData: true };
+        return { avg: (medOdd + medEven) / 2, hasData: true };
+    }
+
+    // ---- 演技点計算 ----
+    function calcExecution(data) {
+        const isSynchro = fType === 'synchro';
+        // パネルプレフィックスでフィルタリングし、表示用にプレフィックスを除去。
+        // 記録主任モードでは選手が実際に競技したパネル（flightGroup）を使う（PANEL A/Bどちらの
+        // 選手でも確定済みのE審判の得点を正しく拾えるようにするため）。
+        const allJudges   = data?.execution?.judges || {};
+        const panelPrefix = `${curPanel()}_`;
+        const judges      = Object.fromEntries(
+            Object.entries(allJudges)
+                .filter(([k]) => k.startsWith(panelPrefix))
+                .map(([k, v]) => [k.slice(panelPrefix.length), v])
+        );
+        const vLimit = data?.validCount ?? 10;
+        const numE   = getNumE();
+        const jKeys  = Array.from({ length: numE }, (_, i) => `E${i + 1}`);
+
+        if (!isSynchro) {
+            // ---- 個人: 各技の中間2名の合計 ----
+            const skillResults = Array.from({ length: 10 }, (_, si) => {
+                const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
+                return middle2(vals);
+            });
+            const landingResult = vLimit === 10
+                ? middle2(jKeys.map(k => judges[k]?.landing ?? null))
+                : { sum: 0, indices: new Set() };
+            const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
+                            + landingResult.sum;
+            const execution = (vLimit * 2.0) - totalDed;
+            return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges, isSynchro };
+        } else {
+            // ---- シンクロ: 審判数に応じた平均計算 ----
+            // numE===6 のとき奇数審判(E1,E3,E5)と偶数審判(E2,E4,E6)でグループ分け
+            const _synchroGroup = numE >= 6
+                ? (vals) => {
+                    const odd  = middle2Synchro(vals, [0, 2, 4]);
+                    const even = middle2Synchro(vals, [1, 3, 5]);
+                    const allIdx = new Set([...odd.indices, ...even.indices]);
+                    return { groupData: { oddResult: odd, evenResult: even }, indices: allIdx };
+                }
+                : () => ({ groupData: null, indices: new Set() });
+
+            const skillResults = Array.from({ length: 10 }, (_, si) => {
+                const vals = jKeys.map(k => (judges[k]?.deductions || [])[si] ?? null);
+                const r = synchroEDed(vals, numE);
+                const g = _synchroGroup(vals);
+                return { sum: r.avg, indices: g.indices, midMin: null, midMax: null, hasData: r.hasData, groupData: g.groupData };
+            });
+            const landingResult = vLimit === 10
+                ? (() => {
+                    const lVals = jKeys.map(k => judges[k]?.landing ?? null);
+                    const r = synchroEDed(lVals, numE);
+                    const g = _synchroGroup(lVals);
+                    return { sum: r.avg, indices: g.indices, midMin: null, midMax: null, hasData: r.hasData, groupData: g.groupData };
+                  })()
+                : { sum: 0, indices: new Set(), hasData: false, groupData: null };
+            const totalDed  = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0)
+                            + landingResult.sum;
+            // シンクロ: 有効技数 × 1.0 − 合計減点。各要素を満精度で合計した最終Eを小数第2位に四捨五入する。
+            // ※E4人は技ごと平均が0.025刻み(例7.525)になり、素の *100 では浮動小数で752.4999…となり
+            //   切り下がるため、微小値を足して確実に「五入」（round half up）させる。
+            const execution = Math.round(((vLimit * 1.0) - totalDed) * 100 + 1e-6) / 100;
+            return { skillResults, landingResult, totalDed, execution, vLimit, numE, jKeys, judges, isSynchro };
+        }
+    }
+
+    // ---- スコア表示 ----
+    function renderScores(data) {
+        latestData = data;
+        const _vc = data.validCount ?? 10;
+        document.getElementById('valid-count').value = _vc;
+        updateValidHeaders(_vc);
+
+        // 紙運用クラス（オンライン競技カード不使用）: 技ごとの申請/実施/指定難度行は出さず、
+        // 合計DDのみを表示・確認する（D審判画面側でも同じclassRuleを見て合計だけ入力させている）。
+        const _cjpAth = athletes.find(a => a.id === athleteId);
+        isPaperMode = !!_cjpAth && currentTour?.classRules?.[_cjpAth.type || 'individual']?.[_cjpAth.class || _cjpAth.category || '']?.useOnlineCard === false;
+
+        // 手動入力中（通常のD手動モード、または紙運用のdd-total-cell編集中）はFirestoreの値で
+        // #res-d を上書きしない。紙運用ではdd-total-cellが常時編集可能なため、CJPが入力中に
+        // 同じ結果ドキュメントへ他パネル（E審判等）が書き込んでonSnapshotが再発火すると、
+        // #res-dだけ古い値/0.0に巻き戻り、そのまま確定するとdd-total-cellの表示と食い違う
+        // 誤った値が publish() されてしまう不具合があったため、フォーカス中は据え置く。
+        const _paperTotalFocused = isPaperMode && document.activeElement === document.getElementById('dd-total-cell');
+        if (dMode === 'auto' && !_paperTotalFocused) {
+            document.getElementById('res-d').innerText   = data.officialTotalDD?.toFixed(1) || "0.0";
+        }
+        ['declared-row', 'skill-symbols-row', 'designated-row'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = isPaperMode ? 'none' : '';
+        });
+        document.querySelectorAll('.d-dd').forEach(el => { el.style.display = isPaperMode ? 'none' : ''; });
+        const dModeToggleCell = document.getElementById('d-mode-toggle')?.closest('.toggle-col');
+        if (dModeToggleCell) dModeToggleCell.style.display = ''; // 紙運用でも「読込/手動」を切り替えられるよう常に表示
+
+        // ---- D情報行 ----
+        const resId = `${eventId}_${athleteId}_${round}`;
+        const subSkills = submissions[resId]?.skills || [];
+        const execSkills = data.officialSkills || [];
+        const vLimitD = data.validCount ?? 10;
+
+        // 申請行（重複は黄色、実施との差異は申請行では赤くしない→実施行で表示）
+        let hasDeclaredMismatch = false;
+        const declaredSymbols = []; // シンボルベースで比較するため格納
+        {
+            const seenKeys = new Set();
+            document.querySelectorAll('.d-declared').forEach((el, i) => {
+                const s = subSkills[i];
+                el.style.color = '';
+                el.style.fontWeight = '';
+                el.classList.remove('d-dup');
+                if (!s) { el.textContent = '-'; declaredSymbols.push(null); return; }
+                let sym;
+                if (typeof s === 'object' && s !== null) {
+                    // オブジェクト形式（entry.html が保存する {id, skill, dd}）
+                    // s.skill はシンボル文字列なので直接使わず、s.id でマスター照合する
+                    const found = s.id ? skillMasterMap[String(s.id)] : null;
+                    sym = found ? found.symbol : (s.skill || '');
+                } else {
+                    // 文字列形式（旧データ互換）
+                    const rawVal = String(s);
+                    if (!isNaN(rawVal) && rawVal !== '' && skillMasterMap[rawVal]) {
+                        sym = skillMasterMap[rawVal].symbol;
+                    } else {
+                        sym = rawVal;
+                    }
+                }
+                if (!sym) { el.textContent = '-'; declaredSymbols.push(null); return; }
+                el.textContent = sym;
+                declaredSymbols.push(sym);
+                // 申請内での重複判定: IDがあればID、なければシンボルをキーに使う
+                const dupKey = (typeof s === 'object' && s.id) ? String(s.id) : sym;
+                if (dupKey && seenKeys.has(dupKey)) {
+                    el.classList.add('d-dup');
+                } else if (dupKey) {
+                    seenKeys.add(dupKey);
+                }
+            });
+        }
+
+        // 実施行（officialSkills → skillMasterMap でシンボル取得、重複は黄色・申請差異は赤）
+        if (dMode === 'auto' && !isPaperMode) {
+            const ddCells = [...document.querySelectorAll('.d-dd')];
+            // Pass1: シンボル・ID収集 & クラスリセット（skill-header と d-dd 両方）
+            const execSymbols = [];
+            const execIds = [];
+            document.querySelectorAll('.skill-header').forEach((el, i) => {
+                el.style.color = '';
+                el.classList.remove('d-dup', 'd-mismatch');
+                if (ddCells[i]) ddCells[i].classList.remove('d-dup', 'd-mismatch');
+                const id = execSkills[i];
+                if (i >= vLimitD || !id) { el.textContent = '-'; execSymbols.push(null); execIds.push(null); return; }
+                const skill = skillMasterMap[id]
+                    || Object.values(skillMasterMap).find(v => v.symbol === id);
+                const sym = skill ? skill.symbol : String(id);
+                el.textContent = sym;
+                execSymbols.push(sym);
+                execIds.push(skill ? skill.id : String(id));
+            });
+            // 重複判定はIDベース
+            const idCount = {};
+            execIds.forEach(id => { if (id) idCount[id] = (idCount[id] || 0) + 1; });
+            // Pass2: 重複（両方）と申告差異をハイライト（skill-header と d-dd 両方に適用）
+            document.querySelectorAll('.skill-header').forEach((el, i) => {
+                const sym = execSymbols[i];
+                if (!sym) return;
+                if (execIds[i] && idCount[execIds[i]] > 1) {
+                    el.classList.add('d-dup'); // 重複は黄色（初回も含む全て）
+                    if (ddCells[i]) ddCells[i].classList.add('d-dup');
+                }
+                const declSym = declaredSymbols[i];
+                if (i < vLimitD && declSym && sym !== declSym) {
+                    el.classList.add('d-mismatch');
+                    if (ddCells[i]) ddCells[i].classList.add('d-mismatch');
+                    hasDeclaredMismatch = true;
+                }
+            });
+        }
+
+        // D確定バッジ・緑枠（クリックで切り替え）。紙運用クラスはDD行の方の見出しに出す。
+        const dInfoRows = document.querySelectorAll('.d-info-row');
+        [document.getElementById('d-confirmed-badge'), document.getElementById('d-confirmed-badge-paper')].forEach(badge => {
+            if (!badge) return;
+            if (data.dConfirmedAt) {
+                badge.textContent = '確定';
+                badge.className = 'd-badge';
+            } else {
+                badge.textContent = '未確定';
+                badge.style.cssText = 'font-size:0.68rem;color:#90a4ae;font-weight:normal;margin-left:4px;';
+                badge.className = '';
+            }
+        });
+        if (data.dConfirmedAt) {
+            dInfoRows.forEach(r => r.classList.add('d-confirmed'));
+        } else {
+            dInfoRows.forEach(r => r.classList.remove('d-confirmed'));
+        }
+
+        // 紙運用クラス: 合計DDセルを直接表示・編集可能にする（申請/実施/指定難度の行は出さない）
+        if (isPaperMode) {
+            const totalCell = document.getElementById('dd-total-cell');
+            const bonusCell = document.getElementById('dd-bonus-cell');
+            if (bonusCell) bonusCell.textContent = '-';
+            if (totalCell) {
+                // 読込（auto）: D審判が入力した合計DDを表示するだけ（編集不可・オレンジ背景なし）。
+                // 手動（manual）: CJPが直接入力する。入力中の文字をスナップショットで上書きしない。
+                const _paperManual = (dMode === 'manual');
+                if (!_paperManual && document.activeElement !== totalCell) {
+                    totalCell.textContent = data.officialTotalDD != null ? Number(data.officialTotalDD).toFixed(1) : '-';
+                }
+                totalCell.contentEditable = (_paperManual && data.published !== true) ? 'true' : 'false';
+                totalCell.classList.toggle('d-manual-cell', _paperManual);
+            }
+        }
+
+        // DD行（重複=0.0赤、ボーナス計算）
+        if (dMode === 'auto' && !isPaperMode) {
+            if (data.officialDDValues && data.officialDDValues.length > 0) {
+                // 手動入力で保存されたDD値を復元
+                document.querySelectorAll('.d-dd').forEach((el, i) => {
+                    el.style.color = '';
+                    el.style.fontWeight = '';
+                    const val = data.officialDDValues[i];
+                    el.textContent = (val !== undefined && val !== null) ? Number(val).toFixed(1) : '-';
+                });
+                const bonus = data.officialDDBonus || 0;
+                const bonusCell = document.getElementById('dd-bonus-cell');
+                if (bonusCell) bonusCell.textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
+                const totalDD = data.officialTotalDD || 0;
+                document.getElementById('dd-total-cell').textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
+                document.getElementById('res-d').innerText = totalDD > 0 ? totalDD.toFixed(1) : '0.0';
+                // 手動モードに切り替え（再読み込み後の復元。ユーザーがautoを明示選択中は除く）
+                if (!dModeAutoExplicit) {
+                    dMode = 'manual';
+                    const dToggleM = document.getElementById('d-mode-toggle');
+                    if (dToggleM) dToggleM.checked = true;
+                    document.querySelectorAll('.d-dd').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+                    document.querySelectorAll('.skill-header').forEach(el => { el.contentEditable = 'true'; el.classList.add('d-manual-cell'); });
+                    const dBonusCellM = document.getElementById('dd-bonus-cell');
+                    if (dBonusCellM) { dBonusCellM.contentEditable = 'true'; dBonusCellM.classList.add('d-manual-cell'); }
+                    const dTotalCellM = document.getElementById('dd-total-cell');
+                    if (dTotalCellM) { dTotalCellM.contentEditable = 'true'; dTotalCellM.classList.add('d-manual-cell'); }
+                }
+            } else {
+                const ath = athletes.find(a => a.id === athleteId);
+                const gender = ath?.gender || '';
+
+                // 計算は shared.js の calcCardDD。この画面は結果を各セルの文言・色に反映するだけ。
+                const calc = calcCardDD({
+                    skills: Array.from({ length: 10 }, (_, i) => {
+                        const id = execSkills[i];
+                        if (i >= vLimitD || !id) return null;
+                        const skill = skillMasterMap[id]
+                            || Object.values(skillMasterMap).find(v => v.symbol === id);
+                        return skill ? { key: id, dd: skill.dd, isTriple: skill.isTriple } : null;
+                    }),
+                    gender,
+                    ddRule: { ...ddRule, designatedDDCount },     // 指定難度（-1=無効=全技有効、0=全DD0、1以上=指定のみ有効）
+                    designatedIndices: designatedDDIndices,
+                    validLimit: vLimitD,
+                });
+
+                document.querySelectorAll('.d-dd').forEach((el, i) => {
+                    el.style.color = '';
+                    el.style.fontWeight = '';
+                    const c = calc.rows[i];
+                    if (!c) return;
+                    if (c.beyondLimit) {
+                        // 中断以降：非指定はハイフン(グレー)、指定スロットは空欄
+                        if (!c.isDesignated) { el.textContent = '-'; el.style.color = '#90a4ae'; }
+                        else { el.textContent = ''; }
+                        return;
+                    }
+                    if (c.blank) { el.textContent = '-'; return; }
+                    if (c.isDupZero) {
+                        el.textContent = '0.0';
+                        el.style.color = 'var(--danger)';
+                        el.style.fontWeight = 'bold';
+                    } else if (c.isDesignated) {
+                        // 1技あたり難度上限: 上限超の技は上限値で計算（上限適用時は色付け）
+                        el.textContent = c.usedDD.toFixed(1);
+                        if (c.isCapped) { el.style.color = '#e65100'; el.style.fontWeight = 'bold'; }
+                    } else {
+                        el.textContent = '-';          // 非指定はハイフン
+                        el.style.color = '#90a4ae';    // グレー
+                    }
+                });
+
+                // ボーナス（男子:6本目以降のトリプル×0.3、女子・混合:3本目以降のトリプル×0.3）と
+                // 構成あたり難度上限（合計が上限を超えたら上限で頭打ち）も calcCardDD の結果
+                const bonus = calc.bonus;
+                const routineCapped = calc.routineCapped;
+                let totalDD = calc.total;
+                const dTotalCell = document.getElementById('dd-total-cell');
+                dTotalCell.textContent = totalDD > 0 ? totalDD.toFixed(1) : '-';
+                dTotalCell.style.color = routineCapped ? '#e65100' : '';
+                dTotalCell.style.fontWeight = routineCapped ? 'bold' : '';
+                const bonusCell = document.getElementById('dd-bonus-cell');
+                if (bonusCell) bonusCell.textContent = bonus > 0 ? `+${bonus.toFixed(1)}` : '-';
+
+                const resDEl = document.getElementById('res-d');
+                resDEl.innerText = totalDD > 0 ? totalDD.toFixed(1) : "0.0";
+                resDEl.style.color = hasDeclaredMismatch ? 'var(--danger)' : '';
+            }
+        }
+
+        // pendingEdits を Firestore フォーマットに変換してマージ（中間2名計算用）
+        let mergedData = data;
+        if (manualRows.size > 0) {
+            const existingJudges = data?.execution?.judges || {};
+            const mergedJudges = { ...existingJudges };
+            manualRows.forEach(jKey => {
+                const pe = pendingEdits[jKey];
+                if (!pe) return;
+                const deductions = Array.from({length: 10}, (_, i) => {
+                    const d = pe.deductions?.[i] ?? null;
+                    return d !== null ? d / 10 : null;
+                });
+                const landing = pe.landing !== null ? pe.landing / 10 : null;
+                mergedJudges[`${curPanel()}_${jKey}`] = { deductions, landing };
+            });
+            mergedData = { ...data, execution: { ...(data.execution || {}), judges: mergedJudges } };
+        }
+
+        const ec = calcExecution(mergedData);
+        _lastEc = ec; // publish 時に per-skill E 保存用
+        const { skillResults, landingResult, totalDed, vLimit, numE, jKeys, judges, isSynchro } = ec;
+
+        // フォーカス位置を記憶（re-render後に復元するため）
+        const activeEl = document.activeElement;
+        const focusJKey = activeEl?.dataset?.jkey;
+        const focusIdx  = activeEl?.dataset?.idx;
+        const focusIsLanding = activeEl?.classList?.contains('manual-landing-cell');
+
+        const tbody = document.getElementById('judge-rows');
+        const rowsHtml = []; // += でtbodyを都度直列化/再パースさせないよう、文字列を貯めて最後に1回だけ書き込む
+
+        // 各E審判の行
+        jKeys.forEach((jKey, jIdx) => {
+            const jData = judges[jKey] || { deductions: Array(10).fill(null), landing: null };
+            const isManual = manualRows.has(jKey);
+            const pe = pendingEdits[jKey];
+
+            // E審判が「確定」を押すまでは行を薄字表示（確定済み or 代理入力 or 確定済みラウンドは通常）
+            const jConfirmed = (data.published === true) || isJudgeConfirmed(ec, jKey);
+            const styleParts = [];
+            if (isManual)     styleParts.push('background:rgba(255,152,0,0.05)');
+            if (!jConfirmed)  styleParts.push('opacity:0.4');
+            const rowStyle = styleParts.length ? ` style="${styleParts.join(';')}"` : '';
+            let row = `<tr${rowStyle}><td>${jKey}</td>`;
+
+            for (let i = 0; i < 10; i++) {
+                const v        = jData.deductions?.[i] ?? null;
+                const dimStyle = i >= vLimit ? 'opacity:0.15;' : '';
+                const sr       = skillResults[i];
+                if (isManual) {
+                    const cur    = pe?.deductions?.[i] ?? null;
+                    const valStr = cur !== null ? cur : '0';
+                    const vFloat = cur !== null ? cur / 10 : null;
+                    const nullCls = cur === null ? ' null-val' : '';
+                    const colorCls = cellColorCls(vFloat, sr, jIdx, i, vLimit);
+                    row += `<td class="manual-cell${nullCls} ${colorCls}" tabindex="0" data-jkey="${jKey}" data-idx="${i}" style="${dimStyle}">${valStr}</td>`;
+                } else {
+                    const colorCls = cellColorCls(v, sr, jIdx, i, vLimit);
+                    row += `<td class="${colorCls}" style="${dimStyle}">${v !== null ? Math.round(v * 10) : '-'}</td>`;
+                }
+            }
+            // 着地(Ln)列
+            const lv = jData.landing ?? null;
+            if (isManual) {
+                const curLv    = pe?.landing ?? null;
+                const valLv    = curLv !== null ? curLv : '0';
+                const vFloatLv = curLv !== null ? curLv / 10 : null;
+                const nullLvCls = curLv === null ? ' null-val' : '';
+                const colorLvCls = landingColorCls(vFloatLv, landingResult, jIdx, vLimit);
+                const disAttrs = vLimit < 10 ? ' tabindex="-1" style="opacity:0.3;"' : ` tabindex="0"`;
+                row += `<td class="manual-cell manual-landing-cell${nullLvCls} ${colorLvCls}" data-jkey="${jKey}"${disAttrs}>${vLimit < 10 ? '-' : valLv}</td>`;
+                const manualDedSum = Array.from({length: vLimit}, (_, i) => {
+                    const d = pe?.deductions?.[i] ?? null;
+                    return d !== null ? d / 10 : 0;
+                }).reduce((a, b) => a + b, 0) + (vLimit === 10 && curLv !== null ? curLv / 10 : 0);
+                row += `<td style="background:rgba(255,255,255,0.05);color:#ff9800;font-weight:bold">${(vLimit - manualDedSum).toFixed(1)}</td>`;
+            } else {
+                const lnCls = landingColorCls(lv, landingResult, jIdx, vLimit);
+                row += `<td class="${lnCls}" style="${vLimit < 10 ? 'opacity:0.15;' : ''}">${lv !== null ? Math.round(lv * 10) : '-'}</td>`;
+                // jData.totalDeduction はE審判が確定した時点のvLimitで計算済みの値のため、
+                // CJPが後から有効本数(vLimit)を変更（中断等）すると、範囲外だった技の減点が
+                // 残ったまま合計されてしまう不具合があった。表示側で現在のvLimitに合わせて
+                // deductions/landingから毎回計算し直す（manual行と同じ考え方）。
+                const dedSum = (jData.deductions || []).slice(0, vLimit).reduce((a, b) => a + (b ?? 0), 0)
+                             + (vLimit === 10 ? (jData.landing ?? 0) : 0);
+                row += `<td style="background:rgba(255,255,255,0.05)">${(vLimit - dedSum).toFixed(1)}</td>`;
+            }
+            // 行ごとのトグルスイッチ（Total右）
+            row += `<td class="toggle-col"><label class="toggle-switch-sm"><input type="checkbox" ${isManual ? 'checked' : ''} onchange="toggleRowManual('${jKey}', this.checked)"><span class="track-sm"></span></label></td>`;
+            row += `</tr>`;
+            rowsHtml.push(row);
+        });
+
+        // 中間2名合計行（データがない技は "-"）
+        const hasJudgeData = Object.keys(judges).length > 0;
+        const _medFmt = (v) => isSynchro ? (v * 10).toFixed(2) : Math.round(v * 10);
+        let m2Row = `<tr class="middle-row"><td>Med</td>`;
+        for (let i = 0; i < 10; i++) {
+            const hasVal = hasJudgeData && (skillResults[i].hasData ?? skillResults[i].indices.size > 0);
+            m2Row += i < vLimit
+                ? `<td>${hasVal ? _medFmt(skillResults[i].sum) : '-'}</td>`
+                : `<td style="opacity:0.15">-</td>`;
+        }
+        const hasLanding = hasJudgeData && (landingResult.hasData ?? landingResult.indices.size > 0);
+        m2Row += `<td>${vLimit === 10 && hasLanding ? _medFmt(landingResult.sum) : '-'}</td>`;
+        m2Row += `<td class="ded-total">${hasJudgeData ? (isSynchro ? ec.execution.toFixed(2) : ec.execution.toFixed(1)) : '-'}</td><td></td></tr>`;
+        rowsHtml.push(m2Row);
+        tbody.innerHTML = rowsHtml.join('');
+
+        // フォーカスを復元（手動入力行の再描画後）
+        if (focusJKey && manualRows.has(focusJKey)) {
+            const toFocus = focusIsLanding
+                ? document.querySelector(`.manual-landing-cell[data-jkey="${focusJKey}"]`)
+                : document.querySelector(`.manual-cell[data-jkey="${focusJKey}"][data-idx="${focusIdx}"]`);
+            if (toFocus) toFocus.focus();
+        }
+
+        // 確定済み(published)の場合はモードに関わらず保存値を表示する
+        if (tofMode === 'auto' || data.published === true) {
+            const rawTof = data.tofByPanel?.[curPanel()] ?? data.tof ?? "";
+            document.getElementById('tof').value = (fType === 'synchro' && rawTof !== "")
+                ? (parseFloat(rawTof) / 2).toFixed(3) : rawTof;
+        }
+        if (hdMode === 'auto' || data.published === true) {
+            document.getElementById('hd').value  = data.hdByPanel?.[curPanel()] ?? data.hd?.total ?? "";
+        }
+        // ペナルティは常にCJP入力。CJP未操作 or 確定済みのときだけ保存値から復元
+        if (!_penDirty || data.published === true) restorePenalty(data);
+        _dChanged = hasDeclaredMismatch; // 申告と実施の相違有無を内訳Dの色判定へ
+        _dConfirmed = !!data.dConfirmedAt; // D審判の確定有無（確定まで内訳Dは非表示）
+        updateScoreSummary(ec, hasJudgeData);
+        renderHdtsRows(data); // HDTS 技別 ToF/HD を保存値から復元表示
+
+        // 確定済みロック状態を反映
+        applyLock(data.published === true);
+    }
+
+    window.updateValid = async (val) => {
+        if (isLocked) return;
+        const resId = `${eventId}_${athleteId}_${round}`;
+        await setDoc(doc(db, "results", resId), { eventId, athleteId, round, validCount: parseInt(val) }, { merge: true });
+    };
+
+    function updateValidHeaders(n) {
+        for (let i = 1; i <= 10; i++) {
+            const th = document.getElementById(`sn-th-${i}`);
+            if (!th) continue;
+            th.classList.toggle('sn-valid',   i < n);
+            th.classList.toggle('sn-cutoff',  i === n);
+            th.classList.toggle('sn-invalid', i > n);
+        }
+    }
+
+    window.setValidCount = (n) => {
+        if (isLocked) return;
+        document.getElementById('valid-count').value = n;
+        updateValidHeaders(n);
+        updateValid(n);
+    };
+
+    window.calc = function(data) { updateScoreSummary(data ? calcExecution(data) : null); };
+
+    function applySynchroUI(isSyn) {
+        const tofLbl = document.getElementById('tof-input-label');
+        if (tofLbl) tofLbl.textContent = isSyn ? 'SYN（1/2）' : 'ToF (T)';
+        const resLbl = document.getElementById('res-t-label');
+        if (resLbl) resLbl.textContent = isSyn ? 'Syn' : 'T';
+        // HDTS技別行のToF見出しはシンクロでは Syn（同期スコア）になる
+        const hdtsLbl = document.getElementById('hdts-tof-label');
+        if (hdtsLbl) hdtsLbl.innerHTML = isSyn ? 'Syn' : 'ToF';
+        populatePenaltySelect(isSyn); // シンクロ専用ペナルティ（アウトバウンス違い等）の選択肢を切り替え
+    }
+
+    // 内訳の色（暗い背景でも見やすい明るめのシェード）
+    const _BD_GREEN = '#34d399', _BD_RED = '#ef4444', _BD_YELLOW = '#facc15';
+    // E: 全審判が有効本数分（vLimit本 + vLimit===10なら着地）を入力済みか
+    function isEComplete(ec) {
+        if (!ec) return false;
+        const judges = ec.judges || {}, jKeys = ec.jKeys || [], vLimit = ec.vLimit ?? 0;
+        for (const k of jKeys) {
+            const ded = judges[k]?.deductions || [];
+            for (let i = 0; i < vLimit; i++) if (ded[i] == null) return false;
+            if (vLimit === 10 && judges[k]?.landing == null) return false;
+        }
+        return true; // vLimit===0 も全員入力済み扱い（0本でも表示）
+    }
+    // E: 全審判が「確定」を押したか（CJPが代理入力している行は確定扱い）。
+    // 未確定の間は内訳Eを薄字＋枠を黄色にする。
+    function isEConfirmed(ec) {
+        if (!ec) return false;
+        const judges = ec.judges || {}, jKeys = ec.jKeys || [];
+        for (const k of jKeys) {
+            if (manualRows.has(k)) continue;        // CJP代理入力は確定扱い
+            if (!judges[k]?.confirmedAt) return false;
+        }
+        return true;
+    }
+    // 個々のE審判が確定済みか（各審判行の薄字判定用）
+    function isJudgeConfirmed(ec, jKey) {
+        if (manualRows.has(jKey)) return true;      // CJP代理入力は確定扱い
+        return !!(ec?.judges?.[jKey]?.confirmedAt);
+    }
+
+    function updateScoreSummary(ec, hasJudgeData = true) {
+        const dEl   = document.getElementById('res-d');
+        const eEl   = document.getElementById('res-e');
+        const tEl   = document.getElementById('res-t');
+        const hEl   = document.getElementById('res-hd');
+        const totEl = document.getElementById('res-total');
+        const summary = document.querySelector('.score-summary');
+
+        let d      = parseFloat(dEl.innerText) || 0;
+        const eVal = ec ? (hasJudgeData ? ec.execution : 0)
+                        : (parseFloat(eEl.innerText) || 0);
+        const tRaw = parseFloat(document.getElementById('tof').value) || 0;
+        const t    = (fType === 'synchro') ? tRaw * 2 : tRaw; // シンクロは×2表示
+        const h    = parseFloat(document.getElementById('hd').value) || 0;
+        const p    = penTotal(); // 選択した違反の合計 ＋ 手動加点
+        _preciseE = eVal; // 全精度を保持（保存時に使用）
+
+        const vLimit = ec ? (ec.vLimit ?? 0)
+                          : (parseInt(document.getElementById('valid-count').value) || 0);
+
+        // --- 各項目の状態: 'green' | 'red' | 'yellow' | 'blank'（未入力） ---
+        // D: 手動入力モードか、D審判の確定有無で分岐
+        const dManual = (dMode === 'manual');
+        // 手動: SUM(合計)セルと各技DDから完成度を判定
+        let dComplete = false;
+        if (dManual) {
+            const ddCells = document.querySelectorAll('.d-dd');
+            let filled = 0;
+            for (let i = 0; i < vLimit; i++) {
+                const t = (ddCells[i]?.textContent || '').trim();
+                if (t !== '' && t !== '-') filled++;
+            }
+            const sumTxt = (document.getElementById('dd-total-cell')?.textContent || '').trim();
+            const sumFilled = sumTxt !== '' && sumTxt !== '-';
+            // 各技を1つも入れていない＝SUM直接入力 → SUMが入っていれば緑
+            // 各技を入力中 → 有効本数すべて入力で緑
+            dComplete = (filled === 0) ? sumFilled : (filled >= vLimit);
+            // 内訳のD値は SUM(合計)セルの値を使う
+            const sumVal = parseFloat(sumTxt);
+            if (!isNaN(sumVal)) d = sumVal;
+        }
+        // 手動入力時は D審判の確定が無くても内訳に表示する
+        const dShow = dManual || _dConfirmed;
+        // 文字色用: 手動=完成で緑・未完成で黄／通常=未確定は非表示、確定後は相違で赤・無ければ緑
+        const dState = dManual
+            ? (dComplete ? 'green' : 'yellow')
+            : (!_dConfirmed ? 'blank' : (_dChanged ? 'red' : 'green'));
+        // 枠線用: 手動=完成で緑・未完成で黄(blank)／通常=未確定は黄、確定済みは緑
+        const dBorder = dManual
+            ? (dComplete ? 'green' : 'blank')
+            : (!_dConfirmed ? 'blank' : 'green');
+        // E: eComplete=全審判入力済み、eConfirmed=全審判が「確定」押下（or 確定済みラウンド）。
+        //    未確定の間は内訳Eを薄字＋枠を黄色にし、確定で通常表示・緑にする。
+        //    ec が渡された全体描画時に状態を確定し、calc(ec無し=ToF/HD/ペナルティ編集)では保持値を使う。
+        const ePublished = !!latestData?.published;
+        if (ec) {
+            _eComplete  = isEComplete(ec);
+            _eConfirmed = ePublished || (_eComplete && isEConfirmed(ec));
+        } else if (ePublished) {
+            _eConfirmed = true;
+        }
+        const eComplete  = _eComplete;
+        const eConfirmed = _eConfirmed;
+        const eBorder = eConfirmed ? 'green' : 'blank'; // 未確定は blank→黄色枠
+        // T: 入力されていれば緑
+        const tEntered = document.getElementById('tof').value.trim() !== '';
+        const tState = tEntered ? 'green' : 'blank';
+        // HD: 入力されていれば、有効本数×0.5〜×1.0 内で緑・範囲外で赤
+        const hEntered = document.getElementById('hd').value.trim() !== '';
+        const hdInRange = h >= vLimit * 0.5 - 1e-9 && h <= vLimit * 1.0 + 1e-9;
+        const hState = hEntered ? (hdInRange ? 'green' : 'red') : 'blank';
+
+        // --- 値の表示（未入力/未完了/D未確定は空欄） ---
+        dEl.innerText = dShow ? d.toFixed(1) : '';
+        eEl.innerText = eComplete ? (fType === 'synchro' ? eVal.toFixed(2) : eVal.toFixed(1)) : '';
+        tEl.innerText = tEntered ? t.toFixed(2) : '';
+        hEl.innerText = hEntered ? h.toFixed(3) : '';
+        const penEl = document.getElementById('res-pen');
+        if (penEl) { penEl.innerText = p > 0 ? `-${p.toFixed(1)}` : '0.0'; penEl.style.color = p > 0 ? _BD_RED : ''; }
+        const total = Math.max(0, (dShow ? d : 0) + (eComplete ? eVal : 0) + (tEntered ? t : 0) + (hEntered ? h : 0) - p);
+        totEl.innerText = total.toFixed(2);
+
+        // --- 枠線色（赤 > 黄 > 緑） ---
+        const states = [dBorder, eBorder, tState, hState];
+        const borderColor = states.includes('red') ? _BD_RED
+                          : states.includes('blank') ? _BD_YELLOW
+                          : _BD_GREEN;
+
+        // --- 文字色 ---
+        const colorOf = st => st === 'red' ? _BD_RED : st === 'green' ? _BD_GREEN : st === 'yellow' ? _BD_YELLOW : '';
+        dEl.style.color = colorOf(dState);
+        // E: 完了していれば緑。ただし全審判の確定前は薄字（opacity）で表示する。
+        eEl.style.color = eComplete ? _BD_GREEN : '';
+        eEl.style.opacity = (eComplete && !eConfirmed) ? '0.35' : '';
+        tEl.style.color = colorOf(tState);
+        hEl.style.color = colorOf(hState);
+        totEl.style.setProperty('color', borderColor, 'important'); // CSS の !important を上書き
+        if (summary) summary.style.borderColor = borderColor;
+        _lastSummaryBorderColor = borderColor; // 確定(publish)時に「黄色枠のまま確定した」かの判定に使う
+    }
+
+    window.toggleRowManual = function(jKey, on) {
+        if (isLocked) return;
+        if (on) {
+            manualRows.add(jKey);
+            const allJudges = latestData?.execution?.judges || {};
+            const jd = allJudges[`${curPanel()}_${jKey}`] || {};
+            pendingEdits[jKey] = {
+                deductions: Array.from({ length: 10 }, (_, i) =>
+                    jd.deductions?.[i] != null ? Math.round(jd.deductions[i] * 10) : null),
+                landing: jd.landing != null ? Math.round(jd.landing * 10) : null
+            };
+        } else {
+            manualRows.delete(jKey);
+            delete pendingEdits[jKey];
+        }
+        renderScores(latestData);
+        if (on) {
+            setTimeout(() => {
+                const first = document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="0"]`);
+                if (first) first.focus();
+            }, 30);
+        }
+    };
+
+    // ---- HDTS 技別行 表示切替（useHDTS 設定に従い section を show/hide） ----
+    function applyHdtsVisibility(ath) {
+        const athType  = ath?.type  || 'individual';
+        const athClass = ath?.class || ath?.category || '';
+        const cRule    = currentTour?.classRules?.[athType]?.[athClass] || {};
+        const show     = cRule.useHDTS !== false; // default true
+        document.querySelectorAll('.hdts-section-head, #hdts-tof-row, #hdts-hd-row').forEach(el => {
+            el.style.display = show ? '' : 'none';
+        });
+    }
+
+    // シンクロHDのTotal表示: 有効本数Nと2人分の減点合計(0.1単位)から合成HDスコア = N − (hd1+hd2)/20
+    // HDスコアの満点は「有効本数 × 1.0」。中断時(例:5本有効)も N を反映する。
+    // 例) 10本有効で 3 / 10 → 10 − 13/20 = 9.35 ／ 5本有効なら 5 − 13/20 = 4.35
+    function synHdScore(hd1Total, hd2Total, validCount) {
+        const n = Number(validCount) || 10;
+        return (n - ((Number(hd1Total) || 0) + (Number(hd2Total) || 0)) / 20).toFixed(2);
+    }
+
+    // ---- HDTS 技別 ToF/HD を Firestore の保存値（パネル別）から復元表示 ----
+    function renderHdtsRows(data) {
+        const ps = data?.hdtsPerSkillByPanel?.[curPanel()];
+        // シンクロ保存データ（Syn + 2人分HD）の復元
+        if (ps && (ps.isSynchro || ps.syn || ps.hd1 || ps.hd2)) {
+            for (let i = 1; i <= 10; i++) {
+                const synCell = document.getElementById(`hdts-tof-${i}`);
+                const hdCell  = document.getElementById(`hdts-hd-${i}`);
+                const sv = ps.syn?.[i - 1];
+                const d1 = ps.hd1?.[i - 1], d2 = ps.hd2?.[i - 1];
+                if (synCell) synCell.textContent = (sv != null) ? Number(sv).toFixed(2) : '-';
+                if (hdCell)  hdCell.textContent  = (d1 != null || d2 != null) ? `${d1 ?? '-'} / ${d2 ?? '-'}` : '-';
+            }
+            const tofSumEl = document.getElementById('hdts-tof-sum');
+            const hdSumEl  = document.getElementById('hdts-hd-sum');
+            if (tofSumEl) tofSumEl.textContent = (ps.synTotal != null) ? Number(ps.synTotal).toFixed(2) : '-';
+            if (hdSumEl)  hdSumEl.textContent  = (ps.hd1Total != null || ps.hd2Total != null) ? synHdScore(ps.hd1Total, ps.hd2Total, data?.validCount) : '-';
+            return;
+        }
+        // 個人
+        let hdSum = 0, hasHd = false;
+        for (let i = 1; i <= 10; i++) {
+            const tofCell = document.getElementById(`hdts-tof-${i}`);
+            const hdCell  = document.getElementById(`hdts-hd-${i}`);
+            const tv = ps?.tof?.[i - 1];
+            const hv = ps?.hd?.[i - 1];
+            if (tofCell) tofCell.textContent = (tv != null) ? Number(tv).toFixed(3) : '-';
+            if (hdCell)  hdCell.textContent  = (hv != null) ? hv : '-';
+            if (hv != null) { hdSum += hv; hasHd = true; }
+        }
+        const tofSumEl = document.getElementById('hdts-tof-sum');
+        const hdSumEl  = document.getElementById('hdts-hd-sum');
+        const tofTotal = ps?.tofTotal ?? data?.tofByPanel?.[curPanel()] ?? data?.tof;
+        if (tofSumEl) tofSumEl.textContent = (tofTotal != null && tofTotal !== '') ? Number(tofTotal).toFixed(3) : '-';
+        if (hdSumEl)  hdSumEl.textContent  = hasHd ? hdSum : (ps?.hdTotal != null ? ps.hdTotal : '-');
+    }
+
+    // ---- HDTS 技別行リセット ----
+    function resetHdtsRows() {
+        for (let i = 1; i <= 10; i++) {
+            const t = document.getElementById(`hdts-tof-${i}`);
+            const h = document.getElementById(`hdts-hd-${i}`);
+            if (t) t.textContent = '-';
+            if (h) h.textContent = '-';
+        }
+        ['hdts-tof-sum','hdts-hd-sum'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.textContent = '-';
+        });
+        const st = document.getElementById('qira-status');
+        if (st) { st.textContent = ''; st.style.color = '#90a4ae'; }
+    }
+
+    // ---- QIRA 取得 ----
+    // 優先順位:
+    //   1. localhost で動作中 → /api/qira/result プロキシ（server.js が QIRA ホストを解決）
+    //   2. localStorage に別PC IPが設定されている → 直接接続
+    //   3. フォールバック → localhost:8080 直接
+    async function tryFetchQira() {
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            try {
+                const r = await fetch('/api/qira/result', { signal: AbortSignal.timeout(2000) });
+                const ct = r.headers.get('content-type') || '';
+                if (ct.includes('json')) return r;
+            } catch {}
+        }
+        const savedBase = localStorage.getItem('qiraBaseUrl');
+        const isRemote  = savedBase && !savedBase.includes('localhost') && !savedBase.includes('127.0.0.1');
+        if (isRemote) {
+            return fetch(savedBase + '/routineresult', { signal: AbortSignal.timeout(5000) });
+        }
+        return fetch('http://localhost:8080/routineresult', { signal: AbortSignal.timeout(3000) });
+    }
+
+    // QIRAの startPenalty(点数) / delayBeforeStartInSeconds(秒) から開始遅延ペナルティ区分を判定
+    function pickStartDelayPenalty(delaySec, startPen) {
+        const pts = Number(startPen);
+        const sec = Number(delaySec);
+        // START DELAY は display 共通なので points(0.2/0.4/0.6)で区分を特定
+        const byPts = pt => CJP_PENALTIES.find(p => p.display === 'START DELAY' && Math.abs(p.points - pt) < 1e-9);
+        // 点数優先（QIRA算出のペナルティ点から該当区分＝秒数レンジを予測）
+        if (!isNaN(pts) && pts > 0.05) {
+            if (pts >= 0.55) return byPts(0.6); // -0.6 → 121〜180秒
+            if (pts >= 0.35) return byPts(0.4); // -0.4 → 91〜120秒
+            return byPts(0.2);                   // -0.2 → 61〜90秒
+        }
+        // 点数が無い/0でも、遅延秒が閾値を超えていれば秒数から判定（保険）
+        if (!isNaN(sec)) {
+            if (sec >= 121) return byPts(0.6);
+            if (sec >= 91)  return byPts(0.4);
+            if (sec >= 61)  return byPts(0.2);
+        }
+        return null;
+    }
+
+    window.getFromQira = async function() {
+        const statusEl = document.getElementById('qira-status');
+        const btn      = document.getElementById('btn-hdts');
+        btn.disabled   = true;
+        statusEl.style.color = '#90a4ae';
+        statusEl.textContent = '取得中...';
+        try {
+            const res  = await tryFetchQira();
+            if (res.status === 404) { statusEl.style.color = '#e57373'; statusEl.textContent = 'QIRAに確定データがありません'; return; }
+            if (!res.ok)            { statusEl.style.color = '#e57373'; statusEl.textContent = `エラー: ${res.status}`; return; }
+            const data = await res.json();
+            const r    = data.type === 'synchronized' ? data.synchronizedResult : data.individualResult;
+            if (!r) { statusEl.style.color = '#e57373'; statusEl.textContent = 'データ形式不明'; return; }
+
+            const isSyn    = data.type === 'synchronized';
+            const hdVal    = r.horizontalDisplacement;               // HD欄へ（個人=合計 / シンクロ=2人平均の合計）
+            const vcVal    = r.elementCount;
+            const synScore = isSyn ? r.synchronizedScore : null;     // シンクロ: Syn合計（内訳のSyn欄へ）
+            const tofVal   = isSyn ? null : r.timeOfFlightInSeconds; // 個人: ToF
+            const label    = data.maturity === 'confirmed' ? '確定' : '暫定';
+
+            // 有効本数をセット
+            if (vcVal != null) {
+                const vcSelect = document.getElementById('valid-count');
+                if (vcSelect) {
+                    vcSelect.value = String(vcVal);
+                    updateValidHeaders(vcVal);
+                    await updateValid(vcVal);
+                }
+            }
+            // ToF / Syn を手動モードにして値をセット
+            if (isSyn) {
+                if (synScore != null) {
+                    if (tofMode !== 'manual') toggleTofMode();
+                    // Syn欄には synScore(8.37等) をそのまま入力。calcで×2され内訳Synは倍になる。
+                    document.getElementById('tof').value = synScore.toFixed(2); calc();
+                }
+            } else {
+                if (tofVal != null) {
+                    if (tofMode !== 'manual') toggleTofMode();
+                    document.getElementById('tof').value = tofVal.toFixed(3); calc();
+                }
+            }
+            // HD を手動モードにして値をセット（シンクロは2人平均で0.05刻みになり得るため2桁）
+            if (hdVal != null) {
+                if (hdMode !== 'manual') toggleHdMode();
+                document.getElementById('hd').value  = hdVal.toFixed(isSyn ? 2 : 1);  calc();
+            }
+            // 技別データを HDTS 行に表示 + Firestore に保存（再読込・別端末でも復元されるように）
+            if (r.elements && r.elements.length > 0) {
+                if (isSyn) {
+                    // シンクロ: ToF行→Syn（各要素の synchronizedScore）、HD行→2人分をスラッシュ表示
+                    const perSkillSyn = Array(10).fill(null);
+                    const perSkillHd1 = Array(10).fill(null);
+                    const perSkillHd2 = Array(10).fill(null);
+                    let hd1Total = 0, hd2Total = 0;
+                    r.elements.forEach((el, i) => {
+                        if (i >= 10) return;
+                        const synCell = document.getElementById(`hdts-tof-${i + 1}`);
+                        const hdCell  = document.getElementById(`hdts-hd-${i + 1}`);
+                        if (el.synchronizedScore != null) {
+                            perSkillSyn[i] = el.synchronizedScore;
+                            if (synCell) synCell.textContent = el.synchronizedScore.toFixed(2);
+                        } else if (synCell) synCell.textContent = '-';
+                        const d1 = el.horizontalDisplacementTrampoline1 != null ? Math.round((1.0 - el.horizontalDisplacementTrampoline1) * 10) : null;
+                        const d2 = el.horizontalDisplacementTrampoline2 != null ? Math.round((1.0 - el.horizontalDisplacementTrampoline2) * 10) : null;
+                        perSkillHd1[i] = d1; perSkillHd2[i] = d2;
+                        if (d1 != null) hd1Total += d1;
+                        if (d2 != null) hd2Total += d2;
+                        if (hdCell) hdCell.textContent = (d1 != null || d2 != null) ? `${d1 ?? '-'} / ${d2 ?? '-'}` : '-';
+                    });
+                    const synSum   = synScore != null ? synScore : perSkillSyn.reduce((a, b) => a + (b || 0), 0);
+                    const tofSumEl = document.getElementById('hdts-tof-sum');
+                    const hdSumEl  = document.getElementById('hdts-hd-sum');
+                    if (tofSumEl) tofSumEl.textContent = synSum.toFixed(2);
+                    if (hdSumEl)  hdSumEl.textContent  = synHdScore(hd1Total, hd2Total, vcVal);
+                    if (athleteId) {
+                        setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
+                            { hdtsPerSkillByPanel: { [curPanel()]: { isSynchro: true, syn: perSkillSyn, hd1: perSkillHd1, hd2: perSkillHd2, synTotal: synSum, hd1Total, hd2Total } } },
+                            { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
+                    }
+                } else {
+                    let hdDedTotal = 0;
+                    const perSkillTof = Array(10).fill(null);
+                    const perSkillHd  = Array(10).fill(null);
+                    r.elements.forEach((el, i) => {
+                        if (i >= 10) return;
+                        const tofCell = document.getElementById(`hdts-tof-${i + 1}`);
+                        const hdCell  = document.getElementById(`hdts-hd-${i + 1}`);
+                        if (el.timeOfFlightInSeconds != null) {
+                            perSkillTof[i] = el.timeOfFlightInSeconds;
+                            if (tofCell) tofCell.textContent = el.timeOfFlightInSeconds.toFixed(3);
+                        } else if (tofCell) { tofCell.textContent = '-'; }
+                        if (el.horizontalDisplacement != null) {
+                            const ded = Math.round((1.0 - el.horizontalDisplacement) * 10);
+                            perSkillHd[i] = ded;
+                            hdDedTotal += ded;
+                            if (hdCell) hdCell.textContent = ded;
+                        } else if (hdCell) { hdCell.textContent = '-'; }
+                    });
+                    const tofSumEl = document.getElementById('hdts-tof-sum');
+                    const hdSumEl  = document.getElementById('hdts-hd-sum');
+                    if (tofSumEl && tofVal != null) tofSumEl.textContent = tofVal.toFixed(3);
+                    if (hdSumEl) hdSumEl.textContent = hdDedTotal;
+                    if (athleteId) {
+                        setDoc(doc(db, "results", `${eventId}_${athleteId}_${round}`),
+                            { hdtsPerSkillByPanel: { [curPanel()]: { tof: perSkillTof, hd: perSkillHd, tofTotal: (tofVal ?? null), hdTotal: hdDedTotal } } },
+                            { merge: true }).catch(e => console.error('HDTS技別データ保存失敗:', e));
+                    }
+                }
+            }
+            // 開始遅延ペナルティを自動適用（QIRA の startPenalty / delayBeforeStartInSeconds から）
+            const _delaySec = r.delayBeforeStartInSeconds;
+            const _delayPen = pickStartDelayPenalty(_delaySec, r.startPenalty);
+            // 既存の START DELAY 系を除去してから適用（再取得時の重複防止。他の違反チップは残す）
+            appliedPenalties = appliedPenalties.filter(pp => !(pp.display || '').startsWith('START DELAY'));
+            if (_delayPen) appliedPenalties.push({ ..._delayPen });
+            _penDirty = true;
+            renderPenaltyChips();
+            calc();
+
+            statusEl.style.color = '#66bb6a';
+            const _delayTxt = (_delaySec != null) ? `　開始まで: ${Number(_delaySec).toFixed(1)}s` : '';
+            const _penTxt   = _delayPen ? `　→ ${_delayPen.display} (-${_delayPen.points.toFixed(1)})`
+                                        : (_delaySec != null ? '　→ 遅延ペナルティなし' : '');
+            const _thTxt = isSyn ? `Syn: ${synScore?.toFixed(2) ?? '-'}` : `ToF: ${tofVal?.toFixed(3) ?? '-'}s`;
+            statusEl.textContent = `[${label}] 有効: ${vcVal ?? '-'}本　${_thTxt}　HD: ${hdVal?.toFixed(1) ?? '-'}${_delayTxt}${_penTxt}`;
+        } catch(e) {
+            statusEl.style.color = '#e57373';
+            statusEl.textContent = 'QIRAに接続できません（起動確認）';
+        } finally {
+            btn.disabled = false;
+        }
+    };
+
+    window.toggleTofMode = function() {
+        if (isLocked) return;
+        tofMode = tofMode === 'auto' ? 'manual' : 'auto';
+        const btn = document.getElementById('tof-mode-btn');
+        const inp = document.getElementById('tof');
+        if (tofMode === 'manual') {
+            btn.textContent = '手動'; btn.classList.add('manual');
+            inp.style.borderColor = '#ff9800'; inp.style.color = '#ff9800';
+            inp.style.background = 'rgba(255,152,0,0.06)';
+        } else {
+            btn.textContent = '読込'; btn.classList.remove('manual');
+            inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
+            const rawTof2 = latestData.tofByPanel?.[curPanel()] ?? latestData.tof ?? "";
+            inp.value = (fType === 'synchro' && rawTof2 !== "")
+                ? (parseFloat(rawTof2) / 2).toFixed(3) : rawTof2;
+            calc();
+        }
+    };
+
+    window.toggleHdMode = function() {
+        if (isLocked) return;
+        hdMode = hdMode === 'auto' ? 'manual' : 'auto';
+        const btn = document.getElementById('hd-mode-btn');
+        const inp = document.getElementById('hd');
+        if (hdMode === 'manual') {
+            btn.textContent = '手動'; btn.classList.add('manual');
+            inp.style.borderColor = '#ff9800'; inp.style.color = '#ff9800';
+            inp.style.background = 'rgba(255,152,0,0.06)';
+        } else {
+            btn.textContent = '読込'; btn.classList.remove('manual');
+            inp.style.borderColor = ''; inp.style.color = ''; inp.style.background = '';
+            inp.value = latestData.hdByPanel?.[curPanel()] ?? latestData.hd?.total ?? ""; calc();
+        }
+    };
+
+    // ==== CJPペナルティ（プルダウン複数選択 ＋ 手動加点） ====
+    // synchroOnly の項目（アウトバウンス違い等）は、選手がシンクロの時だけ選択肢に出す。
+    // valueには絞り込み後ではなく元のCJP_PENALTIES配列のindexを入れる（addPenaltyFromSelectの参照先を保つため）
+    function populatePenaltySelect(isSyn) {
+        const sel = document.getElementById('pen-select');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">＋ 違反を追加…</option>' +
+            CJP_PENALTIES.map((p, i) => ({ p, i }))
+                .filter(({ p }) => !p.synchroOnly || isSyn)
+                .map(({ p, i }) => `<option value="${i}">${p.ja}（-${p.points.toFixed(1)}）</option>`).join('');
+    }
+    function penTotal() {
+        const manual = parseFloat(document.getElementById('pen').value) || 0;
+        return appliedPenalties.reduce((s, p) => s + (Number(p.points) || 0), 0) + manual;
+    }
+    function renderPenaltyChips() {
+        const el = document.getElementById('pen-chips');
+        if (!el) return;
+        el.innerHTML = appliedPenalties.map((p, idx) =>
+            `<span class="pen-chip" title="${(p.en || '').replace(/"/g,'&quot;')}">${p.ja} <span style="opacity:0.65;">-${Number(p.points).toFixed(1)}</span><button onclick="removePenalty(${idx})" ${isLocked ? 'disabled' : ''}>✕</button></span>`
+        ).join('');
+    }
+    window.addPenaltyFromSelect = function() {
+        if (isLocked) return;
+        const sel = document.getElementById('pen-select');
+        const i = parseInt(sel.value);
+        sel.value = '';
+        if (isNaN(i) || !CJP_PENALTIES[i]) return;
+        appliedPenalties.push({ ...CJP_PENALTIES[i] });
+        _penDirty = true;
+        renderPenaltyChips();
+        calc();
+    };
+    window.removePenalty = function(idx) {
+        if (isLocked) return;
+        appliedPenalties.splice(idx, 1);
+        _penDirty = true;
+        renderPenaltyChips();
+        calc();
+    };
+    window.onPenManualChange = function() {
+        _penDirty = true;
+        calc();
+    };
+    // 保存値（penaltyItems / penaltyManual、旧データは penalty のみ）から復元
+    function restorePenalty(data) {
+        appliedPenalties = Array.isArray(data.penaltyItems) ? data.penaltyItems.map(p => ({ ...p })) : [];
+        const itemsSum = appliedPenalties.reduce((s, p) => s + (Number(p.points) || 0), 0);
+        const manual = (data.penaltyManual != null)
+            ? data.penaltyManual
+            : Math.max(0, (data.penalty ?? 0) - itemsSum);
+        const inp = document.getElementById('pen');
+        if (inp) inp.value = (Math.round(manual * 100) / 100) || 0;
+        renderPenaltyChips();
+    }
+    populatePenaltySelect(fType === 'synchro');
+
+    window.toggleDMode = function(on) {
+        dMode = on ? 'manual' : 'auto';
+        dModeAutoExplicit = !on; // autoに切り替えたら手動復元を抑制
+        const ddCells    = document.querySelectorAll('.d-dd');
+        const execCells  = document.querySelectorAll('.skill-header');
+        const bonusCell  = document.getElementById('dd-bonus-cell');
+        const totalCell  = document.getElementById('dd-total-cell');
+        if (dMode === 'manual') {
+            ddCells.forEach(el => {
+                el.contentEditable = 'true'; el.classList.add('d-manual-cell');
+                if (el.textContent.trim() === '-') el.textContent = '';  // デフォルト "-" を消去
+            });
+            execCells.forEach(el => {
+                el.contentEditable = 'true'; el.classList.add('d-manual-cell');
+                if (el.textContent.trim() === '-') el.textContent = '';  // デフォルト "-" を消去
+            });
+            if (bonusCell && !isPaperMode) {
+                bonusCell.contentEditable = 'true'; bonusCell.classList.add('d-manual-cell');
+                if (bonusCell.textContent.trim() === '-') bonusCell.textContent = '';
+            }
+            if (totalCell) {
+                totalCell.contentEditable = 'true'; totalCell.classList.add('d-manual-cell');
+                if (totalCell.textContent.trim() === '-') totalCell.textContent = '';
+            }
+            calc(); // 切替直後に内訳D（緑/黄）を即反映
+        } else {
+            ddCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            execCells.forEach(el => { el.contentEditable = 'false'; el.classList.remove('d-manual-cell'); });
+            if (bonusCell) { bonusCell.contentEditable = 'false'; bonusCell.classList.remove('d-manual-cell'); }
+            if (totalCell) { totalCell.contentEditable = 'false'; totalCell.classList.remove('d-manual-cell'); }
+            renderScores(latestData);
+        }
+    };
+
+    // DD手動入力セルのリアルタイム合計更新（Eスコアをリセットしないよう直接計算）
+    document.addEventListener('input', function(e) {
+        if (!e.target.classList.contains('d-dd') && e.target.id !== 'dd-bonus-cell' && e.target.id !== 'dd-total-cell') return;
+        if (e.target.id === 'dd-total-cell') {
+            // 合計セルを直接編集 → その値をそのまま D として反映
+            const totalDD = parseFloat(e.target.textContent) || 0;
+            document.getElementById('res-d').innerText = totalDD.toFixed(1);
+        } else {
+            // 個技セルまたはボーナスセルを編集 → 合計を再計算して合計セルにも反映
+            let baseDD = 0;
+            document.querySelectorAll('.d-dd').forEach(cell => {
+                baseDD += parseFloat(cell.textContent) || 0;
+            });
+            const bonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
+            const totalDD = baseDD + bonus;
+            document.getElementById('dd-total-cell').textContent = totalDD.toFixed(1);
+            document.getElementById('res-d').innerText = totalDD.toFixed(1);
+        }
+        calc(); // 合計再計算＋内訳の色/枠線を更新
+    });
+
+    // 確定のみ（会場ディスプレイをスキップ）
+    window.publishSilent = () => window.publish({ displaySkip: true });
+
+    window.publish = async (opts = {}) => {
+        if (!athleteId) return;
+
+        const resId  = `${eventId}_${athleteId}_${round}`;
+        const vLimit = parseInt(document.getElementById('valid-count').value) || 10;
+        const d      = parseFloat(document.getElementById('res-d').innerText) || 0;
+        const e      = _preciseE; // 表示（第1位）ではなく全精度値を使用
+        const t      = parseFloat(document.getElementById('res-t').innerText) || 0;
+        const h      = parseFloat(document.getElementById('res-hd').innerText) || 0;
+        const p      = penTotal();
+        const th     = t + h;
+        const total  = Math.max(0, d + e + t + h - p); // 全精度で保持（表示値ではなく計算値）
+
+        // 内訳ボックスが黄色枠（D/E/ToF/HDのいずれかが未確定・未入力）のまま確定されたかを記録する。
+        // 左サイドバーのバッジに反映し、後から一覧で見つけやすくするため。
+        const confirmedIncomplete = _lastSummaryBorderColor === _BD_YELLOW;
+
+        const saveData = {
+            eventId, athleteId, round,
+            published: true, publishedAt: serverTimestamp(),
+            verifiedAt: serverTimestamp(),
+            confirmedIncomplete,
+            tof: t, hd: { total: h }, penalty: p,
+            // CJPペナルティの内訳（日本語・英文・表示用テキスト・点数）と手動加点も保存（再読込で復元・会場表示用）
+            penaltyItems: appliedPenalties.map(x => ({ ja: x.ja, en: x.en, display: x.display, points: x.points })),
+            penaltyManual: parseFloat(document.getElementById('pen').value) || 0,
+            tofByPanel: { [curPanel()]: t }, hdByPanel: { [curPanel()]: h },
+            officialD: d, officialE: e, officialTH: th, officialTotal: total,
+            // 技ごとのE減点（会場ディスプレイの per-skill 表示をCJP値と一致させる）
+            ...(_lastEc ? {
+                officialEPerSkill: _lastEc.skillResults.map(r => r.sum),
+                officialELanding:  _lastEc.landingResult.sum
+            } : {}),
+            // displaySkip: true のとき会場ディスプレイをスキップ（確定のみ）
+            // false/undefined のとき通常表示（フィールドを削除して「なし」状態に戻す）。
+            // 記録主任モードは大会進行中の会場ディスプレイに一切影響させないため常にスキップする。
+            displaySkip: (isRecorder || opts.displaySkip === true) ? true : deleteField(),
+            ...(designatedDDCount > 0 ? { officialDesignatedDDIndices: [...designatedDDIndices] } : {})
+        };
+
+        // D手動入力モードの場合、officialSkills・officialDDValues・officialDDBonus・officialTotalDD を保存
+        if (dMode === 'manual' && !isPaperMode) {
+            // Symbol→ID 逆引きマップ（一度だけ構築）
+            const symToId = {};
+            Object.entries(skillMasterMap).forEach(([id, v]) => { symToId[v.symbol] = id; });
+            // skill-header はSymbol表示なのでIDに変換して保存（他画面との互換性を保つ）
+            const manualIds = [...document.querySelectorAll('.skill-header')].map(el => {
+                const sym = el.textContent.trim();
+                if (!sym || sym === '-') return '';
+                return symToId[sym] || sym; // IDがあればID、なければsymbolそのまま（安全網）
+            });
+            const manualDDs = [...document.querySelectorAll('.d-dd')].map(el => parseFloat(el.textContent) || 0);
+            const manualBonus = parseFloat(document.getElementById('dd-bonus-cell')?.textContent) || 0;
+            saveData.officialSkills   = manualIds;
+            saveData.officialDDValues = manualDDs;   // 各技のDD値（再読み込み復元用）
+            saveData.officialDDBonus  = manualBonus;
+            saveData.officialTotalDD  = d; // #res-d の確定D値（合計セル手動上書きを含む）
+        } else if (isPaperMode) {
+            // 紙運用クラス: 合計DDセルはCJPも直接編集できるため、確定時点の値をD審判画面用にも保存し直す
+            saveData.officialSkills   = [];
+            saveData.officialTotalDD  = d;
+            saveData.officialDDValues = deleteField();
+            saveData.officialDDBonus  = deleteField();
+        } else {
+            // autoモードで再確定する場合は手動DD値をクリア
+            saveData.officialDDValues = deleteField();
+            saveData.officialDDBonus  = deleteField();
+        }
+
+        // 手動入力行がある場合、execution.judges を手動値＋既存値でマージして保存
+        if (manualRows.size > 0) {
+            const numE = getNumE();
+            const judgesData = {};
+            const existingJudges = latestData?.execution?.judges || {};
+            Array.from({ length: numE }, (_, i) => `E${i + 1}`).forEach(jKey => {
+                if (manualRows.has(jKey)) {
+                    const deductions = Array.from({ length: 10 }, (_, i) => {
+                        const pe = pendingEdits[jKey]?.deductions?.[i] ?? null;
+                        return pe !== null ? Math.min(10, Math.max(0, pe)) / 10 : 0;
+                    });
+                    const peL = pendingEdits[jKey]?.landing ?? null;
+                    const landing = vLimit === 10 ? (peL !== null ? Math.min(10, Math.max(0, peL)) / 10 : 0) : 0;
+                    const totalDeduction = deductions.slice(0, vLimit).reduce((a, b) => a + b, 0) + landing;
+                    judgesData[`${curPanel()}_${jKey}`] = { deductions, landing, totalDeduction };
+                } else {
+                    const existing = existingJudges[`${curPanel()}_${jKey}`];
+                    if (existing) judgesData[`${curPanel()}_${jKey}`] = existing;
+                }
+            });
+            saveData.execution = { judges: judgesData };
+        }
+
+        try {
+            await Promise.all([
+                setDoc(doc(db, "results", resId), saveData, { merge: true }),
+                // calculating:false / venueScreen:'score' はログイン済みCJPが書く
+                // （venue_displayは非ログインのため書けない）
+                // venueScreen:'score' を同時に書くことで、warmupタイマー等の
+                // 後続スナップショット発火でも会場練習画面に戻らなくなる。
+                // 記録主任モードは大会進行中の会場ディスプレイを一切切り替えないためスキップする。
+                // inquiry（インクワイアリ表示）も、誰かの得点が確定した時点で自動的に消すため一緒にfalseへ。
+                isRecorder ? Promise.resolve() : setDoc(doc(db, 'tournaments', eventId), {
+                    calculating: false,
+                    inquiry: false,
+                    venueScreen: 'score',
+                    venueScreenAt: serverTimestamp()
+                }, { merge: true })
+            ]);
+            if (!results[resId]) results[resId] = {};
+            results[resId].published = true;
+            results[resId].confirmedIncomplete = confirmedIncomplete;
+            renderSidebar();
+        } catch (err) {
+            alert('送信に失敗しました: ' + err.message);
+            return;
+        }
+
+        // 公開スコアボード: 確定した内容を、その時点の表示用データにして書く（待たない。失敗しても確定は済んでいる）。
+        // 画面に出ている値（latestData と今回の保存値）から作る。FirestoreのdeleteField等は「無い」扱いにする。
+        const _pub = { ...latestData };
+        Object.entries(saveData).forEach(([k, v]) => { if (v && typeof v === 'object' && v._methodName) delete _pub[k]; else _pub[k] = v; });
+        _pub.validCount = vLimit;
+        boardPublish({
+            eventId, tour: currentTour, athletes, teams: teamDocs, athleteId, round, res: _pub,
+            skillMaster: skillMasterMap, panel: curPanel(),
+            // 試合中に技マスタへ追加された技が見つかったとき、取り直した技マスタをこの画面にも反映する
+            onSkillMaster: list => list.forEach(s => { skillMasterMap[s.id] = s; }),
+        });
+    };
+
+    // ---- キーボードナビゲーション（手動入力セル） ----
+    // 数字キー: 値セット → 自動的に右隣のセルへ移動  ←/→: セル間移動
+    document.addEventListener('keydown', function(e) {
+        const td = e.target;
+        if (!td.matches('td.manual-cell')) return;
+        if (isLocked) return;
+
+        const jKey = td.dataset.jkey;
+        const isLanding = td.classList.contains('manual-landing-cell');
+        const idx = isLanding ? null : parseInt(td.dataset.idx);
+        const vLimit = parseInt(document.getElementById('valid-count').value) || 10;
+
+        if (e.key >= '0' && e.key <= '9') {
+            e.preventDefault();
+            const val = parseInt(e.key);
+            if (!pendingEdits[jKey]) pendingEdits[jKey] = { deductions: Array(10).fill(null), landing: null };
+            if (!isLanding) pendingEdits[jKey].deductions[idx] = val;
+            else            pendingEdits[jKey].landing = val;
+            td.textContent = val;
+            td.classList.remove('null-val');
+            updateManualTotal(jKey, vLimit);
+            updateManualMed(vLimit);
+            getNextManualCell(jKey, idx, isLanding, vLimit)?.focus();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            getNextManualCell(jKey, idx, isLanding, vLimit)?.focus();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            getPrevManualCell(jKey, idx, isLanding)?.focus();
+        }
+    }, true);
+
+    function updateManualTotal(jKey, vLimit) {
+        const pe = pendingEdits[jKey];
+        if (!pe) return;
+        const dedSum = Array.from({length: vLimit}, (_, i) => {
+            const d = pe.deductions?.[i] ?? null;
+            return d !== null ? d / 10 : 0;
+        }).reduce((a, b) => a + b, 0) + (vLimit === 10 && pe.landing !== null ? pe.landing / 10 : 0);
+        const score = vLimit - dedSum;
+        // Total列はLanding列の直後の <td>。行内の最後から2番目のtd（toggleが最後）
+        const row = document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="0"]`)?.closest('tr');
+        if (!row) return;
+        const cells = row.querySelectorAll('td');
+        const totalCell = cells[cells.length - 2]; // 最後=toggle、その前=Total
+        if (totalCell) { totalCell.textContent = score.toFixed(1); totalCell.style.color = '#ff9800'; }
+    }
+
+    function updateManualMed(vLimit) {
+        const numE = getNumE();
+        const jKeys = Array.from({length: numE}, (_, i) => `E${i + 1}`);
+
+        // マージされた審判データを構築（pendingEdits + Firestore）
+        const existingJudges = latestData?.execution?.judges || {};
+        const mergedJudges = {};
+        jKeys.forEach(jKey => {
+            const fullKey = `${curPanel()}_${jKey}`;
+            if (manualRows.has(jKey)) {
+                const pe = pendingEdits[jKey];
+                if (!pe) return;
+                mergedJudges[fullKey] = {
+                    deductions: Array.from({length: 10}, (_, i) => {
+                        const d = pe.deductions?.[i] ?? null;
+                        return d !== null ? d / 10 : null;
+                    }),
+                    landing: pe.landing !== null ? pe.landing / 10 : null
+                };
+            } else if (existingJudges[fullKey]) {
+                mergedJudges[fullKey] = existingJudges[fullKey];
+            }
+        });
+
+        // 各技・着地の計算（個人: 中間2名合計、シンクロ: 審判数に応じた平均）
+        const isSynchro = fType === 'synchro';
+        const skillResults = Array.from({length: 10}, (_, si) => {
+            const vals = jKeys.map(k => (mergedJudges[`${curPanel()}_${k}`]?.deductions || [])[si] ?? null);
+            if (isSynchro) {
+                const r = synchroEDed(vals, numE);
+                return { sum: r.avg, indices: new Set(), hasData: r.hasData };
+            }
+            return middle2(vals);
+        });
+        const landingResult = vLimit === 10
+            ? (() => {
+                const vals = jKeys.map(k => mergedJudges[`${curPanel()}_${k}`]?.landing ?? null);
+                if (isSynchro) {
+                    const r = synchroEDed(vals, numE);
+                    return { sum: r.avg, indices: new Set(), hasData: r.hasData };
+                }
+                return middle2(vals);
+            })()
+            : { sum: 0, indices: new Set() };
+        const totalDed = skillResults.slice(0, vLimit).reduce((a, r) => a + r.sum, 0) + landingResult.sum;
+        _lastEc = { skillResults, landingResult, vLimit }; // publish 時に per-skill E 保存用
+
+        // Med行のセルを in-place 更新
+        const medRow = document.querySelector('#judge-rows .middle-row');
+        if (!medRow) return;
+        const cells = medRow.querySelectorAll('td');
+        // cells[0]=Med, cells[1..10]=S1-S10, cells[11]=Ln, cells[12]=SUM合計
+        const hasData = Object.keys(mergedJudges).length > 0;
+        const _medFmtM = (v) => isSynchro ? (v * 10).toFixed(2) : Math.round(v * 10);
+        for (let i = 0; i < 10; i++) {
+            const hasVal = hasData && (skillResults[i].hasData ?? skillResults[i].indices.size > 0);
+            if (i < vLimit) cells[i + 1].textContent = hasVal ? _medFmtM(skillResults[i].sum) : '-';
+        }
+        const hasLanding = hasData && (isSynchro ? landingResult.hasData : landingResult.indices.size > 0);
+        cells[11].textContent = vLimit === 10 && hasLanding ? _medFmtM(landingResult.sum) : '-';
+        const basePerSkill = isSynchro ? 1.0 : 2.0;
+        const execution = (vLimit * basePerSkill) - totalDed;
+        cells[12].textContent = hasData ? (isSynchro ? execution.toFixed(3) : execution.toFixed(1)) : '-';
+        // 青い箱のEスコア・Total・色・枠線を updateScoreSummary 経由で更新（未完了はE空欄）
+        const judgesNoPrefix = {};
+        jKeys.forEach(k => { const fk = `${curPanel()}_${k}`; if (mergedJudges[fk]) judgesNoPrefix[k] = mergedJudges[fk]; });
+        updateScoreSummary({ judges: judgesNoPrefix, jKeys, vLimit, execution }, hasData);
+    }
+
+    window.fillDummyData = function() {
+        if (isLocked) return;
+        const vLimit  = parseInt(document.getElementById('valid-count').value) || 10;
+        const numE    = getNumE();
+        const isSyn   = fType === 'synchro';
+        Array.from({length: numE}, (_, i) => `E${i + 1}`).forEach(jKey => {
+            manualRows.add(jKey);
+            pendingEdits[jKey] = {
+                deductions: Array.from({length: 10}, () => Math.floor(Math.random() * 6)),
+                landing: vLimit === 10 ? Math.floor(Math.random() * 6) : null
+            };
+        });
+        renderScores(latestData);
+        // renderScores(auto モード)による上書きの後に ToF/HD をセット
+        document.getElementById('tof').value = isSyn
+            ? (Math.random() * 3 + 7).toFixed(2)   // Syn: 7.00〜10.00
+            : (Math.random() * 3 + 14).toFixed(2);  // ToF: 14.00〜17.00
+        document.getElementById('hd').value = (Math.random() * 3 + 7).toFixed(1);
+        // 手動モードに切り替えて、以後の onSnapshot による上書きを防ぐ
+        if (tofMode !== 'manual') toggleTofMode();
+        if (hdMode  !== 'manual') toggleHdMode();
+        calc();
+    };
+
+    function getNextManualCell(jKey, idx, isLanding, vLimit) {
+        if (isLanding) return null;
+        if (idx < 9) return document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="${idx + 1}"]`);
+        if (idx === 9 && vLimit === 10) return document.querySelector(`.manual-landing-cell[data-jkey="${jKey}"]`);
+        return null;
+    }
+    function getPrevManualCell(jKey, idx, isLanding) {
+        if (isLanding) return document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="9"]`);
+        if (idx > 0)   return document.querySelector(`.manual-cell[data-jkey="${jKey}"][data-idx="${idx - 1}"]`);
+        return null;
+    }
+
+    // ==== キーボードショートカット（Hキー=HDTS取得／Nキー=次の選手へ／Sキー=内訳が緑かつ未確定の時だけ確定&表示） ====
+    // ブラウザごとの設定（localStorage）。既定はOFF — 誤操作防止のため明示的にONにした端末だけで有効。
+    const KB_SHORTCUT_KEY = 'cjp_kbShortcutsEnabled';
+    function isKbShortcutsEnabled() {
+        return localStorage.getItem(KB_SHORTCUT_KEY) === 'true';
+    }
+    function syncKbShortcutBtn() {
+        const btn = document.getElementById('btn-kb-shortcut');
+        if (!btn) return;
+        const on = isKbShortcutsEnabled();
+        btn.textContent = on ? '⌨️ H/N/S ショートカット: ON' : '⌨️ H/N/S ショートカット: OFF';
+        btn.style.background = on ? 'rgba(76,175,80,0.3)'  : 'rgba(255,255,255,0.12)';
+        btn.style.border     = on ? '1px solid rgba(76,175,80,0.7)' : '1px solid rgba(255,255,255,0.3)';
+        btn.style.color      = on ? '#a5d6a7' : 'rgba(255,255,255,0.7)';
+    }
+    window.toggleKbShortcuts = function() {
+        localStorage.setItem(KB_SHORTCUT_KEY, String(!isKbShortcutsEnabled()));
+        syncKbShortcutBtn();
+    };
+    syncKbShortcutBtn();
+
+    // 手入力欄（input/select/textarea/contenteditable）にフォーカス中は反応させない。
+    // IME変換中（isComposing）や修飾キー併用、キーリピートも除外する。
+    function isTypingIntoField() {
+        const el = document.activeElement;
+        if (!el) return false;
+        if (el.isContentEditable) return true;
+        const tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    }
+
+    // ---- Nキー: 次の選手へ ----
+    // 「グループ」= クラス×性別×グループ番号（選手管理のグループ番号=flightGroup。
+    //   未設定の選手はグループ番号なし同士でひとつのグループとして扱われるため、
+    //   グループ番号を使っていない大会では従来どおりクラス×性別だけの単位になる）。
+    // 予選1: 同じグループ内で次の選手の予選1へ（棄権(DNS)はスキップ）。
+    //        グループの最後（または残り全員が棄権）に達したら、そのグループの予選2・先頭の
+    //        選手へ切り替える（そのクラスに予選2が無ければ何もしない）。
+    // 予選2: 同じグループ内で次の選手の予選2へ（棄権はスキップ）。
+    //        グループの最後（または残り全員が棄権）に達したら、同じクラス内の次のグループ
+    //        （性別違い・グループ番号違いを含む）の予選1・先頭の選手へ切り替える
+    //        （そのグループも全員棄権なら、同じクラス内でさらに次のグループを探す）。
+    //        クラスの最後のグループまで進んでいた場合は何もしない。
+    // 決勝: 決勝試技順（finalOrder）が割り当てられている同じグループ内で、決勝試技順の
+    //       次の選手へ切り替える（棄権はスキップ）。今いる選手に決勝試技順が割り当てられて
+    //       いない場合や、グループ内で最後の決勝試技順の選手の場合は何もしない。
+    function isDnsFor(aid, rid) {
+        return results[`${eventId}_${aid}_${rid}`]?.dns === true;
+    }
+    function classNumPre(ath) {
+        const athType = ath.type || 'individual';
+        const cls     = ath.class || ath.category || '';
+        const rule    = currentTour?.classRules?.[athType]?.[cls] || {};
+        if (rule.finalOnly === true) return 0;
+        return rule.qualifyingRoutines ?? currentTour?.qualifyingRoutines ?? 1;
+    }
+    function classOf(ath)  { return ath.class || ath.category || ''; }
+    function groupKeyOf(ath) { return `${classOf(ath)}|${ath.gender || ''}|${ath.flightGroup ?? ''}`; }
+    function groupBounds(list, idx) {
+        const key = groupKeyOf(list[idx]);
+        let start = idx, end = idx;
+        while (start > 0 && groupKeyOf(list[start - 1]) === key) start--;
+        while (end < list.length - 1 && groupKeyOf(list[end + 1]) === key) end++;
+        return { start, end };
+    }
+    window.goNextAthlete = function() {
+        if (!athleteId || !round) return;
+        const list = sidebarFilteredAthletes;
+        const idx  = list.findIndex(a => a.id === athleteId);
+        if (idx < 0) return;
+
+        if (round === 'final') {
+            const cls = classOf(list[idx]), gen = list[idx].gender || '';
+            const finalGroup = list
+                .filter(a => classOf(a) === cls && (a.gender || '') === gen && a.finalOrder != null)
+                .sort((a, b) => a.finalOrder - b.finalOrder);
+            const fi = finalGroup.findIndex(a => a.id === athleteId);
+            if (fi < 0) return; // このグループでは決勝試技順が割り当てられていない
+            for (let i = fi + 1; i < finalGroup.length; i++) {
+                if (!isDnsFor(finalGroup[i].id, 'final')) { switchAthlete(finalGroup[i].id, 'final'); return; }
+            }
+            return;
+        }
+
+        // 予選中（pre1/pre2）にサイドバーが「🏆 決勝」タブで絞り込まれていると、
+        // sidebarFilteredAthletes は決勝試技順ソートの別リストになり、以下のグループ判定の
+        // 前提（クラス→性別→グループ番号→試技順で連続していること）が崩れる。
+        // 誤った選手へ切り替わることを防ぐため、この組み合わせでは何もしない。
+        if (fFinalOnly) return;
+
+        if (round === 'pre2') {
+            const { end } = groupBounds(list, idx);
+            for (let i = idx + 1; i <= end; i++) {
+                if (!isDnsFor(list[i].id, 'pre2')) { switchAthlete(list[i].id, 'pre2'); return; }
+            }
+            // 同グループの予選2を使い切った → 同じクラス内の次のグループの予選1・先頭へ
+            const curClass = classOf(list[idx]);
+            let cursor = end + 1;
+            while (cursor < list.length && classOf(list[cursor]) === curClass) {
+                const nb = groupBounds(list, cursor);
+                for (let i = nb.start; i <= nb.end; i++) {
+                    if (!isDnsFor(list[i].id, 'pre1')) { switchAthlete(list[i].id, 'pre1'); return; }
+                }
+                cursor = nb.end + 1; // このグループも全員棄権 → さらに次のグループへ
+            }
+            return; // 次グループが無い/別クラス/見つからない場合は何もしない
+        }
+
+        // round === 'pre1'
+        const { start, end } = groupBounds(list, idx);
+        for (let i = idx + 1; i <= end; i++) {
+            if (!isDnsFor(list[i].id, 'pre1')) { switchAthlete(list[i].id, 'pre1'); return; }
+        }
+        // グループ内に予選1の次がいない（末尾 or 残り全員棄権）→ 予選2があればそのグループの先頭へ
+        if (classNumPre(list[idx]) < 2) return;
+        for (let i = start; i <= end; i++) {
+            if (!isDnsFor(list[i].id, 'pre2')) { switchAthlete(list[i].id, 'pre2'); return; }
+        }
+    };
+
+    document.addEventListener('keydown', e => {
+        if (!isKbShortcutsEnabled()) return;
+        if (e.repeat || e.isComposing || e.ctrlKey || e.altKey || e.metaKey) return;
+        if (isTypingIntoField()) return;
+        if (e.key === 'h' || e.key === 'H') {
+            const btn = document.getElementById('btn-hdts');
+            if (!btn || btn.disabled) return;
+            e.preventDefault();
+            getFromQira();
+        } else if (e.key === 'n' || e.key === 'N') {
+            e.preventDefault();
+            goNextAthlete();
+        } else if (e.key === 's' || e.key === 'S') {
+            // 内訳が緑（全て完了）かつ未確定の時だけ、確定&表示ボタンと同じ動作をする
+            if (isLocked) return;
+            if (_lastSummaryBorderColor !== _BD_GREEN) return;
+            const btn = document.getElementById('btn-confirm');
+            if (!btn || btn.disabled) return;
+            e.preventDefault();
+            publish();
+        }
+    });
+
+    window.addEventListener('pageshow', e => {
+        if (e.persisted) { _initRunning = false; init(); }
+    });
+    ensureAdmin(() => init());
+</script>
+
+<style>
+  #demo-badge{position:fixed;left:10px;bottom:10px;z-index:2147483000;display:flex;gap:8px;align-items:center;font:600 12px/1.2 system-ui,'Noto Sans JP',sans-serif;
+    background:rgba(17,24,39,.86);color:#fff;border-radius:999px;padding:7px 12px;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:.9}
+  #demo-badge:hover{opacity:1}
+  #demo-badge b{background:#f59e0b;color:#111;border-radius:999px;padding:2px 8px;font-size:11px;letter-spacing:.04em}
+</style>
+<a id="demo-badge" href="index.html" title="デモ一覧に戻る"><b>DEMO</b><span>ダミーデータ ・ ← デモ一覧</span></a>
+</body>
+</html>

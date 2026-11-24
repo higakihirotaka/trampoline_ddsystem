@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../favicon-32.png">
+<title>Trampoline Scoring System デモ</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #fff; --ink: #0f172a; --sub: #5b6678; --line: #e2e8f0;
+    --navy: #0b1d3a; --accent: #1a73e8; --amber: #f59e0b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0b1220; --card: #131c2e; --ink: #e8edf6; --sub: #9aa8bd; --line: #25324a; --navy: #060d1a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif; line-height: 1.6; }
+  header { background: linear-gradient(135deg, var(--navy), #16407a); color: #fff; padding: 36px 16px 40px; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+  header .wrap { padding: 0; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .08em; background: var(--amber); color: #111; border-radius: 999px; padding: 3px 10px; }
+  h1 { margin: 12px 0 6px; font-size: clamp(22px, 5vw, 32px); line-height: 1.25; }
+  header p { margin: 0; color: #c9d6ea; font-size: 14px; max-width: 640px; }
+  main { padding: 24px 0 56px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+  a.card { display: flex; flex-direction: column; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 16px; color: inherit; text-decoration: none; box-shadow: 0 1px 2px rgba(15,23,42,.05); transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+  a.card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.12); border-color: var(--accent); }
+  .who { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
+  .card h2 { margin: 0; font-size: 19px; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--sub); }
+  .try { margin: 4px 0 0; padding: 10px 12px; background: var(--bg); border-radius: 10px; font-size: 12.5px; color: var(--ink); }
+  .try b { color: var(--accent); }
+  .go { margin-top: auto; padding-top: 6px; font-size: 13px; font-weight: 700; color: var(--accent); }
+  .note { margin-top: 22px; padding: 14px 16px; border: 1px dashed var(--line); border-radius: 12px; font-size: 13px; color: var(--sub); }
+  .note b { color: var(--ink); }
+  .note ul { margin: 6px 0 0; padding-left: 20px; }
+  footer { text-align: center; font-size: 11px; color: var(--sub); padding-bottom: 28px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <span class="tag">DEMO</span>
+    <h1>Trampoline Scoring System<br>動きを見てみる</h1>
+    <p>大会当日に使う3つの画面と、D（難度）の計算ページです。すべてダミーデータで動き、どこにも接続せず、何も保存しません。</p>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <div class="grid">
+      <a class="card" href="display.html">
+        <span class="who">会場ディスプレイ</span>
+        <h2>得点表示</h2>
+        <p>会場の大型ディスプレイに映る画面です。得点が確定すると、内訳とともに演技の結果が表示され、そのあと順位表に切り替わります。</p>
+        <div class="try">この画面: <b>個人 Aクラス 男子 決勝</b>。中田選手が確定した直後（順位1位）から始まります。</div>
+        <span class="go">開く →</span>
+      </a>
+      <a class="card" href="judge_panel.html">
+        <span class="who">D審判</span>
+        <h2>D審判画面</h2>
+        <p>選手が申告した演技構成（技）を確認し、実際に行われた技を確定します。難度（D）が自動で計算されます。</p>
+        <div class="try">この画面: <b>個人 Aクラス 男子 決勝</b>の、次の選手（番所選手）。<b>「確定・保存」</b>を押せます（修正も可能）。</div>
+        <span class="go">開く →</span>
+      </a>
+      <a class="card" href="judge_cjp.html">
+        <span class="who">CJP（主審）</span>
+        <h2>CJP画面</h2>
+        <p>E審判の減点、D、ToF・HD、ペナルティをまとめて、得点を確定する画面です。確定すると、会場ディスプレイに結果が出ます。</p>
+        <div class="try">この画面: <b>個人 Aクラス 男子 決勝</b>の、中田選手の実データ。「修正」「確定&表示」などを試せます（ほかの画面とは連動しません）。</div>
+        <span class="go">開く →</span>
+      </a>
+      <a class="card" href="d_calc.html">
+        <span class="who">計算ツール</span>
+        <h2>D計算用</h2>
+        <p>技を選ぶだけで、基礎点とボーナス点、Total DD を計算します。CSVでの保存や、日本語・英語の切り替えにも対応しています。</p>
+        <div class="try">技名の欄に入力して<b>Enter</b>で次の行へ。右上の<b>「日本語 | EN」</b>で表示言語を切り替えられます。</div>
+        <span class="go">開く →</span>
+      </a>
+    </div>
+    <div class="note">
+      <b>このデモについて</b>
+      <ul>
+        <li>データは、実際の大会（第61回全日本学生トランポリン競技選手権大会）の個人Aクラス男子の決勝を元にしたダミーです。</li>
+        <li>各画面は独立して動きます。ある画面での操作は、ほかの画面には反映されません。</li>
+        <li>操作した内容は、ページを再読み込みすると元に戻ります。</li>
+        <li>会場ディスプレイは横長（16:9）の画面用です。パソコンの広い画面で開くと、本来の見た目になります。</li>
+      </ul>
+    </div>
+  </div>
+</main>
+<footer>SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</footer>
+</body>
+</html>
