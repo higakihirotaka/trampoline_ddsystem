@@ -72,6 +72,8 @@ const displayDocs = () => {
       else { x.published = true; x.publishedAt = ts(T0 - 3600 * 1000); delete x.displaySkip; }
       return x;
     }),
+    // 提出された競技カード（申請の内容）。画面は、実施した技が申請と違うと、技とDの値を赤くする
+    ...subsOf(s => s.round === 'final'),
     ...skillDocs,
   };
 };
