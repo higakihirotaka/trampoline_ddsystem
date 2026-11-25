@@ -141,9 +141,7 @@ const RULES = [
   ['得点集計中', 'Calculating score'], ['得点問い合わせ確認中', 'Score inquiry under review'], ['得点・順位が変更になる可能性があります', 'Scores and rankings may change'],
   ['スタートリストが登録されていません', 'No start list registered'], ['この区分の登録チームがありません', 'No teams registered in this category'],
   // 競技カードの提出
-  ['競技カード入力', 'Competition Card'], ['所属(ふりがな)', 'Team (kana)'], ['ふりがな', 'Kana'], ['せい めい', 'Family and given name'], ['くらぶめい', 'Team name reading'], ['所属', 'Team'],
-  ['📢 選手コールに使用するため、ご記載をお願いします', '📢 Used for announcing athletes. Please fill in.'],
-  ['👥 チーム名のふりがなは同じチームの誰かが入力すると反映されます', '👥 The team name reading is shared once anyone on the team enters it.'],
+  ['競技カード入力', 'Competition Card'], ['所属', 'Team'],
   ['⚠️ 選択肢にない技やシステムの計算がおかしいなどがある場合は、大会開始までに審判席にお越しください。', "⚠️ If a skill is missing or a calculation looks wrong, please come to the judges' desk before the competition starts."],
   ['⚠ 技リストの読み込みに失敗しました（通信環境をご確認ください）。すでに入力・提出した内容は消えていません。表示できるまで再読み込みしてください。', '⚠ Failed to load the skill list. Please check your connection and reload. Your saved entries are not lost.'],
   ['基礎点：', 'Base: '], ['ボーナス点：', 'Bonus: '], ['技名', 'Skill'],
@@ -152,7 +150,6 @@ const RULES = [
   ['選手・ラウンドを選択...', 'Select athlete / round...'], ['大会・ラウンドを選択...', 'Select competition / round...'], ['該当者なし', 'None found'],
   ['読み込み中...', 'Loading...'], ['読込中...', 'Loading...'], [' ー ', ' – '], ['予選１', 'Qualifying 1'], ['予選1', 'Qualifying 1'], ['予選2', 'Qualifying 2'],
   ['競技カードを提出しました。（デモのため、どこにも登録されません）', 'Your competition card has been submitted. (Demo: nothing is saved.)'],
-  ['選手と所属のふりがなを入力してください。', 'Enter the kana readings for your name and team.'],
   ['引用する選手・ラウンドを選択してください。', 'Select an athlete and round to load.'], ['取得する大会・ラウンドを選択してください。', 'Select a competition and round to load.'],
   ['選択した構成をこの画面に読み込みます。現在の入力内容は上書きされます。よろしいですか？', 'Load the selected routine? Your current input will be overwritten.'],
   ['予選演技をこの画面にコピーします。現在の入力内容は上書きされます。よろしいですか？', 'Copy your qualifying routine? Your current input will be overwritten.'],

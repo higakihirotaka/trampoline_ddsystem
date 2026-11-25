@@ -191,6 +191,9 @@ fs.writeFileSync(path.join(OUT, 'entry.html'), patch(read('entry.html'), {
     // 同じサイトの本物の画面と保存場所が同じなので、デモの大会一覧が本物の画面に出てしまう
     ['function refCacheGet(key, ttlMs) {', 'function refCacheGet(key, ttlMs) {\n        return undefined;'],
     ['function refCacheSet(key, data) {', 'function refCacheSet(key, data) {\n        return;'],
+    // デモ: 英語表示では、ふりがなの欄は使わないので隠し、空欄でも提出できるようにする
+    ['if (!isSynchro && (!kana || !clubKana)) {', "if (!isSynchro && document.documentElement.lang !== 'en' && (!kana || !clubKana)) {"],
+    ['</style>', '    html[lang="en"] #indiv-kana-area .info-input-row, html[lang="en"] #indiv-kana-area .input-note { display: none; }\n    </style>'],
     // 左下の「DEMO」の表示が、下のボタンに重ならないように、下に余白を足す
     ['</style>', '    body { padding-bottom: 64px !important; }\n    </style>'],
   ],
