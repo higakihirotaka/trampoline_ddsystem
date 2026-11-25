@@ -6,7 +6,7 @@
  * データだけが、ここに入れたダミーデータになる。どこにも接続せず、何も保存しない（再読み込みで元に戻る）。
  *
  * 対応している範囲: 画面が使うものだけ（doc / collection / query / where / orderBy / limit / getDoc / getDocs /
- * onSnapshot / setDoc（merge）/ updateDoc（ドット区切りのフィールド）/ deleteDoc / serverTimestamp / deleteField / increment）。
+ * onSnapshot / setDoc（merge）/ updateDoc（ドット区切りのフィールド）/ addDoc / deleteDoc / writeBatch / serverTimestamp / deleteField / increment）。
  */
 
 export class Timestamp {
@@ -217,3 +217,14 @@ export async function updateDoc(ref, data) {
   commit(ref.path, next);
 }
 export async function deleteDoc(ref) { commit(ref.path, undefined); }
+let autoId = 0;
+export async function addDoc(coll, data) { const ref = doc(coll, 'auto' + (++autoId)); await setDoc(ref, data); return ref; }
+export function writeBatch() {
+  const ops = [];
+  return {
+    set: (ref, data, opts) => { ops.push(() => setDoc(ref, data, opts)); },
+    update: (ref, data) => { ops.push(() => updateDoc(ref, data)); },
+    delete: ref => { ops.push(() => deleteDoc(ref)); },
+    commit: async () => { for (const op of ops) await op(); },
+  };
+}

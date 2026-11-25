@@ -140,13 +140,35 @@ const RULES = [
   ['表彰式', 'Award Ceremony'], ['会場練習', 'Warm-up'], ['選手紹介', 'Athlete Introduction'], ['出場選手', 'Starting Athletes'], ['残り時間', 'Time left'],
   ['得点集計中', 'Calculating score'], ['得点問い合わせ確認中', 'Score inquiry under review'], ['得点・順位が変更になる可能性があります', 'Scores and rankings may change'],
   ['スタートリストが登録されていません', 'No start list registered'], ['この区分の登録チームがありません', 'No teams registered in this category'],
+  // 競技カードの提出
+  ['競技カード入力', 'Competition Card'], ['所属(ふりがな)', 'Team (kana)'], ['ふりがな', 'Kana'], ['せい めい', 'Family and given name'], ['くらぶめい', 'Team name reading'], ['所属', 'Team'],
+  ['📢 選手コールに使用するため、ご記載をお願いします', '📢 Used for announcing athletes. Please fill in.'],
+  ['👥 チーム名のふりがなは同じチームの誰かが入力すると反映されます', '👥 The team name reading is shared once anyone on the team enters it.'],
+  ['⚠️ 選択肢にない技やシステムの計算がおかしいなどがある場合は、大会開始までに審判席にお越しください。', "⚠️ If a skill is missing or a calculation looks wrong, please come to the judges' desk before the competition starts."],
+  ['⚠ 技リストの読み込みに失敗しました（通信環境をご確認ください）。すでに入力・提出した内容は消えていません。表示できるまで再読み込みしてください。', '⚠ Failed to load the skill list. Please check your connection and reload. Your saved entries are not lost.'],
+  ['基礎点：', 'Base: '], ['ボーナス点：', 'Bonus: '], ['技名', 'Skill'],
+  ['この内容で提出する', 'Submit this card'], ['内容を修正する', 'Edit card'], ['一覧に戻る', 'Back to list'], ['送信中...', 'Submitting...'],
+  ['📋 予選演技をコピーする', '📋 Copy my qualifying routine'], ['👥 同じチームの選手の構成を読込', "👥 Load a teammate's routine"], ['📅 過去の自分の構成を取得', '📅 Load my past routine'],
+  ['選手・ラウンドを選択...', 'Select athlete / round...'], ['大会・ラウンドを選択...', 'Select competition / round...'], ['該当者なし', 'None found'],
+  ['読み込み中...', 'Loading...'], ['読込中...', 'Loading...'], [' ー ', ' – '], ['予選１', 'Qualifying 1'], ['予選1', 'Qualifying 1'], ['予選2', 'Qualifying 2'],
+  ['競技カードを提出しました。（デモのため、どこにも登録されません）', 'Your competition card has been submitted. (Demo: nothing is saved.)'],
+  ['選手と所属のふりがなを入力してください。', 'Enter the kana readings for your name and team.'],
+  ['引用する選手・ラウンドを選択してください。', 'Select an athlete and round to load.'], ['取得する大会・ラウンドを選択してください。', 'Select a competition and round to load.'],
+  ['選択した構成をこの画面に読み込みます。現在の入力内容は上書きされます。よろしいですか？', 'Load the selected routine? Your current input will be overwritten.'],
+  ['予選演技をこの画面にコピーします。現在の入力内容は上書きされます。よろしいですか？', 'Copy your qualifying routine? Your current input will be overwritten.'],
   // デモの共通部品
   ['ダミーデータ ・ ← デモ一覧', 'Dummy data · ← Demo list'], ['デモ一覧に戻る', 'Back to demo list'],
   // 記号
   ['（', ' ('], ['）', ')'],
 ];
-const TEXT_RULES = RULES.filter(r => typeof r[0] === 'string').sort((a, b) => b[0].length - a[0].length);
+// 競技カード（スマートフォンの幅）は、選択欄がせまいので、短い言い方にする
+const PAGE_RULES = {
+  'entry.html': { '前方系': 'Front', '後方系': 'Back', '1回宙系': 'Single', '2回宙系': 'Double', '3回宙系': 'Triple', '4回宙系': 'Quad' },
+};
+const page = location.pathname.split('/').pop() || 'index.html';
+const TEXT_RULES = Object.entries({ ...Object.fromEntries(RULES), ...PAGE_RULES[page] }).sort((a, b) => b[0].length - a[0].length);
 const REGEX_RULES = [
+  [/技 (\d+) が選択されていません。/g, 'Skill $1 is not selected.'],
   [/(\d+)本目の技が未選択です。すべての技を選択してから保存してください。/g, 'Skill $1 is not selected. Select all skills before saving.'],
   [/試技順(\d+)番/g, 'Start order $1'],
   [/(\d+)本(?!目)/g, '$1 skills'],
@@ -234,7 +256,6 @@ function startStaticPage() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
 }
 
-const page = location.pathname.split('/').pop() || 'index.html';
 if (page === 'index.html' || page === '') startStaticPage();
 else startTranslator(page === 'd_calc.html');
 bindToggle();

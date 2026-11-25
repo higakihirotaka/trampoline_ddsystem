@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="../favicon-32.png">
+  <script>(function(){var u=new URL(location.href),d={"event":"demo","athlete":"BVQDJ9Jc6N3XmT6EV019","round":"final"};Object.keys(d).forEach(function(k){if(!u.searchParams.has(k))u.searchParams.set(k,d[k]);});history.replaceState(null,'',u);})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>競技カード入力 - Trampoline Scoring System</title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --warn: #f29900; --danger: #d32f2f; --gray: #70757a; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); padding: 15px; margin: 0; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .info-card { background: #f1f3f4; padding: 18px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .info-name-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+        .info-name { font-size: 1.6em; font-weight: 900; color: #202124; }
+        .info-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        .badge { display: inline-flex; align-items: center; justify-content: center; line-height: 1; padding: 4px 12px; border-radius: 20px; font-size: 0.78em; font-weight: bold; background: #e8eaed; color: #3c4043; }
+        .badge-round { background: #e8f0fe; color: var(--primary); }
+        .info-row { display: flex; align-items: baseline; gap: 12px; }
+        .info-label { font-size: 0.72em; color: #80868b; font-weight: bold; white-space: nowrap; min-width: 90px; }
+        .info-value { font-size: 0.95em; font-weight: bold; color: #333; }
+        .info-input-row { display: flex; align-items: center; gap: 12px; }
+        .kana-input { flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.95em; background: #fff; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+        th, td { padding: 12px 5px; border-bottom: 1px solid #eee; text-align: center; transition: 0.3s; }
+        select { width: 100%; padding: 12px 5px; border-radius: 8px; border: 1px solid #ddd; font-size: 1em; background: #fff; }
+        .total-display { margin-top: 20px; background: #e8f0fe; border: 2px solid var(--primary); border-radius: 14px; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+        .total-display-sub { font-size: 1em; color: #5f6368; }
+        .total-display-sub span { font-weight: 900; color: #333; font-size: 1.3em; }
+        .total-val-wrap { text-align: right; }
+        .total-val-label { font-size: 0.7em; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; }
+        .total-val { font-size: 3em; font-weight: 900; color: var(--primary); line-height: 1; }
+        .btn-group { display: flex; gap: 15px; margin-top: 30px; }
+        .btn { flex: 1; padding: 18px; border-radius: 12px; font-size: 1.0em; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: center; text-decoration: none; border: 2px solid transparent; }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-secondary { background: #fff; color: var(--primary); border-color: var(--primary); }
+        .btn-warn { background: #f57c00; color: white; border-color: #f57c00; }
+        .btn-warn:hover { background: #e65100; border-color: #e65100; }
+        .btn-danger { width: 100%; margin-top: 20px; background: #fff; color: var(--danger); border-color: var(--danger); display: none; }
+        #modify-btn { display: none; }
+        .duplicate-row td { background-color: #fff176 !important; }
+        .dd-zero { color: var(--danger) !important; font-weight: bold; }
+        .check-cell input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; }
+        .dd-not-designated { color: #90a4ae !important; }
+        .dd-capped { color: #e65100 !important; font-weight: 900; }
+        .input-note { font-size: 0.72em; color: #80868b; margin: 2px 0 0; }
+        .synchro-kana-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .synchro-kana-col { display: flex; flex-direction: column; gap: 5px; }
+        .synchro-kana-col-label { font-size: 0.7em; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 0.04em; }
+        .synchro-kana-col-name { font-size: 0.88em; font-weight: bold; color: #333; }
+        .synchro-kana-club { font-size: 1em; font-weight: bold; color: #333; }
+        #club-same-area { display: flex; flex-direction: column; gap: 4px; }
+        .notice-box { background: #fff8e1; border-left: 4px solid var(--warn); border-radius: 8px; padding: 12px 16px; margin-top: 20px; font-size: 0.85em; color: #5d4037; line-height: 1.7; }
+        .deadline-banner { align-items: center; gap: 8px; background: #fdecea; border: 1px solid #f3c2c2; border-left: 4px solid var(--danger); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9em; font-weight: bold; color: #b71c1c; }
+        .skeleton-cell { height: 1.4em; border-radius: 6px; margin: 0 4px; background: linear-gradient(90deg, #eee 25%, #f3f3f3 50%, #eee 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.4s ease-in-out infinite; }
+        @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        @media (max-width: 600px) {
+            body { padding: 8px; }
+            .container { padding: 14px; border-radius: 14px; }
+            .info-name { font-size: 1.25em; }
+            .info-label { min-width: 70px; font-size: 0.68em; }
+            /* 横スクロールせず画面幅に収める（# と DD 列を詰めて技名の幅を確保） */
+            th, td { padding: 9px 3px; font-size: 0.88em; }
+            #skill-table th:nth-child(1) { width: 28px !important; }
+            #skill-table th:nth-child(5) { width: 46px !important; }
+            select { padding: 9px 2px; font-size: 0.88em; border-radius: 6px; }
+            .total-display { flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; }
+            .total-val { font-size: 2.4em; }
+            .total-val-wrap { align-self: flex-end; }
+            .btn-group { flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+            .btn { padding: 15px 10px; font-size: 0.92em; min-width: calc(50% - 5px); }
+            #admin-clear-btn { margin-top: 12px; }
+        }
+        body { padding-bottom: 64px !important; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div id="deadline-banner" class="deadline-banner" style="display:none;"></div>
+    <div id="skill-load-error-banner" class="deadline-banner" style="display:none;">
+        <span>⚠ 技リストの読み込みに失敗しました（通信環境をご確認ください）。すでに入力・提出した内容は消えていません。表示できるまで再読み込みしてください。</span>
+        <button onclick="location.reload()" style="margin-left:auto;padding:6px 16px;border:none;border-radius:8px;background:var(--danger);color:#fff;font-weight:bold;cursor:pointer;">再読み込み</button>
+    </div>
+    <div class="info-card">
+        <div class="info-name-row">
+            <span id="ath-name" class="info-name">読み込み中...</span>
+            <div class="info-badges">
+                <span class="badge" id="ath-class">-</span>
+                <span class="badge" id="ath-flight-group">-</span>
+                <span class="badge badge-round" id="round-display">-</span>
+            </div>
+        </div>
+        <!-- 個人用ふりがな（シンクロは非表示） -->
+        <div id="indiv-kana-area">
+            <div class="info-input-row">
+                <span class="info-label">ふりがな</span>
+                <input type="text" id="ath-kana" class="kana-input" placeholder="せい めい">
+            </div>
+            <div class="info-row">
+                <span class="info-label">所属</span>
+                <span id="ath-club" class="info-value">読み込み中...</span>
+            </div>
+            <div class="info-input-row">
+                <span class="info-label">所属(ふりがな)</span>
+                <input type="text" id="ath-club-kana" class="kana-input" placeholder="くらぶめい">
+            </div>
+            <p class="input-note">📢 選手コールに使用するため、ご記載をお願いします</p>
+            <p class="input-note">👥 チーム名のふりがなは同じチームの誰かが入力すると反映されます</p>
+        </div>
+        <!-- シンクロ用ふりがな（個人は非表示） -->
+        <div id="synchro-kana-area" style="display:none">
+            <!-- 選手名ふりがな：常に左右対称 -->
+            <div class="synchro-kana-grid">
+                <div class="synchro-kana-col">
+                    <span class="synchro-kana-col-label">選手 1</span>
+                    <span id="synchro-name1" class="synchro-kana-col-name"></span>
+                    <input type="text" id="ath-kana1" class="kana-input" placeholder="せい めい">
+                </div>
+                <div class="synchro-kana-col">
+                    <span class="synchro-kana-col-label">選手 2</span>
+                    <span id="synchro-name2" class="synchro-kana-col-name"></span>
+                    <input type="text" id="ath-kana2" class="kana-input" placeholder="せい めい">
+                </div>
+            </div>
+            <!-- 所属が同じか違うかは選手データ（club1/club2）から自動判定し、以下のどちらかを表示する -->
+            <!-- 同一チーム：全幅1入力 -->
+            <div id="club-same-area">
+                <span id="synchro-club-shared" class="synchro-kana-club"></span>
+                <input type="text" id="ath-club-kana-shared" class="kana-input" placeholder="所属よみ">
+            </div>
+            <!-- 別チーム：左右対称2入力 -->
+            <div id="club-diff-area" class="synchro-kana-grid" style="display:none">
+                <div class="synchro-kana-col">
+                    <span id="synchro-club1" class="synchro-kana-club"></span>
+                    <input type="text" id="ath-club-kana1" class="kana-input" placeholder="所属よみ（選手1）">
+                </div>
+                <div class="synchro-kana-col">
+                    <span id="synchro-club2" class="synchro-kana-club"></span>
+                    <input type="text" id="ath-club-kana2" class="kana-input" placeholder="所属よみ（選手2）">
+                </div>
+            </div>
+            <p class="input-note">📢 選手コールに使用するため、ご記載をお願いします</p>
+            <p class="input-note">👥 チーム名のふりがなは同じチームの誰かが入力すると反映されます</p>
+        </div>
+    </div>
+    <div id="copy-prev-area" style="display:none; margin-bottom: 12px;">
+        <button id="copy-prev-btn" class="btn btn-secondary" style="width:100%;"></button>
+    </div>
+    <div id="past-self-area" style="display:none; margin-bottom: 12px; padding:12px; background:#f1f3f4; border-radius:8px;">
+        <div style="font-size:0.85rem; font-weight:bold; margin-bottom:8px; color:#5f6368;">📅 過去の自分の構成を取得</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <select id="past-self-select" style="flex:1; min-width:180px; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff; font-size:0.9rem;">
+                <option value="">大会・ラウンドを選択...</option>
+            </select>
+            <button id="past-self-btn" class="btn btn-secondary" style="flex:0 0 auto; white-space:nowrap; padding:8px 20px; font-size:0.9rem; border-width:1px;" onclick="loadPastSelfComposition()">読込</button>
+        </div>
+    </div>
+    <div id="team-ref-area" style="display:none; margin-bottom: 12px; padding:12px; background:#f1f3f4; border-radius:8px;">
+        <div style="font-size:0.85rem; font-weight:bold; margin-bottom:8px; color:#5f6368;">👥 同じチームの選手の構成を読込</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <select id="team-ref-select" style="flex:1; min-width:180px; padding:8px; border-radius:6px; border:1px solid #ccc; background:#fff; font-size:0.9rem;">
+                <option value="">選手・ラウンドを選択...</option>
+            </select>
+            <button id="team-ref-btn" class="btn btn-secondary" style="flex:0 0 auto; white-space:nowrap; padding:8px 20px; font-size:0.9rem; border-width:1px;" onclick="loadTeamComposition()">読込</button>
+        </div>
+    </div>
+    <input type="hidden" id="ath-gender">
+    <div class="table-wrap">
+    <table id="skill-table">
+        <thead><tr><th style="width:40px;">#</th><th style="width:22%;">系統</th><th style="width:22%;">宙系</th><th>技名</th><th id="skill-text-th" style="display:none;">技名（直接入力）</th><th style="width:65px;">DD</th><th id="check-th" style="display:none;width:36px;">指定</th></tr></thead>
+        <tbody id="skill-rows"></tbody>
+    </table>
+    </div>
+    <!-- 技名予測変換用（管理者入力のみ。D計算用ページ(d_calc.html)と同じ仕組み） -->
+    <datalist id="skill-datalist"></datalist>
+    <p id="skill-text-hint" style="display:none;font-size:0.78em;color:#80868b;margin:6px 2px 0;">💡 「技名（直接入力）」欄に技名を打つと候補が出ます。選ぶと系統・宙系・技名が自動で埋まります。</p>
+    <div class="total-display">
+        <div class="total-display-sub">
+            基礎点：<span id="dd-base">0.0</span><br>
+            ボーナス点：<span id="dd-bonus">0.0</span>
+        </div>
+        <div class="total-val-wrap">
+            <div class="total-val-label">Total DD</div>
+            <div id="total-dd" class="total-val">0.0</div>
+        </div>
+    </div>
+    <div id="designation-info" style="display:none;text-align:center;margin-top:10px;font-size:0.95rem;font-weight:bold;padding:8px 16px;border-radius:8px;background:#f1f3f4;"></div>
+    <div class="notice-box">⚠️ 選択肢にない技やシステムの計算がおかしいなどがある場合は、大会開始までに審判席にお越しください。</div>
+    <div class="btn-group">
+        <a id="back-link" class="btn btn-secondary" href="#">一覧に戻る</a>
+        <button id="submit-btn" class="btn btn-primary" onclick="submitRoutine()">この内容で提出する</button>
+        <button id="modify-btn" class="btn btn-warn" onclick="enableEditing()">内容を修正する</button>
+    </div>
+    <button id="admin-clear-btn" class="btn btn-danger" onclick="clearEntry()">登録を初期化する (管理者専用)</button>
+</div>
+
+<script type="module">
+    import "./demo-data-entry.js";
+    import { db } from "./firebase-config.js";
+    import { doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, increment, deleteField, collection, getDocs, writeBatch, query, where } from "./fake-firestore.js";
+    import { getSkills } from "./cache.js";
+    import { round1, parseDDRule, calcCardDD } from "./shared.js";
+
+    const params = new URLSearchParams(location.search);
+    const eventId = params.get('event')?.trim(), athleteId = params.get('athlete')?.trim(), round = params.get('round');
+    const isAdmin = params.get('admin') === '1';
+    const clubParam = params.get('club')?.trim();
+    // 管理者（admin_card_edit.html経由）は「一覧に戻る」・提出後の遷移先を選手用一覧(event.html)
+    // ではなく管理者用一覧(admin_card_edit.html)にする（元いた画面に戻れるようにするため）。
+    // 所属別入力リンク（club_entry.html）経由の場合は、全選手が見えるevent.htmlに戻すと
+    // 所属を限定して見せているプライバシー上の意味が無くなるため、同じ所属専用一覧に戻す。
+    const backListUrl = isAdmin ? `admin_card_edit.html?event=${eventId}`
+                       : clubParam ? `club_entry.html?event=${eventId}&club=${clubParam}`
+                       : 'index.html';
+
+    let skillMaster = [];
+    const LABEL_TO_ID = new Map();   // 技名ラベル→技ID（管理者入力欄の予測変換の逆引き。d_calc.htmlと同一）
+    let currentAthlete = null;
+    let tourData = {};
+    // シンクロペアの所属(club1/club2)が異なるかを選手データから自動判定する
+    // （以前はチェックボックスで選手自身に確認させていたが、既存データの比較だけで
+    //   判定できるため不要とし廃止した）
+    function clubsDiffer() {
+        return !!currentAthlete && (currentAthlete.club1 || '') !== (currentAthlete.club2 || '');
+    }
+    let subDocRef = null;   // submissionDoc の存在確認用
+    let designatedDDCount = -1; // 指定難度本数（-1=無効、0=0本指定、1-9=N本指定）
+    let ddRule = parseDDRule({}, '');   // 難度上限・指定難度などの設定（クラスルールから parseDDRule で読み取る）
+
+    // データ取得中、技一覧テーブルに骨組み（シマーアニメーション）を出しておく。
+    // 実際の待ち時間は変わらないが「固まっている」印象を減らすための表示専用の処理。
+    function renderSkeletonRows() {
+        let html = '';
+        for (let i = 1; i <= 10; i++) {
+            html += `<tr>
+                <td>${i}</td>
+                <td><div class="skeleton-cell"></div></td>
+                <td><div class="skeleton-cell"></div></td>
+                <td><div class="skeleton-cell"></div></td>
+                <td><div class="skeleton-cell" style="width:2em;margin-left:auto;margin-right:auto;"></div></td>
+            </tr>`;
+        }
+        document.getElementById('skill-rows').innerHTML = html;
+    }
+
+    async function init() {
+        if (!eventId || !athleteId || !round) return;
+        document.getElementById('back-link').href = backListUrl;
+        if (isAdmin) document.getElementById('admin-clear-btn').style.display = "block";
+        document.getElementById('submit-btn').disabled = true;
+
+        const roundMap = {'pre1': '予選1', 'pre2': '予選2', 'final': '決勝'};
+        document.getElementById('round-display').textContent = roundMap[round] || round;
+        renderSkeletonRows();
+
+        // 技マスタ取得と大会/選手/提出データ取得は互いに依存しないため、直列awaitにせず並列に投げる
+        // （skillMasterはevent.html側で先読み済みならsessionStorageから即返る）。
+        const skillsPromise = getSkills();
+        const tourPromise   = getDoc(doc(db, "tournaments", eventId));
+        const athPromise    = getDoc(doc(db, "tournaments", eventId, "athletes", athleteId));
+        const subPromise    = getDoc(doc(db, "submissions", `${eventId}_${athleteId}_${round}`));
+
+        // 選手情報は一番軽い1件読みなので、他を待たず届き次第すぐに表示する（段階的描画）。
+        // ここでは氏名・クラス・組だけ先出し。ふりがな欄やシンクロ切替など他データに依存する
+        // 部分は、従来通り全データが揃った後のメイン処理でまとめて行う（二重処理を避けるため）。
+        athPromise.then(d => {
+            if (!d.exists()) return;
+            const a = d.data();
+            document.getElementById('ath-name').innerText = a.type === 'synchro' ? `${a.name1 || ''} / ${a.name2 || ''}` : (a.name1 || '');
+            document.getElementById('ath-class').textContent = a.class || '-';
+            document.getElementById('ath-flight-group').textContent = a.flightGroup ? `G${a.flightGroup}` : '-';
+        }).catch(() => {});
+
+        const [skillsResult, tourDoc, athDoc, subDocResult] = await Promise.all([
+            skillsPromise, tourPromise, athPromise, subPromise
+        ]);
+        skillMaster = skillsResult;
+
+        // 技マスタが1件も取れていない場合、既に提出済みの技IDを技マスタと照合できず
+        // 「未入力」に見えてしまう（savedSkillIds が全て空になる）。
+        // 通信環境が悪いだけの一時的な失敗であることが多いため、間を空けて数回リトライしてから、
+        // それでも空なら「入力済みかどうか判断できない」状態のまま描画しないようにする。
+        for (let i = 0; i < 2 && skillMaster.length === 0; i++) {
+            await new Promise(r => setTimeout(r, 1500));
+            skillMaster = await getSkills();
+        }
+        if (skillMaster.length === 0) {
+            document.getElementById('skill-load-error-banner').style.display = 'flex';
+            return; // 技リストが無いまま描画すると提出済みの技が「未入力」に見えてしまうため、ここで止める
+        }
+
+        // 管理者入力（admin=1）のみ、D計算用ページ(d_calc.html)と同じ技名直接入力欄を有効化する。
+        // 選手自身の入力画面では見た目・挙動とも一切変更しない。
+        if (isAdmin) {
+            document.getElementById('skill-text-th').style.display = '';
+            document.getElementById('skill-text-hint').style.display = '';
+            const seen = new Set(), opts = [];
+            skillMaster.forEach(s => {
+                const lbl = s.note ? `${s.symbol}（${s.note}）` : s.symbol;
+                if (!LABEL_TO_ID.has(lbl)) LABEL_TO_ID.set(lbl, s.id);
+                if (!seen.has(lbl)) {
+                    seen.add(lbl);
+                    opts.push(`<option value="${String(lbl).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}"></option>`);
+                }
+            });
+            document.getElementById('skill-datalist').innerHTML = opts.join('');
+        }
+
+        tourData = tourDoc.exists() ? tourDoc.data() : {};
+        subDocRef = subDocResult;
+
+        // 締切を過ぎている場合は一番上にバナーを表示する（提出可否のロジック自体は
+        // submitRoutine() の締切チェックのまま変更しない。参照する締切の選び方もそれに合わせる）。
+        // admin_card_edit.html経由（admin=1）でアクセスした管理者は、締切後でも編集・提出できる
+        // （submitRoutine()側の締切チェックもisAdminでスキップする）ため、閲覧のみではなく
+        // その旨がわかる警告バナーにする。
+        {
+            const _deadlineKey = round === 'final' ? 'finalSubmissionDeadline'
+                               : subDocResult.exists() ? 'revisionDeadline' : 'submissionDeadline';
+            const _deadlineStr = tourData?.[_deadlineKey];
+            if (_deadlineStr && new Date() > new Date(_deadlineStr)) {
+                const banner = document.getElementById('deadline-banner');
+                banner.textContent = isAdmin
+                    ? '⚠️ 締め切りを過ぎていますが、管理者のため編集・提出できます。'
+                    : '締め切り後のため閲覧のみです。問い合わせは審判席までお越しください。';
+                banner.style.display = 'flex';
+            }
+        }
+
+        // 決勝のみクラス（athDoc.exists 内で確定するが、ブロック外の予選引用/ボタン制御でも参照するため関数スコープで宣言）
+        let finalOnly = false;
+
+        if (athDoc.exists()) {
+            currentAthlete = athDoc.data();
+            const athName = currentAthlete.type === 'synchro' ? `${currentAthlete.name1} / ${currentAthlete.name2}` : currentAthlete.name1;
+            const athClub = currentAthlete.type === 'synchro' ? `${currentAthlete.club1} / ${currentAthlete.club2}` : currentAthlete.club1;
+
+            document.getElementById('ath-name').innerText = athName;
+            document.getElementById('ath-gender').value = currentAthlete.gender || "男子";
+            document.getElementById('ath-class').textContent = currentAthlete.class || '-';
+            document.getElementById('ath-flight-group').textContent = currentAthlete.flightGroup ? `G${currentAthlete.flightGroup}` : '-';
+
+            if (currentAthlete.type === 'synchro') {
+                document.getElementById('indiv-kana-area').style.display = 'none';
+                document.getElementById('synchro-kana-area').style.display = '';
+                document.getElementById('synchro-name1').textContent = currentAthlete.name1 || '';
+                document.getElementById('synchro-name2').textContent = currentAthlete.name2 || '';
+                document.getElementById('ath-kana1').value = currentAthlete.kana1 || '';
+                document.getElementById('ath-kana2').value = currentAthlete.kana2 || '';
+                // 所属が同じか違うかは選手データ（club1/club2）から自動判定するのみ。
+                // 以前は「チーム名が別」チェックボックスで選手自身に手動確認させていたが、
+                // 既に登録済みのclub1/club2の比較だけで自動的に判定できるため不要とし削除した。
+                if (clubsDiffer()) {
+                    document.getElementById('club-same-area').style.display = 'none';
+                    document.getElementById('club-diff-area').style.display = '';
+                    document.getElementById('synchro-club1').textContent = currentAthlete.club1 || '';
+                    document.getElementById('synchro-club2').textContent = currentAthlete.club2 || '';
+                    document.getElementById('ath-club-kana1').value = currentAthlete.clubKana1 || '';
+                    document.getElementById('ath-club-kana2').value = currentAthlete.clubKana2 || '';
+                } else {
+                    document.getElementById('synchro-club-shared').textContent = currentAthlete.club1 || '';
+                    document.getElementById('ath-club-kana-shared').value = currentAthlete.clubKana1 || '';
+                }
+            } else {
+                document.getElementById('ath-club').innerText = athClub;
+                document.getElementById('ath-kana').value = currentAthlete.kana1 || "";
+                document.getElementById('ath-club-kana').value = currentAthlete.clubKana1 || "";
+            }
+
+            // 指定難度本数をクラスルールから取得（2本合計時のみ有効）
+            const athType = currentAthlete.type || 'individual';
+            const athClass = currentAthlete.class || currentAthlete.category || '';
+            const cr = (tourData.classRules?.[athType] || {})[athClass] || {};
+            finalOnly = cr.finalOnly === true;   // 決勝のみクラス（予選なし）
+            // 難度の上限・指定難度の設定（失格モードのクラスは丸め込まない。読み取りは shared.js の parseDDRule）
+            ddRule = parseDDRule(cr, round);
+            // -1=設定なし, 0=0本指定(DD全0), 1-9=N本指定
+            designatedDDCount = ddRule.designatedDDCount;
+            if (designatedDDCount > 0) {
+                // 1本以上指定: チェックボックス列を表示
+                document.getElementById('check-th').style.display = '';
+                document.getElementById('designation-info').style.display = '';
+            } else if (designatedDDCount === 0) {
+                // 0本指定: チェックボックス不要、インジケーターのみ表示
+                document.getElementById('designation-info').style.display = '';
+            }
+        }
+
+        const skillsData = subDocResult.exists() ? subDocResult.data().skills : [];
+        const savedSkillIds = skillsData.map(s => {
+            if (s === null || s === undefined) return "";
+            if (typeof s === 'object') {
+                // id フィールドがあれば ID で直接照合（同Symbol異注釈の技に対応）
+                if (s.id) {
+                    const byId = skillMaster.find(m => m.id === String(s.id));
+                    if (byId) return byId.id;
+                }
+                // 旧フォーマット互換: Symbol で検索
+                const found = skillMaster.find(m => m.symbol === s.skill);
+                return found ? found.id : "";
+            }
+            // 一括登録フォーマット: IDの文字列または数値
+            const sStr = String(s);
+            return skillMaster.find(m => m.id === sStr) ? sStr : "";
+        });
+
+        let rows = "";
+        for (let i = 1; i <= 10; i++) {
+            const skillId = savedSkillIds[i-1] || "";
+            const skill = skillMaster.find(s => s.id === skillId) || {};
+            // 2段目セレクタ（宙系 or 基礎技の開始姿勢）は updateOptions() が系統に応じて動的構築する
+            const checkStyle = designatedDDCount > 0 ? 'text-align:center' : 'display:none';
+            const skillTextCell = isAdmin
+                ? `<td><input type="text" id="skill-text-${i}" list="skill-datalist" oninput="onSkillText(${i})" onchange="onSkillText(${i})" onkeydown="onSkillTextKeydown(event, ${i})" placeholder="技名で検索" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #a8c7e8;background:#f5faff;font-size:0.92em;"></td>`
+                : '';
+            rows += `<tr id="row-${i}"><td>${i}</td>
+                <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
+                    <option value="前方系" ${skill.direction==='前方系'?'selected':''}>前方系</option>
+                    <option value="後方系" ${skill.direction==='後方系'?'selected':''}>後方系</option>
+                    <option value="基礎技" ${skill.direction==='基礎技'?'selected':''}>基礎技</option></select></td>
+                <td><select id="soma-${i}" onchange="updateOptions(${i})"></select></td>
+                <td><select id="skill-${i}" onchange="onSkillSelect(${i})"></select></td>
+                ${skillTextCell}
+                <td><span id="dd-${i}">0.0</span></td>
+                <td class="check-cell" style="${checkStyle}"><input type="checkbox" id="chk-${i}" onchange="onCheckChange(${i})"></td></tr>`;
+        }
+        document.getElementById('skill-rows').innerHTML = rows;
+        for (let i = 1; i <= 10; i++) {
+             updateOptions(i, savedSkillIds[i-1], false)
+        };
+        // 指定難度インデックスを復元（calcTotal前に設定する）
+        if (designatedDDCount > 0 && subDocResult.exists()) {
+            const savedIdx = subDocResult.data().designatedDDIndices || [];
+            savedIdx.forEach(idx => {
+                const chk = document.getElementById(`chk-${idx + 1}`);
+                if (chk) chk.checked = true;
+            });
+        }
+        calcTotal();
+
+        // 予選引用ボタンのラベル・onclickは提出状況に関わらず設定する
+        // （提出済みでも「内容を修正する」で表示されるため、ここで未設定だと空ボタンになる）
+        if ((round === 'pre2' || round === 'final') && !finalOnly) {
+            const cpBtn = document.getElementById('copy-prev-btn');
+            cpBtn.textContent = round === 'final' ? '📋 予選演技をコピーする' : '📋 予選１の構成をコピーする';
+            cpBtn.onclick = copyPrevRound;
+        }
+
+        if (subDocResult.exists()) {
+            lockInputs(true);
+            document.getElementById('submit-btn').style.display = "none";
+            document.getElementById('modify-btn').style.display = "block";
+        } else {
+            document.getElementById('submit-btn').disabled = false;
+            if ((round === 'pre2' || round === 'final') && !finalOnly) {
+                document.getElementById('copy-prev-area').style.display = '';
+            }
+        }
+
+        // 引用メニューは「取得の成否に依存させず先に枠を表示」する。
+        // （iOS Safari等で取得が失敗/ハングしても枠は出る＝リロード不要。中身は各 setup が後から投入し、
+        //   失敗時は「該当者なし」に倒れる）
+        // 中身の取得自体は、選手が実際にプルダウンを開いた時だけ行う（大半の選手は使わない機能なので、
+        // athletes/submissions全件・全大会一覧などの通信をページを開くたびに発生させないため）。
+        if (!subDocResult.exists()) {
+            document.getElementById('team-ref-area').style.display = '';
+            if (currentAthlete && currentAthlete.type !== 'synchro') {
+                document.getElementById('past-self-area').style.display = '';
+            }
+        }
+        document.getElementById('team-ref-select').addEventListener('focus', ensureTeamRefLoaded, { once: true });
+        document.getElementById('past-self-select').addEventListener('focus', ensurePastSelfLoaded, { once: true });
+    }
+
+    // 引用メニューの遅延読み込み（初回フォーカス時のみ実際に取得。以降は結果を使い回す）
+    // フォーカスされた瞬間に「読込中...」へ切り替え、取得完了まで操作不可にする
+    // （setupTeamReference/setupPastSelfReference が完了時に中身で上書きする）。
+    let teamRefLoadPromise = null, pastSelfLoadPromise = null;
+    function ensureTeamRefLoaded() {
+        if (!teamRefLoadPromise) {
+            const sel = document.getElementById('team-ref-select');
+            const btn = document.getElementById('team-ref-btn');
+            sel.innerHTML = '<option value="">読込中...</option>';
+            sel.disabled = true;
+            btn.disabled = true;
+            teamRefLoadPromise = setupTeamReference();
+        }
+        return teamRefLoadPromise;
+    }
+    function ensurePastSelfLoaded() {
+        if (!pastSelfLoadPromise) {
+            const sel = document.getElementById('past-self-select');
+            const btn = document.getElementById('past-self-btn');
+            sel.innerHTML = '<option value="">読込中...</option>';
+            sel.disabled = true;
+            btn.disabled = true;
+            pastSelfLoadPromise = setupPastSelfReference();
+        }
+        return pastSelfLoadPromise;
+    }
+
+    // 2段目セレクタの選択肢（系統で出し分け: 基礎技=開始姿勢 / 宙技=宙系）
+    const SOMA_OPTIONS = {
+        basic:  [['','--（全て）'], ['スタンドから','スタンドから'], ['腰から','腰から'], ['腹から','腹から'], ['背から','背から']],
+        aerial: [['','--'], ['1回宙','1回宙系'], ['2回宙（1.5以下）','2回宙系（1.5以下）'], ['2回宙（1.6以上）','2回宙系（1.6以上）'], ['3回宙','3回宙系'], ['4回宙','4回宙系']]
+    };
+
+    window.updateOptions = (idx, selectedId = "", doCalc = true, syncTextBack = true) => {
+        const dir    = document.getElementById(`dir-${idx}`).value;
+        const somaEl = document.getElementById(`soma-${idx}`);
+        const sel    = document.getElementById(`skill-${idx}`);
+        const currentVal = sel.value;
+        const isBasic = dir === '基礎技';
+        // 2段目セレクタ: 系統に応じて選択肢を再構築（基礎技でも表示し、開始姿勢を選べるようにする）
+        if (somaEl) {
+            const showSoma = !!dir;
+            somaEl.style.visibility = showSoma ? '' : 'hidden';
+            // 復元したい値: selectedId 指定時はその技から、なければ現在値を維持
+            let want = somaEl.value;
+            if (selectedId) {
+                const sk = skillMaster.find(s => s.id === selectedId);
+                if (sk) {
+                    want = (sk.direction === '基礎技') ? (sk.somersaultType || '')
+                         : (sk.somersaultType === '2回宙')
+                             ? (sk.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）')
+                             : (sk.somersaultType || '');
+                }
+            }
+            const opts = isBasic ? SOMA_OPTIONS.basic : SOMA_OPTIONS.aerial;
+            somaEl.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+            somaEl.value = (showSoma && opts.some(([v]) => v === want)) ? want : '';
+        }
+        const soma = somaEl?.value || '';
+        // '2回宙（1.5以下）' / '2回宙（1.6以上）' を somersaultType + doubleSomaGroup にマップ
+        let somaType  = soma;
+        let somaGroup = '';
+        if (soma === '2回宙（1.5以下）') { somaType = '2回宙'; somaGroup = 'low'; }
+        else if (soma === '2回宙（1.6以上）') { somaType = '2回宙'; somaGroup = 'high'; }
+        sel.innerHTML = '<option value="">選択してください</option>';
+        if (dir) {
+            skillMaster.filter(s => {
+                if (s.direction !== dir) return false;
+                if (somaType && s.somersaultType !== somaType) return false;
+                if (somaGroup && s.doubleSomaGroup !== somaGroup) return false;
+                // 「D審のみ」技は選手入力画面（admin=1でない）では新規に選べないようにする。
+                // ただし既に選択済み（D審判が入力した等）の場合は、選択肢から消えて
+                // 見えなくなってしまわないよう例外的に残す。
+                if (!isAdmin && s.dJudgeOnly && s.id !== selectedId) return false;
+                return true;
+            }).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.note ? `${s.symbol}（${s.note}）` : s.symbol;
+                if (s.id === selectedId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+        if (!selectedId && currentVal) sel.value = currentVal;
+        // 管理者入力欄（技名直接入力）を現在の選択に同期する（入力途中は呼ばずカーソル移動を防ぐ）
+        if (isAdmin && syncTextBack) syncText(idx);
+        if (doCalc) calcTotal();
+    };
+
+    // 技名ドロップダウンを直接変更したとき（管理者入力欄のみ。D計算用ページ(d_calc.html)と同一）
+    window.onSkillSelect = (idx) => { if (isAdmin) syncText(idx); calcTotal(); };
+
+    // 管理者入力欄に入力/候補選択したとき → ラベルから技IDを逆引きして系統・宙系・技名を自動入力する。
+    // 完全一致したときだけ反映し、打ちかけの途中では何もしない（d_calc.htmlと同一ロジック）。
+    window.onSkillText = (idx) => {
+        const el = document.getElementById(`skill-text-${idx}`);
+        if (!el) return;
+        const v = el.value.trim();
+        if (!v) return;                   // 空欄は現状維持（クリアはドロップダウンで）
+        const id = LABEL_TO_ID.get(v);
+        if (id) fillRow(idx, id, false);  // テキストは上書きしない（入力途中のカーソル移動を防ぐ）
+    };
+
+    // 管理者入力欄でTabキーを押したとき、次（Shift+Tabなら前）の技名直接入力欄へ直接移動する。
+    // 何もしなければ系統/宙系/技名の各セレクタを一つずつ経由してしまい入力が遅くなるため。
+    // 隣接する行に入力欄が無い（1行目の前、10行目の次）場合は通常のTab移動に任せる。
+    window.onSkillTextKeydown = (e, idx) => {
+        if (e.key !== 'Tab') return;
+        const nextIdx = e.shiftKey ? idx - 1 : idx + 1;
+        const nextEl = document.getElementById(`skill-text-${nextIdx}`);
+        if (!nextEl) return;
+        e.preventDefault();
+        nextEl.focus();
+        nextEl.select();
+    };
+
+    // 技IDから系統・宙系・技名ドロップダウンを埋める（管理者入力欄のみ）
+    window.fillRow = (idx, skillId, syncTextBack = true) => {
+        const skill = skillMaster.find(s => s.id === skillId);
+        if (!skill) return;
+        document.getElementById(`dir-${idx}`).value = skill.direction || '';
+        updateOptions(idx, skillId, true, syncTextBack);
+    };
+
+    // 管理者入力欄を「現在ドロップダウンで選択中の技名ラベル」に合わせる
+    window.syncText = (idx) => {
+        const el = document.getElementById(`skill-text-${idx}`);
+        if (!el) return;
+        const id = document.getElementById(`skill-${idx}`).value;
+        const skill = skillMaster.find(s => s.id === id);
+        el.value = skill ? (skill.note ? `${skill.symbol}（${skill.note}）` : skill.symbol) : '';
+    };
+
+    window.calcTotal = () => {
+        // 画面の入力を共通の計算（shared.js の calcCardDD）に渡し、結果を各行の表示に反映する
+        const skills = [];
+        for (let i = 1; i <= 10; i++) {
+            const id = document.getElementById(`skill-${i}`).value;
+            const skill = id ? skillMaster.find(s => s.id === id) : null;
+            skills.push(skill ? { key: id, dd: skill.dd, isTriple: skill.isTriple } : null);
+        }
+        // 指定難度チェック（-1=全技有効、0=全技無効、1以上=チェック済みのみ有効）
+        const checkedIdx = [];
+        for (let i = 1; i <= 10; i++) {
+            if (designatedDDCount > 0 && skills[i - 1] && document.getElementById(`chk-${i}`)?.checked === true) checkedIdx.push(i - 1);
+        }
+        const designatedChecked = checkedIdx.length;
+        const calc = calcCardDD({ skills, gender: document.getElementById('ath-gender').value, ddRule, designatedIndices: checkedIdx });
+
+        for (let i = 1; i <= 10; i++) {
+            const row = document.getElementById(`row-${i}`);
+            const ddSpan = document.getElementById(`dd-${i}`);
+            const c = calc.rows[i - 1];
+            if (c.blank) {
+                ddSpan.textContent = "0.0";
+                ddSpan.classList.remove('dd-zero', 'dd-not-designated', 'dd-capped');
+                row.classList.remove('duplicate-row');
+                continue;
+            }
+            row.classList.toggle('duplicate-row', c.isDupRow);
+            // 1技あたり難度上限: 上限超の技は上限値で計算（表示も上限値にして色付け）
+            ddSpan.textContent = c.usedDD.toFixed(1);
+            if (c.isDupZero) {
+                ddSpan.classList.add('dd-zero');
+                ddSpan.classList.remove('dd-not-designated', 'dd-capped');
+            } else {
+                ddSpan.classList.remove('dd-zero');
+                if (c.isDesignated) {
+                    ddSpan.classList.remove('dd-not-designated');
+                    ddSpan.classList.toggle('dd-capped', c.isCapped);
+                } else {
+                    ddSpan.classList.add('dd-not-designated'); // 非指定はグレー表示
+                    ddSpan.classList.remove('dd-capped');
+                }
+            }
+        }
+
+        // 構成あたり難度上限: 合計（Base＋ボーナス）が上限を超えたら上限で頭打ち
+        document.getElementById('dd-base').textContent  = calc.baseDD.toFixed(1);
+        document.getElementById('dd-bonus').textContent = calc.bonus.toFixed(1);
+        const totalEl = document.getElementById('total-dd');
+        totalEl.textContent = calc.total.toFixed(1);
+        totalEl.classList.toggle('dd-capped', calc.routineCapped);
+
+        // 指定難度インジケーター更新
+        if (designatedDDCount === 0) {
+            const infoEl = document.getElementById('designation-info');
+            if (infoEl) {
+                infoEl.textContent = `難度有効本数　${designatedDDCount}本`;
+                infoEl.style.background = '#fce4ec';
+                infoEl.style.color      = '#c62828';
+            }
+        } else if (designatedDDCount > 0) {
+            const infoEl = document.getElementById('designation-info');
+            if (infoEl) {
+                const ok = designatedChecked === designatedDDCount;
+                infoEl.textContent = `指定難度：${designatedChecked} / ${designatedDDCount} 本 選択中`;
+                infoEl.style.background = ok ? '#e8f5e9' : '#fff3e0';
+                infoEl.style.color      = ok ? '#1e8e3e' : '#e65100';
+            }
+        }
+    };
+
+    window.onCheckChange = (idx) => {
+        const chkEl  = document.getElementById(`chk-${idx}`);
+        const skillEl = document.getElementById(`skill-${idx}`);
+        // スキル未選択の場合はチェック不可
+        if (!skillEl?.value) {
+            if (chkEl) chkEl.checked = false;
+            return;
+        }
+        // チェック数の上限確認
+        if (chkEl?.checked && designatedDDCount > 0) {
+            const total = Array.from({length: 10}, (_, i) => document.getElementById(`chk-${i+1}`)?.checked ? 1 : 0)
+                              .reduce((a, b) => a + b, 0);
+            if (total > designatedDDCount) {
+                chkEl.checked = false;
+                return;
+            }
+        }
+        calcTotal();
+    };
+
+    function lockInputs(v) {
+        for (let i = 1; i <= 10; i++) {
+            document.getElementById(`dir-${i}`).disabled = v;
+            document.getElementById(`soma-${i}`).disabled = v;
+            document.getElementById(`skill-${i}`).disabled = v;
+            const chk = document.getElementById(`chk-${i}`);
+            if (chk) chk.disabled = v;
+        }
+        document.getElementById('ath-kana').disabled = v;
+        document.getElementById('ath-club-kana').disabled = v;
+        ['ath-kana1','ath-kana2','ath-club-kana1','ath-club-kana2','ath-club-kana-shared'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = v;
+        });
+    }
+
+    window.enableEditing = () => {
+        lockInputs(false);
+        document.getElementById('modify-btn').style.display = "none";
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.style.display = "block";
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'この内容で提出する';
+        if (round === 'pre2' || round === 'final') {
+            document.getElementById('copy-prev-area').style.display = '';
+        }
+        // 引用メニュー（常に表示。候補なしは「該当者なし」）
+        document.getElementById('team-ref-area').style.display = '';
+        if (currentAthlete && currentAthlete.type !== 'synchro') {
+            document.getElementById('past-self-area').style.display = '';
+        }
+    };
+
+    // 提出データの skills 配列を技ID配列に変換（複数フォーマット互換）
+    function submissionToSkillIds(srcSkills) {
+        return (srcSkills || []).map(s => {
+            if (s === null || s === undefined) return '';
+            if (typeof s === 'object') {
+                if (s.id) { const byId = skillMaster.find(m => m.id === String(s.id)); if (byId) return byId.id; }
+                const found = skillMaster.find(m => m.symbol === s.skill);
+                return found ? found.id : '';
+            }
+            const sStr = String(s);
+            return skillMaster.find(m => m.id === sStr) ? sStr : '';
+        });
+    }
+
+    // 技ID配列を入力フォーム（系統・宙系・技名）に反映
+    function applySkillIdsToForm(skillIds) {
+        for (let i = 1; i <= 10; i++) {
+            const skillId = skillIds[i - 1] || '';
+            const skill   = skillMaster.find(s => s.id === skillId);
+            const dirEl   = document.getElementById(`dir-${i}`);
+            const somaEl  = document.getElementById(`soma-${i}`);
+            dirEl.value = skill?.direction || '';
+            // 2回宙は doubleSomaGroup で細分化した値にマップ
+            let somaVal = '';
+            if (skill?.direction && skill.direction !== '基礎技') {
+                if (skill.somersaultType === '2回宙') {
+                    somaVal = skill.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）';
+                } else {
+                    somaVal = skill.somersaultType || '';
+                }
+            }
+            somaEl.value = somaVal;
+            updateOptions(i, skillId, false);
+        }
+        calcTotal();
+    }
+
+    // Promise にタイムアウトを付与（iOS等で getDocs が応答しないハングを防ぐ）
+    // ※ 引用メニューは非ブロッキング（枠は即表示・裏で取得）のため、コールド接続でも
+    //    取りこぼさないよう長め(20s)にしている。真のハング時のみここで打ち切る。
+    function withTimeout(promise, ms = 20000) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+        ]);
+    }
+
+    // ── 引用メニュー専用キャッシュ（sessionStorage）─────────────
+    // cache.js は submissions をあえて対象外にしているが、この2機能（同じチーム構成／
+    // 過去の自分の構成）は「参考として過去の構成を呼び出す」用途で審判のリアルタイム
+    // 判定には使わないため、数分程度の古さは許容してここだけ個別にキャッシュする。
+    const REF_SS_PREFIX = 'tscRef:';
+    const TEAM_REF_TTL  = 3  * 60 * 1000; // 同じチーム構成：3分（提出反映の鮮度とのバランス）
+    const PAST_SELF_TTL = 10 * 60 * 1000; // 過去の自分の構成：10分（過去大会データはほぼ不変）
+
+    function refCacheGet(key, ttlMs) {
+        return undefined;
+        try {
+            const raw = sessionStorage.getItem(REF_SS_PREFIX + key);
+            if (!raw) return undefined;
+            const { data, ts } = JSON.parse(raw);
+            if (Date.now() - ts > ttlMs) { sessionStorage.removeItem(REF_SS_PREFIX + key); return undefined; }
+            return data;
+        } catch { return undefined; }
+    }
+    function refCacheSet(key, data) {
+        return;
+        try { sessionStorage.setItem(REF_SS_PREFIX + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+    }
+
+    // 大会内の athletes 全件 + submissions 全件（同じチーム構成の元データ）をイベント単位でキャッシュ
+    async function getTeamRefRawData() {
+        const key = `teamRaw:${eventId}`;
+        const cached = refCacheGet(key, TEAM_REF_TTL);
+        if (cached) return cached;
+        const [athSnap, subSnap] = await withTimeout(Promise.all([
+            getDocs(collection(db, "tournaments", eventId, "athletes")),
+            getDocs(query(collection(db, "submissions"), where("eventId", "==", eventId)))
+        ]));
+        const data = {
+            athletes:    athSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            submissions: subSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        };
+        refCacheSet(key, data);
+        return data;
+    }
+
+    // 全大会一覧（過去の自分の構成の探索対象）をキャッシュ。同じ端末で別の選手が使う場合にも効く。
+    async function getAllToursCached() {
+        const key = 'tours:all';
+        const cached = refCacheGet(key, PAST_SELF_TTL);
+        if (cached) return cached;
+        const tourSnap = await withTimeout(getDocs(collection(db, 'tournaments')));
+        const data = tourSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        refCacheSet(key, data);
+        return data;
+    }
+
+    // 同じチームの提出済み構成を引用メニューに並べる
+    // 提出有無は submissions コレクション（提出データ本体）を正として判定する
+    async function setupTeamReference() {
+        const sel = document.getElementById('team-ref-select');
+        const btn = document.getElementById('team-ref-btn');
+        // 候補なし: ドロップダウンを「該当者なし」にして無効化
+        const renderEmpty = () => {
+            sel.innerHTML = '<option value="">該当者なし</option>';
+            sel.disabled = true;
+            btn.disabled = true;
+            return 0;
+        };
+
+        if (!currentAthlete) return renderEmpty();
+        const myClubs = new Set();
+        if (currentAthlete.club1) myClubs.add(currentAthlete.club1);
+        if (currentAthlete.club2) myClubs.add(currentAthlete.club2);
+        if (myClubs.size === 0) return renderEmpty();
+
+        // 全選手（所属・氏名照合用）と、この大会の全提出を取得（キャッシュ優先。失敗/タイムアウト時は「該当者なし」）
+        let raw;
+        try {
+            raw = await getTeamRefRawData();
+        } catch (e) {
+            console.warn('同じチーム構成の取得に失敗:', e);
+            return renderEmpty();
+        }
+
+        // 同じ所属の選手（自分以外）を athleteId → データ で保持
+        const teammates = new Map();
+        raw.athletes.forEach(a => {
+            if (a.id === athleteId) return; // 自分は除外
+            const inClub = (a.club1 && myClubs.has(a.club1)) || (a.club2 && myClubs.has(a.club2));
+            if (inClub) teammates.set(a.id, a);
+        });
+        if (teammates.size === 0) return renderEmpty();
+
+        const roundLabels = { pre1: '予選1', pre2: '予選2', final: '決勝' };
+        const roundOrder  = { pre1: 0, pre2: 1, final: 2 };
+
+        const entries = [];
+        raw.submissions.forEach(s => {
+            const a = teammates.get(s.athleteId);
+            if (!a) return;                                                // 同じチームでなければ除外
+            if (!roundLabels[s.round]) return;                             // 想定外ラウンドは除外
+            if (!Array.isArray(s.skills) || s.skills.length === 0) return; // 空提出は除外
+            const nm  = a.type === 'synchro' ? `${a.name1 || ''} / ${a.name2 || ''}` : (a.name1 || '名称未設定');
+            const cls = a.class ? `（${a.class}）` : '';
+            entries.push({ value: `${s.athleteId}|${s.round}`, label: `${nm}${cls} ー ${roundLabels[s.round]}`, sortKey: `${nm}_${roundOrder[s.round]}` });
+        });
+
+        if (entries.length === 0) return renderEmpty();
+
+        // 候補あり: プレースホルダ＋候補を並べ、操作可能にする
+        entries.sort((x, y) => x.sortKey.localeCompare(y.sortKey, 'ja'));
+        sel.disabled = false;
+        btn.disabled = false;
+        sel.innerHTML = '<option value="">選手・ラウンドを選択...</option>';
+        entries.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.value;
+            opt.textContent = e.label;
+            sel.appendChild(opt);
+        });
+        return entries.length;
+    }
+
+    // 選択した構成を読み込んでフォームへ反映
+    window.loadTeamComposition = async () => {
+        const val = document.getElementById('team-ref-select').value;
+        if (!val) { alert('引用する選手・ラウンドを選択してください。'); return; }
+        const [srcAthleteId, srcRound] = val.split('|');
+        if (!confirm('選択した構成をこの画面に読み込みます。現在の入力内容は上書きされます。よろしいですか？')) return;
+        const btn = document.getElementById('team-ref-btn');
+        btn.disabled = true; btn.textContent = '読込中...';
+        try {
+            const snap = await getDoc(doc(db, 'submissions', `${eventId}_${srcAthleteId}_${srcRound}`));
+            if (!snap.exists()) { alert('選択した構成のデータが見つかりませんでした。'); return; }
+            applySkillIdsToForm(submissionToSkillIds(snap.data().skills || []));
+        } catch (e) {
+            alert('読込に失敗しました: ' + e.message);
+        } finally {
+            btn.disabled = false; btn.textContent = '読込';
+        }
+    };
+
+    // 過去大会から「自分（氏名一致）」の提出済み構成を集める（個人のみ・所属/ふりがな不問）
+    async function setupPastSelfReference() {
+        const sel = document.getElementById('past-self-select');
+        const btn = document.getElementById('past-self-btn');
+        const renderEmpty = () => {
+            sel.innerHTML = '<option value="">該当者なし</option>';
+            sel.disabled = true; btn.disabled = true;
+            return 0;
+        };
+
+        // シンクロは対象外
+        if (!currentAthlete || currentAthlete.type === 'synchro') return renderEmpty();
+        const myName = (currentAthlete.name1 || '').trim();
+        if (!myName) return renderEmpty();
+
+        // 同じ選手名の結果はセッション中キャッシュ（予選1→予選2→決勝と続けて開いても再取得しない）
+        const entryCacheKey = `pastself:${myName}`;
+        const cachedEntries = refCacheGet(entryCacheKey, PAST_SELF_TTL);
+        if (cachedEntries) {
+            if (cachedEntries.length === 0) return renderEmpty();
+            sel.disabled = false; btn.disabled = false;
+            sel.innerHTML = '<option value="">大会・ラウンドを選択...</option>';
+            cachedEntries.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.value;
+                opt.textContent = e.label;
+                sel.appendChild(opt);
+            });
+            return cachedEntries.length;
+        }
+
+        // 全大会（現在の大会・大会名に「テスト」を含む大会は除外。失敗/タイムアウト時は「該当者なし」）
+        let allTours;
+        try {
+            allTours = await getAllToursCached();
+        } catch (e) {
+            console.warn('過去大会一覧の取得に失敗:', e);
+            return renderEmpty();
+        }
+        const tours = allTours
+            .filter(t => t.id !== eventId)
+            .filter(t => !(t.name || '').includes('テスト'));
+        if (tours.length === 0) return renderEmpty();
+
+        const roundLabels = { pre1: '予選1', pre2: '予選2', final: '決勝' };
+        const roundOrder  = { pre1: 0, pre2: 1, final: 2 };
+
+        // 各大会で氏名一致の個人選手を検索（並列）
+        const perTour = await Promise.all(tours.map(async t => {
+            try {
+                const aSnap = await withTimeout(getDocs(query(
+                    collection(db, 'tournaments', t.id, 'athletes'),
+                    where('name1', '==', myName)
+                )));
+                const matches = aSnap.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .filter(a => (a.type || 'individual') !== 'synchro');
+                return { tour: t, athletes: matches };
+            } catch { return { tour: t, athletes: [] }; }
+        }));
+
+        // 一致選手の提出を取得（並列）
+        const entries = [];
+        await Promise.all(perTour.flatMap(({ tour, athletes }) =>
+            athletes.map(async a => {
+                try {
+                    const sSnap = await withTimeout(getDocs(query(collection(db, 'submissions'), where('athleteId', '==', a.id))));
+                    const yr = ((tour.start_date || tour.startDate || '') + '').slice(0, 4);
+                    sSnap.docs.forEach(d => {
+                        const s = d.data();
+                        if (s.eventId !== tour.id) return;                             // 念のため大会一致を確認
+                        if (!roundLabels[s.round]) return;                             // 想定外ラウンド除外
+                        if (!Array.isArray(s.skills) || s.skills.length === 0) return; // 空提出除外
+                        entries.push({
+                            value: `${tour.id}|${a.id}|${s.round}`,
+                            label: `${yr ? yr + ' ' : ''}${tour.name || '大会名未設定'} ー ${roundLabels[s.round]}`,
+                            year: yr, tourName: tour.name || '', roundOrd: roundOrder[s.round]
+                        });
+                    });
+                } catch {}
+            })
+        ));
+
+        // 年は新しい順 → 大会名 → ラウンド順
+        entries.sort((x, y) =>
+            (y.year || '').localeCompare(x.year || '') ||
+            (x.tourName).localeCompare(y.tourName, 'ja') ||
+            (x.roundOrd - y.roundOrd)
+        );
+        refCacheSet(entryCacheKey, entries); // 空配列も含めキャッシュ（再訪時に「該当者なし」を再計算しない）
+
+        if (entries.length === 0) return renderEmpty();
+        sel.disabled = false; btn.disabled = false;
+        sel.innerHTML = '<option value="">大会・ラウンドを選択...</option>';
+        entries.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.value;
+            opt.textContent = e.label;
+            sel.appendChild(opt);
+        });
+        return entries.length;
+    }
+
+    // 選択した過去大会の構成を読み込んでフォームへ反映
+    window.loadPastSelfComposition = async () => {
+        const val = document.getElementById('past-self-select').value;
+        if (!val) { alert('取得する大会・ラウンドを選択してください。'); return; }
+        const [srcEvent, srcAthlete, srcRound] = val.split('|');
+        if (!confirm('選択した過去大会の構成を読み込みます。現在の入力内容は上書きされます。よろしいですか？')) return;
+        const btn = document.getElementById('past-self-btn');
+        btn.disabled = true; btn.textContent = '読込中...';
+        try {
+            const snap = await getDoc(doc(db, 'submissions', `${srcEvent}_${srcAthlete}_${srcRound}`));
+            if (!snap.exists()) { alert('選択した構成のデータが見つかりませんでした。'); return; }
+            applySkillIdsToForm(submissionToSkillIds(snap.data().skills || []));
+        } catch (e) {
+            alert('読込に失敗しました: ' + e.message);
+        } finally {
+            btn.disabled = false; btn.textContent = '読込';
+        }
+    };
+
+    window.copyPrevRound = async () => {
+        const isFinal  = round === 'final';
+        // 予選本数をクラスルールから取得（1本制の場合は pre1 から直接コピー）
+        const _athType  = currentAthlete?.type || 'individual';
+        const _athClass = currentAthlete?.class || currentAthlete?.category || '';
+        const _cr       = (tourData.classRules?.[_athType] || {})[_athClass] || {};
+        const numPre    = _cr.qualifyingRoutines ?? 2;
+
+        let srcRound, fallback, srcLabel;
+        if (!isFinal) {
+            srcRound = 'pre1'; fallback = null;  srcLabel = '予選１の構成';
+        } else if (numPre === 1) {
+            srcRound = 'pre1'; fallback = null;  srcLabel = '予選演技';
+        } else {
+            srcRound = 'pre2'; fallback = 'pre1'; srcLabel = '予選演技';
+        }
+        if (!confirm(`${srcLabel}をこの画面にコピーします。現在の入力内容は上書きされます。よろしいですか？`)) return;
+        const btn = document.getElementById('copy-prev-btn');
+        btn.disabled = true;
+        btn.textContent = '読み込み中...';
+        try {
+            let snap = await getDoc(doc(db, 'submissions', `${eventId}_${athleteId}_${srcRound}`));
+            if (!snap.exists() && fallback) {
+                snap = await getDoc(doc(db, 'submissions', `${eventId}_${athleteId}_${fallback}`));
+            }
+            if (!snap.exists()) {
+                alert('予選の提出データが見つかりませんでした。先に予選を提出してください。');
+                return;
+            }
+            applySkillIdsToForm(submissionToSkillIds(snap.data().skills || []));
+        } catch (e) {
+            alert('コピーに失敗しました: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = `📋 ${srcLabel}をコピーする`;
+        }
+    };
+
+    window.clearEntry = async () => {
+        if (!confirm("本当にこのラウンドの登録をクリアしますか？")) return;
+        try {
+            await deleteDoc(doc(db, "submissions", `${eventId}_${athleteId}_${round}`));
+            await updateDoc(doc(db, "tournaments", eventId, "athletes", athleteId), {
+                [`submissions.${round}`]: deleteField()
+            });
+            alert("登録をクリアしました。");
+            location.reload();
+        } catch (e) {
+            console.error(e);
+            alert("クリア中にエラーが発生しました。");
+        }
+    };
+
+    window.submitRoutine = async () => {
+        // 指定難度バリデーション（1本以上指定時のみ）
+        if (designatedDDCount > 0) {
+            const checked = Array.from({length: 10}, (_, i) => document.getElementById(`chk-${i+1}`)?.checked ? 1 : 0)
+                                .reduce((a, b) => a + b, 0);
+            if (checked !== designatedDDCount) {
+                alert(`指定難度を正確に ${designatedDDCount} 本選択してください（現在 ${checked} 本）`);
+                return;
+            }
+        }
+
+        // 期限チェック（admin_card_edit.html経由の管理者=isAdminは締切後でも編集できるようスキップする）
+        const now = new Date();
+        const isFinal = round === 'final';
+        const deadlineKey = isFinal ? 'finalSubmissionDeadline'
+                          : subDocRef?.exists?.() ? 'revisionDeadline' : 'submissionDeadline';
+        const deadlineStr = tourData?.[deadlineKey];
+        if (!isAdmin && deadlineStr) {
+            const deadline = new Date(deadlineStr);
+            if (now > deadline) {
+                const labels = { submissionDeadline:'提出締切', revisionDeadline:'修正締切', finalSubmissionDeadline:'決勝締切' };
+                alert(`${labels[deadlineKey] || '締切'}を過ぎているため送信できません。`);
+                return;
+            }
+        }
+        const skills = [];
+        for (let i = 1; i <= 10; i++) {
+            const skillId = document.getElementById(`skill-${i}`).value;
+            if (!skillId) {
+                alert(`技 ${i} が選択されていません。`);
+                return;
+            }
+            const skill = skillMaster.find(s => s.id === skillId);
+            skills.push({ id: skillId, skill: skill.symbol, dd: skill.dd });
+        }
+        const isSynchro = currentAthlete.type === 'synchro';
+        const kana     = document.getElementById('ath-kana').value.trim();
+        const clubKana = document.getElementById('ath-club-kana').value.trim();
+        if (!isSynchro && (!kana || !clubKana)) {
+            alert("選手と所属のふりがなを入力してください。");
+            return;
+        }
+        if (isSynchro) {
+            const k1     = document.getElementById('ath-kana1').value.trim();
+            const k2     = document.getElementById('ath-kana2').value.trim();
+            const isDiff = clubsDiffer();
+            const ck1    = isDiff ? document.getElementById('ath-club-kana1').value.trim() : document.getElementById('ath-club-kana-shared').value.trim();
+            const ck2    = isDiff ? document.getElementById('ath-club-kana2').value.trim() : ck1;
+            if (!k1 || !k2 || !ck1 || (isDiff && !ck2)) {
+                alert("選手2名のふりがなと所属よみをすべて入力してください。");
+                return;
+            }
+        }
+
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = '送信中...';
+
+        try {
+            const subId = `${eventId}_${athleteId}_${round}`;
+            const totalDD = parseFloat(document.getElementById('total-dd').textContent);
+
+            // 指定難度インデックスを収集
+            const designatedDDIndices = [];
+            if (designatedDDCount > 0) {
+                for (let i = 1; i <= 10; i++) {
+                    const chk = document.getElementById(`chk-${i}`);
+                    if (chk?.checked) designatedDDIndices.push(i - 1); // 0-indexed
+                }
+            }
+
+            // 0. 前回提出内容と技構成・指定難度を比較し、実質的な変更があったかを判定する。
+            // 内容を何も変えずに提出ボタンを押した場合（見直しただけ、二重クリック等）は
+            // 「修正」として扱わない：修正回数を増やさず、履歴も残さず、確認ステータスも
+            // リセットしない（既にCJPが確認済のカードが、無変更の再提出で未確認に戻るのを防ぐ）。
+            const subRef = doc(db, "submissions", subId);
+            const prevSnap = await getDoc(subRef);
+            const prevData = prevSnap.exists() ? prevSnap.data() : null;
+            const newDesignatedIndices = designatedDDCount > 0 ? designatedDDIndices : [];
+            // 技配列はオブジェクトなので、id（1技を一意に決めるキー）だけを位置ごとに比較する。
+            // Firestoreはマップフィールドのキー順を保持しない（書き込み時と読み込み後でキー順が
+            // 変わりうる）ため、skillオブジェクトをそのままJSON.stringifyして比較すると、
+            // 中身が同じでも常に「不一致」と誤判定してしまう。
+            const skillIdsEqual = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length
+                && a.every((s, i) => String(s?.id) === String(b[i]?.id));
+            const hasChanged = !prevData
+                || !skillIdsEqual(skills, prevData.skills || [])
+                || JSON.stringify(newDesignatedIndices) !== JSON.stringify(prevData.designatedDDIndices || []);
+
+            // 変更があった場合のみ、上書きされる直前の内容を revisions サブコレクションへ退避する
+            // （card_history.html で「修正時に何を変えたか」を確認できるようにするため）
+            if (hasChanged && prevData) {
+                await addDoc(collection(subRef, "revisions"), {
+                    ...prevData,
+                    archivedAt: serverTimestamp()
+                });
+            }
+
+            // 1. Update the detailed submission document
+            await setDoc(subRef, {
+                eventId, athleteId, round, skills, totalDD,
+                ...(designatedDDCount > 0
+                    ? { designatedDDIndices }
+                    : { designatedDDIndices: deleteField() }),
+                updatedAt: serverTimestamp(),
+                lastSubmitChanged: hasChanged, // card_history.htmlで「変更なし再提出」と分かるようにする
+                ...(hasChanged
+                    ? { checkStatus: 0, revisionCount: increment(1) } // 変更ありの時だけ未確認に戻し、修正回数を増やす
+                    : {})
+            }, { merge: true });
+
+            // 2. Update the athlete document with a summary
+            const athleteUpdateData = {
+                [`submissions.${round}`]: 0 // 0: Submitted
+            };
+            // 所属名→所属ふりがな のマップ（同じ所属の他選手へ反映するため）
+            const clubKanaMap = {};
+            if (!isSynchro) {
+                athleteUpdateData.kana1 = kana;
+                athleteUpdateData.clubKana1 = clubKana;
+                if (currentAthlete.club1) clubKanaMap[currentAthlete.club1] = clubKana;
+            } else {
+                const isDiff = clubsDiffer();
+                const ck1    = isDiff ? document.getElementById('ath-club-kana1').value.trim() : document.getElementById('ath-club-kana-shared').value.trim();
+                const ck2    = isDiff ? document.getElementById('ath-club-kana2').value.trim() : ck1;
+                athleteUpdateData.kana1     = document.getElementById('ath-kana1').value.trim();
+                athleteUpdateData.kana2     = document.getElementById('ath-kana2').value.trim();
+                athleteUpdateData.clubKana1 = ck1;
+                athleteUpdateData.clubKana2 = ck2;
+                if (currentAthlete.club1) clubKanaMap[currentAthlete.club1] = ck1;
+                if (currentAthlete.club2) clubKanaMap[currentAthlete.club2] = ck2;
+            }
+            await updateDoc(doc(db, "tournaments", eventId, "athletes", athleteId), athleteUpdateData);
+
+            // 同じ所属名の他選手にも所属ふりがなを反映（失敗しても提出自体は成立させる）
+            try {
+                await propagateClubKana(clubKanaMap);
+            } catch (e) {
+                console.warn('所属ふりがなの一括反映に失敗しました:', e);
+            }
+
+            alert("競技カードを提出しました。（デモのため、どこにも登録されません）");
+            lockInputs(true);
+            btn.style.display = "none";
+            btn.textContent = 'この内容で提出する';
+            document.getElementById('modify-btn').style.display = "block";
+            ['copy-prev-area', 'team-ref-area', 'past-self-area'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+        } catch (e) {
+            console.error(e);
+            alert("エラーが発生しました: " + e.message);
+            btn.disabled = false;
+            btn.textContent = 'この内容で提出する';
+        }
+    };
+
+    // 同じ所属名を持つ全選手の所属ふりがなを、今回入力した値で揃える
+    async function propagateClubKana(clubKanaMap) {
+        const clubNames = Object.keys(clubKanaMap).filter(name => name && clubKanaMap[name]);
+        if (clubNames.length === 0) return;
+
+        const snap = await getDocs(collection(db, "tournaments", eventId, "athletes"));
+        let batch = writeBatch(db);
+        let ops = 0;
+        for (const d of snap.docs) {
+            if (d.id === athleteId) continue; // 自分は更新済み
+            const a = d.data();
+            const upd = {};
+            if (a.club1 && clubKanaMap[a.club1] != null && a.clubKana1 !== clubKanaMap[a.club1]) {
+                upd.clubKana1 = clubKanaMap[a.club1];
+            }
+            if (a.club2 && clubKanaMap[a.club2] != null && a.clubKana2 !== clubKanaMap[a.club2]) {
+                upd.clubKana2 = clubKanaMap[a.club2];
+            }
+            if (Object.keys(upd).length) {
+                batch.update(d.ref, upd);
+                if (++ops >= 450) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+            }
+        }
+        if (ops > 0) await batch.commit();
+    }
+
+    init();
+</script>
+
+<style>
+  #demo-badge{position:fixed;left:10px;bottom:10px;z-index:2147483000;display:flex;gap:8px;align-items:center;font:600 12px/1.2 system-ui,'Noto Sans JP',sans-serif;
+    background:rgba(17,24,39,.86);color:#fff;border-radius:999px;padding:6px 8px 6px 12px;box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:.9}
+  #demo-badge:hover{opacity:1}
+  #demo-badge b{background:#f59e0b;color:#111;border-radius:999px;padding:2px 8px;font-size:11px;letter-spacing:.04em}
+  #demo-badge a{color:#fff;text-decoration:none}
+  #demo-badge .lang{display:inline-flex;margin-left:2px}
+  #demo-badge .lang button{font:inherit;font-size:11px;font-weight:700;padding:3px 9px;background:transparent;color:#cbd5e1;border:1px solid #64748b;cursor:pointer}
+  #demo-badge .lang button:first-child{border-radius:999px 0 0 999px}
+  #demo-badge .lang button:last-child{border-radius:0 999px 999px 0;border-left:0}
+  #demo-badge .lang button[aria-pressed="true"]{background:#fff;color:#111;border-color:#fff}
+</style>
+<div id="demo-badge"><b>DEMO</b><a href="index.html" title="デモ一覧に戻る">ダミーデータ ・ ← デモ一覧</a><span class="lang" role="group" aria-label="Language"><button type="button" data-lang="ja">日本語</button><button type="button" data-lang="en">EN</button></span></div>
+</body>
+</html>

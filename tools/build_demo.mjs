@@ -1,4 +1,4 @@
-// デモページ（public/demo/）を作る。本物の画面（display / judge_panel / judge_cjp / d_calc）を、
+// デモページ（public/demo/）を作る。本物の画面（display / entry / judge_panel / judge_cjp / d_calc）を、
 // Firestore のかわりにダミーデータ（fake-firestore.js）で動く形に加工して書き出す。
 //
 //   使い方:  node tools/fetch_demo_data.mjs <大会ID>            … 本番の大会データを「読み取りだけ」で取得（tools/demo_raw.json）
@@ -95,11 +95,27 @@ const cjpDocs = () => ({
   ...skillDocs,
 });
 
+// 競技カード提出: 中田選手の決勝のカードを、これから入力する状態（提出なし・ふりがなも空欄）。締切は外す。
+// 予選のカードは残す（「予選演技をコピーする」「同じチームの選手の構成を読込」を試せるように）
+const entryDocs = () => {
+  const { submissionDeadline, revisionDeadline, finalSubmissionDeadline, ...tour } = tourBase();
+  const mine = `submissions/${EVENT}_${nakata.id}_final`;
+  const subs = subsOf(() => true);
+  if (!subs[mine]) throw new Error('中田選手の決勝の提出データが見つかりません: ' + mine);
+  delete subs[mine];
+  return { [`tournaments/${EVENT}`]: tour, ...athletesOf(finalists), ...subs, ...skillDocs };
+};
+// 英語表示のローマ字はふりがなから作るので、ふりがなを空欄にするのは、言語を合わせた後
+const BLANK_MY_KANA = `const me = docs["tournaments/${EVENT}/athletes/${nakata.id}"];
+me.kana1 = ''; me.clubKana1 = '';
+`;
+
 const strip = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
-const dataModule = (name, docs) => `// 自動生成（tools/build_demo.mjs）。本番の大会データをもとにした、デモ用のダミーデータ。
+const dataModule = (name, docs, after = '') => `// 自動生成（tools/build_demo.mjs）。本番の大会データをもとにした、デモ用のダミーデータ。
 import { seed } from "./fake-firestore.js";
 import { localizeDocs } from "./demo-i18n.js";   // 英語表示のときは、選手名（ローマ字）・大学名・大会名を英語にして取り込む
-seed(localizeDocs(${JSON.stringify(strip(docs))}));
+const docs = localizeDocs(${JSON.stringify(strip(docs))});
+${after}seed(docs);
 `;
 
 // ---------- 画面の加工 ----------
@@ -157,8 +173,29 @@ fs.writeFileSync(path.join(OUT, 'demo-data-display.js'), dataModule('display', d
 fs.writeFileSync(path.join(OUT, 'demo-data-panel.js'), dataModule('panel', panelDocs()));
 fs.writeFileSync(path.join(OUT, 'demo-data-cjp.js'), dataModule('cjp', cjpDocs()));
 fs.writeFileSync(path.join(OUT, 'demo-data-dcalc.js'), dataModule('dcalc', { ...skillDocs }));
+fs.writeFileSync(path.join(OUT, 'demo-data-entry.js'), dataModule('entry', entryDocs(), BLANK_MY_KANA));
 
 fs.writeFileSync(path.join(OUT, 'display.html'), patch(read('display.html'), { params: { event: EVENT }, dataFile: 'demo-data-display.js' }));
+fs.writeFileSync(path.join(OUT, 'entry.html'), patch(read('entry.html'), {
+  params: { event: EVENT, athlete: nakata.id, round: 'final' }, dataFile: 'demo-data-entry.js',
+  edits: [
+    // デモ: 選手一覧のページは無いので、提出後は移動せず、「提出済み」の画面（内容を修正できる状態）にする
+    ['alert("競技カードを提出しました。");\n            location.href = backListUrl;',
+     `alert("競技カードを提出しました。（デモのため、どこにも登録されません）");
+            lockInputs(true);
+            btn.style.display = "none";
+            btn.textContent = 'この内容で提出する';
+            document.getElementById('modify-btn').style.display = "block";
+            ['copy-prev-area', 'team-ref-area', 'past-self-area'].forEach(id => { document.getElementById(id).style.display = 'none'; });`],
+    // デモ: 引用メニューの一時保存（sessionStorage）は使わない。日本語と英語のデータが混ざるうえ、
+    // 同じサイトの本物の画面と保存場所が同じなので、デモの大会一覧が本物の画面に出てしまう
+    ['function refCacheGet(key, ttlMs) {', 'function refCacheGet(key, ttlMs) {\n        return undefined;'],
+    ['function refCacheSet(key, data) {', 'function refCacheSet(key, data) {\n        return;'],
+    // 左下の「DEMO」の表示が、下のボタンに重ならないように、下に余白を足す
+    ['</style>', '    body { padding-bottom: 64px !important; }\n    </style>'],
+  ],
+  back: [['`event.html?event=${eventId}`;', "'index.html';"]],
+}));
 fs.writeFileSync(path.join(OUT, 'judge_panel.html'), patch(read('judge_panel.html'), {
   params: { event: EVENT, panel: 'A', role: 'D', athlete: nextAth?.id || nakata.id, round: 'final' }, dataFile: 'demo-data-panel.js',
   edits: [["let fType = 'individual', fClass = '', fGender = '', fFinalOnly = false;", "let fType = 'individual', fClass = '', fGender = '', fFinalOnly = true;   // デモ: 最初から「決勝」の一覧"]],
