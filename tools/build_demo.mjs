@@ -136,7 +136,7 @@ const badge = langButtons => `
 </style>
 <div id="demo-badge"><b>DEMO</b><a href="index.html" title="デモ一覧に戻る">ダミーデータ ・ ← デモ一覧</a>${langButtons ? '<span class="lang" role="group" aria-label="Language"><button type="button" data-lang="ja">日本語</button><button type="button" data-lang="en">EN</button></span>' : ''}</div>`;
 
-const patch = (html, { params, dataFile, back = [], usesFirestore = true, edits = [], replaceAll = [], langButtons = true }) => {
+const patch = (html, { params, dataFile, back = [], usesFirestore = true, edits = [], replaceAll = [], langButtons = true, showBadge = true }) => {
   const g = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
   if (usesFirestore && !html.includes(g)) throw new Error('firestore import not found');
   html = html.split(g).join('./fake-firestore.js');
@@ -149,7 +149,7 @@ const patch = (html, { params, dataFile, back = [], usesFirestore = true, edits 
   for (const [from, to] of edits) { if (!html.includes(from)) throw new Error('edit target not found: ' + from.slice(0, 60)); html = html.replace(from, () => to); }
   for (const [from, to] of back) { if (!html.includes(from)) throw new Error('back link not found: ' + from); html = html.split(from).join(to); }
   for (const [from, to] of replaceAll) { if (!html.includes(from)) throw new Error('replaceAll target not found: ' + from); html = html.split(from).join(to); }
-  return html.replace('</body>', badge(langButtons) + '\n</body>');
+  return showBadge ? html.replace('</body>', badge(langButtons) + '\n</body>') : html;
 };
 
 const read = f => fs.readFileSync(path.join(PUB, f), 'utf8');
@@ -215,6 +215,92 @@ fs.writeFileSync(path.join(OUT, 'd_calc.html'), patch(read('d_calc.html'), {
   params: { event: EVENT }, dataFile: 'demo-data-dcalc.js', usesFirestore: false, langButtons: false,
   replaceAll: [["'dcalcLang'", "'demoLang'"]],
   back: [["`admin_menu.html?event=${eventId}`", "'index.html'"]],
+}));
+
+// ---------- 検討用: 決勝モード（study_final_mode.html から、study_final_display.html を枠の中に開く） ----------
+// 本物の得点表示に「決勝モード」を入れる前に、見た目と動きを確かめるためのページ。デモ一覧からはリンクしない。
+// 最後の選手（中山）の前の7人までが確定している。ページを開いて数秒後に、中山選手の結果を公開にする（CJP の「確定&表示」と同じ）。
+// 決勝モードの動き（このページだけ。本物の display.html は変えない）:
+//   ・決勝の個人スコア画面に、順位（RANK）を出さない（slot=hide: 枠ごと消す / slot=mask: 「?」で伏せる）
+//   ・順位はそのあとの順位表で初めて出る（reveal=countdown: 全員終わった決勝の順位表を、下位から1人ずつ出す）
+const lastAth = finalists[finalists.length - 1];
+if (!lastAth.name1.includes('中山')) throw new Error('決勝の最後の選手が中山選手ではありません: ' + lastAth.name1);
+const lastResultId = `${EVENT}_${lastAth.id}_final`;
+const T1 = Date.now() - 60 * 1000 - STEP * lastAth.finalOrder;
+const studyDocs = () => {
+  const docs = {
+    [`tournaments/${EVENT}`]: tourBase(),
+    ...athletesOf(finalists),
+    ...resultsOf(() => true, x => {
+      delete x.displaySkip;
+      if (x.round !== 'final') { x.published = true; x.publishedAt = ts(T1 - 3600 * 1000); }
+      else if (x.athleteId === lastAth.id) { x.published = false; delete x.publishedAt; delete x.verifiedAt; }   // まだ確定していない
+      else { x.published = true; x.publishedAt = ts(T1 + STEP * finalists.find(a => a.id === x.athleteId).finalOrder); x.verifiedAt = x.publishedAt; }
+      return x;
+    }),
+    ...subsOf(s => s.round === 'final'),
+    ...skillDocs,
+  };
+  if (!docs[`results/${lastResultId}`]) throw new Error('中山選手の決勝の結果が見つかりません: ' + lastResultId);
+  return docs;
+};
+fs.writeFileSync(path.join(OUT, 'study-data-final.js'), `// 自動生成（tools/build_demo.mjs）。決勝モードの検討用のダミーデータ（日本語のみ）。
+import { seed, db, doc, updateDoc, Timestamp } from "./fake-firestore.js";
+const p = new URLSearchParams(location.search);
+// 決勝モードの設定（本番では、画面コントロールの設定になる想定）
+window.STUDY = {
+  fm: p.get('fm') === '1',
+  slot: p.get('slot') === 'mask' ? 'mask' : 'hide',
+  reveal: p.get('reveal') === 'countdown' ? 'countdown' : 'all',
+};
+const docs = ${JSON.stringify(strip(studyDocs()))};
+const ds = docs["tournaments/${EVENT}"].displaySettings = { ...(docs["tournaments/${EVENT}"].displaySettings || {}) };
+if (p.get('speed') === 'fast') { ds.animTotalSec = 4; ds.holdSec = 1; }
+// 下位から1人ずつ出すときは、出し終わる前に順位表が描き直されないよう、ページ送りの間隔を長くする
+if (window.STUDY.reveal === 'countdown') ds.rankingPageSec = Math.max(ds.rankingPageSec || 8, 20);
+seed(docs);
+// 中山選手の確定（CJP の「確定&表示」と同じく、結果を公開にする）
+const at = Number(p.get('at') ?? 3);
+setTimeout(() => {
+  const now = Timestamp.now();
+  updateDoc(doc(db, 'results', ${JSON.stringify(lastResultId)}), { published: true, publishedAt: now, verifiedAt: now });
+}, at * 1000);
+`);
+fs.writeFileSync(path.join(OUT, 'study_final_display.html'), patch(read('display.html'), {
+  params: { event: EVENT }, dataFile: 'study-data-final.js', showBadge: false,
+  edits: [
+    // 最初は、直前の選手（美田）の得点ではなく、そのあとの順位表から始める
+    ["        if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {\n          enqueueResult(_initialResultDoc);\n        }",
+     "        if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {\n          // 検討用: 直前の選手の得点は出さず、そのあとの順位表から始める\n          lastShownResData = _initialResultDoc.data(); lastShownAth = athleteMap[lastShownResData.athleteId] || {};\n          startRankingLoop();\n        }"],
+    // 決勝モード: 決勝の個人スコア画面に、順位を出さない
+    ['          <div class="score-unit">\n            <label>RANK</label>\n            <div class="rank-val num">${rank !== null ? rank : \'--\'}</div>\n          </div>',
+     '          ${window.STUDY?.fm && resData.round === \'final\'\n' +
+     '            ? (window.STUDY.slot === \'mask\' ? `<div class="score-unit"><label>RANK</label><div class="rank-val num rank-mask">?</div></div>` : \'\')\n' +
+     '            : `<div class="score-unit">\n            <label>RANK</label>\n            <div class="rank-val num">${rank !== null ? rank : \'--\'}</div>\n          </div>`}'],
+    // 決勝モード: 全員が終わった決勝の順位表を、下位から1人ずつ出す（1位は少し間をあけて、最後に）
+    ["<div class=\"rk-footer\">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>`;\n    overlay.classList.add('visible');",
+     "<div class=\"rk-footer\">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>`;\n    overlay.classList.add('visible');\n" +
+     "    if (window.STUDY?.fm && window.STUDY.reveal === 'countdown' && isFinal && currentMode === 'ranking'\n" +
+     "        && entries.every(e => !e || e.final !== null) && window.STUDY._revealedFor !== lastShownResData?.athleteId) {\n" +
+     "      window.STUDY._revealedFor = lastShownResData?.athleteId;\n" +
+     "      const rows = [...overlay.querySelectorAll('.rk-row')].filter(r => r.style.visibility !== 'hidden');\n" +
+     "      rows.forEach(r => r.classList.add('st-wait'));\n" +
+     "      const FIRST = 1200, STEP_MS = 1000, CHAMP_PAUSE = 2200;\n" +
+     "      rows.slice().reverse().forEach((r, k) => {\n" +
+     "        const champ = k === rows.length - 1;\n" +
+     "        const t = FIRST + k * STEP_MS + (champ ? CHAMP_PAUSE - STEP_MS : 0);\n" +
+     "        setTimeout(() => { r.classList.add('st-in'); if (champ) r.classList.add('st-champ'); }, t);\n" +
+     "      });\n" +
+     "    }"],
+    ['  </style>',
+     '    /* 検討用: 決勝モード */\n' +
+     '    .rank-mask{ opacity:.3; }\n' +
+     '    .rk-row.st-wait{ opacity:0; transform:translateX(-3cqw); }\n' +
+     '    .rk-row.st-in{ opacity:1; transform:none; transition:opacity 500ms ease-out, transform 500ms ease-out; }\n' +
+     '    .rk-row.st-champ{ background:rgba(var(--gold-rgb),0.18) !important; border-color:rgba(var(--gold-rgb),0.9) !important; box-shadow:0 0 2.4cqw rgba(var(--gold-rgb),0.35); }\n' +
+     '    .rk-row.st-champ .rk-rank, .rk-row.st-champ .rk-tot{ color:var(--accent-gold); }\n' +
+     '  </style>'],
+  ],
 }));
 
 console.log('demo built:', { finalists: finalists.map(a => `${a.finalOrder}:${a.name1}`), nakata: nakata.id, next: nextAth?.id });
