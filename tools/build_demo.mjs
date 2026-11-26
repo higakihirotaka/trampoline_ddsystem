@@ -221,7 +221,8 @@ fs.writeFileSync(path.join(OUT, 'd_calc.html'), patch(read('d_calc.html'), {
 // 本物の得点表示に「決勝モード」を入れる前に、見た目と動きを確かめるためのページ。デモ一覧からはリンクしない。
 // 最後の選手（中山）の前の7人までが確定している。ページを開いて数秒後に、中山選手の結果を公開にする（CJP の「確定&表示」と同じ）。
 // 決勝モードの動き（このページだけ。本物の display.html は変えない）:
-//   ・決勝の個人スコア画面に、順位（RANK）を出さない（slot=hide: 枠ごと消す / slot=mask: 「?」で伏せる）
+//   ・決勝の個人スコア画面に、順位（RANK）を出さない（slot=center: 得点を中央に大きく / next: 順位の欄に「STANDINGS NEXT」/
+//     mask: 「?」で伏せる / hide: 枠ごと消す）
 //   ・順位はそのあとの順位表で初めて出る（reveal=countdown: 全員終わった決勝の順位表を、下位から1人ずつ出す）
 const lastAth = finalists[finalists.length - 1];
 if (!lastAth.name1.includes('中山')) throw new Error('決勝の最後の選手が中山選手ではありません: ' + lastAth.name1);
@@ -250,7 +251,7 @@ const p = new URLSearchParams(location.search);
 // 決勝モードの設定（本番では、画面コントロールの設定になる想定）
 window.STUDY = {
   fm: p.get('fm') === '1',
-  slot: p.get('slot') === 'mask' ? 'mask' : 'hide',
+  slot: ['next', 'mask', 'hide'].includes(p.get('slot')) ? p.get('slot') : 'center',
   reveal: p.get('reveal') === 'countdown' ? 'countdown' : 'all',
 };
 const docs = ${JSON.stringify(strip(studyDocs()))};
@@ -272,10 +273,20 @@ fs.writeFileSync(path.join(OUT, 'study_final_display.html'), patch(read('display
     // 最初は、直前の選手（美田）の得点ではなく、そのあとの順位表から始める
     ["        if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {\n          enqueueResult(_initialResultDoc);\n        }",
      "        if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {\n          // 検討用: 直前の選手の得点は出さず、そのあとの順位表から始める\n          lastShownResData = _initialResultDoc.data(); lastShownAth = athleteMap[lastShownResData.athleteId] || {};\n          startRankingLoop();\n        }"],
-    // 決勝モード: 決勝の個人スコア画面に、順位を出さない
+    // 決勝モード（slot=center）: 下の段は、得点だけを中央に大きく出す（左の FINAL は、決勝では TOTAL と同じ値なので出さない）
+    ['      <div class="result-section">\n        <div class="routine-totals">${routineTotalsHTML}</div>',
+     '      ${window.STUDY?.fm && resData.round === \'final\' && window.STUDY.slot === \'center\' ? `<div class="result-section st-center">\n' +
+     '        <div class="st-line"></div>\n' +
+     '        <div class="st-score"><label>${isPublished ? \'TOTAL\' : \'TOTAL*\'}</label><div class="total-val num">${fmt2(totalScore)}</div></div>\n' +
+     '        <div class="st-line"></div>\n' +
+     '      </div>` : \'\'}\n' +
+     '      <div class="result-section"${window.STUDY?.fm && resData.round === \'final\' && window.STUDY.slot === \'center\' ? \' style="display:none"\' : \'\'}>\n' +
+     '        <div class="routine-totals">${routineTotalsHTML}</div>'],
+    // 決勝モード: 決勝の個人スコア画面に、順位を出さない（next: 「順位はこのあと」/ mask: 「?」/ hide: 枠ごと消す）
     ['          <div class="score-unit">\n            <label>RANK</label>\n            <div class="rank-val num">${rank !== null ? rank : \'--\'}</div>\n          </div>',
      '          ${window.STUDY?.fm && resData.round === \'final\'\n' +
-     '            ? (window.STUDY.slot === \'mask\' ? `<div class="score-unit"><label>RANK</label><div class="rank-val num rank-mask">?</div></div>` : \'\')\n' +
+     '            ? (window.STUDY.slot === \'mask\' ? `<div class="score-unit"><label>RANK</label><div class="rank-val num rank-mask">?</div></div>`\n' +
+     '              : window.STUDY.slot === \'next\' ? `<div class="score-unit"><label>RANK</label><div class="st-next"><span>STANDINGS</span><b>NEXT ▶&#xFE0E;</b></div></div>` : \'\')\n' +
      '            : `<div class="score-unit">\n            <label>RANK</label>\n            <div class="rank-val num">${rank !== null ? rank : \'--\'}</div>\n          </div>`}'],
     // 決勝モード: 全員が終わった決勝の順位表を、下位から1人ずつ出す（1位は少し間をあけて、最後に）
     ["<div class=\"rk-footer\">SYSTEM DESIGN &amp; DEVELOPMENT BY HIROTAKA.H</div>`;\n    overlay.classList.add('visible');",
@@ -295,6 +306,16 @@ fs.writeFileSync(path.join(OUT, 'study_final_display.html'), patch(read('display
     ['  </style>',
      '    /* 検討用: 決勝モード */\n' +
      '    .rank-mask{ opacity:.3; }\n' +
+     '    .result-section.st-center{ display:flex; align-items:center; gap:3cqw; }\n' +
+     '    .st-center .st-line{ flex:1; height:0.25cqw; min-height:2px; background:linear-gradient(90deg, transparent, rgba(var(--gold-rgb),0.9)); }\n' +
+     '    .st-center .st-line:last-child{ background:linear-gradient(90deg, rgba(var(--gold-rgb),0.9), transparent); }\n' +
+     '    .st-center .st-score{ display:flex; flex-direction:column; align-items:center; }\n' +
+     '    .st-center .st-score label{ font-size:1.3cqw; font-weight:900; color:var(--accent-gold); letter-spacing:0.6cqw; margin-bottom:0.3cqw; }\n' +
+     '    .st-center .total-val{ font-size:10cqw; letter-spacing:-3px; text-shadow:0 0 3cqw rgba(var(--gold-rgb),0.25); }\n' +
+     '    .st-next{ display:flex; flex-direction:column; justify-content:center; align-items:center; height:8.5cqw; padding:0 2.4cqw; border:2px solid rgba(var(--gold-rgb),0.55); border-radius:1cqw; color:var(--accent-gold); background:rgba(var(--gold-rgb),0.06); }\n' +
+     '    .st-next span{ font-size:1.2cqw; font-weight:800; letter-spacing:0.5cqw; opacity:0.75; }\n' +
+     '    .st-next b{ font-size:3.4cqw; font-weight:900; line-height:1.1; animation:stPulse 1.8s ease-in-out infinite; }\n' +
+     '    @keyframes stPulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }\n' +
      '    .rk-row.st-wait{ opacity:0; transform:translateX(-3cqw); }\n' +
      '    .rk-row.st-in{ opacity:1; transform:none; transition:opacity 500ms ease-out, transform 500ms ease-out; }\n' +
      '    .rk-row.st-champ{ background:rgba(var(--gold-rgb),0.18) !important; border-color:rgba(var(--gold-rgb),0.9) !important; box-shadow:0 0 2.4cqw rgba(var(--gold-rgb),0.35); }\n' +

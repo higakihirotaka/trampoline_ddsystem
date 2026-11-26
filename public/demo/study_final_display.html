@@ -1156,6 +1156,16 @@
   }
     /* 検討用: 決勝モード */
     .rank-mask{ opacity:.3; }
+    .result-section.st-center{ display:flex; align-items:center; gap:3cqw; }
+    .st-center .st-line{ flex:1; height:0.25cqw; min-height:2px; background:linear-gradient(90deg, transparent, rgba(var(--gold-rgb),0.9)); }
+    .st-center .st-line:last-child{ background:linear-gradient(90deg, rgba(var(--gold-rgb),0.9), transparent); }
+    .st-center .st-score{ display:flex; flex-direction:column; align-items:center; }
+    .st-center .st-score label{ font-size:1.3cqw; font-weight:900; color:var(--accent-gold); letter-spacing:0.6cqw; margin-bottom:0.3cqw; }
+    .st-center .total-val{ font-size:10cqw; letter-spacing:-3px; text-shadow:0 0 3cqw rgba(var(--gold-rgb),0.25); }
+    .st-next{ display:flex; flex-direction:column; justify-content:center; align-items:center; height:8.5cqw; padding:0 2.4cqw; border:2px solid rgba(var(--gold-rgb),0.55); border-radius:1cqw; color:var(--accent-gold); background:rgba(var(--gold-rgb),0.06); }
+    .st-next span{ font-size:1.2cqw; font-weight:800; letter-spacing:0.5cqw; opacity:0.75; }
+    .st-next b{ font-size:3.4cqw; font-weight:900; line-height:1.1; animation:stPulse 1.8s ease-in-out infinite; }
+    @keyframes stPulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
     .rk-row.st-wait{ opacity:0; transform:translateX(-3cqw); }
     .rk-row.st-in{ opacity:1; transform:none; transition:opacity 500ms ease-out, transform 500ms ease-out; }
     .rk-row.st-champ{ background:rgba(var(--gold-rgb),0.18) !important; border-color:rgba(var(--gold-rgb),0.9) !important; box-shadow:0 0 2.4cqw rgba(var(--gold-rgb),0.35); }
@@ -1839,7 +1849,12 @@
         ${penCellHTML}
       </div>
 
-      <div class="result-section">
+      ${window.STUDY?.fm && resData.round === 'final' && window.STUDY.slot === 'center' ? `<div class="result-section st-center">
+        <div class="st-line"></div>
+        <div class="st-score"><label>${isPublished ? 'TOTAL' : 'TOTAL*'}</label><div class="total-val num">${fmt2(totalScore)}</div></div>
+        <div class="st-line"></div>
+      </div>` : ''}
+      <div class="result-section"${window.STUDY?.fm && resData.round === 'final' && window.STUDY.slot === 'center' ? ' style="display:none"' : ''}>
         <div class="routine-totals">${routineTotalsHTML}</div>
         <div class="final-results">
           <div class="score-unit">
@@ -1852,7 +1867,8 @@
             })()}
           </div>
           ${window.STUDY?.fm && resData.round === 'final'
-            ? (window.STUDY.slot === 'mask' ? `<div class="score-unit"><label>RANK</label><div class="rank-val num rank-mask">?</div></div>` : '')
+            ? (window.STUDY.slot === 'mask' ? `<div class="score-unit"><label>RANK</label><div class="rank-val num rank-mask">?</div></div>`
+              : window.STUDY.slot === 'next' ? `<div class="score-unit"><label>RANK</label><div class="st-next"><span>STANDINGS</span><b>NEXT ▶&#xFE0E;</b></div></div>` : '')
             : `<div class="score-unit">
             <label>RANK</label>
             <div class="rank-val num">${rank !== null ? rank : '--'}</div>

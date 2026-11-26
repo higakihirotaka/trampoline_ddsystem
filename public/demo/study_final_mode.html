@@ -92,7 +92,7 @@
     <div class="card">
       <p class="card-title">検討用の切り替え</p>
       <div class="opt"><span class="opt-label">得点画面の順位欄</span>
-        <span class="seg" data-key="slot"><button type="button" data-v="hide">枠ごと消す</button><button type="button" data-v="mask">「?」で伏せる</button></span></div>
+        <span class="seg" data-key="slot"><button type="button" data-v="center">得点を中央に大きく</button><button type="button" data-v="next">順位は次の画面で</button><button type="button" data-v="mask">「?」で伏せる</button><button type="button" data-v="hide">枠ごと消す</button></span></div>
       <div class="opt"><span class="opt-label">順位表の出し方</span>
         <span class="seg" data-key="reveal"><button type="button" data-v="all">まとめて出す（今と同じ）</button><button type="button" data-v="countdown">下位から1人ずつ</button></span></div>
       <div class="opt"><span class="opt-label">速さ</span>
@@ -124,7 +124,7 @@
 
 <script>
   // 設定は、このページの URL に残す（URL を送れば、同じ設定で見られる）
-  const DEF = { fm: '1', slot: 'hide', reveal: 'all', speed: 'normal', view: 'single' };
+  const DEF = { fm: '1', slot: 'center', reveal: 'all', speed: 'normal', view: 'single' };
   const url = new URL(location.href);
   const S = {};
   for (const k of Object.keys(DEF)) S[k] = url.searchParams.get(k) || DEF[k];
