@@ -2415,33 +2415,40 @@
       const rowEls = [...overlay.querySelectorAll('.rk-row')];
       const curIdx = entries.findIndex(e => e && e.id === curAthId);
       if (curIdx >= 0) {
-        const others = entries.filter(e => e && e.id !== curAthId);
-        const prev = others.map(e => ({ ...e }));
-        prev.splice(others.filter(e => e.final !== null).length, 0, { ...entries[curIdx], qualScore: null, final: null, total: null });
+        const prev = entries.filter(e => e && e.id !== curAthId).map(e => ({ ...e }));
         assignRanks(prev);
         const prevIdx = new Map(prev.map((e, j) => [e.id, j]));
         const curRow = rowEls[curIdx];
         const newRank = new Map();
+        const EASE = 'cubic-bezier(.65,0,.25,1)';
         entries.forEach((e, i) => {
-          if (!e) return;
+          if (!e || e.id === curAthId) return;
           const r = rowEls[i], j = prevIdx.get(e.id), rk = r.querySelector('.rk-rank');
           newRank.set(rk, rk.textContent);
           if (rk.textContent !== '-') rk.textContent = prev[j].rank;
-          r.style.transform = `translateY(${rowEls[j].offsetTop - rowEls[i].offsetTop}px)`;
+          if (j !== i) r.style.transform = `translateY(${rowEls[j].offsetTop - rowEls[i].offsetTop}px)`;
         });
-        const scoreEls = [...curRow.querySelectorAll('.rk-sc, .rk-tot')];
-        const scoreTexts = scoreEls.map(el => el.textContent);
-        scoreEls.forEach(el => { el.textContent = '--'; });
-        setTimeout(() => { scoreEls.forEach((el, k) => { el.textContent = scoreTexts[k]; }); curRow.classList.add('st-ins-pop'); }, 1800);
+        const curRk = curRow.querySelector('.rk-rank');
+        newRank.set(curRk, curRk.textContent);
+        curRk.textContent = '';
+        const outX = curRow.getBoundingClientRect().left;
+        curRow.style.transform = `translateX(${document.documentElement.clientWidth - outX + 20}px)`;
+        curRow.classList.add('st-ins-lift');
         setTimeout(() => {
-          curRow.classList.add('st-ins-lift');
-          rowEls.forEach(r => { if (r.style.transform) { r.style.transition = 'transform 1100ms cubic-bezier(.65,0,.25,1)'; r.style.transform = 'translateY(0)'; } });
-        }, 3200);
+          rowEls.forEach(r => { if (r !== curRow && r.style.transform) { r.style.transition = `transform 800ms ${EASE}`; r.style.transform = 'translateY(0)'; } });
+        }, 1500);
+        setTimeout(() => {
+          curRow.style.transition = 'transform 900ms cubic-bezier(.2,.9,.25,1)';
+          curRow.style.transform = 'translateX(0)';
+        }, 2600);
         setTimeout(() => {
           newRank.forEach((txt, rk) => { rk.textContent = txt; });
+          curRow.classList.add('st-ins-pop');
+        }, 3600);
+        setTimeout(() => {
           curRow.classList.remove('st-ins-lift');
           if (entries[curIdx].rank === 1) curRow.classList.add('st-champ');
-        }, 4400);
+        }, 4600);
       }
     }
   }

@@ -224,7 +224,7 @@ fs.writeFileSync(path.join(OUT, 'd_calc.html'), patch(read('d_calc.html'), {
 //   ・決勝の個人スコア画面に、順位（RANK）を出さない（slot=center: 得点を中央に大きく / next: 順位の欄に「STANDINGS NEXT」/
 //     mask: 「?」で伏せる / hide: 枠ごと消す）
 //   ・順位はそのあとの順位表で初めて出る（reveal=countdown: 全員終わった決勝の順位表を、下位から1人ずつ出す /
-//     reveal=insert: 確定した選手が、直前の順位表に割り込む。抜かれた選手は1つずつ下がる）
+//     reveal=insert: 確定した選手が、直前の順位表に、画面の外から割り込む。抜かれた選手は1つずつ下がる）
 const lastAth = finalists[finalists.length - 1];
 if (!lastAth.name1.includes('中山')) throw new Error('決勝の最後の選手が中山選手ではありません: ' + lastAth.name1);
 const lastResultId = `${EVENT}_${lastAth.id}_final`;
@@ -305,41 +305,48 @@ fs.writeFileSync(path.join(OUT, 'study_final_display.html'), patch(read('display
      "      });\n" +
      "    }\n" +
      // 決勝モード（reveal=insert）: 確定した選手が、直前の順位表に割り込む。
-     // ① 直前の順位表（その選手はまだ得点なし「--」の位置）を出す → ② その選手の得点が出る →
-     // ③ その選手の行が、自分の順位まで上がり、抜かれた選手は1つずつ下がる → ④ 順位の数字が新しくなる（1位なら金色）
+     // ① 直前の順位表（その選手の行はまだない）を出す → ② その選手が入る順位から下の選手が1つずつ下がり、すき間ができる →
+     // ③ その選手の行が、画面の外（右）から、すき間に滑り込む → ④ 順位の数字が新しくなる（1位なら金色）
      "    if (window.STUDY?.fm && window.STUDY.reveal === 'insert' && isFinal && currentMode === 'ranking' && curAthId\n" +
      "        && window.STUDY._revealedFor !== curAthId) {\n" +
      "      window.STUDY._revealedFor = curAthId;\n" +
      "      const rowEls = [...overlay.querySelectorAll('.rk-row')];\n" +
      "      const curIdx = entries.findIndex(e => e && e.id === curAthId);\n" +
      "      if (curIdx >= 0) {\n" +
-     "        const others = entries.filter(e => e && e.id !== curAthId);\n" +
-     "        const prev = others.map(e => ({ ...e }));\n" +
-     "        prev.splice(others.filter(e => e.final !== null).length, 0, { ...entries[curIdx], qualScore: null, final: null, total: null });\n" +
+     "        const prev = entries.filter(e => e && e.id !== curAthId).map(e => ({ ...e }));\n" +
      "        assignRanks(prev);\n" +
      "        const prevIdx = new Map(prev.map((e, j) => [e.id, j]));\n" +
      "        const curRow = rowEls[curIdx];\n" +
      "        const newRank = new Map();\n" +
+     "        const EASE = 'cubic-bezier(.65,0,.25,1)';\n" +
      "        entries.forEach((e, i) => {\n" +
-     "          if (!e) return;\n" +
+     "          if (!e || e.id === curAthId) return;\n" +
      "          const r = rowEls[i], j = prevIdx.get(e.id), rk = r.querySelector('.rk-rank');\n" +
      "          newRank.set(rk, rk.textContent);\n" +
      "          if (rk.textContent !== '-') rk.textContent = prev[j].rank;\n" +
-     "          r.style.transform = `translateY(${rowEls[j].offsetTop - rowEls[i].offsetTop}px)`;\n" +
+     "          if (j !== i) r.style.transform = `translateY(${rowEls[j].offsetTop - rowEls[i].offsetTop}px)`;\n" +
      "        });\n" +
-     "        const scoreEls = [...curRow.querySelectorAll('.rk-sc, .rk-tot')];\n" +
-     "        const scoreTexts = scoreEls.map(el => el.textContent);\n" +
-     "        scoreEls.forEach(el => { el.textContent = '--'; });\n" +
-     "        setTimeout(() => { scoreEls.forEach((el, k) => { el.textContent = scoreTexts[k]; }); curRow.classList.add('st-ins-pop'); }, 1800);\n" +
+     "        const curRk = curRow.querySelector('.rk-rank');\n" +
+     "        newRank.set(curRk, curRk.textContent);\n" +
+     "        curRk.textContent = '';\n" +
+     "        const outX = curRow.getBoundingClientRect().left;\n" +
+     "        curRow.style.transform = `translateX(${document.documentElement.clientWidth - outX + 20}px)`;\n" +
+     "        curRow.classList.add('st-ins-lift');\n" +
      "        setTimeout(() => {\n" +
-     "          curRow.classList.add('st-ins-lift');\n" +
-     "          rowEls.forEach(r => { if (r.style.transform) { r.style.transition = 'transform 1100ms cubic-bezier(.65,0,.25,1)'; r.style.transform = 'translateY(0)'; } });\n" +
-     "        }, 3200);\n" +
+     "          rowEls.forEach(r => { if (r !== curRow && r.style.transform) { r.style.transition = `transform 800ms ${EASE}`; r.style.transform = 'translateY(0)'; } });\n" +
+     "        }, 1500);\n" +
+     "        setTimeout(() => {\n" +
+     "          curRow.style.transition = 'transform 900ms cubic-bezier(.2,.9,.25,1)';\n" +
+     "          curRow.style.transform = 'translateX(0)';\n" +
+     "        }, 2600);\n" +
      "        setTimeout(() => {\n" +
      "          newRank.forEach((txt, rk) => { rk.textContent = txt; });\n" +
+     "          curRow.classList.add('st-ins-pop');\n" +
+     "        }, 3600);\n" +
+     "        setTimeout(() => {\n" +
      "          curRow.classList.remove('st-ins-lift');\n" +
      "          if (entries[curIdx].rank === 1) curRow.classList.add('st-champ');\n" +
-     "        }, 4400);\n" +
+     "        }, 4600);\n" +
      "      }\n" +
      "    }"],
     ['  </style>',
