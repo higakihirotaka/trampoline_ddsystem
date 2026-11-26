@@ -223,7 +223,8 @@ fs.writeFileSync(path.join(OUT, 'd_calc.html'), patch(read('d_calc.html'), {
 // 決勝モードの動き（このページだけ。本物の display.html は変えない）:
 //   ・決勝の個人スコア画面に、順位（RANK）を出さない（slot=center: 得点を中央に大きく / next: 順位の欄に「STANDINGS NEXT」/
 //     mask: 「?」で伏せる / hide: 枠ごと消す）
-//   ・順位はそのあとの順位表で初めて出る（reveal=countdown: 全員終わった決勝の順位表を、下位から1人ずつ出す）
+//   ・順位はそのあとの順位表で初めて出る（reveal=countdown: 全員終わった決勝の順位表を、下位から1人ずつ出す /
+//     reveal=insert: 確定した選手が、直前の順位表に割り込む。抜かれた選手は1つずつ下がる）
 const lastAth = finalists[finalists.length - 1];
 if (!lastAth.name1.includes('中山')) throw new Error('決勝の最後の選手が中山選手ではありません: ' + lastAth.name1);
 const lastResultId = `${EVENT}_${lastAth.id}_final`;
@@ -252,7 +253,7 @@ const p = new URLSearchParams(location.search);
 window.STUDY = {
   fm: p.get('fm') === '1',
   slot: ['next', 'mask', 'hide'].includes(p.get('slot')) ? p.get('slot') : 'center',
-  reveal: p.get('reveal') === 'countdown' ? 'countdown' : 'all',
+  reveal: ['countdown', 'insert'].includes(p.get('reveal')) ? p.get('reveal') : 'all',
 };
 const docs = ${JSON.stringify(strip(studyDocs()))};
 const ds = docs["tournaments/${EVENT}"].displaySettings = { ...(docs["tournaments/${EVENT}"].displaySettings || {}) };
@@ -272,7 +273,7 @@ fs.writeFileSync(path.join(OUT, 'study_final_display.html'), patch(read('display
   edits: [
     // 最初は、直前の選手（美田）の得点ではなく、そのあとの順位表から始める
     ["        if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {\n          enqueueResult(_initialResultDoc);\n        }",
-     "        if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {\n          // 検討用: 直前の選手の得点は出さず、そのあとの順位表から始める\n          lastShownResData = _initialResultDoc.data(); lastShownAth = athleteMap[lastShownResData.athleteId] || {};\n          startRankingLoop();\n        }"],
+     "        if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {\n          // 検討用: 直前の選手の得点は出さず、そのあとの順位表から始める\n          lastShownResData = _initialResultDoc.data(); lastShownAth = athleteMap[lastShownResData.athleteId] || {};\n          window.STUDY._revealedFor = lastShownResData.athleteId;   // 最初の順位表では、割り込みなどの演出をしない\n          startRankingLoop();\n        }"],
     // 決勝モード（slot=center）: 下の段は、得点だけを中央に大きく出す（左の FINAL は、決勝では TOTAL と同じ値なので出さない）
     ['      <div class="result-section">\n        <div class="routine-totals">${routineTotalsHTML}</div>',
      '      ${window.STUDY?.fm && resData.round === \'final\' && window.STUDY.slot === \'center\' ? `<div class="result-section st-center">\n' +
@@ -302,6 +303,44 @@ fs.writeFileSync(path.join(OUT, 'study_final_display.html'), patch(read('display
      "        const t = FIRST + k * STEP_MS + (champ ? CHAMP_PAUSE - STEP_MS : 0);\n" +
      "        setTimeout(() => { r.classList.add('st-in'); if (champ) r.classList.add('st-champ'); }, t);\n" +
      "      });\n" +
+     "    }\n" +
+     // 決勝モード（reveal=insert）: 確定した選手が、直前の順位表に割り込む。
+     // ① 直前の順位表（その選手はまだ得点なし「--」の位置）を出す → ② その選手の得点が出る →
+     // ③ その選手の行が、自分の順位まで上がり、抜かれた選手は1つずつ下がる → ④ 順位の数字が新しくなる（1位なら金色）
+     "    if (window.STUDY?.fm && window.STUDY.reveal === 'insert' && isFinal && currentMode === 'ranking' && curAthId\n" +
+     "        && window.STUDY._revealedFor !== curAthId) {\n" +
+     "      window.STUDY._revealedFor = curAthId;\n" +
+     "      const rowEls = [...overlay.querySelectorAll('.rk-row')];\n" +
+     "      const curIdx = entries.findIndex(e => e && e.id === curAthId);\n" +
+     "      if (curIdx >= 0) {\n" +
+     "        const others = entries.filter(e => e && e.id !== curAthId);\n" +
+     "        const prev = others.map(e => ({ ...e }));\n" +
+     "        prev.splice(others.filter(e => e.final !== null).length, 0, { ...entries[curIdx], qualScore: null, final: null, total: null });\n" +
+     "        assignRanks(prev);\n" +
+     "        const prevIdx = new Map(prev.map((e, j) => [e.id, j]));\n" +
+     "        const curRow = rowEls[curIdx];\n" +
+     "        const newRank = new Map();\n" +
+     "        entries.forEach((e, i) => {\n" +
+     "          if (!e) return;\n" +
+     "          const r = rowEls[i], j = prevIdx.get(e.id), rk = r.querySelector('.rk-rank');\n" +
+     "          newRank.set(rk, rk.textContent);\n" +
+     "          if (rk.textContent !== '-') rk.textContent = prev[j].rank;\n" +
+     "          r.style.transform = `translateY(${rowEls[j].offsetTop - rowEls[i].offsetTop}px)`;\n" +
+     "        });\n" +
+     "        const scoreEls = [...curRow.querySelectorAll('.rk-sc, .rk-tot')];\n" +
+     "        const scoreTexts = scoreEls.map(el => el.textContent);\n" +
+     "        scoreEls.forEach(el => { el.textContent = '--'; });\n" +
+     "        setTimeout(() => { scoreEls.forEach((el, k) => { el.textContent = scoreTexts[k]; }); curRow.classList.add('st-ins-pop'); }, 1800);\n" +
+     "        setTimeout(() => {\n" +
+     "          curRow.classList.add('st-ins-lift');\n" +
+     "          rowEls.forEach(r => { if (r.style.transform) { r.style.transition = 'transform 1100ms cubic-bezier(.65,0,.25,1)'; r.style.transform = 'translateY(0)'; } });\n" +
+     "        }, 3200);\n" +
+     "        setTimeout(() => {\n" +
+     "          newRank.forEach((txt, rk) => { rk.textContent = txt; });\n" +
+     "          curRow.classList.remove('st-ins-lift');\n" +
+     "          if (entries[curIdx].rank === 1) curRow.classList.add('st-champ');\n" +
+     "        }, 4400);\n" +
+     "      }\n" +
      "    }"],
     ['  </style>',
      '    /* 検討用: 決勝モード */\n' +
@@ -316,6 +355,9 @@ fs.writeFileSync(path.join(OUT, 'study_final_display.html'), patch(read('display
      '    .st-next span{ font-size:1.2cqw; font-weight:800; letter-spacing:0.5cqw; opacity:0.75; }\n' +
      '    .st-next b{ font-size:3.4cqw; font-weight:900; line-height:1.1; animation:stPulse 1.8s ease-in-out infinite; }\n' +
      '    @keyframes stPulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }\n' +
+     '    .rk-row.st-ins-pop .rk-tot{ animation:stPop 700ms ease-out; }\n' +
+     '    @keyframes stPop{ 0%{ transform:scale(1.5); color:var(--accent-gold); } 100%{ transform:scale(1); } }\n' +
+     '    .rk-row.st-ins-lift{ position:relative; z-index:2; background:rgba(var(--gold-rgb),0.22) !important; border-color:rgba(var(--gold-rgb),0.95) !important; box-shadow:0 0 2.4cqw rgba(var(--gold-rgb),0.45); }\n' +
      '    .rk-row.st-wait{ opacity:0; transform:translateX(-3cqw); }\n' +
      '    .rk-row.st-in{ opacity:1; transform:none; transition:opacity 500ms ease-out, transform 500ms ease-out; }\n' +
      '    .rk-row.st-champ{ background:rgba(var(--gold-rgb),0.18) !important; border-color:rgba(var(--gold-rgb),0.9) !important; box-shadow:0 0 2.4cqw rgba(var(--gold-rgb),0.35); }\n' +

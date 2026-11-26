@@ -94,7 +94,7 @@
       <div class="opt"><span class="opt-label">得点画面の順位欄</span>
         <span class="seg" data-key="slot"><button type="button" data-v="center">得点を中央に大きく</button><button type="button" data-v="next">順位は次の画面で</button><button type="button" data-v="mask">「?」で伏せる</button><button type="button" data-v="hide">枠ごと消す</button></span></div>
       <div class="opt"><span class="opt-label">順位表の出し方</span>
-        <span class="seg" data-key="reveal"><button type="button" data-v="all">まとめて出す（今と同じ）</button><button type="button" data-v="countdown">下位から1人ずつ</button></span></div>
+        <span class="seg" data-key="reveal"><button type="button" data-v="all">まとめて出す（今と同じ）</button><button type="button" data-v="countdown">下位から1人ずつ</button><button type="button" data-v="insert">割り込み</button></span></div>
       <div class="opt"><span class="opt-label">速さ</span>
         <span class="seg" data-key="speed"><button type="button" data-v="normal">本番と同じ</button><button type="button" data-v="fast">早送り</button></span></div>
       <div class="opt"><span class="opt-label">画面</span>
@@ -116,6 +116,7 @@
     <b>メモ</b>
     <ul>
       <li>「下位から1人ずつ」は、決勝の全員が終わったとき（最後の選手のあと）の順位表だけです。途中の選手のあとの順位表は、今と同じく、まとめて出します。</li>
+      <li>「割り込み」は、まず直前の順位表（中山選手はまだ得点なしで一番下）を出し、中山選手の得点が出たあと、その行が自分の順位まで上がります。抜かれた選手は1つずつ下がります。決勝の途中の選手でも、同じように動く作りです。</li>
       <li>「本番と同じ」は、この大会の設定（アニメーション10秒、そのあと5秒表示してから順位表）です。「早送り」は、4秒＋1秒です。</li>
       <li>設定を変えると、最初から再生し直します。</li>
     </ul>

@@ -1166,6 +1166,9 @@
     .st-next span{ font-size:1.2cqw; font-weight:800; letter-spacing:0.5cqw; opacity:0.75; }
     .st-next b{ font-size:3.4cqw; font-weight:900; line-height:1.1; animation:stPulse 1.8s ease-in-out infinite; }
     @keyframes stPulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
+    .rk-row.st-ins-pop .rk-tot{ animation:stPop 700ms ease-out; }
+    @keyframes stPop{ 0%{ transform:scale(1.5); color:var(--accent-gold); } 100%{ transform:scale(1); } }
+    .rk-row.st-ins-lift{ position:relative; z-index:2; background:rgba(var(--gold-rgb),0.22) !important; border-color:rgba(var(--gold-rgb),0.95) !important; box-shadow:0 0 2.4cqw rgba(var(--gold-rgb),0.45); }
     .rk-row.st-wait{ opacity:0; transform:translateX(-3cqw); }
     .rk-row.st-in{ opacity:1; transform:none; transition:opacity 500ms ease-out, transform 500ms ease-out; }
     .rk-row.st-champ{ background:rgba(var(--gold-rgb),0.18) !important; border-color:rgba(var(--gold-rgb),0.9) !important; box-shadow:0 0 2.4cqw rgba(var(--gold-rgb),0.35); }
@@ -2406,6 +2409,41 @@
         setTimeout(() => { r.classList.add('st-in'); if (champ) r.classList.add('st-champ'); }, t);
       });
     }
+    if (window.STUDY?.fm && window.STUDY.reveal === 'insert' && isFinal && currentMode === 'ranking' && curAthId
+        && window.STUDY._revealedFor !== curAthId) {
+      window.STUDY._revealedFor = curAthId;
+      const rowEls = [...overlay.querySelectorAll('.rk-row')];
+      const curIdx = entries.findIndex(e => e && e.id === curAthId);
+      if (curIdx >= 0) {
+        const others = entries.filter(e => e && e.id !== curAthId);
+        const prev = others.map(e => ({ ...e }));
+        prev.splice(others.filter(e => e.final !== null).length, 0, { ...entries[curIdx], qualScore: null, final: null, total: null });
+        assignRanks(prev);
+        const prevIdx = new Map(prev.map((e, j) => [e.id, j]));
+        const curRow = rowEls[curIdx];
+        const newRank = new Map();
+        entries.forEach((e, i) => {
+          if (!e) return;
+          const r = rowEls[i], j = prevIdx.get(e.id), rk = r.querySelector('.rk-rank');
+          newRank.set(rk, rk.textContent);
+          if (rk.textContent !== '-') rk.textContent = prev[j].rank;
+          r.style.transform = `translateY(${rowEls[j].offsetTop - rowEls[i].offsetTop}px)`;
+        });
+        const scoreEls = [...curRow.querySelectorAll('.rk-sc, .rk-tot')];
+        const scoreTexts = scoreEls.map(el => el.textContent);
+        scoreEls.forEach(el => { el.textContent = '--'; });
+        setTimeout(() => { scoreEls.forEach((el, k) => { el.textContent = scoreTexts[k]; }); curRow.classList.add('st-ins-pop'); }, 1800);
+        setTimeout(() => {
+          curRow.classList.add('st-ins-lift');
+          rowEls.forEach(r => { if (r.style.transform) { r.style.transition = 'transform 1100ms cubic-bezier(.65,0,.25,1)'; r.style.transform = 'translateY(0)'; } });
+        }, 3200);
+        setTimeout(() => {
+          newRank.forEach((txt, rk) => { rk.textContent = txt; });
+          curRow.classList.remove('st-ins-lift');
+          if (entries[curIdx].rank === 1) curRow.classList.add('st-champ');
+        }, 4400);
+      }
+    }
   }
 
   // ---- 順位表 巡回モード ----
@@ -3224,6 +3262,7 @@
         if (_initialResultDoc && screen === 'score' && currentMode === 'idle') {
           // 検討用: 直前の選手の得点は出さず、そのあとの順位表から始める
           lastShownResData = _initialResultDoc.data(); lastShownAth = athleteMap[lastShownResData.athleteId] || {};
+          window.STUDY._revealedFor = lastShownResData.athleteId;   // 最初の順位表では、割り込みなどの演出をしない
           startRankingLoop();
         }
       }
