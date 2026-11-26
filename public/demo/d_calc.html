@@ -136,7 +136,7 @@
     let lang = 'ja';
     try {
         const q = new URLSearchParams(location.search).get('lang');
-        lang = (q === 'en' || q === 'ja') ? q : (localStorage.getItem('demoLang') === 'en' ? 'en' : 'ja');
+        lang = (q === 'en' || q === 'ja') ? q : (localStorage.getItem('demoLang2') === 'ja' ? 'ja' : 'en');
     } catch { /* 使えなければ日本語 */ }
     const I18N = {
         ja: {
@@ -223,7 +223,7 @@
     }
     window.setLang = l => {
         lang = l === 'en' ? 'en' : 'ja';
-        try { localStorage.setItem('demoLang', lang); } catch { /* 保存できなくても動く */ }
+        try { localStorage.setItem('demoLang2', lang); } catch { /* 保存できなくても動く */ }
         applyLang();
     };
 

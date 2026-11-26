@@ -213,7 +213,9 @@ fs.writeFileSync(path.join(OUT, 'judge_cjp.html'), patch(read('judge_cjp.html'),
 }));
 fs.writeFileSync(path.join(OUT, 'd_calc.html'), patch(read('d_calc.html'), {
   params: { event: EVENT }, dataFile: 'demo-data-dcalc.js', usesFirestore: false, langButtons: false,
-  replaceAll: [["'dcalcLang'", "'demoLang'"]],
+  // デモの既定は英語（日本語を選んだときだけ日本語）。言語の保存名は、ほかのデモ画面（demo-i18n.js）と同じにする
+  edits: [["(localStorage.getItem('dcalcLang') === 'en' ? 'en' : 'ja')", "(localStorage.getItem('dcalcLang') === 'ja' ? 'ja' : 'en')"]],
+  replaceAll: [["'dcalcLang'", "'demoLang2'"]],
   back: [["`admin_menu.html?event=${eventId}`", "'index.html'"]],
 }));
 

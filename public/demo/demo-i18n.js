@@ -6,15 +6,16 @@
  *   2) 画面に出る文言を、翻訳表（RULES）で英語に置き換える（MutationObserver で、あとから出る文言も）
  * ことで、英語表示にする。切り替えると、ページを読み込み直す（デモのデータは、最初の状態に戻る）。
  *
- * 言語は、URL の ?lang=en|ja → このブラウザの localStorage（demoLang）→ 日本語 の順に決まる。
+ * 言語は、URL の ?lang=en|ja → このブラウザの localStorage（demoLang2）→ 英語 の順に決まる。
+ * （既定を日本語から英語に変えたとき、前の既定の「日本語」が覚えられているブラウザでも英語になるよう、保存名を demoLang から変えた）
  */
-const KEY = 'demoLang';
+const KEY = 'demoLang2';
 const readLang = () => {
   try {
     const q = new URLSearchParams(location.search).get('lang');
     if (q === 'en' || q === 'ja') return q;
   } catch { /* 無視 */ }
-  try { return localStorage.getItem(KEY) === 'en' ? 'en' : 'ja'; } catch { return 'ja'; }
+  try { return localStorage.getItem(KEY) === 'ja' ? 'ja' : 'en'; } catch { return 'en'; }
 };
 export const lang = readLang();
 export const isEn = lang === 'en';
