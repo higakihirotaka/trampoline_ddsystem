@@ -132,6 +132,8 @@ export function buildRoutine(res, ctx) {
     sk.push(row);
   }
 
+  // Dのボーナス（トリプルの本数による加点）。会場ディスプレイと同じ: 紙運用は出さない、手動入力は入力値、自動計算は calcCardDD の値
+  const bonusNum = paper ? 0 : (hasManualDD ? num(res.officialDDBonus) : calc?.bonus) ?? 0;
   const penNum = num(res.penalty);
   const routine = {
     at,
@@ -146,9 +148,18 @@ export function buildRoutine(res, ctx) {
     },
     sk,
     land: vl < 10 ? '' : fmtEDeduction(res.officialELanding, synchro),
-    pr: (res.penaltyItems || []).map(p => String(p?.ja || p?.label || p?.name || p?.reason || '')).filter(Boolean),
+    bn: bonusNum > 0 ? f1(bonusNum) : '',
+    pr: (res.penaltyItems || []).map(penaltyLabel).filter(Boolean),
   };
   return routine;
+}
+
+/** 反則の表示（会場ディスプレイと同じ: 英字の表示名＋減点。例 'START DELAY −0.2'） */
+function penaltyLabel(p) {
+  const name = String(p?.display || p?.en || p?.ja || p?.label || p?.name || p?.reason || '');
+  if (!name) return '';
+  const pt = Number(p?.points);
+  return p?.points != null && p.points !== '' && Number.isFinite(pt) ? `${name} −${pt.toFixed(1)}` : name;
 }
 
 // ============================================================

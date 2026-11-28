@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../favicon-32.png">
+<title>決勝モード 検討</title>
+<!--
+  検討用のページ（デモ一覧からはリンクしない）。
+  会場ディスプレイの得点表示に「決勝モード」を入れる前に、見た目と動きを確かめる。
+  下の枠の中は study_final_display.html（本物の display.html を、ダミーデータで動くように加工したもの。tools/build_demo.mjs で作る）。
+  どこにも接続せず、何も保存しない。本番の画面・データには影響しない。
+-->
+<style>
+  :root { --accent:#1a73e8; --bg:#f0f2f5; --card:#fff; --ink:#263238; --sub:#546e7a; --line:#e0e0e0; --green:#2e7d32; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'Noto Sans JP', system-ui, -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif; line-height:1.55; }
+  .wrap { max-width:1280px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .lead { margin:0 0 14px; font-size:13px; color:var(--sub); }
+  .tag { display:inline-block; font-size:11px; font-weight:800; background:#f59e0b; color:#111; border-radius:999px; padding:2px 9px; margin-right:6px; vertical-align:2px; }
+  .panels { display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap:14px; margin-bottom:14px; }
+  @media (max-width: 860px) { .panels { grid-template-columns: 1fr; } }
+  .card { background:var(--card); border-radius:14px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.07); }
+  .card-title { font-size:13px; font-weight:900; margin:0 0 10px; border-left:5px solid var(--accent); padding-left:10px; }
+  .card-title small { font-weight:600; color:var(--sub); margin-left:6px; }
+  /* 画面コントロールに足す設定のイメージ */
+  .setting-row { display:flex; align-items:center; gap:14px; }
+  .setting-label { flex:1; }
+  .setting-label strong { display:block; font-size:15px; }
+  .setting-label span { font-size:12px; color:var(--sub); }
+  .switch { position:relative; width:56px; height:30px; flex-shrink:0; }
+  .switch input { opacity:0; width:0; height:0; }
+  .switch .slider { position:absolute; inset:0; background:#b0bec5; border-radius:999px; cursor:pointer; transition:.2s; }
+  .switch .slider::before { content:''; position:absolute; width:24px; height:24px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .switch input:checked + .slider { background:var(--green); }
+  .switch input:checked + .slider::before { transform:translateX(26px); }
+  .switch input:disabled + .slider { opacity:.45; cursor:default; }
+  .state { font-size:12px; font-weight:800; min-width:28px; color:var(--sub); }
+  .state.on { color:var(--green); }
+  .hint { margin:10px 0 0; font-size:12px; color:var(--sub); background:#f8fbff; border:1px solid #e3eaf5; border-radius:8px; padding:8px 10px; }
+  /* 検討用の切り替え */
+  .opt { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .opt:last-child { margin-bottom:0; }
+  .opt-label { font-size:12px; font-weight:700; min-width:118px; }
+  .seg { display:inline-flex; flex-wrap:wrap; }
+  .seg button { font:inherit; font-size:12px; font-weight:700; padding:5px 12px; background:#fff; color:var(--sub); border:1.5px solid #cfd8dc; cursor:pointer; margin-left:-1.5px; }
+  .seg button:first-child { border-radius:8px 0 0 8px; margin-left:0; }
+  .seg button:last-child { border-radius:0 8px 8px 0; }
+  .seg button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; position:relative; }
+  .seg button:disabled { opacity:.45; cursor:default; }
+  .play-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:10px; }
+  .btn-play { font:inherit; font-size:15px; font-weight:800; padding:11px 22px; background:var(--accent); color:#fff; border:0; border-radius:10px; cursor:pointer; }
+  .btn-play:hover { background:#1558b0; }
+  .status { font-size:13px; color:var(--sub); }
+  .status b { color:var(--ink); }
+  .steps { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+  .step { font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px; background:#e8edf3; color:var(--sub); }
+  .step.now { background:var(--green); color:#fff; }
+  /* 会場ディスプレイ（16:9） */
+  .screens { display:grid; gap:12px; grid-template-columns:1fr; }
+  .screens.compare { grid-template-columns:1fr 1fr; }
+  @media (max-width: 860px) { .screens.compare { grid-template-columns:1fr; } }
+  .screen-box { min-width:0; }
+  .screen-cap { font-size:12px; font-weight:800; margin:0 0 4px; color:var(--sub); }
+  .screen-cap .on { color:var(--green); }
+  .frame { width:100%; aspect-ratio:16/9; border:0; border-radius:8px; background:#0b1d3a; display:block; box-shadow:0 2px 10px rgba(0,0,0,.25); }
+  .note { margin-top:14px; font-size:12px; color:var(--sub); }
+  .note ul { margin:4px 0 0; padding-left:18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="tag">検討用</span>会場ディスプレイ「決勝モード」</h1>
+  <p class="lead">第61回全日本学生選手権 個人Aクラス男子 決勝（ダミーデータ）。最後の選手（8番 中山選手）が確定するときの動きを再現します。本番の画面・データには影響しません。</p>
+
+  <div class="panels">
+    <div class="card">
+      <p class="card-title">画面コントロールに足す設定<small>（イメージ）</small></p>
+      <div class="setting-row">
+        <div class="setting-label">
+          <strong>🏁 決勝モード</strong>
+          <span>ONにすると、決勝の個人スコア画面に順位（RANK）を出しません。順位は、そのあとの順位表で初めて表示されます。</span>
+        </div>
+        <span class="state" id="fm-state">OFF</span>
+        <label class="switch"><input type="checkbox" id="fm"><span class="slider"></span></label>
+      </div>
+      <p class="hint" id="fm-hint">予選の得点表示は、ON・OFFにかかわらず、今と同じです（順位を出します）。</p>
+    </div>
+
+    <div class="card">
+      <p class="card-title">検討用の切り替え</p>
+      <div class="opt"><span class="opt-label">得点画面の順位欄</span>
+        <span class="seg" data-key="slot"><button type="button" data-v="center">得点を中央に大きく</button><button type="button" data-v="next">順位は次の画面で</button><button type="button" data-v="mask">「?」で伏せる</button><button type="button" data-v="hide">枠ごと消す</button></span></div>
+      <div class="opt"><span class="opt-label">順位表の出し方</span>
+        <span class="seg" data-key="reveal"><button type="button" data-v="all">まとめて出す（今と同じ）</button><button type="button" data-v="countdown">下位から1人ずつ</button><button type="button" data-v="insert">割り込み</button></span></div>
+      <div class="opt"><span class="opt-label">速さ</span>
+        <span class="seg" data-key="speed"><button type="button" data-v="normal">本番と同じ</button><button type="button" data-v="fast">早送り</button></span></div>
+      <div class="opt"><span class="opt-label">画面</span>
+        <span class="seg" data-key="view"><button type="button" data-v="single">1画面</button><button type="button" data-v="compare">OFF と ON を並べる</button></span></div>
+    </div>
+  </div>
+
+  <div class="play-row">
+    <button type="button" class="btn-play" id="play">▶ 中山選手の確定を再生</button>
+    <div class="status">
+      <div>再生から <b id="sec">0</b> 秒</div>
+      <div class="steps" id="steps"></div>
+    </div>
+  </div>
+
+  <div class="screens" id="screens"></div>
+
+  <div class="note">
+    <b>メモ</b>
+    <ul>
+      <li>「下位から1人ずつ」は、決勝の全員が終わったとき（最後の選手のあと）の順位表だけです。途中の選手のあとの順位表は、今と同じく、まとめて出します。</li>
+      <li>「割り込み」は、まず直前の順位表（中山選手の行はまだない）を出します。次に、中山選手が入る順位から下の選手が1つずつ下がってすき間ができ、中山選手の行が画面の外から滑り込みます。決勝の途中の選手でも、同じように動く作りです。</li>
+      <li>「本番と同じ」は、この大会の設定（アニメーション10秒、そのあと5秒表示してから順位表）です。「早送り」は、4秒＋1秒です。</li>
+      <li>設定を変えると、最初から再生し直します。</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // 設定は、このページの URL に残す（URL を送れば、同じ設定で見られる）
+  const DEF = { fm: '1', slot: 'center', reveal: 'all', speed: 'normal', view: 'single' };
+  const url = new URL(location.href);
+  const S = {};
+  for (const k of Object.keys(DEF)) S[k] = url.searchParams.get(k) || DEF[k];
+  const CONFIRM_AT = 3;   // 再生から何秒で、中山選手を確定するか
+
+  const $ = id => document.getElementById(id);
+  let t0 = 0;
+
+  function saveUrl() {
+    const u = new URL(location.href);
+    for (const k of Object.keys(DEF)) u.searchParams.set(k, S[k]);
+    history.replaceState(null, '', u);
+  }
+
+  function frameSrc(fm) {
+    const q = new URLSearchParams({ fm: fm ? '1' : '0', slot: S.slot, reveal: S.reveal, speed: S.speed, at: String(CONFIRM_AT), _: String(Date.now()) });
+    return 'study_final_display.html?' + q;
+  }
+
+  function render() {
+    const compare = S.view === 'compare';
+    $('fm').checked = S.fm === '1';
+    $('fm').disabled = compare;
+    $('fm-state').textContent = compare ? '—' : (S.fm === '1' ? 'ON' : 'OFF');
+    $('fm-state').classList.toggle('on', !compare && S.fm === '1');
+    $('fm-hint').textContent = compare
+      ? '「OFF と ON を並べる」では、左が OFF（今の画面）、右が ON です。'
+      : '予選の得点表示は、ON・OFFにかかわらず、今と同じです（順位を出します）。';
+    document.querySelectorAll('.seg').forEach(seg => {
+      const k = seg.dataset.key;
+      seg.querySelectorAll('button').forEach(b => {
+        b.setAttribute('aria-pressed', String(b.dataset.v === S[k]));
+        // 決勝モードが OFF のときは、決勝モードの見た目の切り替えは効かない
+        b.disabled = (k === 'slot' || k === 'reveal') && !compare && S.fm !== '1';
+      });
+    });
+    const box = $('screens');
+    box.className = 'screens' + (compare ? ' compare' : '');
+    const list = compare ? [false, true] : [S.fm === '1'];
+    box.innerHTML = list.map(fm => `<div class="screen-box"><p class="screen-cap">決勝モード <span class="${fm ? 'on' : ''}">${fm ? 'ON' : 'OFF（今の画面）'}</span></p>
+      <iframe class="frame" title="会場ディスプレイ（決勝モード ${fm ? 'ON' : 'OFF'}）" src="${frameSrc(fm)}"></iframe></div>`).join('');
+    t0 = Date.now();
+    tick();
+  }
+
+  // 再生の経過（目安。枠の中の画面と、だいたい合う）
+  function tick() {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    $('sec').textContent = s;
+    const hold = S.speed === 'fast' ? 5 : 15;   // 得点表示（アニメーション＋保持）の秒数
+    const steps = [
+      ['順位表（7番 美田選手のあと）', 0],
+      ['中山選手を確定 → 得点表示', CONFIRM_AT],
+      ['順位表（全員終了）', CONFIRM_AT + hold],
+    ];
+    let cur = 0;
+    steps.forEach(([, at], i) => { if (s >= at) cur = i; });
+    $('steps').innerHTML = steps.map(([label, at], i) => `<span class="step${i === cur ? ' now' : ''}">${at}秒〜 ${label}</span>`).join('');
+  }
+  setInterval(tick, 500);
+
+  $('fm').addEventListener('change', e => { S.fm = e.target.checked ? '1' : '0'; saveUrl(); render(); });
+  document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    S[seg.dataset.key] = b.dataset.v; saveUrl(); render();
+  }));
+  $('play').addEventListener('click', render);
+  saveUrl();
+  render();
+</script>
+</body>
+</html>

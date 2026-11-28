@@ -57,6 +57,8 @@
         .col-id      { width: 40px; text-align: center; color: #aaa; font-size: 0.78rem; }
         .col-sym     { width: 130px; font-family: monospace; font-size: 0.95rem; font-weight: bold; color: #202124; }
         .col-disp    { width: 150px; font-size: 0.9rem; color: #202124; font-weight: bold; }
+        .col-symen   { width: 130px; font-size: 0.9rem; color: #1a73e8; }
+        .col-noteen  { min-width: 140px; color: #1a73e8; font-size: 0.85rem; }
         .col-dd      { width: 60px; text-align: center; }
         .col-triple  { width: 52px; text-align: center; }
         .col-dir     { width: 70px; }
@@ -143,6 +145,10 @@
                 <input type="text" class="add-input" id="new-display-symbol" placeholder="例: 841&lt;">
             </div>
             <div class="add-field-wrap">
+                <div class="add-field-label">Symbol（英） <span style="color:#aaa; font-weight:normal;">(日本語のSymbolのみ)</span></div>
+                <input type="text" class="add-input" id="new-symbol-en" placeholder="例: Half seat">
+            </div>
+            <div class="add-field-wrap">
                 <div class="add-field-label">DD</div>
                 <input type="number" class="add-input" id="new-dd" step="0.1" min="0" max="9.9" value="0.0">
             </div>
@@ -185,6 +191,10 @@
                 <div class="add-field-label">注釈</div>
                 <input type="text" class="add-input" id="new-note" placeholder="メモ...">
             </div>
+            <div class="add-field-wrap">
+                <div class="add-field-label">注釈（英）</div>
+                <input type="text" class="add-input" id="new-note-en" placeholder="例: Tuck bounce">
+            </div>
         </div>
         <div class="add-actions">
             <button class="btn-confirm" onclick="addSkill()">追加する</button>
@@ -209,6 +219,7 @@
         <button class="filter-btn" onclick="autoAssignSoma()" title="Symbolの先頭数字から宙系を自動割り当て">🔄 宙系自動割当</button>
         <button class="filter-btn" onclick="assignBasePosture()" title="開始姿勢が未設定の基礎技に「スタンドから」を一括設定">🤸 基礎技の開始姿勢を初期化</button>
         <button class="filter-btn" onclick="bulkCopySymbolToDisplay()" title="未設定の表示用にSymbolを一括コピー">📋 表示用一括コピー</button>
+        <button class="filter-btn" onclick="fillEnglishDefaults()" title="Symbol（英）・注釈（英）が空の技に、日本語に対応する英語の既定値を一括入力（入力済みは上書きしない）">🌐 英語表記を一括入力</button>
         <span style="width:1px; background:#ddd; align-self:stretch; margin:0 4px;"></span>
         <button class="filter-btn" onclick="sortByDD()" title="難度点の低い順に並べ替え（保存が必要）" style="border-color:#7e57c2; color:#7e57c2;">📊 難度順に並替</button>
         <span class="count-label" id="count-label"></span>
@@ -222,12 +233,14 @@
                 <th class="col-id">#</th>
                 <th class="col-sym">Symbol</th>
                 <th class="col-disp">表示用</th>
+                <th class="col-symen" title="D計算ページの英語表示で使う。日本語のSymbolの技だけ入力（英数字のSymbolは空でよい）">Symbol（英）</th>
                 <th class="col-dd">DD</th>
                 <th class="col-triple">3回転</th>
                 <th class="col-triple" title="選手入力画面では選択できず、管理者入力・D審判画面のみ選択できる">D審のみ</th>
                 <th class="col-dir">系統</th>
                 <th class="col-soma">宙系</th>
                 <th class="col-note">注釈</th>
+                <th class="col-noteen" title="D計算ページの英語表示で使う注釈">注釈（英）</th>
                 <th class="col-act"></th>
             </tr>
         </thead>
@@ -320,6 +333,8 @@
             document.getElementById('new-dir').value = '';
             document.getElementById('new-soma').value = '';
             document.getElementById('new-note').value = '';
+            document.getElementById('new-symbol-en').value = '';
+            document.getElementById('new-note-en').value = '';
             document.getElementById('new-symbol').focus();
         }
     };
@@ -350,6 +365,8 @@
             direction: newDir,
             somersaultType: newSoma,
             note: document.getElementById('new-note').value.trim(),
+            symbolEn: document.getElementById('new-symbol-en').value.trim(),
+            noteEn: document.getElementById('new-note-en').value.trim(),
             displayOrder: nextOrder,
             updatedAt: serverTimestamp()
         };
@@ -454,6 +471,10 @@
                             <input type="text" class="edit-input" data-id="${s.id}" data-field="displaySymbol"
                                 value="${(s.displaySymbol || '').replace(/"/g, '&quot;')}" placeholder="(Symbolと同じ)">
                         </td>
+                        <td class="col-symen">
+                            <input type="text" class="edit-input" data-id="${s.id}" data-field="symbolEn"
+                                value="${(s.symbolEn || '').replace(/"/g, '&quot;')}" placeholder="(日本語のSymbolのみ)">
+                        </td>
                         <td class="col-dd">
                             <input type="number" class="edit-input" data-id="${s.id}" data-field="dd"
                                 step="0.1" min="0" max="9.9" value="${Number(s.dd).toFixed(1)}" style="width:58px;">
@@ -494,6 +515,10 @@
                             <input type="text" class="edit-input" data-id="${s.id}" data-field="note"
                                 value="${(s.note || '').replace(/"/g, '&quot;')}" placeholder="メモ...">
                         </td>
+                        <td class="col-noteen">
+                            <input type="text" class="edit-input" data-id="${s.id}" data-field="noteEn"
+                                value="${(s.noteEn || '').replace(/"/g, '&quot;')}" placeholder="Note (EN)">
+                        </td>
                         <td class="col-act">
                             <button class="btn-save-row" id="save-${s.id}" onclick="saveRow('${s.id}')">保存</button>
                             <button class="btn-cancel-row" onclick="cancelEdit()">✕</button>
@@ -516,12 +541,14 @@
                         <td class="col-id">${s.id}</td>
                         <td class="col-sym">${isFiltered ? '' : '<span class="drag-handle">☰ </span>'}${s.symbol}</td>
                         <td class="col-disp">${s.displaySymbol || '<span class="display-empty">—</span>'}</td>
+                        <td class="col-symen">${s.symbolEn || '<span class="display-empty">-</span>'}</td>
                         <td class="col-dd" style="text-align:center;">${Number(s.dd).toFixed(1)}</td>
                         <td class="col-triple">${s.isTriple ? '<span class="triple-check">✓</span>' : ''}</td>
                         <td class="col-triple">${s.dJudgeOnly ? '<span class="triple-check">✓</span>' : ''}</td>
                         <td class="col-dir">${dirLabel[s.direction] || s.direction || ''}</td>
                         <td class="col-soma">${s.somersaultType || ''}</td>
                         <td class="col-note">${noteText}</td>
+                        <td class="col-noteen">${s.noteEn || '<span class="display-empty">-</span>'}</td>
                         <td class="col-act">
                             <button class="btn-edit" onclick="startEdit('${s.id}')">編集</button>
                             <button class="btn-delete" onclick="deleteSkill('${s.id}')">削除</button>
@@ -659,6 +686,8 @@
         const dirEl         = document.querySelector(`select.edit-input[data-id="${id}"][data-field="direction"]`);
         const somaEl        = document.querySelector(`select.edit-input[data-id="${id}"][data-field="somersaultType"]`);
         const noteEl        = document.querySelector(`input.edit-input[data-id="${id}"][data-field="note"]`);
+        const symbolEnEl    = document.querySelector(`input.edit-input[data-id="${id}"][data-field="symbolEn"]`);
+        const noteEnEl      = document.querySelector(`input.edit-input[data-id="${id}"][data-field="noteEn"]`);
 
         const newSymbol         = symbolEl?.value.trim() || skill.symbol;
         const newDisplaySymbol  = dispSymbolEl?.value.trim() || newSymbol;
@@ -668,6 +697,8 @@
         const newDirection      = dirEl?.value || skill.direction;
         const newSomersault     = somaEl?.value || '';
         const newNote           = noteEl?.value.trim() || '';
+        const newSymbolEn       = symbolEnEl?.value.trim() || '';
+        const newNoteEn         = noteEnEl?.value.trim() || '';
 
         if (!newSymbol) {
             alert('Symbolは必須です。');
@@ -684,6 +715,8 @@
             direction: newDirection,
             somersaultType: newSomersault,
             note: newNote,
+            symbolEn: newSymbolEn,
+            noteEn: newNoteEn,
             updatedAt: serverTimestamp()
         };
 
@@ -693,7 +726,7 @@
 
             const idx = skills.findIndex(s => s.id === id);
             if (idx >= 0) {
-                skills[idx] = { ...skills[idx], symbol: newSymbol, displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, dJudgeOnly: newDJudgeOnly, direction: newDirection, somersaultType: newSomersault, note: newNote };
+                skills[idx] = { ...skills[idx], symbol: newSymbol, displaySymbol: newDisplaySymbol, dd: newDd, isTriple: newIsTriple, dJudgeOnly: newDJudgeOnly, direction: newDirection, somersaultType: newSomersault, note: newNote, symbolEn: newSymbolEn, noteEn: newNoteEn };
             }
             editingId = null;
             render();
@@ -716,6 +749,50 @@
     });
 
     // 全技にSymbolを一括コピー
+    // 英語表記の既定値（日本語の Symbol / 注釈 → 英語）。D計算ページなどの英語表示で使う。
+    const EN_SYMBOL = {
+        'シート': 'Seat', 'ハーフシート': 'Half seat', 'フルシート': 'Full seat', 'スィーブル': 'Swivel',
+        'スタンド': 'Stand', 'ハーフスタンド': 'Half stand', 'ハーフピルエット': 'Half pirouette', 'フルピルエット': 'Full pirouette',
+        'フロントドロップ': 'Front drop', 'ハーフフロント': 'Half front', 'ハーフフロント（L）': 'Half front (L)',
+        'バックドロップ': 'Back drop', 'ハーフターンテーブル': 'Half turntable', 'フロント': 'Front',
+        '1,1/2プルエット': '1 1/2 pirouette', 'ローラー': 'Roller',
+    };
+    const EN_NOTE = {
+        'タックバウンス': 'Tuck bounce', 'パイクバウンス': 'Pike bounce', 'ストラドルバウンス': 'Straddle bounce',
+        'プルオーバー': 'Pullover', 'プルオーバー（L）': 'Pullover (L)', '3/4バック': '3/4 Back', '3/4フロント': '3/4 Front',
+        'コディ': 'Cody', '1,1/4': '1 1/4', '前方向': 'Forward', '後方向': 'Backward',
+        '全日本インカレC規定専用': 'All-Japan Intercollegiate, C compulsory only',
+    };
+    const hasJapanese = t => /[぀-ヿ㐀-鿿]/.test(t || '');
+    window.fillEnglishDefaults = async function() {
+        // 空の欄だけを埋める（入力済みの英語は上書きしない）
+        const targets = skills.map(sk => ({
+            sk,
+            symbolEn: (!sk.symbolEn && EN_SYMBOL[sk.symbol]) || '',
+            noteEn: (!sk.noteEn && EN_NOTE[sk.note]) || '',
+        })).filter(t => t.symbolEn || t.noteEn);
+        // 日本語のまま残る（既定値に無い）Symbol・注釈
+        const lackSym  = [...new Set(skills.filter(sk => hasJapanese(sk.symbol) && !sk.symbolEn && !EN_SYMBOL[sk.symbol]).map(sk => sk.symbol))];
+        const lackNote = [...new Set(skills.filter(sk => sk.note && !sk.noteEn && !EN_NOTE[sk.note]).map(sk => sk.note))];
+        const lack = (lackSym.length || lackNote.length)
+            ? `\n\n※ 既定値に無いため、手で入力が必要です:\n${lackSym.length ? 'Symbol: ' + lackSym.join('、') + '\n' : ''}${lackNote.length ? '注釈: ' + lackNote.join('、') : ''}`
+            : '';
+        if (!targets.length) { alert('入力する項目はありません（すべて入力済み、または既定値に無い日本語です）。' + lack); return; }
+        const nSym = targets.filter(t => t.symbolEn).length, nNote = targets.filter(t => t.noteEn).length;
+        if (!confirm(`空の英語欄に、既定値を入力します（入力済みは上書きしません）。\n\nSymbol（英）: ${nSym} 技\n注釈（英）: ${nNote} 技\n\nよろしいですか？${lack}`)) return;
+        try {
+            await Promise.all(targets.map(t => setDoc(doc(db, 'skillMaster', t.sk.id),
+                { ...(t.symbolEn ? { symbolEn: t.symbolEn } : {}), ...(t.noteEn ? { noteEn: t.noteEn } : {}) }, { merge: true })));
+            touchSkillMasterVersion();
+            targets.forEach(t => { if (t.symbolEn) t.sk.symbolEn = t.symbolEn; if (t.noteEn) t.sk.noteEn = t.noteEn; });
+            render();
+            alert(`入力しました（Symbol（英）${nSym}技、注釈（英）${nNote}技）。`);
+        } catch (e) {
+            console.error('English fill error:', e);
+            alert('入力に失敗しました: ' + e.message);
+        }
+    };
+
     window.bulkCopySymbolToDisplay = async function() {
         const targets = skills.filter(s => !s.displaySymbol || s.displaySymbol === s.symbol);
         if (!confirm(`表示用が未設定の ${targets.length} 件にSymbolをコピーします。\nよろしいですか？`)) return;

@@ -178,6 +178,17 @@
     font-size: 11px;
     color: rgba(255, 255, 255, .65);
   }
+  /* 大会ロゴ: 上山杯パターンのときだけ出す（ほかのテーマでは表示せず、画像も読み込まない）。
+     元の画像は黒い筆文字なので、ヘッダーの濃い背景に合わせて白にする */
+  .t-logo { display: none; }
+  :root[data-theme="ueyama"] .t-logo {
+    display: block;
+    width: min(66%, 300px);
+    aspect-ratio: 1200 / 489;
+    margin: 14px 0 4px;
+    background: url("logo_ueyama.png") left center / contain no-repeat;
+    filter: brightness(0) invert(1) drop-shadow(0 2px 8px rgba(0, 0, 0, .35));
+  }
   .hero h1 {
     font-size: 20px;
     line-height: 1.35;
@@ -243,7 +254,7 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--line);
-    padding: 10px 0;
+    padding: 6px 0;
     transition: box-shadow .2s ease;
   }
   @media (prefers-color-scheme: dark) {
@@ -261,19 +272,19 @@
   .seg {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
+    gap: 3px;
     background: var(--soft);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    padding: 3px;
+    padding: 2px;
   }
   .seg button {
     font: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     border: 0;
-    border-radius: 9px;
-    padding: 8px 0;
+    border-radius: 8px;
+    padding: 6px 0;
     background: transparent;
     color: var(--sub);
     cursor: pointer;
@@ -295,35 +306,46 @@
   }
 
   /* 2. カテゴリーチップ */
+  /* 種目は1行（横にスクロール）。固定ナビの高さを抑える */
   .cats-box {
-    margin-top: 8px;
+    position: relative;
+    margin-top: 5px;
     display: flex;
-    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
     gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
+  .cats-box::-webkit-scrollbar { display: none; }
   .grp {
     display: flex;
+    flex: none;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+  }
+  .grp + .grp {
+    margin-left: 4px;
+    padding-left: 10px;
+    border-left: 1px solid var(--line);
   }
   .grp-h {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     color: var(--sub);
-    min-width: 52px;
     flex-shrink: 0;
   }
   .chips {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
-    flex: 1;
   }
   .chip {
     font: inherit;
     font-size: 12px;
     font-weight: 600;
-    padding: 6px 13px;
+    padding: 4px 11px;
     border-radius: 999px;
     border: 1px solid var(--line);
     background: var(--card);
@@ -418,8 +440,8 @@
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    padding: 16px 14px 14px;
-    margin-bottom: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
@@ -434,11 +456,14 @@
   .top {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
+  .card.dim .top { cursor: default; }
   .rank {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: var(--soft);
     color: var(--sub);
@@ -447,56 +472,60 @@
     justify-content: center;
     font-family: var(--num);
     font-weight: 800;
-    font-size: 17px;
+    font-size: 15px;
     flex: none;
   }
-  .rank.m1 {
-    background: linear-gradient(135deg, #fde047, #f59e0b);
-    color: #451a03;
-    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35);
-  }
-  .rank.m2 {
-    background: linear-gradient(135deg, #e2e8f0, #94a3b8);
-    color: #0f172a;
-  }
-  .rank.m3 {
-    background: linear-gradient(135deg, #fed7aa, #d97706);
-    color: #431407;
-  }
+  /* 一覧は1行: 順位 / 名前（Q）所属 / 得点。個人は名前と所属を同じ行に、シンクロは2行 */
   .who {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .name-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-wrap: wrap;
+    flex: none;
+    max-width: 62%;
+    min-width: 0;
   }
   .name {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
-    overflow-wrap: anywhere;
     line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  .card.syn .who { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .card.syn .name-row { max-width: none; }
+  .card.syn .name { white-space: normal; overflow: visible; }
+  .pn { white-space: nowrap; }
+  .card.syn .club { flex: none; white-space: normal; overflow-wrap: anywhere; }
   .q {
     display: inline-flex;
     align-items: center;
-    font-family: var(--num);
-    font-size: 11px;
+    font-family: inherit;
+    font-size: 12px;
     font-weight: 800;
     color: var(--ok);
     background: var(--ok-soft);
     border: 1px solid var(--ok-border);
     border-radius: 5px;
-    padding: 1px 7px;
+    padding: 0 7px;
     line-height: 1.4;
+    flex: none;
   }
   .club {
     font-size: 12px;
     color: var(--sub);
-    margin-top: 2px;
-    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .tot {
     text-align: right;
@@ -505,7 +534,7 @@
   .tot b {
     display: block;
     font-family: var(--num);
-    font-size: 32px;
+    font-size: 22px;
     font-weight: 800;
     line-height: 1;
     letter-spacing: -.02em;
@@ -517,15 +546,28 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--mute);
-    margin-top: 4px;
+    margin-top: 2px;
   }
+  .card:not(.exp) .tot span { display: none; }   /* 差・予選点は、開いたときだけ */
+  .chev {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid var(--mute);
+    border-bottom: 2px solid var(--mute);
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform .15s ease;
+    margin: 0 2px 0 -2px;
+  }
+  .card.exp .chev { transform: rotate(-135deg) translateY(-2px); }
+  .card.dim .chev { display: none; }
 
   /* ★ 本ごとの得点ブロック（D / E / ToF / HD / 減点 を大幅拡大） */
   .rt-wrap {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 10px;
   }
   .rt {
     background: var(--soft);
@@ -556,16 +598,6 @@
     color: var(--ink);
     font-variant-numeric: tabular-nums;
     line-height: 1;
-  }
-  .tag {
-    font-style: normal;
-    font-size: 11px;
-    font-weight: 700;
-    background: var(--hl);
-    color: var(--on-hl);
-    border-radius: 5px;
-    padding: 2px 7px;
-    margin-left: 6px;
   }
   .rt-g {
     display: grid;
@@ -675,6 +707,8 @@
   table.sk td:nth-child(2) {
     font-weight: 700;
   }
+  table.sk td.bn { color: var(--hl-ink, var(--accent)); font-weight: 700; }
+  table.sk td.bn:nth-child(2) { font-family: inherit; font-size: 12px; }
   table.sk tr.land td {
     border-top: 1px solid var(--line);
     font-weight: 700;
@@ -779,6 +813,7 @@
       <div class="kicker">LIVE SCORES</div>
       <div class="stamp" id="stamp"></div>
     </div>
+    <div class="t-logo" role="img" aria-label="上山杯"></div>
     <h1 id="t-name">読み込み中…</h1>
     <div class="meta" id="t-meta"></div>
     <div class="row">
@@ -818,11 +853,10 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f2 = v => v != null ? Number(v).toFixed(2) : null;
 const dash = '<span class="na">–</span>';
-const medal = r => r <= 3 ? ` m${r}` : '';
 const typeLabel = t => t === 'synchro' ? 'シンクロ' : t === 'team' ? '団体' : '個人';
 
 const PHASES = [{ id: 'qual', label: '予選' }, { id: 'final', label: '決勝' }, { id: 'team', label: '団体' }];
-const state = { phase: null, cat: null, open: new Set(), auto: false, timer: null };
+const state = { phase: null, cat: null, open: new Set(), exp: new Set(), auto: false, timer: null };
 let index = null;                 // 目次
 const docs = new Map();           // グループのドキュメント（更新するまで、読み直さない）
 
@@ -847,7 +881,7 @@ async function loadGroup(key, force) {
 }
 function applyTournament() {
   const t = index.tournament || {};
-  if (t.colorTheme === 'red') document.documentElement.dataset.theme = 'red';
+  if (['red', 'ueyama'].includes(t.colorTheme)) document.documentElement.dataset.theme = t.colorTheme;
   $('t-name').textContent = t.name || '';
   document.title = (t.name ? t.name + ' ' : '') + 'スコア速報';
   const range = [t.startDate, t.endDate].filter(Boolean).map(s => String(s).replace(/-/g, '/')).join(' – ');
@@ -871,7 +905,7 @@ function validateSelection() {
 }
 
 // ---------- 表示 ----------
-const nameOf = (r, synchro) => synchro ? `${esc(r.n1 || '–')} / ${esc(r.n2 || '–')}` : esc(r.n1 || '–');
+const nameOf = (r, synchro) => synchro ? `<span class="pn">${esc(r.n1 || '–')} /</span> <span class="pn">${esc(r.n2 || '–')}</span>` : esc(r.n1 || '–');
 const clubOf = (r, synchro) => {
   if (!synchro) return esc(r.c1 || '');
   const c1 = (r.c1 || '').trim(), c2 = (r.c2 || '').trim();
@@ -884,13 +918,13 @@ function routineCard(label, r, synchro, adopted, dimmed) {
   const s = r.s || {};
   const c = v => v ? v : dash;
   return `<div class="rt${adopted ? ' use' : ''}${dimmed ? ' off' : ''}">
-    <div class="rt-h"><span>${label}${adopted ? '<i class="tag">採用</i>' : ''}</span><b>${c(s.total)}</b></div>
+    <div class="rt-h"><span>${label}</span><b>${c(s.total)}</b></div>
     <div class="rt-g">
       <span>D<b>${c(s.d)}</b></span>
       <span>E<b>${c(s.e)}</b></span>
       <span>${synchro ? 'Syn' : 'ToF'}<b>${c(s.tof)}</b></span>
       <span>HD<b>${c(s.hd)}</b></span>
-      <span>減点<b class="${s.pen ? 'pen-val' : ''}">${c(s.pen)}</b></span>
+      <span>Pen<b class="${s.pen ? 'pen-val' : ''}">${c(s.pen)}</b></span>
     </div>
   </div>`;
 }
@@ -903,11 +937,13 @@ function detailHtml(rounds, synchro, paper) {
       if (!k) { body.push(`<tr><td>${i + 1}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td></tr>`); continue; }
       body.push(`<tr><td>${i + 1}</td><td>${paper ? '' : esc(k.sym ?? '–')}</td><td>${paper ? '–' : esc(k.dd ?? '–')}</td><td>${esc(k.e ?? '–')}</td><td>${esc(k.tof ?? '–')}</td><td>${esc(k.hd ?? '–')}</td></tr>`);
     }
-    body.push(`<tr class="land"><td>L</td><td>${paper ? '' : '着地'}</td><td></td><td>${esc(r.land === '' || r.land == null ? '–' : r.land)}</td><td></td><td></td></tr>`);
+    // Lの行: 着地のE減点。Dのボーナスがあるときは、難度の列に +x.x（技の列に Bonus）
+    const bn = r.bn ? esc(r.bn) : '';
+    body.push(`<tr class="land"><td>L</td><td class="bn">${bn ? 'Bonus' : ''}</td><td class="bn">${bn ? '+' + bn : ''}</td><td>${esc(r.land === '' || r.land == null ? '–' : r.land)}</td><td></td><td></td></tr>`);
     const pens = (r.pr || []).map(esc).filter(Boolean);
     return `<div class="cap">${esc(lb)}</div>
       <table class="sk"><tr><th>#</th><th>${paper ? '' : '技'}</th><th>${paper ? '' : '難度'}</th><th>E減点</th><th>${synchro ? 'Syn' : 'ToF'}</th><th>HD</th></tr>${body.join('')}</table>
-      ${pens.length ? `<div class="cap n">減点: ${pens.join('、')}</div>` : ''}`;
+      ${pens.length ? `<div class="cap n">Pen: ${pens.join(', ')}</div>` : ''}`;
   }).join('');
   return out || '<div class="cap">内訳のデータがありません</div>';
 }
@@ -919,46 +955,52 @@ function personRow(r, g, phase, idx, leader, rule) {
   const rounds = phase === 'final' ? [['決勝', r.fin, 'final']] : (numPre >= 2 ? [['1本目', r.p1, 'pre1'], ['2本目', r.p2, 'pre2']] : [['予選', r.p1, 'pre1']]);
   const gap = idx > 0 && leader != null ? `-${(leader - r.qualScore).toFixed(2)}` : '';
   const sub = phase === 'final' && r.qualPart != null ? `予選 ${f2(r.qualPart)}` : gap;
-  const open = state.open.has(key);
-  return `<div class="card${r.showQ ? ' q-on' : ''}" data-key="${esc(key)}">
-    <div class="top">
-      <div class="rank${medal(r.rank)}">${r.rank}</div>
+  const open = state.open.has(key), exp = state.exp.has(key);
+  return `<div class="card${r.showQ ? ' q-on' : ''}${synchro ? ' syn' : ''}${exp ? ' exp' : ''}" data-key="${esc(key)}">
+    <div class="top" data-row="${esc(key)}" role="button" tabindex="0" aria-expanded="${exp}">
+      <div class="rank">${r.rank}</div>
       <div class="who">
-        <div class="name-row"><span class="name">${nameOf(r, synchro)}</span>${r.showQ ? '<span class="q">Q 決勝進出</span>' : ''}</div>
+        <div class="name-row"><span class="name">${nameOf(r, synchro)}</span>${r.showQ ? '<span class="q">Q</span>' : ''}</div>
         <div class="club">${clubOf(r, synchro)}</div>
       </div>
       <div class="tot"><b>${f2(r.qualScore)}</b><span>${sub}</span></div>
+      <i class="chev"></i>
     </div>
-    <div class="rt-wrap">
+    ${exp ? `<div class="rt-wrap">
       ${rounds.map(([lb, res], i) => routineCard(lb, res, synchro, phase === 'qual' && i === r.adopted, phase === 'qual' && r.adopted >= 0 && i !== r.adopted)).join('')}
     </div>
-    <button class="more" type="button" data-toggle="${esc(key)}">${open ? '▲ 技ごとの内訳を閉じる' : '▼ 技ごとの内訳を見る'}</button>
-    ${open ? `<div class="detail-box">${detailHtml(rounds, synchro, paper)}</div>` : ''}
+    <button class="more" type="button" data-toggle="${esc(key)}">${open ? '▲ detail' : '▼ detail'}</button>
+    ${open ? `<div class="detail-box">${detailHtml(rounds, synchro, paper)}</div>` : ''}` : ''}
   </div>`;
 }
 
 function waitingRow(r, g, label) {
   const synchro = g.type === 'synchro';
-  return `<div class="card dim"><div class="top"><div class="rank">–</div><div class="who"><div class="name">${nameOf(r, synchro)}</div><div class="club">${clubOf(r, synchro)}</div></div><div class="tot"><span>${label}</span></div></div></div>`;
+  return `<div class="card dim${synchro ? ' syn' : ''} exp"><div class="top"><div class="rank">–</div><div class="who"><div class="name-row"><span class="name">${nameOf(r, synchro)}</span></div><div class="club">${clubOf(r, synchro)}</div></div><div class="tot"><span>${label}</span></div></div></div>`;
 }
 
 function teamHtml(d) {
   const teams = rankTeams(d);
   const rule = d.meta?.rule || {}, scoreMode = rule.scoreMode || 'best', two = (rule.numPre ?? 1) >= 2;
   const cell = (has, v, use) => `<span><i style="font-style:normal" class="${use ? 'use' : 'drop'}">${has ? f2(v) : '–'}</i></span>`;
-  const cards = teams.map((t, idx) => `<div class="card"><div class="top"><div class="rank${medal(t.rank)}">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
-      <div class="tot"><b>${f2(t.score)}</b><span>${idx > 0 ? '-' + (teams[0].score - t.score).toFixed(2) : ''}</span></div></div>
-      <div class="mem h"><span>選手</span><span>${two ? '1本目' : '得点'}</span><span>${two ? '2本目' : ''}</span></div>
+  // 一覧は1行（順位・チーム名・得点）。タップで、選手ごとの得点を開く
+  const keyOf = t => `team|${state.cat}|${t.name}`;
+  const cards = teams.map((t, idx) => { const key = keyOf(t), exp = state.exp.has(key); return `<div class="card${exp ? ' exp' : ''}" data-key="${esc(key)}"><div class="top" data-row="${esc(key)}" role="button" tabindex="0" aria-expanded="${exp}"><div class="rank">${t.rank}</div><div class="who"><div class="name">${esc(t.name)}</div></div>
+      <div class="tot"><b>${f2(t.score)}</b><span>${idx > 0 ? '-' + (teams[0].score - t.score).toFixed(2) : ''}</span></div><i class="chev"></i></div>
+      ${exp ? `<div class="mem h"><span>選手</span><span>${two ? '1本目' : '得点'}</span><span>${two ? '2本目' : ''}</span></div>
       ${t.members.map(m => scoreMode === 'best'
         ? `<div class="mem"><span>${esc(m.name)}</span>${two ? cell(m.has1, m.p1.total, m.counted && m.adopt === 1) + cell(m.has2, m.p2.total, m.counted && m.adopt === 2) : cell(m.has1, m.score, m.counted) + '<span></span>'}</div>`
-        : `<div class="mem"><span>${esc(m.name)}</span>${cell(m.has1, m.p1.total, m.c1)}${two ? cell(m.has2, m.p2.total, m.c2) : '<span></span>'}</div>`).join('')}
-    </div>`).join('');
-  return { html: cards + (teams.length ? '<div class="cap" style="text-align:center;margin-top:12px;">ハイライト枠 = 団体得点に採用（上位3名）</div>' : ''), count: teams.length };
+        : `<div class="mem"><span>${esc(m.name)}</span>${cell(m.has1, m.p1.total, m.c1)}${two ? cell(m.has2, m.p2.total, m.c2) : '<span></span>'}</div>`).join('')}` : ''}
+    </div>`; }).join('');
+  const anyOpen = teams.some(t => state.exp.has(keyOf(t)));
+  return { html: cards + (anyOpen ? '<div class="cap" style="text-align:center;margin-top:12px;">ハイライト枠 = 団体得点に採用（上位3名）</div>' : ''), count: teams.length };
 }
 
 // ---------- 描画 ----------
+let navPhase = null;
 function renderNav() {
   validateSelection();
+  const box = $('cats'), prevLeft = box.scrollLeft;
   $('phases').innerHTML = PHASES.map(p => `<button type="button" data-phase="${p.id}" aria-pressed="${state.phase === p.id}">${p.label}</button>`).join('');
   const cats = catsFor(state.phase);
   const groups = [];
@@ -967,6 +1009,15 @@ function renderNav() {
     : groups.length
       ? groups.map(gr => `<div class="grp"><div class="grp-h">${state.phase === 'team' ? '団体' : typeLabel(gr.type)}</div><div class="chips">${gr.items.map(c => `<button class="chip" type="button" data-cat="${esc(c.key)}" aria-pressed="${state.cat === c.key}">${esc(c.cls)} ${esc(c.gender)}</button>`).join('')}</div></div>`).join('')
       : '<div class="cap">この種別に該当するカテゴリーがありません</div>';
+  // 種目の行は横にスクロールする。作り直しても位置を保ち、選んだ種目が見切れていれば見える位置まで動かす
+  box.scrollLeft = navPhase === state.phase ? prevLeft : 0;
+  navPhase = state.phase;
+  const sel = box.querySelector('.chip[aria-pressed="true"]');
+  if (sel) {
+    const l = sel.offsetLeft, r = l + sel.offsetWidth;
+    if (l < box.scrollLeft + 8) box.scrollLeft = Math.max(0, l - 8);
+    else if (r > box.scrollLeft + box.clientWidth - 8) box.scrollLeft = r - box.clientWidth + 8;
+  }
 }
 
 function showMsg(title, sub) { $('out').innerHTML = `<div class="empty"><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}</div>`; }
@@ -975,7 +1026,7 @@ function setStale(v) { $('stale').hidden = !v; if (!v) stampNow(); }
 async function renderOut() {
   const out = $('out');
   if (!index) { showMsg('公開前です', '大会が始まって最初の得点が確定すると、ここに結果が表示されます'); return; }
-  if (!state.phase || !state.cat) { showMsg('フェーズと種目を選んでください', '選ぶと、順位表が表示されます'); return; }
+  if (!state.phase || !state.cat) { showMsg('種目を選んでください'); return; }
   const g = groupOf(state.cat);
   if (!g) { out.innerHTML = ''; return; }
   const cached = docs.has(state.cat);
@@ -1015,10 +1066,15 @@ async function renderOut() {
 
 // ---------- 操作 ----------
 document.addEventListener('click', e => {
-  const p = e.target.closest('[data-phase]'), c = e.target.closest('[data-cat]'), t = e.target.closest('[data-toggle]');
-  if (p) { state.phase = p.dataset.phase; state.open.clear(); saveSel(); renderNav(); renderOut(); }
-  else if (c) { state.cat = c.dataset.cat; state.open.clear(); saveSel(); renderNav(); renderOut(); }
+  const p = e.target.closest('[data-phase]'), c = e.target.closest('[data-cat]'), t = e.target.closest('[data-toggle]'), w = e.target.closest('[data-row]');
+  if (p) { state.phase = p.dataset.phase; state.open.clear(); state.exp.clear(); saveSel(); renderNav(); renderOut(); }
+  else if (c) { state.cat = c.dataset.cat; state.open.clear(); state.exp.clear(); saveSel(); renderNav(); renderOut(); }
   else if (t) { const k = t.dataset.toggle; state.open.has(k) ? state.open.delete(k) : state.open.add(k); renderOut(); }
+  else if (w) { const k = w.dataset.row; state.exp.has(k) ? state.exp.delete(k) : state.exp.add(k); renderOut(); }
+});
+document.addEventListener('keydown', e => {
+  const w = e.target.closest?.('[data-row]');
+  if (w && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); w.click(); }
 });
 
 // 更新: 見ている種目の1回だけ読む（目次がまだ無いときは、目次も読む）。他の種目は、切り替えたときに読み直す

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="../favicon-32.png">
+  <script>(function(){var u=new URL(location.href),d={"event":"demo"};Object.keys(d).forEach(function(k){if(!u.searchParams.has(k))u.searchParams.set(k,d[k]);});history.replaceState(null,'',u);})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D計算用 - Trampoline Scoring System</title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --danger: #d32f2f; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); padding: 15px; margin: 0; }
+        .container { max-width: 920px; margin: auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .page-title { margin: 0 0 4px; font-size: 1.5em; }
+        .page-sub { margin: 0 0 18px; font-size: 0.85em; color: #70757a; line-height: 1.6; }
+        .info-card { background: #f1f3f4; padding: 16px 18px; border-radius: 12px; margin-bottom: 18px; display: flex; flex-direction: column; gap: 12px; }
+        .field-row { display: flex; align-items: center; gap: 12px; }
+        .fld-label { font-size: 0.8em; font-weight: bold; color: #5f6368; min-width: 72px; }
+        .txt { flex: 1; padding: 9px 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 0.95em; background: #fff; box-sizing: border-box; }
+        select.gender { flex: 0 0 150px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
+        th, td { padding: 10px 5px; border-bottom: 1px solid #eee; text-align: center; }
+        th { font-size: 0.8em; color: #5f6368; font-weight: bold; }
+        select, .skill-text { width: 100%; padding: 10px 5px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95em; background: #fff; box-sizing: border-box; }
+        .skill-text { border-color: #a8c7e8; background: #f5faff; }
+        .skill-text::placeholder { color: #9bb4cc; font-size: 0.88em; }
+        .total-display { margin-top: 18px; background: #e8f0fe; border: 2px solid var(--primary); border-radius: 14px; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+        .total-display-sub { font-size: 1em; color: #5f6368; }
+        .total-display-sub span { font-weight: 900; color: #333; font-size: 1.25em; }
+        .total-val-wrap { text-align: right; }
+        .total-val-label { font-size: 0.7em; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; }
+        .total-val { font-size: 2.8em; font-weight: 900; color: var(--primary); line-height: 1; }
+        .btn-group { display: flex; gap: 12px; margin-top: 24px; }
+        .btn { flex: 1; padding: 15px; border-radius: 12px; font-size: 1em; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; border: 2px solid transparent; }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-secondary { background: #fff; color: var(--primary); border-color: var(--primary); }
+        .duplicate-row td { background-color: #fff176 !important; }
+        .dd-zero { color: var(--danger) !important; font-weight: bold; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .hint { font-size: 0.78em; color: #80868b; margin: 6px 2px 0; }
+        .total-display-sub .lbl { font-weight: normal; font-size: 1em; color: #5f6368; }
+        /* 言語バッジ（日本語 / EN） */
+        .lang-badge { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+        .lang-badge { gap: 0; }
+        .lang-badge button { font: inherit; font-size: 0.78em; font-weight: bold; padding: 4px 14px; background: #fff; color: var(--primary); border: 1px solid var(--primary); cursor: pointer; }
+        .lang-badge button:first-child { border-radius: 999px 0 0 999px; }
+        .lang-badge button:last-child  { border-radius: 0 999px 999px 0; border-left: 0; }
+        .lang-badge button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+        @media (max-width: 700px) {
+            body { padding: 8px; }
+            .container { padding: 14px; border-radius: 14px; }
+            .fld-label { min-width: 62px; }
+            #skill-table { min-width: 660px; } /* 横スクロールで全列を表示 */
+            .total-display { flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; }
+            .total-val { font-size: 2.3em; }
+            .total-val-wrap { align-self: flex-end; }
+            .btn-group { flex-wrap: wrap; }
+            .btn { min-width: calc(50% - 6px); padding: 14px 10px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="lang-badge" role="group" aria-label="Language / 言語">
+        <button type="button" id="lang-ja" onclick="setLang('ja')">日本語</button>
+        <button type="button" id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+    <h1 class="page-title" data-i18n="title">D（難度）計算用</h1>
+    <p class="page-sub" data-i18n="sub">選手名・チーム名と技を入力してDDを計算し、CSVで保存できます。確定・提出はされません（計算専用）。</p>
+
+    <div class="info-card">
+        <div class="field-row">
+            <label class="fld-label" for="name" data-i18n="name">選手名</label>
+            <input type="text" id="name" class="txt" placeholder="（空欄可）" data-i18n-ph="optional">
+        </div>
+        <div class="field-row">
+            <label class="fld-label" for="team" data-i18n="team">チーム名</label>
+            <input type="text" id="team" class="txt" placeholder="（空欄可）" data-i18n-ph="optional">
+        </div>
+        <div class="field-row">
+            <label class="fld-label" for="gender" data-i18n="gender">性別</label>
+            <select id="gender" class="txt gender" onchange="calcTotal()">
+                <option value="男子">男子</option>
+                <option value="女子">女子</option>
+                <option value="混合">混合</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+    <table id="skill-table">
+        <thead><tr>
+            <th style="width:34px;">#</th>
+            <th style="width:16%;" data-i18n="th_dir">系統</th>
+            <th style="width:18%;" data-i18n="th_soma">宙系 / 姿勢</th>
+            <th data-i18n="th_sel">技名（選択）</th>
+            <th data-i18n="th_txt">技名（直接入力・予測）</th>
+            <th style="width:58px;">DD</th>
+        </tr></thead>
+        <tbody id="skill-rows"></tbody>
+    </table>
+    </div>
+    <!-- 技名予測変換用（全行共通） -->
+    <datalist id="skill-datalist"></datalist>
+    <p class="hint" data-i18n-html="hint">💡 右の「直接入力」欄に技名を打つと候補が出ます。選ぶと左の系統・宙系・技名が自動で埋まります。技が決まったあとの <b>Enter</b> で1行下の直接入力へ移ります（Shift+Enterで1行上）。</p>
+
+    <div class="total-display">
+        <div class="total-display-sub">
+            <span class="lbl" data-i18n="base">基礎点：</span><span id="dd-base">0.0</span><br>
+            <span class="lbl" data-i18n="bonus">ボーナス点：</span><span id="dd-bonus">0.0</span>
+        </div>
+        <div class="total-val-wrap">
+            <div class="total-val-label">Total DD</div>
+            <div id="total-dd" class="total-val">0.0</div>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <a id="back-link" class="btn btn-secondary" href="#" data-i18n="back">← メニューに戻る</a>
+        <button class="btn btn-secondary" onclick="clearAll()" data-i18n="clear">クリア</button>
+        <button class="btn btn-primary" onclick="saveCSV()" data-i18n="csv">💾 CSVで保存</button>
+    </div>
+</div>
+
+<script type="module">
+    import "./demo-data-dcalc.js";
+    import { getSkills } from "./cache.js";
+
+    const eventId = new URLSearchParams(location.search).get('event');
+    document.getElementById('back-link').href = eventId ? 'index.html' : 'admin_index.html';
+
+    let skillMaster = [];
+    const LABEL_TO_ID = new Map();   // 技名ラベル → 技ID（予測変換の逆引き）
+
+    // ---- 言語（日本語 / English）。URL の ?lang=en でも指定できる。選んだ言語はこのブラウザに覚えさせる ----
+    let lang = 'ja';
+    try {
+        const q = new URLSearchParams(location.search).get('lang');
+        lang = (q === 'en' || q === 'ja') ? q : (localStorage.getItem('demoLang2') === 'ja' ? 'ja' : 'en');
+    } catch { /* 使えなければ日本語 */ }
+    const I18N = {
+        ja: {
+            pageTitle: 'D計算用 - Trampoline Scoring System', title: 'D（難度）計算用',
+            sub: '選手名・チーム名と技を入力してDDを計算し、CSVで保存できます。確定・提出はされません（計算専用）。',
+            name: '選手名', team: 'チーム名', gender: '性別', optional: '（空欄可）',
+            g_男子: '男子', g_女子: '女子', g_混合: '混合',
+            th_dir: '系統', th_soma: '宙系 / 姿勢', th_sel: '技名（選択）', th_txt: '技名（直接入力・予測）',
+            hint: '💡 右の「直接入力」欄に技名を打つと候補が出ます。選ぶと左の系統・宙系・技名が自動で埋まります。技が決まったあとの <b>Enter</b> で1行下の直接入力へ移ります（Shift+Enterで1行上）。',
+            base: '基礎点：', bonus: 'ボーナス点：', back: '← メニューに戻る', clear: 'クリア', csv: '💾 CSVで保存',
+            search: '技名で検索', select: '選択してください',
+            d_前方系: '前方系', d_後方系: '後方系', d_基礎技: '基礎技',
+            soma_all: '--（全て）', soma_none: '--',
+            s_スタンドから: 'スタンドから', s_腰から: '腰から', s_腹から: '腹から', s_背から: '背から',
+            s_1回宙: '1回宙系', s_2回宙low: '2回宙系（1.5以下）', s_2回宙high: '2回宙系（1.6以上）', s_3回宙: '3回宙系', s_4回宙: '4回宙系',
+            confirmClear: '選手名・チーム名と技をすべてクリアします。よろしいですか？',
+            confirmEmpty: '名前・チーム名・技がいずれも未入力です。このまま保存しますか？',
+            c_name: '選手名', c_team: 'チーム名', c_gender: '性別', c_date: '日時',
+            c_head: ['#', '系統', '宙系/姿勢', '技名', 'DD'], c_base: '基礎点', c_bonus: 'ボーナス点', c_total: '合計DD',
+        },
+        en: {
+            pageTitle: 'D Calculator - Trampoline Scoring System', title: 'D (Difficulty) Calculator',
+            sub: 'Enter the athlete, team and skills to calculate the DD, and save it as CSV. Nothing is submitted or confirmed (calculation only).',
+            name: 'Athlete', team: 'Team', gender: 'Gender', optional: '(optional)',
+            g_男子: 'Men', g_女子: 'Women', g_混合: 'Mixed',
+            th_dir: 'Direction', th_soma: 'Somersault / Start', th_sel: 'Skill (select)', th_txt: 'Skill (type to search)',
+            hint: '💡 Type a skill name in the right-hand column to see suggestions. Picking one fills in the direction, somersault and skill on the left. Press <b>Enter</b> once the skill is set to jump to the next row (Shift+Enter: previous row).',
+            base: 'Base DD: ', bonus: 'Bonus: ', back: '← Back to menu', clear: 'Clear', csv: '💾 Save CSV',
+            search: 'Search skill', select: 'Select',
+            d_前方系: 'Forward', d_後方系: 'Backward', d_基礎技: 'Basic',
+            soma_all: '-- (all)', soma_none: '--',
+            s_スタンドから: 'From feet', s_腰から: 'From seat', s_腹から: 'From front', s_背から: 'From back',
+            s_1回宙: '1 somersault', s_2回宙low: '2 somersaults (DD ≤ 1.5)', s_2回宙high: '2 somersaults (DD ≥ 1.6)', s_3回宙: '3 somersaults', s_4回宙: '4 somersaults',
+            confirmClear: 'Clear the athlete, team and all skills. Are you sure?',
+            confirmEmpty: 'The athlete, team and skills are all empty. Save anyway?',
+            c_name: 'Athlete', c_team: 'Team', c_gender: 'Gender', c_date: 'Date',
+            c_head: ['#', 'Direction', 'Somersault/Start', 'Skill', 'DD'], c_base: 'Base DD', c_bonus: 'Bonus', c_total: 'Total DD',
+        },
+    };
+    const T = k => I18N[lang][k];
+
+    // 技名のラベル。英語では、技マスタの Symbol（英）・注釈（英）を使う（未入力なら日本語のまま出す＝同じ記号の別の技を区別できなくならないように）。
+    // 表示用（displaySymbol）は会場表示用で、別の技でも同じ文字になることがあるので使わない。
+    const symOf  = s => lang === 'en' ? (s.symbolEn || s.symbol) : s.symbol;
+    const noteOf = s => lang === 'en' ? (s.noteEn || s.note) : s.note;
+    const labelOf = s => { const n = noteOf(s); return n ? (lang === 'en' ? `${symOf(s)} (${n})` : `${symOf(s)}（${n}）`) : symOf(s); };
+    const escapeHtml = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // 2段目セレクタの選択肢（系統で出し分け: 基礎技=開始姿勢 / 宙技=宙系）— entry.html と同一
+    const somaOptions = kind => kind === 'basic'
+        ? [['', T('soma_all')], ...['スタンドから', '腰から', '腹から', '背から'].map(v => [v, T('s_' + v)])]
+        : [['', T('soma_none')], ['1回宙', T('s_1回宙')], ['2回宙（1.5以下）', T('s_2回宙low')], ['2回宙（1.6以上）', T('s_2回宙high')], ['3回宙', T('s_3回宙')], ['4回宙', T('s_4回宙')]];
+
+    // 予測変換用の datalist と 逆引きマップを構築（同一ラベルは最初の技を採用・重複表示は省く）
+    function buildDatalist() {
+        LABEL_TO_ID.clear();
+        const seen = new Set(), opts = [];
+        skillMaster.forEach(s => {
+            const lbl = labelOf(s);
+            if (!LABEL_TO_ID.has(lbl)) LABEL_TO_ID.set(lbl, s.id);
+            if (!seen.has(lbl)) { seen.add(lbl); opts.push(`<option value="${escapeHtml(lbl)}"></option>`); }
+        });
+        document.getElementById('skill-datalist').innerHTML = opts.join('');
+    }
+
+    // 画面の文言を、いまの言語に合わせる（選択中の技・入力内容は変えない）
+    function applyLang() {
+        document.documentElement.lang = lang;
+        document.title = T('pageTitle');
+        document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = T(el.dataset.i18nHtml); });
+        document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = T(el.dataset.i18nPh); });
+        for (const o of document.getElementById('gender').options) o.textContent = T('g_' + o.value);
+        document.getElementById('lang-ja').setAttribute('aria-pressed', String(lang === 'ja'));
+        document.getElementById('lang-en').setAttribute('aria-pressed', String(lang === 'en'));
+        if (!skillMaster.length) return;
+        buildDatalist();
+        for (let i = 1; i <= 10; i++) {
+            for (const o of document.getElementById(`dir-${i}`).options) if (o.value) o.textContent = T('d_' + o.value);
+            document.getElementById(`skill-text-${i}`).placeholder = T('search');
+            updateOptions(i, document.getElementById(`skill-${i}`).value, false, true);   // 宙系・技名の選択肢を作り直し、予測欄も新しい言語のラベルに
+        }
+        calcTotal();
+    }
+    window.setLang = l => {
+        lang = l === 'en' ? 'en' : 'ja';
+        try { localStorage.setItem('demoLang2', lang); } catch { /* 保存できなくても動く */ }
+        applyLang();
+    };
+
+    async function init() {
+        skillMaster = await getSkills();
+
+        buildDatalist();
+
+        let rows = '';
+        for (let i = 1; i <= 10; i++) {
+            rows += `<tr id="row-${i}"><td>${i}</td>
+                <td><select id="dir-${i}" onchange="updateOptions(${i})"><option value="">--</option>
+                    <option value="前方系">${T('d_前方系')}</option>
+                    <option value="後方系">${T('d_後方系')}</option>
+                    <option value="基礎技">${T('d_基礎技')}</option></select></td>
+                <td><select id="soma-${i}" onchange="updateOptions(${i})"></select></td>
+                <td><select id="skill-${i}" onchange="onSkillSelect(${i})"><option value="">${T('select')}</option></select></td>
+                <td><input type="text" class="skill-text" list="skill-datalist" id="skill-text-${i}" oninput="onSkillText(${i})" onchange="onSkillText(${i})" placeholder="${T('search')}"></td>
+                <td><span id="dd-${i}">0.0</span></td></tr>`;
+        }
+        document.getElementById('skill-rows').innerHTML = rows;
+        for (let i = 1; i <= 10; i++) updateOptions(i, '', false);
+        calcTotal();
+        applyLang();
+    }
+
+    // 系統・宙系に応じて技名ドロップダウンを構築（entry.html と同一ロジック＋末尾で予測欄を同期）
+    window.updateOptions = (idx, selectedId = "", doCalc = true, syncTextBack = true) => {
+        const dir    = document.getElementById(`dir-${idx}`).value;
+        const somaEl = document.getElementById(`soma-${idx}`);
+        const sel    = document.getElementById(`skill-${idx}`);
+        const currentVal = sel.value;
+        const isBasic = dir === '基礎技';
+        if (somaEl) {
+            const showSoma = !!dir;
+            somaEl.style.visibility = showSoma ? '' : 'hidden';
+            let want = somaEl.value;
+            if (selectedId) {
+                const sk = skillMaster.find(s => s.id === selectedId);
+                if (sk) {
+                    want = (sk.direction === '基礎技') ? (sk.somersaultType || '')
+                         : (sk.somersaultType === '2回宙')
+                             ? (sk.doubleSomaGroup === 'high' ? '2回宙（1.6以上）' : '2回宙（1.5以下）')
+                             : (sk.somersaultType || '');
+                }
+            }
+            const optsSoma = somaOptions(isBasic ? 'basic' : 'aerial');
+            somaEl.innerHTML = optsSoma.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+            somaEl.value = (showSoma && optsSoma.some(([v]) => v === want)) ? want : '';
+        }
+        const soma = somaEl?.value || '';
+        let somaType  = soma, somaGroup = '';
+        if (soma === '2回宙（1.5以下）') { somaType = '2回宙'; somaGroup = 'low'; }
+        else if (soma === '2回宙（1.6以上）') { somaType = '2回宙'; somaGroup = 'high'; }
+        sel.innerHTML = `<option value="">${T('select')}</option>`;
+        if (dir) {
+            skillMaster.filter(s => {
+                if (s.direction !== dir) return false;
+                if (somaType && s.somersaultType !== somaType) return false;
+                if (somaGroup && s.doubleSomaGroup !== somaGroup) return false;
+                return true;
+            }).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = labelOf(s);
+                if (s.id === selectedId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+        if (!selectedId && currentVal) sel.value = currentVal;
+        if (syncTextBack) syncText(idx);   // 予測欄を現在の技選択に同期（入力途中は呼ばずカーソル移動を防ぐ）
+        if (doCalc) calcTotal();
+    };
+
+    // 技名ドロップダウンを直接変更したとき
+    window.onSkillSelect = (idx) => { syncText(idx); calcTotal(); };
+
+    // 予測欄に入力/選択したとき（input＝候補選択の瞬間に発火）→ ラベルから技IDを逆引きして
+    // 左のドロップダウンを即入力。完全一致したときだけ入り、打ちかけでは何もしない。
+    window.onSkillText = (idx) => {
+        const v = document.getElementById(`skill-text-${idx}`).value.trim();
+        if (!v) return;                   // 空欄は現状維持（クリアはドロップダウンで）
+        const id = LABEL_TO_ID.get(v);
+        if (id) fillRow(idx, id, false);  // テキストは上書きしない（入力途中のカーソル移動を防ぐ）
+    };
+
+    // 技IDから系統・宙系・技名ドロップダウンを埋める
+    window.fillRow = (idx, skillId, syncTextBack = true) => {
+        const skill = skillMaster.find(s => s.id === skillId);
+        if (!skill) return;
+        document.getElementById(`dir-${idx}`).value = skill.direction || '';
+        updateOptions(idx, skillId, true, syncTextBack);   // 宙系・技名を構築して選択・再計算
+    };
+
+    // 予測欄を「現在ドロップダウンで選択中の技名ラベル」に合わせる
+    window.syncText = (idx) => {
+        const id = document.getElementById(`skill-${idx}`).value;
+        const el = document.getElementById(`skill-text-${idx}`);
+        if (!el) return;
+        const skill = skillMaster.find(s => s.id === id);
+        el.value = skill ? labelOf(skill) : '';
+    };
+
+    // キー操作: 直接入力欄で Enter → 1行下の直接入力へ（Shift+Enter → 1行上へ。10行目の次は1行目、1行目の前は10行目）。
+    // 日本語入力の確定の Enter、候補を選ぶための Enter では動かさない（技が決まった / 空欄のときだけ移る）。
+    document.getElementById('skill-rows').addEventListener('keydown', e => {
+        const m = /^skill-text-([0-9]+)$/.exec(e.target.id || '');
+        if (!m || e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+        const v = e.target.value.trim();
+        if (v && !LABEL_TO_ID.has(v)) return;   // 打ちかけ・候補の選択中は、ブラウザに任せる（選ぶと技が入る）
+        e.preventDefault();
+        const i = +m[1];
+        const next = e.shiftKey ? (i === 1 ? 10 : i - 1) : (i === 10 ? 1 : i + 1);
+        const el = document.getElementById(`skill-text-${next}`);
+        if (el) { el.focus(); el.select(); el.scrollIntoView({ block: 'nearest' }); }
+    });
+
+    window.calcTotal = () => {
+        let baseDD = 0, tripleCount = 0;
+        const seenIds = new Set(), idCounts = {};
+        for (let i = 1; i <= 10; i++) {
+            const id = document.getElementById(`skill-${i}`).value;
+            if (id) idCounts[id] = (idCounts[id] || 0) + 1;
+        }
+        for (let i = 1; i <= 10; i++) {
+            const id = document.getElementById(`skill-${i}`).value;
+            const row = document.getElementById(`row-${i}`);
+            const ddSpan = document.getElementById(`dd-${i}`);
+            if (!id) {
+                ddSpan.textContent = "0.0";
+                ddSpan.classList.remove('dd-zero');
+                row.classList.remove('duplicate-row');
+                continue;
+            }
+            const skill = skillMaster.find(s => s.id === id);
+            row.classList.toggle('duplicate-row', idCounts[id] > 1);
+            if (seenIds.has(id)) {
+                ddSpan.textContent = "0.0";          // 同じ技の2本目以降は0点
+                ddSpan.classList.add('dd-zero');
+            } else {
+                seenIds.add(id);
+                ddSpan.textContent = skill.dd.toFixed(1);
+                ddSpan.classList.remove('dd-zero');
+                baseDD += skill.dd;
+                if (skill.isTriple) tripleCount++;
+            }
+        }
+        const gender = document.getElementById('gender').value;
+        let bonus = 0;
+        if (gender === '男子' && tripleCount > 5) bonus = (tripleCount - 5) * 0.3;
+        if ((gender === '女子' || gender === '混合') && tripleCount >= 3) bonus = (tripleCount - 2) * 0.3;
+        document.getElementById('dd-base').textContent  = baseDD.toFixed(1);
+        document.getElementById('dd-bonus').textContent = bonus.toFixed(1);
+        document.getElementById('total-dd').textContent = (baseDD + bonus).toFixed(1);
+    };
+
+    window.clearAll = () => {
+        if (!confirm(T('confirmClear'))) return;
+        document.getElementById('name').value = '';
+        document.getElementById('team').value = '';
+        for (let i = 1; i <= 10; i++) {
+            document.getElementById(`dir-${i}`).value = '';
+            updateOptions(i, '', false);
+        }
+        calcTotal();
+    };
+
+    // ---- CSV 保存 ----
+    const sanitize = s => String(s).replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
+    const csvCell  = v => { v = String(v ?? ''); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+    function downloadCSV(filename, rows) {
+        const csv  = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });  // BOM付きでExcel文字化け防止
+        const url  = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    window.saveCSV = () => {
+        const name   = document.getElementById('name').value.trim();
+        const team   = document.getElementById('team').value.trim();
+        const gender = document.getElementById('gender').value;
+
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const stamp    = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const readable = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+        const somaLabel = (i) => {
+            const el = document.getElementById(`soma-${i}`);
+            return (el && el.value) ? (el.options[el.selectedIndex]?.text || '') : '';
+        };
+
+        const rows = [];
+        rows.push([T('c_name'), name]);
+        rows.push([T('c_team'), team]);
+        rows.push([T('c_gender'), T('g_' + gender)]);
+        rows.push([T('c_date'), readable]);
+        rows.push([]);
+        rows.push(T('c_head'));
+        let anySkill = false;
+        for (let i = 1; i <= 10; i++) {
+            const id = document.getElementById(`skill-${i}`).value;
+            if (!id) continue;
+            anySkill = true;
+            const skill = skillMaster.find(s => s.id === id);
+            rows.push([i, skill.direction ? T('d_' + skill.direction) : '', somaLabel(i), labelOf(skill), document.getElementById(`dd-${i}`).textContent]);
+        }
+        rows.push([]);
+        rows.push([T('c_base'),  document.getElementById('dd-base').textContent]);
+        rows.push([T('c_bonus'), document.getElementById('dd-bonus').textContent]);
+        rows.push([T('c_total'), document.getElementById('total-dd').textContent]);
+
+        if (!anySkill && !name && !team) {
+            if (!confirm(T('confirmEmpty'))) return;
+        }
+
+        // ファイル名: 名前_チーム名_時間 ／ 名前もチーム名も空なら時間のみ
+        const parts  = [name, team].map(sanitize).filter(Boolean);
+        const prefix = parts.length ? parts.join('_') + '_' : '';
+        downloadCSV(`${prefix}${stamp}.csv`, rows);
+    };
+
+    init();
+</script>
+
+<style>
+  #demo-badge{position:fixed;left:10px;bottom:10px;z-index:2147483000;display:flex;gap:8px;align-items:center;font:600 12px/1.2 system-ui,'Noto Sans JP',sans-serif;
+    background:rgba(17,24,39,.86);color:#fff;border-radius:999px;padding:6px 8px 6px 12px;box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:.9}
+  #demo-badge:hover{opacity:1}
+  #demo-badge b{background:#f59e0b;color:#111;border-radius:999px;padding:2px 8px;font-size:11px;letter-spacing:.04em}
+  #demo-badge a{color:#fff;text-decoration:none}
+  #demo-badge .lang{display:inline-flex;margin-left:2px}
+  #demo-badge .lang button{font:inherit;font-size:11px;font-weight:700;padding:3px 9px;background:transparent;color:#cbd5e1;border:1px solid #64748b;cursor:pointer}
+  #demo-badge .lang button:first-child{border-radius:999px 0 0 999px}
+  #demo-badge .lang button:last-child{border-radius:0 999px 999px 0;border-left:0}
+  #demo-badge .lang button[aria-pressed="true"]{background:#fff;color:#111;border-color:#fff}
+</style>
+<div id="demo-badge"><b>DEMO</b><a href="index.html" title="デモ一覧に戻る">ダミーデータ ・ ← デモ一覧</a></div>
+</body>
+</html>

@@ -36,6 +36,23 @@
       --col-gap: 0.6cqw;
       --frame-pad-x: 3cqw;
     }
+    /* ---- 色テーマ: 上山杯パターン（大会画面コントロールから選択） ----
+       今の色は青パターンの複製。上山杯の色を変えるときは、このブロックを直す（青パターンには影響しない）。 */
+    :root[data-theme="ueyama"]{
+      --accent-cyan: #00f2ff;
+      --accent-rgb: 0,242,255;
+      --accent-gold: #ffd700;
+      --gold-rgb: 255,215,0;
+      --bg-grad-1: #001e3d;
+      --bg-grad-alt-1: #001430;
+      --bg-grad-2: #000810;
+      --bg-logo-1: #07111f;
+      --bg-logo-2: #020810;
+      --text-muted: #cbd5e0;
+      --dns-color: #e040fb;
+      --alert-red: #ff3d3d;
+      --border-ui: rgba(var(--accent-rgb),0.2);
+    }
     /* ---- 色テーマ: 赤パターン（大会画面コントロールから選択） ---- */
     /* 大会ロゴ(#E7354F)に合わせたフラット背景。グラデーションは使わず、全背景変数を同色にする。
        背景自体が赤なので、アクセント(枠線・光彩・見出し)は白系に置き換えて視認性を確保する。 */
@@ -1887,13 +1904,13 @@
     holdSec:        3,   // アニメーション完了後に保持する秒数
     rankingRows:   12,   // 順位表の1ページあたりの表示人数
     rankingPageSec: 8,   // 順位表ページ送りの間隔（秒）
-    colorTheme: 'blue',  // 会場ディスプレイの色テーマ（'blue' | 'red'）
+    colorTheme: 'blue',  // 会場ディスプレイの色テーマ（'blue' | 'red' | 'ueyama'=上山杯）
   };
 
-  // 色テーマをhtml要素のdata-theme属性に反映する（CSS側の :root[data-theme="red"] が実際の色を差し替える）
+  // 色テーマをhtml要素のdata-theme属性に反映する（CSS側の :root[data-theme="red"] などが実際の色を差し替える）
   function applyColorTheme() {
-    if (displaySettings.colorTheme === 'red') {
-      document.documentElement.dataset.theme = 'red';
+    if (['red', 'ueyama'].includes(displaySettings.colorTheme)) {
+      document.documentElement.dataset.theme = displaySettings.colorTheme;
     } else {
       delete document.documentElement.dataset.theme;
     }

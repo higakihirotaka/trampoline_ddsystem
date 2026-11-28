@@ -669,6 +669,9 @@
                     <button type="button" class="theme-swatch" data-theme="red" style="--swatch-color:#e63a54;">
                         <span class="swatch-dot"></span>赤パターン
                     </button>
+                    <button type="button" class="theme-swatch" data-theme="ueyama" style="--swatch-color:#00f2ff;">
+                        <span class="swatch-dot"></span>上山杯パターン
+                    </button>
                 </div>
             </div>
         </div>
@@ -824,7 +827,7 @@
             if (r) r.value = v; if (i) i.value = v;
         });
         updateTimeline();
-        selectedColorTheme = s.colorTheme === 'red' ? 'red' : 'blue';
+        selectedColorTheme = ['red', 'ueyama'].includes(s.colorTheme) ? s.colorTheme : 'blue';
         document.querySelectorAll('.theme-swatch').forEach(b => b.classList.toggle('active', b.dataset.theme === selectedColorTheme));
     }
     function readDispSettings() {
