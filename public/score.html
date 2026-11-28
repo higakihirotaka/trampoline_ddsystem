@@ -178,6 +178,17 @@
     font-size: 11px;
     color: rgba(255, 255, 255, .65);
   }
+  /* 大会ロゴ: 上山杯パターンのときだけ出す（ほかのテーマでは表示せず、画像も読み込まない）。
+     元の画像は黒い筆文字なので、ヘッダーの濃い背景に合わせて白にする */
+  .t-logo { display: none; }
+  :root[data-theme="ueyama"] .t-logo {
+    display: block;
+    width: min(66%, 300px);
+    aspect-ratio: 1200 / 489;
+    margin: 14px 0 4px;
+    background: url("logo_ueyama.png") left center / contain no-repeat;
+    filter: brightness(0) invert(1) drop-shadow(0 2px 8px rgba(0, 0, 0, .35));
+  }
   .hero h1 {
     font-size: 20px;
     line-height: 1.35;
@@ -802,6 +813,7 @@
       <div class="kicker">LIVE SCORES</div>
       <div class="stamp" id="stamp"></div>
     </div>
+    <div class="t-logo" role="img" aria-label="上山杯"></div>
     <h1 id="t-name">読み込み中…</h1>
     <div class="meta" id="t-meta"></div>
     <div class="row">
@@ -869,7 +881,7 @@ async function loadGroup(key, force) {
 }
 function applyTournament() {
   const t = index.tournament || {};
-  if (t.colorTheme === 'red') document.documentElement.dataset.theme = 'red';
+  if (['red', 'ueyama'].includes(t.colorTheme)) document.documentElement.dataset.theme = t.colorTheme;
   $('t-name').textContent = t.name || '';
   document.title = (t.name ? t.name + ' ' : '') + 'スコア速報';
   const range = [t.startDate, t.endDate].filter(Boolean).map(s => String(s).replace(/-/g, '/')).join(' – ');
